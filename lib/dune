@@ -1,2 +1,5 @@
 (library
  (name state_based))
+(env
+  (dev
+    (flags (:standard -w -37))))
