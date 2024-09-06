@@ -14,8 +14,7 @@ module rec Ast_Base_Types : Ast_Types = struct
   type element = File | Directory
 
   type action = Copy
-  type functn = LineInFile
-  type uninterp = Download | Template | GitClone
+  type funct = LineInFile | Download | Template | GitClone
   type literal = Unit   of unit
                | Bool   of bool
                | Int    of int

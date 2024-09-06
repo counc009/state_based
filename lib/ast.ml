@@ -10,8 +10,7 @@ module type Ast_Types = sig
   type element
 
   type action
-  type functn
-  type uninterp
+  type funct
   type literal
 
   type variable
@@ -42,22 +41,14 @@ module Ast(Types : Ast_Types) : AST with module Types = Types = struct
            | Named     of namedTy
            | Struct    of structTy
 
-  type expr = Function      of functn   * expr
-            | Uninterpreted of uninterp * expr
+  type expr = Function      of funct    * expr
             | Literal       of literal
             | Variable      of variable
             | Pair          of expr     * expr
-            | Projection    of bool     * expr (* true = 1, false = 2 *)
-            | Constructor   of namedTy  * bool  * expr (* true = L, false = R *)
-            | EmptyStruct   of structTy
-            (* struct type, field name, original struct, new field value *)
-            | SetField      of structTy * field * expr * expr
-            | RemoveField   of structTy * field * expr
 
   type value = Unknown       of uid      * typ
              | Literal       of literal  * primTy
-             | Function      of functn   * value * typ
-             | Uninterpreted of uninterp * value * typ
+             | Function      of funct    * value * typ
              | Pair          of value    * value * typ
              | Constructor   of namedTy  * bool  * value (* true = L, false = R *)
              | Struct        of structTy * value FieldMap.t
