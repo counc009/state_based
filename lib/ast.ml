@@ -1,7 +1,89 @@
-module type Ast_Types = sig
+type uid = unit ref
+
+(* Type Variables:
+  * 'p : primitive types
+  * 'n : named types
+  * 's : struct types
+  * 'f : functions
+  * 'l : literals
+  * 'v : variables
+  * 'd : struct fields
+  * 'a : attributes
+  * 'e : elements
+  * 'c : actions
+  *)
+type ('p, 'n, 's) typD
+  = Product   of ('p, 'n, 's) typD * ('p, 'n, 's) typD
+  | Primitive of 'p
+  | Named     of 'n
+  | Struct    of 's
+
+type ('f, 'l, 'v) exprD
+  = Function of 'f * ('f, 'l, 'v) exprD
+  | Literal  of 'l
+  | Variable of 'v
+  | Pair     of ('f, 'l, 'v) exprD * ('f, 'l, 'v) exprD
+
+type ('p, 'n, 's, 'f, 'l, 'd) valueD
+  = Unknown     of uid * ('p, 'n, 's) typD
+  | Literal     of 'l  * 'p
+  | Function    of 'f 
+                 * ('p, 'n, 's, 'f, 'l, 'd) valueD
+                 * ('p, 'n, 's) typD
+  | Pair        of ('p, 'n, 's, 'f, 'l, 'd) valueD
+                 * ('p, 'n, 's, 'f, 'l, 'd) valueD
+                 * ('p, 'n, 's) typD
+  | Constructor of 'n  * bool (* true = L, false = R *)
+                 * ('p, 'n, 's, 'f, 'l, 'd) valueD
+  | Struct      of 's  * ('d -> ('p, 'n, 's, 'f, 'l, 'd) valueD)
+
+type ('f, 'l, 'v, 'a, 'e) qualD
+  = BaseQual  of ('f, 'l, 'v, 'a, 'e) bqualD
+  | NotQual   of ('f, 'l, 'v, 'a, 'e) bqualD
+  | AndQual   of ('f, 'l, 'v, 'a, 'e) qualD * ('f, 'l, 'v, 'a, 'e) qualD
+and ('f, 'l, 'v, 'a, 'e) bqualD
+  = Attribute of 'a * ('f, 'l, 'v) exprD
+  | Element   of 'e * ('f, 'l, 'v) exprD
+  (* Qualifiable qualifier first, what we're qualifying this second *)
+  | With      of ('f, 'l, 'v, 'a, 'e) bqualD * ('f, 'l, 'v, 'a, 'e) qualD
+
+type ('f, 'l, 'v, 'a, 'e) attrD
+  = AttrAccess  of 'a
+  | OnAttribute of 'a * ('f, 'l, 'v) exprD * ('f, 'l, 'v, 'a, 'e) attrD
+  | OnElement   of 'e * ('f, 'l, 'v) exprD * ('f, 'l, 'v, 'a, 'e) attrD
+
+(* All statements, other than branches and terminators, take an additional
+ * statement which is the "next" statement. This avoids having a Seq
+ * constructor which would be somewhat annoying to implement *)
+type ('f, 'l, 'v, 'a, 'e, 'c) stmtD
+  = Action   of 'v * 'c * ('f, 'l, 'v) exprD    * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
+  | Assign   of 'v * ('f, 'l, 'v) exprD         * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
+  | Add      of ('f, 'l, 'v, 'a, 'e) qualD      * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
+  | Get      of 'v * ('f, 'l, 'v, 'a, 'e) attrD * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
+  | Contains of ('f, 'l, 'v, 'a, 'e) qualD
+              * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
+              * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
+  | Cond     of ('f, 'l, 'v) exprD
+              * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
+              * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
+  | Loop     of ('f, 'l, 'v) exprD
+              * ('f, 'l, 'v, 'a, 'e, 'c) stmtD (* body of loop *)
+              * ('f, 'l, 'v, 'a, 'e, 'c) stmtD (* following the loop *)
+  | Match    of ('f, 'l, 'v) exprD * 'v (* variable is for value in constructor *)
+              * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
+              * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
+  | Fail     of string
+  | Return   of ('f, 'l, 'v) exprD
+
+module type Ast_Defs = sig
+  type primTy
   type namedTy
   type structTy
-  type primTy
+
+  type funct
+  type literal
+  type variable
+  module VariableMap : Map.S with type key = variable
 
   type field
   module FieldMap : Map.S with type key = field
@@ -10,86 +92,24 @@ module type Ast_Types = sig
   type element
 
   type action
-  type funct
-  type literal
 
-  type variable
-  module VariableMap : Map.S with type key = variable
-end
-
-module type AST = sig
-  module Types : Ast_Types
-
-  type uid
-  type typ
-  type expr
-  type value
-  type qual
-  type bqual
-  type attr
-  type stmt
-end
-
-module Ast(Types : Ast_Types) : AST with module Types = Types = struct
-  module Types = Types
-  open Types
-
-  type uid = unit ref
-
-  type typ = Primitive of primTy
-           | Product   of typ * typ
-           | Named     of namedTy
-           | Struct    of structTy
-
-  type expr = Function      of funct    * expr
-            | Literal       of literal
-            | Variable      of variable
-            | Pair          of expr     * expr
-
-  type value = Unknown       of uid      * typ
-             | Literal       of literal  * primTy
-             | Function      of funct    * value * typ
-             | Pair          of value    * value * typ
-             | Constructor   of namedTy  * bool  * value (* true = L, false = R *)
-             | Struct        of structTy * value FieldMap.t
-
-  type qual = BaseQual  of bqual
-            | NotQual   of bqual
-            | AndQual   of qual * qual
-  and bqual = Attribute of attribute * expr
-            | Element   of element   * expr
-            (* Qualifiable qualifier first, what we're qualifying this second *)
-            | With      of bqual     * qual
-
-  type attr = AttrAccess  of attribute
-            | OnAttribute of attribute * expr * attr
-            | OnElement   of element   * expr * attr
-
-  (* All statements, other than branches and terminators, take an additional
-   * statement which is the "next" statement. This avoids having a Seq
-   * constructor which would be somewhat annoying to implement *)
-  type stmt = Action   of variable * action * expr * stmt
-            | Assign   of variable * expr          * stmt
-            | Add      of qual                     * stmt
-            | Get      of variable * attr          * stmt
-            | Contains of qual     * stmt   * stmt
-            | Cond     of expr     * stmt   * stmt
-            | Loop     of variable * expr   * stmt * stmt (* body then next *)
-            (* Variable is the name for the value in the constructor *)
-            | Match    of variable * expr   * stmt * stmt
-            | Fail     of string
-            | Return   of expr
-end
-
-module type Ast_Defs = sig
-  module Types : Ast_Types
-  module Ast : AST
+  type typ = (primTy, namedTy, structTy) typD
+  type expr = (funct, literal, variable) exprD
+  type value = (primTy, namedTy, structTy, funct, literal, field) valueD
+  type qual = (funct, literal, variable, attribute, element) qualD
+  type bqual = (funct, literal, variable, attribute, element) bqualD
+  type attr = (funct, literal, variable, attribute, element) attrD
+  type stmt = (funct, literal, variable, attribute, element, action) stmtD
 
   (* Definitions for the parameterized components *)
-  val namedTyDef : Ast.Types.namedTy -> Ast.typ * Ast.typ
-  val structTyDef : Ast.Types.structTy -> Ast.typ Ast.Types.FieldMap.t
-  val attributeDef : Ast.Types.attribute -> Ast.typ
-  val elementDef : Ast.Types.element -> Ast.typ
-  val literalTyp : Ast.Types.literal -> Ast.Types.primTy
-  val actionDef : Ast.Types.action -> Ast.Types.variable * Ast.typ * Ast.typ * Ast.stmt
+  val namedTyDef : namedTy -> typ * typ
+  val structTyDef : structTy -> typ FieldMap.t
+
+  val funcDef : funct -> typ * typ * (value -> value option)
+  val literalTyp : literal -> primTy
+
+  val attributeDef : attribute -> typ
+  val elementDef : element -> typ
+
+  val actionDef : action -> variable * typ * typ * stmt
 end

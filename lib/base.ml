@@ -1,20 +1,25 @@
 open Ast
 
-module rec Ast_Base_Types : Ast_Types = struct
-  open Ast_Base
+exception NotImplemented
+
+module Ast_Base : Ast_Defs = struct
+  type primTy   = Unit | Bool | Int | Float | String | Path
 
   type namedTy  = List of typ | Either of typ * typ
-  and  structTy = (string * typ) list
-  and  primTy   = Unit | Bool | Int | Float | String | Path
+  and  structTy = Struct of (string * typ) list
+  and typ = (primTy, namedTy, structTy) typD
 
   type field = string
   module FieldMap = Map.Make(String)
 
-  type attribute = Content | Files | Dirs | User | Group
-  type element = File | Directory
+  type funct = Proj        of bool * typ * typ (* true = 1, false = 2 *)
+             | Constructor of bool * namedTy   (* true = L, false = R *)
+             | EmptyStruct of structTy
+             | AddField    of structTy * field
+             | ReadField   of structTy * field
+             | RemoveField of structTy * field
+             | LineInString | Download | Template | GitClone
 
-  type action = Copy
-  type funct = LineInFile | Download | Template | GitClone
   type literal = Unit   of unit
                | Bool   of bool
                | Int    of int
@@ -24,26 +29,46 @@ module rec Ast_Base_Types : Ast_Types = struct
 
   type variable = string
   module VariableMap = Map.Make(String)
-end
-and Ast_Base : AST = Ast(Ast_Base_Types)
 
-module Ast_Base_Defs : Ast_Defs = struct
-  module Types = Ast_Base_Types
-  module Ast = Ast_Base
+  type attribute = Content | Files | Dirs | User | Group
+  type element = File | Directory
 
-  let namedTyDef : Ast_Base_Types.namedTy -> Ast.typ * Ast.typ = function
+  type action = Copy
+
+  type expr = (funct, literal, variable) exprD
+  type value = (primTy, namedTy, structTy, funct, literal, field) valueD
+  type qual = (funct, literal, variable, attribute, element) qualD
+  type bqual = (funct, literal, variable, attribute, element) bqualD
+  type attr = (funct, literal, variable, attribute, element) attrD
+  type stmt = (funct, literal, variable, attribute, element, action) stmtD
+
+  let namedTyDef : namedTy -> typ * typ = function
     | List t -> (Primitive Unit, Product (t, Named (List t)))
     | Either (s, t) -> (s, t)
-  let structTyDef fs = FieldMap.of_seq (List.to_seq fs)
-  let attributeDef = function
-    | Content -> Primitive String
-    | Files   -> Named (List (Primitive Path))
-    | Dirs    -> Named (List (Primitive Path))
-    | User    -> Primitive String
-    | Group   -> Primitive String
-  let elementDef = function
-    | File      -> Primitive Path
-    | Directory -> Primitive Path
+  let structTyDef (Struct fs) = FieldMap.of_seq (List.to_seq fs)
+
+  let funcDef = function
+    | Proj (true, s, t)  -> (Product (s, t), s, fun _ -> None)
+    | Proj (false, s, t) -> (Product (s, t), t, fun _ -> None)
+    | Constructor (true, n)  -> (fst (namedTyDef n), Named n, fun _ -> None)
+    | Constructor (false, n) -> (snd (namedTyDef n), Named n, fun _ -> None)
+    | EmptyStruct s -> (Primitive Unit, Struct s, fun _ -> None)
+    | AddField (s, f) -> (Product (Struct s, FieldMap.find f (structTyDef s)),
+                          Struct s,
+                          fun _ -> None)
+    | ReadField (s, f) -> (Struct s, FieldMap.find f (structTyDef s), fun _ -> None)
+    | RemoveField (s, _) -> (Struct s, Struct s, fun _ -> None)
+    | LineInString -> (Product (Primitive String, Primitive String),
+                       Primitive String,
+                       fun _ -> None)
+    | Download -> (Primitive String, (* Path? URL? *)
+                   Primitive String,
+                   fun _ -> None)
+    | Template -> (Primitive String, Primitive String, fun _ -> None)
+    | GitClone -> (Primitive String, (* Path? URL? *)
+                   Primitive String,
+                   fun _ -> None)
+
   let literalTyp : literal -> primTy = function
     | Unit   _ -> Unit
     | Bool   _ -> Bool
@@ -52,7 +77,17 @@ module Ast_Base_Defs : Ast_Defs = struct
     | String _ -> String
     | Path   _ -> Path
 
-  exception NotImplemented
+  let attributeDef : attribute -> typ = function
+    | Content -> Primitive String
+    | Files   -> Named (List (Primitive Path))
+    | Dirs    -> Named (List (Primitive Path))
+    | User    -> Primitive String
+    | Group   -> Primitive String
+
+  let elementDef : element -> typ = function
+    | File      -> Primitive Path
+    | Directory -> Primitive Path
+
   let actionDef = function
     | Copy -> raise NotImplemented
 end
