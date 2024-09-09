@@ -71,7 +71,7 @@ type ('f, 'l, 'v, 'a, 'e, 'c) stmtD
   | Cond     of ('f, 'l, 'v) exprD
               * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
               * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
-  | Loop     of ('f, 'l, 'v) exprD
+  | Loop     of 'v * ('f, 'l, 'v) exprD
               * ('f, 'l, 'v, 'a, 'e, 'c) stmtD (* body of loop *)
               * ('f, 'l, 'v, 'a, 'e, 'c) stmtD (* following the loop *)
   | Match    of ('f, 'l, 'v) exprD * 'v (* variable is for value in constructor *)
