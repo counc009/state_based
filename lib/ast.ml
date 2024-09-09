@@ -1,5 +1,9 @@
 type uid = unit ref
 
+type 'a eval = Reduced of 'a
+             | Stuck
+             | Err of string
+
 (* Type Variables:
   * 'p : primitive types
   * 'n : named types
@@ -11,6 +15,7 @@ type uid = unit ref
   * 'a : attributes
   * 'e : elements
   * 'c : actions
+  * 'r : record (i.e. the representation of a struct)
   *)
 type ('p, 'n, 's) typD
   = Product   of ('p, 'n, 's) typD * ('p, 'n, 's) typD
@@ -24,18 +29,18 @@ type ('f, 'l, 'v) exprD
   | Variable of 'v
   | Pair     of ('f, 'l, 'v) exprD * ('f, 'l, 'v) exprD
 
-type ('p, 'n, 's, 'f, 'l, 'd) valueD
+type ('p, 'n, 's, 'f, 'l, 'd, 'r) valueD
   = Unknown     of uid * ('p, 'n, 's) typD
   | Literal     of 'l  * 'p
   | Function    of 'f 
-                 * ('p, 'n, 's, 'f, 'l, 'd) valueD
+                 * ('p, 'n, 's, 'f, 'l, 'd, 'r) valueD
                  * ('p, 'n, 's) typD
-  | Pair        of ('p, 'n, 's, 'f, 'l, 'd) valueD
-                 * ('p, 'n, 's, 'f, 'l, 'd) valueD
+  | Pair        of ('p, 'n, 's, 'f, 'l, 'd, 'r) valueD
+                 * ('p, 'n, 's, 'f, 'l, 'd, 'r) valueD
                  * ('p, 'n, 's) typD
   | Constructor of 'n  * bool (* true = L, false = R *)
-                 * ('p, 'n, 's, 'f, 'l, 'd) valueD
-  | Struct      of 's  * ('d -> ('p, 'n, 's, 'f, 'l, 'd) valueD)
+                 * ('p, 'n, 's, 'f, 'l, 'd, 'r) valueD
+  | Struct      of 's  * 'r
 
 type ('f, 'l, 'v, 'a, 'e) qualD
   = BaseQual  of ('f, 'l, 'v, 'a, 'e) bqualD
@@ -86,6 +91,7 @@ module type Ast_Defs = sig
   module VariableMap : Map.S with type key = variable
 
   type field
+  type record
   module FieldMap : Map.S with type key = field
 
   type attribute
@@ -95,7 +101,7 @@ module type Ast_Defs = sig
 
   type typ = (primTy, namedTy, structTy) typD
   type expr = (funct, literal, variable) exprD
-  type value = (primTy, namedTy, structTy, funct, literal, field) valueD
+  type value = (primTy, namedTy, structTy, funct, literal, field, record) valueD
   type qual = (funct, literal, variable, attribute, element) qualD
   type bqual = (funct, literal, variable, attribute, element) bqualD
   type attr = (funct, literal, variable, attribute, element) attrD
@@ -105,7 +111,7 @@ module type Ast_Defs = sig
   val namedTyDef : namedTy -> typ * typ
   val structTyDef : structTy -> typ FieldMap.t
 
-  val funcDef : funct -> typ * typ * (value -> value option)
+  val funcDef : funct -> typ * typ * (value -> value eval)
   val literalTyp : literal -> primTy
 
   val attributeDef : attribute -> typ
