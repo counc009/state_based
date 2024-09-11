@@ -61,6 +61,10 @@ module Interp(Ast : Ast.Ast_Defs) = struct
          cases? *)
       | Loop     (var, expr, body, next) -> []
       | Match    (expr, var, left, right) -> []
+      (* Similarly to conditionals, do we want to deal with analyzing matches *)
+      (* I think for the moment, only handle conds/match over evaluated
+         expressions, not unknown ones. We can later track conditions that
+         result from Cond/Match *)
       | Fail     msg -> (Err msg) :: []
       | Return   expr ->
           begin match eval_expr expr env with
