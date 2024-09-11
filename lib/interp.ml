@@ -83,6 +83,15 @@ module Interp(Ast : Ast.Ast_Defs) = struct
          | Product (hd, Named tl) when tl = n -> Some hd
          | _ -> None
 
+  let val_to_type (v : value) : typ =
+    match v with
+    | Unknown (_, t) -> t
+    | Literal (_, p) -> Primitive p
+    | Function (_, _, t) -> t
+    | Pair (_, _, t) -> t
+    | Constructor (n, _, _) -> Named n
+    | Struct (s, _) -> Struct s
+
   let interpret (s : stmt) (retTy : typ) : prg_res list =
     let rec eval_expr (e : expr) (env : env) : (value * typ) error =
       match e with
@@ -149,6 +158,59 @@ module Interp(Ast : Ast.Ast_Defs) = struct
               match eval_quals qs env with
               | Err msg -> Err msg
               | Ok state -> Ok (add_qual qres state)
+    (* Given an attribute AST and the current state, finds the attribute either
+     * in the final state or initial state, and (if necessary) adds the
+     * desired attribute with an unknown value.
+     * Returns the value of the attribute and resulting state *)
+    in let get_attribute (a : attr) (s : prg_type) (env : env) : (value * prg_type) error =
+      (* The helper traverses an attribute and a state to find the attribute's
+       * value (and returns the modified state if needed). Can fail by error or
+       * can return Ok None if it could not find some qualifier needed on the
+       * desired path *)
+      let rec helper (a : attr) (State (els, ats)) : (value * state) option error =
+        match a with
+        | AttrAccess a ->
+            begin match AttributeMap.find_opt (a, false) ats with
+            | Some (v, _) -> Ok (Some (v, State (els, ats)))
+            | None ->
+                let v : value = Unknown (ref (), attributeDef a)
+                in Ok (Some (v, State (els, AttributeMap.add (a, false) (v, init_state) ats)))
+            end
+        | OnAttribute (a, at) ->
+            begin match AttributeMap.find_opt (a, false) ats with
+            | None -> Ok None
+            | Some (av, qs) ->
+                match helper at qs with
+                | Err msg -> Err msg
+                | Ok None -> Ok None
+                | Ok (Some (v, st)) ->
+                    let new_ats = AttributeMap.add (a, false) (av, st) ats
+                    in Ok (Some (v, State (els, new_ats)))
+            end
+        | OnElement (el, e, at) ->
+            begin match eval_expr e env with
+            | Err msg -> Err msg
+            | Ok (v, _) ->
+                match ElementMap.find_opt (el, v, false) els with
+                | None -> Ok None
+                | Some qs ->
+                    match helper at qs with
+                    | Err msg -> Err msg
+                    | Ok None -> Ok None
+                    | Ok (Some (v, st)) ->
+                        let new_els = ElementMap.add (el, v, false) st els
+                        in Ok (Some (v, State (new_els, ats)))
+            end
+      in match helper a s.final with
+         | Err msg -> Err msg
+         | Ok (Some (v, new_state)) ->
+             Ok (v, { init = s.init; final = new_state; loops = s.loops; })
+         | Ok None ->
+             match helper a s.init with
+             | Err msg -> Err msg
+             | Ok None -> Err "Failed to locate attribute in current state"
+             | Ok (Some (v, new_init)) ->
+                 Ok (v, { init = new_init; final = s.final; loops = s.loops; })
     (* Notes on loops: the bodies should return the special expression "Env",
      * which is used to thread the environment back to the processing here so
      * so that loop can modify the environment outside of it. This does mean
@@ -231,7 +293,12 @@ module Interp(Ast : Ast.Ast_Defs) = struct
               in let new_state = { init = s.init; final = new_final; loops = s.loops }
               in interp next new_state env ret
           end
-      | Get      (var, attr, next) -> [] (* TODO *)
+      | Get      (var, attr, next) ->
+          begin match get_attribute attr s env with
+          | Err msg -> Err msg :: []
+          | Ok (v, new_state) ->
+              interp next new_state (VariableMap.add var (v, val_to_type v) env) ret
+          end
       | Contains (qual, thn, els) -> [] (* TODO *)
       (* TODO: For both cond and match, if the result of expression is not
        * a concrete value we could evaluate both branches and track the

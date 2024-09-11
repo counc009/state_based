@@ -59,7 +59,7 @@ and ('f, 'l, 'v, 'a, 'e) bqualD
 
 type ('f, 'l, 'v, 'a, 'e) attrD
   = AttrAccess  of 'a
-  | OnAttribute of 'a * ('f, 'l, 'v) exprD * ('f, 'l, 'v, 'a, 'e) attrD
+  | OnAttribute of 'a * ('f, 'l, 'v, 'a, 'e) attrD
   | OnElement   of 'e * ('f, 'l, 'v) exprD * ('f, 'l, 'v, 'a, 'e) attrD
 
 (* All statements, other than branches and terminators, take an additional
