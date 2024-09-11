@@ -1,13 +1,21 @@
+type uid = Ast.uid
+
 module Interp(Ast : Ast.Ast_Defs) = struct
   open Ast
+
+  module ValueOrder : Map.OrderedType with type t = value = struct
+    type t = value
+    let compare : value -> value -> int = compare
+  end
+  module ValueMap : Map.S with type key = value = Map.Make(ValueOrder)
 
   (* bools indicate negation (if true) or non-negated (if false) *)
   type state = State of (element * value * bool, state) Hashtbl.t
                       * (attribute * bool, value * state) Hashtbl.t
   let init_state = State (Hashtbl.create 10, Hashtbl.create 10)
 
-  type prg_type = state * state
-  let init_prg_type = (init_state, init_state)
+  type prg_type = { init : state; final : state; loops : uid ValueMap.t; }
+  let init_prg_type = { init = init_state; final = init_state; loops = ValueMap.empty; }
 
   type env = (value * typ) VariableMap.t
   let new_env = VariableMap.empty
@@ -16,13 +24,14 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                 | Err of string
   type prg_res = (prg_type * value) error
 
-  (* A list-like type is any named type defined as n = () + t * n *)
-  let list_like (n : namedTy) : bool =
+  (* A list-like type is any named type defined as n = () + t * n
+   * Returns the element type is the give type is list like *)
+  let list_like (n : namedTy) : typ option =
     let (nil, cons) = namedTyDef n
-    in if not (isUnit nil) then false
+    in if not (isUnit nil) then None
     else match cons with
-         | Product (_, Named tl) -> tl = n
-         | _ -> false
+         | Product (hd, Named tl) when tl = n -> Some hd
+         | _ -> None
 
   let interpret (s : stmt) (retTy : typ) : prg_res list =
     let rec eval_expr (e : expr) (env : env) : (value * typ) error =
@@ -56,7 +65,46 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           | Err m, Ok _ -> Err m
           | Ok _ , Err n -> Err n
           end
-    in let rec interp (b : stmt) (s : prg_type) (env : env) (ret : typ) : prg_res list =
+    (* interp_loop is used to interpret loop bodies.
+     * Note that you cannot return from a loop and loops do not impact the
+     * global environment (only their local environment) *)
+    in let rec interp_loop (b : stmt) (s : prg_type) (env : env) : prg_type list =
+      [] (* TODO *)
+    in let rec process_loop (var : variable) (lst : value) (elemTy : typ)
+                            (body : stmt) (next : stmt) (s : prg_type)
+                            (env : env) (ret : typ) : prg_res list =
+      match lst with
+      | Literal _ | Pair _ | Struct _ ->
+          failwith "Loop value has non-list value"
+      | Constructor (_, true, _) -> (* Nil case *)
+          interp next s env ret
+      | Constructor (_, false, Pair (hd, tl, _)) -> (* Cons case *)
+          let res_hd = interp_loop body s (VariableMap.add var (hd, elemTy) env)
+          in List.flatten
+              (List.map
+                (fun s -> process_loop var tl elemTy body next s env ret)
+                res_hd)
+      | _ -> (* Loop over an unknown value *)
+          (* The way we handle loops over unknown lists is to assign the value
+           * we loop over a particular UID which represents the loop variable
+           * while we loop over that list. We record this information in the
+           * state so we can reconstruct repeat constructs at the end, without
+           * having to deal with them during interpretation *)
+          (* Identify whether there's already a "loop variable" for looping over
+           * this value. If so, use it, otherwise create our own.
+           * If we create our own, we also update the map in the state *)
+          let (uid, s) =
+            match ValueMap.find_opt lst s.loops with
+            | Some uid -> (uid, s)
+            | None ->
+                let uid = ref ()
+                in let state = { init  = s.init; final = s.final;
+                                 loops = ValueMap.add lst uid s.loops; }
+                in (uid, state)
+          in let head : value = Unknown (uid, elemTy)
+          in let res_loop = interp_loop body s (VariableMap.add var (head, elemTy) env)
+          in List.flatten (List.map (fun s -> interp next s env ret) res_loop)
+    and interp (b : stmt) (s : prg_type) (env : env) (ret : typ) : prg_res list =
       match b with
       | Action   (var, action, expr, next) ->
           let (arg, in_type, out_type, body) = actionDef action
@@ -121,15 +169,11 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           | Err msg -> Err msg :: []
           | Ok (v, t) ->
               match t with
-              | Named n when list_like n ->
-                  begin match v with
-                  | Literal _ | Pair _ | Struct _ -> failwith "Loop value has non-list value"
-                  | Constructor (_, true, _) -> (* Nil case *)
-                      interp next s env ret
-                  | Constructor (_, false, Pair (hd, tl, Product (elty, _))) -> (* Cons case *)
-                      [] (* TODO *)
-                  | _ -> (* Loop over an unknown value *)
-                      [] (* TODO *)
+              | Named n ->
+                  begin match list_like n with
+                  | None -> Err "Cannot loop over non list-like type" :: []
+                  | Some elemTy ->
+                      process_loop var v elemTy body next s env ret
                   end
               | _ -> Err "Cannot loop over non-list-like type" :: []
           end
