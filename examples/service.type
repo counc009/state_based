@@ -1,0 +1,17 @@
+attribute running of bool
+attribute on_boot of bool
+
+enum service_state { reloaded, restarted, started, stopped }
+
+module ansible.builtin.service
+
+(name : string) (enabled : bool | state : service_state)
+
+if provided enabled {
+  package(name).on_boot = true
+} else {
+  match state with
+  | started => package(name).running = true
+  | stopped => package(name).running = false
+  end
+}

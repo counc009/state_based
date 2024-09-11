@@ -1,0 +1,10 @@
+uninterpreted gitClone(string, string) -> string
+
+module ansible.builtin.git
+
+(dest : path)
+(repo aka name : string)
+[version : string = HEAD]
+
+package_present("git")
+directory(dest, remote).content = gitClone(repo, version)
