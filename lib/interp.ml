@@ -9,10 +9,33 @@ module Interp(Ast : Ast.Ast_Defs) = struct
   end
   module ValueMap : Map.S with type key = value = Map.Make(ValueOrder)
 
-  (* bools indicate negation (if true) or non-negated (if false) *)
-  type state = State of (element * value * bool, state) Hashtbl.t
-                      * (attribute * bool, value * state) Hashtbl.t
-  let init_state = State (Hashtbl.create 10, Hashtbl.create 10)
+  (* States are made up of maps of qualifiers. For elements, we store the 
+   * element, value, and whether or not it is negated (true = negated) as the
+   * key and the value is qualifiers applied to it. For attributes, the key is
+   * just the attribute and whether it is negated and this maps to the value and
+   * any qualifiers applied to it. *)
+  module ElementOrder : Map.OrderedType with type t = element * value * bool = struct
+    type t = element * value * bool
+    let compare : t -> t -> int = compare
+  end
+  module ElementMap : Map.S with type key = element * value * bool
+    = Map.Make(ElementOrder)
+
+  module AttributeOrder : Map.OrderedType with type t = attribute * bool = struct
+    type t = attribute * bool
+    let compare : t -> t -> int = compare
+  end
+  module AttributeMap : Map.S with type key = attribute * bool
+    = Map.Make(AttributeOrder)
+
+  type state = State of state ElementMap.t * (value * state) AttributeMap.t
+  let init_state = State (ElementMap.empty, AttributeMap.empty)
+
+  let add_qual ((q, v, qs, neg) : (element, attribute) Either.t * value * state * bool)
+               (s : state) : state =
+    match q with
+    | Left elem -> s  (* TODO: Remove negations, then add qualifier *)
+    | Right attr -> s (* TODO: Remove negations, then add qualifier *)
 
   type prg_type = { init : state; final : state; loops : uid ValueMap.t; }
   let init_prg_type = { init = init_state; final = init_state; loops = ValueMap.empty; }
@@ -65,6 +88,39 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           | Ok _ , Err n -> Err n
           end
       | Env -> Ok (envToVal env, envType)
+    (* Returns either the element or the attribute, the value, attached qualifiers,
+     * and whether it is negated (true) or not (false) *)
+    in let rec eval_qual (q : qual) (env : env)
+      : ((element, attribute) Either.t * value * state * bool) error =
+      match q with
+      | BaseQual (bq, qs) ->
+          begin match eval_bqual bq env with
+          | Err msg -> Err msg
+          | Ok (q, v) ->
+              match eval_quals qs env with
+              | Err msg -> Err msg
+              | Ok state -> Ok (q, v, state, false)
+          end
+      | NotQual bq ->
+          match eval_bqual bq env with
+          | Err msg -> Err msg
+          | Ok (q, v) -> Ok (q, v, init_state, true)
+    and eval_bqual (q : bqual) (env : env) : ((element, attribute) Either.t * value) error =
+      let (qbase, e) = match q with Attribute (at, e) -> (Either.Right at, e)
+                                  | Element   (el, e) -> (Either.Left  el, e)
+      in match eval_expr e env with
+      | Err msg -> Err msg
+      | Ok (v, _) -> Ok (qbase, v)
+    and eval_quals (qs : qual list) (env : env) : state error =
+      match qs with
+      | [] -> Ok init_state
+      | q :: qs ->
+          match eval_qual q env with
+          | Err msg -> Err msg
+          | Ok qres ->
+              match eval_quals qs env with
+              | Err msg -> Err msg
+              | Ok state -> Ok (add_qual qres state)
     (* Notes on loops: the bodies should return the special expression "Env",
      * which is used to thread the environment back to the processing here so
      * so that loop can modify the environment outside of it. This does mean
@@ -135,7 +191,12 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           | Ok (v, t) ->
               interp next s (VariableMap.add var (v, t) env) ret
           end
-      | Add      (qual, next) -> [] (* TODO *)
+      | Add      (qual, next) ->
+          begin match eval_qual qual env with
+          | Err msg -> Err msg :: []
+          | Ok (Left elem, value, quals, negated) -> []
+          | Ok (Right attr, value, quals, negated) -> []
+          end
       | Get      (var, attr, next) -> [] (* TODO *)
       | Contains (qual, thn, els) -> [] (* TODO *)
       (* TODO: For both cond and match, if the result of expression is not

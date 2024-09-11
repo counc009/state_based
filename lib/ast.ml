@@ -45,15 +45,17 @@ type ('p, 'n, 's, 'f, 'l, 'd, 'r) valueD
                  * ('p, 'n, 's, 'f, 'l, 'd, 'r) valueD
   | Struct      of 's  * 'r
 
+(* A qualifier is either a base qualifier that is qualified or the negation
+ * of a base qualifier (constructing states with negations of qualified qualifiers
+ * is more difficult) *)
 type ('f, 'l, 'v, 'a, 'e) qualD
-  = BaseQual  of ('f, 'l, 'v, 'a, 'e) bqualD
+  = BaseQual  of ('f, 'l, 'v, 'a, 'e) bqualD * (('f, 'l, 'v, 'a, 'e) qualD) list
   | NotQual   of ('f, 'l, 'v, 'a, 'e) bqualD
-  | AndQual   of ('f, 'l, 'v, 'a, 'e) qualD * ('f, 'l, 'v, 'a, 'e) qualD
+(* A base qual is an attribute or element and an expression.
+ * It does not have other qualifiers (or attributes) attached to it *)
 and ('f, 'l, 'v, 'a, 'e) bqualD
   = Attribute of 'a * ('f, 'l, 'v) exprD
   | Element   of 'e * ('f, 'l, 'v) exprD
-  (* Qualifiable qualifier first, what we're qualifying this second *)
-  | With      of ('f, 'l, 'v, 'a, 'e) bqualD * ('f, 'l, 'v, 'a, 'e) qualD
 
 type ('f, 'l, 'v, 'a, 'e) attrD
   = AttrAccess  of 'a
