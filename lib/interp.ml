@@ -17,7 +17,6 @@ module Interp(Ast : Ast.Ast_Defs) = struct
   type prg_type = { init : state; final : state; loops : uid ValueMap.t; }
   let init_prg_type = { init = init_state; final = init_state; loops = ValueMap.empty; }
 
-  type env = (value * typ) VariableMap.t
   let new_env = VariableMap.empty
 
   type 'a error = Ok of 'a
@@ -65,11 +64,12 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           | Err m, Ok _ -> Err m
           | Ok _ , Err n -> Err n
           end
-    (* interp_loop is used to interpret loop bodies.
-     * Note that you cannot return from a loop and loops do not impact the
-     * global environment (only their local environment) *)
-    in let rec interp_loop (b : stmt) (s : prg_type) (env : env) : prg_type list =
-      [] (* TODO *)
+      | Env -> Ok (envToVal env, envType)
+    (* Notes on loops: the bodies should return the special expression "Env",
+     * which is used to thread the environment back to the processing here so
+     * so that loop can modify the environment outside of it. This does mean
+     * you cannot return a value for an entire action from inside a loop *)
+    (* Note: ret arg here is the return for the next statement not the loop *)
     in let rec process_loop (var : variable) (lst : value) (elemTy : typ)
                             (body : stmt) (next : stmt) (s : prg_type)
                             (env : env) (ret : typ) : prg_res list =
@@ -79,10 +79,13 @@ module Interp(Ast : Ast.Ast_Defs) = struct
       | Constructor (_, true, _) -> (* Nil case *)
           interp next s env ret
       | Constructor (_, false, Pair (hd, tl, _)) -> (* Cons case *)
-          let res_hd = interp_loop body s (VariableMap.add var (hd, elemTy) env)
+          let res_hd = interp body s (VariableMap.add var (hd, elemTy) env) envType
           in List.flatten
               (List.map
-                (fun s -> process_loop var tl elemTy body next s env ret)
+                (fun s ->
+                  match s with Err msg -> [Err msg]
+                  | Ok (s, e) ->
+                      process_loop var tl elemTy body next s (envFromVal e) ret)
                 res_hd)
       | _ -> (* Loop over an unknown value *)
           (* The way we handle loops over unknown lists is to assign the value
@@ -102,8 +105,13 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                                  loops = ValueMap.add lst uid s.loops; }
                 in (uid, state)
           in let head : value = Unknown (uid, elemTy)
-          in let res_loop = interp_loop body s (VariableMap.add var (head, elemTy) env)
-          in List.flatten (List.map (fun s -> interp next s env ret) res_loop)
+          in let res_loop = interp body s (VariableMap.add var (head, elemTy) env) envType
+          in List.flatten
+              (List.map
+                (fun s ->
+                  match s with Err msg -> [Err msg]
+                  | Ok (s, e) -> interp next s (envFromVal e) ret)
+                res_loop)
     and interp (b : stmt) (s : prg_type) (env : env) (ret : typ) : prg_res list =
       match b with
       | Action   (var, action, expr, next) ->

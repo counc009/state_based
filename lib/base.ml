@@ -3,7 +3,7 @@ open Ast
 exception NotImplemented
 
 module Ast_Base : Ast_Defs = struct
-  type primTy   = Unit | Bool | Int | Float | String | Path
+  type primTy   = Unit | Bool | Int | Float | String | Path | Env
 
   type namedTy  = List of typ | Either of typ * typ
   and  structTy = Struct of (string * typ) list
@@ -20,18 +20,20 @@ module Ast_Base : Ast_Defs = struct
              | RemoveField of structTy * field
              | LineInString | Download | Template | GitClone
 
+  type variable = string
+  module VariableMap = Map.Make(String)
+
   type literal = Unit   of unit
                | Bool   of bool
                | Int    of int
                | Float  of float
                | String of string
                | Path   of string
-
-  type variable = string
-  module VariableMap = Map.Make(String)
-
-  type record = Record of value FieldMap.t
+               | Env    of env
+   and record = Record of value FieldMap.t
    and value = (primTy, namedTy, structTy, funct, literal, field, record) valueD
+   and env = (value * typ) VariableMap.t
+
 
   type attribute = Content | Files | Dirs | User | Group
   type element = File | Directory
@@ -112,6 +114,7 @@ module Ast_Base : Ast_Defs = struct
     | Float  _ -> Float
     | String _ -> String
     | Path   _ -> Path
+    | Env    _ -> Env
 
   let attributeDef : attribute -> typ = function
     | Content -> Primitive String
@@ -141,4 +144,9 @@ module Ast_Base : Ast_Defs = struct
     match t with
     | Primitive Unit -> true
     | _ -> false
+
+  let envType : typ = Primitive Env
+  let envToVal (env : env) = Literal (Env env, (Env : primTy))
+  let envFromVal (v : value) =
+    match v with Literal (Env env, _) -> env | _ -> failwith "Not environment"
 end
