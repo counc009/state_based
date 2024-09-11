@@ -31,11 +31,39 @@ module Interp(Ast : Ast.Ast_Defs) = struct
   type state = State of state ElementMap.t * (value * state) AttributeMap.t
   let init_state = State (ElementMap.empty, AttributeMap.empty)
 
-  let add_qual ((q, v, qs, neg) : (element, attribute) Either.t * value * state * bool)
-               (s : state) : state =
+  let rec add_qual
+      ((q, v, qs, neg) : (element, attribute) Either.t * value * state * bool)
+      (State (els, ats) : state) : state =
     match q with
-    | Left elem -> s  (* TODO: Remove negations, then add qualifier *)
-    | Right attr -> s (* TODO: Remove negations, then add qualifier *)
+    | Left elem ->
+        let removed = ElementMap.remove (elem, v, not neg) els
+        in let added = ElementMap.update (elem, v, neg)
+                        (fun cur ->
+                          match cur with
+                          | None -> Some qs
+                          | Some ps -> Some (add_quals qs ps))
+                        removed
+        in State (added, ats)
+    | Right attr ->
+        let removed = AttributeMap.remove (attr, not neg) ats
+        in let added = AttributeMap.update (attr, neg)
+                        (fun cur ->
+                          match cur with
+                          | None -> Some (v, qs)
+                          | Some (_, ps) -> Some (v, add_quals qs ps))
+                        removed
+        in State (els, added)
+  and add_quals (State (els, ats) : state) (ps : state) =
+    let rec helper els ats state =
+      match els with
+      | ((el, v, neg), qs) :: tl
+        -> helper tl ats (add_qual (Left el, v, qs, neg) state)
+      | [] ->
+          match ats with
+          | ((at, neg), (v, qs)) :: tl
+            -> helper [] tl (add_qual (Right at, v, qs, neg) state)
+          | [] -> state
+    in helper (ElementMap.bindings els) (AttributeMap.bindings ats) ps
 
   type prg_type = { init : state; final : state; loops : uid ValueMap.t; }
   let init_prg_type = { init = init_state; final = init_state; loops = ValueMap.empty; }
@@ -194,8 +222,14 @@ module Interp(Ast : Ast.Ast_Defs) = struct
       | Add      (qual, next) ->
           begin match eval_qual qual env with
           | Err msg -> Err msg :: []
-          | Ok (Left elem, value, quals, negated) -> []
-          | Ok (Right attr, value, quals, negated) -> []
+          | Ok q ->
+              (* Note: Add does not even look at the initial environment,
+               * technically we could check it and not add this if it's a
+               * duplicate, but that's generally unlikely to be useful and
+               * could be cleaned up after the fact if we want *)
+              let new_final = add_qual q s.final
+              in let new_state = { init = s.init; final = new_final; loops = s.loops }
+              in interp next new_state env ret
           end
       | Get      (var, attr, next) -> [] (* TODO *)
       | Contains (qual, thn, els) -> [] (* TODO *)
