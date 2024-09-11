@@ -306,17 +306,6 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                * technically we could check it and not add this if it's a
                * duplicate, but that's generally unlikely to be useful and
                * could be cleaned up after the fact if we want.
-               *
-               * FIXME
-               * This could have weird interactions with get, since it checks
-               * the final state first and so if we have [user(u) file(foo)] in the
-               * final state and [content(c) file(foo)] in the initial,
-               * get would create a new unknown for the content even though
-               * we know the contents.
-               *
-               * FIX: In get, track whether we created a new unknown and if we
-               * did in the final state check the initial state for an existing
-               * value
                *)
               let new_final = add_qual q s.final
               in let new_state = { init = s.init; final = new_final; loops = s.loops }
