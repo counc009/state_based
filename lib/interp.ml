@@ -74,6 +74,13 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                 | Err of string
   type prg_res = (prg_type * value) error
 
+  (* A type representing attempting to find some value in a structure where we
+   * may or may not find it or may be able to create the value and returns
+   * additional information when it is created*)
+  type ('a, 'b) find = NotLocated
+                     | Located of 'a
+                     | Created of 'a * 'b
+
   (* A list-like type is any named type defined as n = () + t * n
    * Returns the element type is the give type is list like *)
   let list_like (n : namedTy) : typ option =
@@ -165,51 +172,61 @@ module Interp(Ast : Ast.Ast_Defs) = struct
     in let get_attribute (a : attr) (s : prg_type) (env : env) : (value * prg_type) error =
       (* The helper traverses an attribute and a state to find the attribute's
        * value (and returns the modified state if needed). Can fail by error or
-       * can return Ok None if it could not find some qualifier needed on the
-       * desired path *)
-      let rec helper (a : attr) (State (els, ats)) : (value * state) option error =
+       * can return Ok NotLocated if it could not find some qualifier needed on
+       * the desired path *)
+      let rec helper (a : attr) (State (els, ats)) : (value, state) find error =
         match a with
         | AttrAccess a ->
             begin match AttributeMap.find_opt (a, false) ats with
-            | Some (v, _) -> Ok (Some (v, State (els, ats)))
+            | Some (v, _) -> Ok (Located v)
             | None ->
                 let v : value = Unknown (ref (), attributeDef a)
-                in Ok (Some (v, State (els, AttributeMap.add (a, false) (v, init_state) ats)))
+                in Ok (Created (v, State (els, AttributeMap.add (a, false) (v, init_state) ats)))
             end
         | OnAttribute (a, at) ->
             begin match AttributeMap.find_opt (a, false) ats with
-            | None -> Ok None
+            | None -> Ok NotLocated
             | Some (av, qs) ->
                 match helper at qs with
                 | Err msg -> Err msg
-                | Ok None -> Ok None
-                | Ok (Some (v, st)) ->
+                | Ok NotLocated -> Ok NotLocated
+                | Ok (Located v) -> Ok (Located v)
+                | Ok (Created (v, st)) ->
                     let new_ats = AttributeMap.add (a, false) (av, st) ats
-                    in Ok (Some (v, State (els, new_ats)))
+                    in Ok (Created (v, State (els, new_ats)))
             end
         | OnElement (el, e, at) ->
             begin match eval_expr e env with
             | Err msg -> Err msg
             | Ok (v, _) ->
                 match ElementMap.find_opt (el, v, false) els with
-                | None -> Ok None
+                | None -> Ok NotLocated
                 | Some qs ->
                     match helper at qs with
                     | Err msg -> Err msg
-                    | Ok None -> Ok None
-                    | Ok (Some (v, st)) ->
+                    | Ok NotLocated -> Ok NotLocated
+                    | Ok (Located v) -> Ok (Located v)
+                    | Ok (Created (v, st)) ->
                         let new_els = ElementMap.add (el, v, false) st els
-                        in Ok (Some (v, State (new_els, ats)))
+                        in Ok (Created (v, State (new_els, ats)))
             end
       in match helper a s.final with
          | Err msg -> Err msg
-         | Ok (Some (v, new_state)) ->
-             Ok (v, { init = s.init; final = new_state; loops = s.loops; })
-         | Ok None ->
+         | Ok (Located v) -> Ok (v, s)
+         | Ok (Created (v, new_final)) ->
+             (* If we can create a value for the attribute in the final state,
+              * we return that unless we can find a value for the attribute
+              * in the initial state *)
+             begin match helper a s.init with
+             | Ok (Located v) -> Ok (v, s)
+             | _ -> Ok (v, { init = s.init; final = new_final; loops = s.loops; })
+             end
+         | Ok NotLocated ->
              match helper a s.init with
              | Err msg -> Err msg
-             | Ok None -> Err "Failed to locate attribute in current state"
-             | Ok (Some (v, new_init)) ->
+             | Ok NotLocated -> Err "Failed to locate attribute in current state"
+             | Ok (Located v) -> Ok (v, s)
+             | Ok (Created (v, new_init)) ->
                  Ok (v, { init = new_init; final = s.final; loops = s.loops; })
     (* Notes on loops: the bodies should return the special expression "Env",
      * which is used to thread the environment back to the processing here so
@@ -288,7 +305,19 @@ module Interp(Ast : Ast.Ast_Defs) = struct
               (* Note: Add does not even look at the initial environment,
                * technically we could check it and not add this if it's a
                * duplicate, but that's generally unlikely to be useful and
-               * could be cleaned up after the fact if we want *)
+               * could be cleaned up after the fact if we want.
+               *
+               * FIXME
+               * This could have weird interactions with get, since it checks
+               * the final state first and so if we have [user(u) file(foo)] in the
+               * final state and [content(c) file(foo)] in the initial,
+               * get would create a new unknown for the content even though
+               * we know the contents.
+               *
+               * FIX: In get, track whether we created a new unknown and if we
+               * did in the final state check the initial state for an existing
+               * value
+               *)
               let new_final = add_qual q s.final
               in let new_state = { init = s.init; final = new_final; loops = s.loops }
               in interp next new_state env ret
