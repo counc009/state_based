@@ -118,4 +118,13 @@ module type Ast_Defs = sig
   val elementDef : element -> typ
 
   val actionDef : action -> variable * typ * typ * stmt
+
+  (* Used to handle conditionals and loops
+   * - isTruthType returns whether a type can be used like a truth value 
+   * - asTruth takes a value and produces its truth value (true/false) or
+   *   fails if it cannot be reduced to a boolean value for any reason
+   * - isUnit returns whether a type is the unit type *)
+  val isTruthType : typ -> bool
+  val asTruth : value -> bool option
+  val isUnit : typ -> bool
 end

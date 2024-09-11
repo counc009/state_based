@@ -16,6 +16,14 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                 | Err of string
   type prg_res = (prg_type * value) error
 
+  (* A list-like type is any named type defined as n = () + t * n *)
+  let list_like (n : namedTy) : bool =
+    let (nil, cons) = namedTyDef n
+    in if not (isUnit nil) then false
+    else match cons with
+         | Product (_, Named tl) -> tl = n
+         | _ -> false
+
   let interpret (s : stmt) (retTy : typ) : prg_res list =
     let rec eval_expr (e : expr) (env : env) : (value * typ) error =
       match e with
@@ -50,21 +58,81 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           end
     in let rec interp (b : stmt) (s : prg_type) (env : env) (ret : typ) : prg_res list =
       match b with
-      | Action   (var, action, expr, next) -> []
-      | Assign   (var, expr, next) -> []
-      | Add      (qual, next) -> []
-      | Get      (var, attr, next) -> []
-      | Contains (qual, thn, els) -> []
-      | Cond     (expr, thn, els) -> []
-      (* If the expression does not evaluate to either true or false, is that
-         an error, or do we propagate some sort of constraint on the two
-         cases? *)
-      | Loop     (var, expr, body, next) -> []
-      | Match    (expr, var, left, right) -> []
-      (* Similarly to conditionals, do we want to deal with analyzing matches *)
-      (* I think for the moment, only handle conds/match over evaluated
-         expressions, not unknown ones. We can later track conditions that
-         result from Cond/Match *)
+      | Action   (var, action, expr, next) ->
+          let (arg, in_type, out_type, body) = actionDef action
+          in begin match eval_expr expr env with
+          | Err msg -> Err msg :: []
+          | Ok (v, t) ->
+              if t <> in_type
+              then Err "Incorrect argument type to action" :: []
+              else let results = interp body s (VariableMap.singleton arg (v, t)) out_type
+              in List.flatten
+                  (List.map (fun r ->
+                      match r with
+                      | Ok (s, v) ->
+                          interp next s (VariableMap.add var (v, out_type) env) ret
+                      | Err msg -> Err msg :: []) results)
+          end
+      | Assign   (var, expr, next) ->
+          begin match eval_expr expr env with
+          | Err msg -> Err msg :: []
+          | Ok (v, t) ->
+              interp next s (VariableMap.add var (v, t) env) ret
+          end
+      | Add      (qual, next) -> [] (* TODO *)
+      | Get      (var, attr, next) -> [] (* TODO *)
+      | Contains (qual, thn, els) -> [] (* TODO *)
+      (* TODO: For both cond and match, if the result of expression is not
+       * a concrete value we could evaluate both branches and track the
+       * "constraint" of what we've assumed the value was (this is much like
+       * you would do with refinement/dependent types). For the moment I have
+       * not done this for simplicity
+       *)
+      | Cond     (expr, thn, els) ->
+          begin match eval_expr expr env with
+          | Err msg -> Err msg :: []
+          | Ok (v, t) ->
+              if not (isTruthType t)
+              then Err "Condition is not truthy" :: []
+              else match asTruth v with
+                   (* If we were to track the constraints, we would do that here *)
+                   | None -> Err "Could not evaluate truth of condition" :: []
+                   | Some true -> interp thn s env ret
+                   | Some false -> interp els s env ret
+          end
+      | Match    (expr, var, left, right) ->
+          begin match eval_expr expr env with
+          | Err msg -> Err msg :: []
+          | Ok (v, t) ->
+              match t with
+              | Named n ->
+                  begin match v with
+                  | Constructor (_, b, v) ->
+                      let t = (if b then fst else snd) (namedTyDef n)
+                      in interp (if b then left else right) s
+                            (VariableMap.add var (v, t) env) ret
+                  (* Modify here to track constraints *)
+                  | _ -> Err "Could not evaluate to constructor on match" :: []
+                  end
+              | _ -> Err "Cannot match over non-named type" :: []
+          end
+      | Loop     (var, expr, body, next) ->
+          begin match eval_expr expr env with
+          | Err msg -> Err msg :: []
+          | Ok (v, t) ->
+              match t with
+              | Named n when list_like n ->
+                  begin match v with
+                  | Literal _ | Pair _ | Struct _ -> failwith "Loop value has non-list value"
+                  | Constructor (_, true, _) -> (* Nil case *)
+                      interp next s env ret
+                  | Constructor (_, false, Pair (hd, tl, Product (elty, _))) -> (* Cons case *)
+                      [] (* TODO *)
+                  | _ -> (* Loop over an unknown value *)
+                      [] (* TODO *)
+                  end
+              | _ -> Err "Cannot loop over non-list-like type" :: []
+          end
       | Fail     msg -> (Err msg) :: []
       | Return   expr ->
           begin match eval_expr expr env with

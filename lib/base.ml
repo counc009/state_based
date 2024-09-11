@@ -126,4 +126,19 @@ module Ast_Base : Ast_Defs = struct
 
   let actionDef = function
     | Copy -> raise NotImplemented
+
+  let isTruthType (t : typ) : bool =
+    match t with
+    | Primitive Bool -> true
+    | _ -> false
+
+  let asTruth (v : value) : bool option =
+    match v with
+    | Literal (Bool b, Bool) -> Some b
+    | _ -> None
+
+  let isUnit (t : typ) : bool =
+    match t with
+    | Primitive Unit -> true
+    | _ -> false
 end
