@@ -318,6 +318,10 @@ module Interp(Ast : Ast.Ast_Defs) = struct
               interp next new_state (VariableMap.add var (v, val_to_type v) env) ret
           end
       | Contains (qual, thn, els) -> [] (* TODO *)
+      (* Contains only needs to handle the addition of one constraint and the
+         last level is just an element. Handling of attributes should be left
+         for the constraints (which may be more important to implement than
+         we originally thought) *)
       (* TODO: For both cond and match, if the result of expression is not
        * a concrete value we could evaluate both branches and track the
        * "constraint" of what we've assumed the value was (this is much like
