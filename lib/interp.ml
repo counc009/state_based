@@ -16,7 +16,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                 | Err of string
   type prg_res = (prg_type * value) error
 
-  let interpret (s : stmt) : prg_res list =
+  let interpret (s : stmt) (retTy : typ) : prg_res list =
     let rec eval_expr (e : expr) (env : env) : (value * typ) error =
       match e with
       | Function (f, exp) ->
@@ -48,7 +48,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           | Err m, Ok _ -> Err m
           | Ok _ , Err n -> Err n
           end
-    in let rec interp (b : stmt) (s : prg_type) (env : env) : prg_res list =
+    in let rec interp (b : stmt) (s : prg_type) (env : env) (ret : typ) : prg_res list =
       match b with
       | Action   (var, action, expr, next) -> []
       | Assign   (var, expr, next) -> []
@@ -56,13 +56,19 @@ module Interp(Ast : Ast.Ast_Defs) = struct
       | Get      (var, attr, next) -> []
       | Contains (qual, thn, els) -> []
       | Cond     (expr, thn, els) -> []
+      (* If the expression does not evaluate to either true or false, is that
+         an error, or do we propagate some sort of constraint on the two
+         cases? *)
       | Loop     (var, expr, body, next) -> []
       | Match    (expr, var, left, right) -> []
       | Fail     msg -> (Err msg) :: []
       | Return   expr ->
           begin match eval_expr expr env with
-          | Ok (v, _) -> Ok (s, v) :: []
+          | Ok (v, t) ->
+              if t <> ret
+              then Err "Incorrect return type" :: []
+              else Ok (s, v) :: []
           | Err msg -> Err msg :: []
           end
-    in interp s init_prg_type new_env
+    in interp s init_prg_type new_env retTy
 end
