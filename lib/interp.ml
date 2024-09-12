@@ -288,6 +288,17 @@ module Interp(Ast : Ast.Ast_Defs) = struct
               (List.map
                 (fun s ->
                   match s with Err msg -> [Err msg]
+                  (* FIXME: We need to replace certain uses of the loop variable
+                     with some expression that signals that this is the last
+                     element of the list. This should occur everywhere in the
+                     environment and anywhere in the state that can be accessed
+                     without the loop variable occuring in an element; i.e.
+                     anywhere that the loop variable can be accessed from outside
+                     the loop should be replaced by tail(val) or perhaps a new
+                     unknown value that we add to what we track about loops
+                     Otherwise, it's possible for loop variables to escape past
+                     the body and we can update the state in ways that are
+                     not looped but are indistinguishable from the loop *)
                   | Ok (s, e) -> interp next s (envFromVal e) ret)
                 res_loop)
     and interp (b : stmt) (s : prg_type) (env : env) (ret : typ) : prg_res list =
