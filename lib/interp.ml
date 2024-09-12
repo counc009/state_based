@@ -21,21 +21,21 @@ module Interp(Ast : Ast.Ast_Defs) = struct
   module ElementMap : Map.S with type key = element * value * bool
     = Map.Make(ElementOrder)
 
-  module AttributeOrder : Map.OrderedType with type t = attribute * bool = struct
-    type t = attribute * bool
+  module AttributeOrder : Map.OrderedType with type t = attribute = struct
+    type t = attribute
     let compare : t -> t -> int = compare
   end
-  module AttributeMap : Map.S with type key = attribute * bool
+  module AttributeMap : Map.S with type key = attribute
     = Map.Make(AttributeOrder)
 
   type state = State of state ElementMap.t * (value * state) AttributeMap.t
   let init_state = State (ElementMap.empty, AttributeMap.empty)
 
   let rec add_qual
-      ((q, v, qs, neg) : (element, attribute) Either.t * value * state * bool)
+      ((q, v, qs) : (element * bool, attribute) Either.t * value * state)
       (State (els, ats) : state) : state =
     match q with
-    | Left elem ->
+    | Left (elem, neg) ->
         let removed = ElementMap.remove (elem, v, not neg) els
         in let added = ElementMap.update (elem, v, neg)
                         (fun cur ->
@@ -45,23 +45,22 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                         removed
         in State (added, ats)
     | Right attr ->
-        let removed = AttributeMap.remove (attr, not neg) ats
-        in let added = AttributeMap.update (attr, neg)
-                        (fun cur ->
-                          match cur with
-                          | None -> Some (v, qs)
-                          | Some (_, ps) -> Some (v, add_quals qs ps))
-                        removed
+        let added = AttributeMap.update attr
+                      (fun cur ->
+                        match cur with
+                        | None -> Some (v, qs)
+                        | Some (_, ps) -> Some (v, add_quals qs ps))
+                      ats
         in State (els, added)
   and add_quals (State (els, ats) : state) (ps : state) =
     let rec helper els ats state =
       match els with
       | ((el, v, neg), qs) :: tl
-        -> helper tl ats (add_qual (Left el, v, qs, neg) state)
+        -> helper tl ats (add_qual (Left (el, neg), v, qs) state)
       | [] ->
           match ats with
-          | ((at, neg), (v, qs)) :: tl
-            -> helper [] tl (add_qual (Right at, v, qs, neg) state)
+          | (at, (v, qs)) :: tl
+            -> helper [] tl (add_qual (Right at, v, qs) state)
           | [] -> state
     in helper (ElementMap.bindings els) (AttributeMap.bindings ats) ps
 
@@ -132,29 +131,25 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           | Ok _ , Err n -> Err n
           end
       | Env -> Ok (envToVal env, envType)
-    (* Returns either the element or the attribute, the value, attached qualifiers,
-     * and whether it is negated (true) or not (false) *)
+    (* Returns either the element or the attribute, the value, and attached qualifiers *)
     in let rec eval_qual (q : qual) (env : env)
-      : ((element, attribute) Either.t * value * state * bool) error =
+      : ((element * bool, attribute) Either.t * value * state) error =
       match q with
-      | BaseQual (bq, qs) ->
-          begin match eval_bqual bq env with
+      | Attribute (_, e, qs) | Element (_, e, qs) ->
+          let bq = match q with Attribute (at, _, _) -> Either.Right at
+                              | Element   (el, _, _) -> Either.Left (el, false)
+                              | _ -> failwith "Match error"
+          in begin match eval_expr e env with
           | Err msg -> Err msg
-          | Ok (q, v) ->
+          | Ok (v, _) ->
               match eval_quals qs env with
               | Err msg -> Err msg
-              | Ok state -> Ok (q, v, state, false)
+              | Ok state -> Ok (bq, v, state)
           end
-      | NotQual bq ->
-          match eval_bqual bq env with
+      | NotElement (el, e) ->
+          match eval_expr e env with
           | Err msg -> Err msg
-          | Ok (q, v) -> Ok (q, v, init_state, true)
-    and eval_bqual (q : bqual) (env : env) : ((element, attribute) Either.t * value) error =
-      let (qbase, e) = match q with Attribute (at, e) -> (Either.Right at, e)
-                                  | Element   (el, e) -> (Either.Left  el, e)
-      in match eval_expr e env with
-      | Err msg -> Err msg
-      | Ok (v, _) -> Ok (qbase, v)
+          | Ok (v, _) -> Ok (Left (el, true), v, init_state)
     and eval_quals (qs : qual list) (env : env) : state error =
       match qs with
       | [] -> Ok init_state
@@ -177,22 +172,22 @@ module Interp(Ast : Ast.Ast_Defs) = struct
       let rec helper (a : attr) (State (els, ats)) : (value, state) find error =
         match a with
         | AttrAccess a ->
-            begin match AttributeMap.find_opt (a, false) ats with
+            begin match AttributeMap.find_opt a ats with
             | Some (v, _) -> Ok (Located v)
             | None ->
                 let v : value = Unknown (ref (), attributeDef a)
-                in Ok (Created (v, State (els, AttributeMap.add (a, false) (v, init_state) ats)))
+                in Ok (Created (v, State (els, AttributeMap.add a (v, init_state) ats)))
             end
         | OnAttribute (a, at) ->
-            begin match AttributeMap.find_opt (a, false) ats with
-            | None -> Ok NotLocated
+            begin match AttributeMap.find_opt a ats with
+            | None -> Ok NotLocated (* TODO: Should this create the attribute? *)
             | Some (av, qs) ->
                 match helper at qs with
                 | Err msg -> Err msg
                 | Ok NotLocated -> Ok NotLocated
                 | Ok (Located v) -> Ok (Located v)
                 | Ok (Created (v, st)) ->
-                    let new_ats = AttributeMap.add (a, false) (av, st) ats
+                    let new_ats = AttributeMap.add a (av, st) ats
                     in Ok (Created (v, State (els, new_ats)))
             end
         | OnElement (el, e, at) ->
@@ -233,8 +228,36 @@ module Interp(Ast : Ast.Ast_Defs) = struct
      * respectively (right) *)
     in let has_element (e : elem) (s : prg_type) (env : env)
       : (bool, state * state) Either.t error =
-      let rec helper (e : elem) (State (els, ats)) : bool option error =
-        Err "todo"
+      let rec helper (el : elem) (State (els, ats)) : bool option error =
+        match el with
+        | Element _ | NotElement _ ->
+            let (elm, e, neg)
+              = match el with Element (elm, e)    -> (elm, e, false)
+                            | NotElement (elm, e) -> (elm, e, true)
+                            | _ -> failwith "Match Failure"
+            in begin match eval_expr e env with
+            | Err msg -> Err msg
+            | Ok (v, _) ->
+                match ElementMap.find_opt (elm, v, neg) els with
+                | Some _ -> Ok (Some true)
+                | None ->
+                    match ElementMap.find_opt (elm, v, not neg) els with
+                    | Some _ -> Ok (Some false)
+                    | None -> Ok None
+            end
+        | OnAttribute (at, q) ->
+            begin match AttributeMap.find_opt at ats with
+            | None -> Err "Failed to locate element in state" (* TODO: should this create the attribute? *)
+            | Some (_, st) -> helper q st
+            end
+        | OnElement (el, e, q) ->
+            begin match eval_expr e env with
+            | Err msg -> Err msg
+            | Ok (v, _) ->
+                match ElementMap.find_opt (el, v, false) els with
+                | None -> Err "Failed to locate element in state"
+                | Some st -> helper q st
+            end
       in match helper e s.final with
       | Err msg -> Err msg
       | Ok (Some b) -> Ok (Left b)
@@ -242,7 +265,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           match helper e s.init with
           | Err msg -> Err msg
           | Ok (Some b) -> Ok (Left b)
-          | Ok None -> Err "todo: add e and not(e) to s.init and return"
+          | Ok None -> Err "TODO: add e and not(e) to s.init and return"
     (* Notes on loops: the bodies should return the special expression "Env",
      * which is used to thread the environment back to the processing here so
      * so that loop can modify the environment outside of it. This does mean

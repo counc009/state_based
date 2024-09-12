@@ -45,17 +45,14 @@ type ('p, 'n, 's, 'f, 'l, 'd, 'r) valueD
                  * ('p, 'n, 's, 'f, 'l, 'd, 'r) valueD
   | Struct      of 's  * 'r
 
-(* A qualifier is either a base qualifier that is qualified or the negation
- * of a base qualifier (constructing states with negations of qualified qualifiers
- * is more difficult) *)
+(* A qualifier is either an attribute or element with qualifiers on it or
+ * a negated element (which are not further qualified, as handling negations of
+ * qualified qualifiers is quite difficult; it also doesn't make sense to negate
+ * attributes) *)
 type ('f, 'l, 'v, 'a, 'e) qualD
-  = BaseQual  of ('f, 'l, 'v, 'a, 'e) bqualD * (('f, 'l, 'v, 'a, 'e) qualD) list
-  | NotQual   of ('f, 'l, 'v, 'a, 'e) bqualD
-(* A base qual is an attribute or element and an expression.
- * It does not have other qualifiers (or attributes) attached to it *)
-and ('f, 'l, 'v, 'a, 'e) bqualD
-  = Attribute of 'a * ('f, 'l, 'v) exprD
-  | Element   of 'e * ('f, 'l, 'v) exprD
+  = Attribute  of 'a * ('f, 'l, 'v) exprD * (('f, 'l, 'v, 'a, 'e) qualD) list
+  | Element    of 'e * ('f, 'l, 'v) exprD * (('f, 'l, 'v, 'a, 'e) qualD) list
+  | NotElement of 'e * ('f, 'l, 'v) exprD
 
 type ('f, 'l, 'v, 'a, 'e) attrD
   = AttrAccess  of 'a
@@ -116,7 +113,6 @@ module type Ast_Defs = sig
   type expr = (funct, literal, variable) exprD
   type value = (primTy, namedTy, structTy, funct, literal, field, record) valueD
   type qual = (funct, literal, variable, attribute, element) qualD
-  type bqual = (funct, literal, variable, attribute, element) bqualD
   type attr = (funct, literal, variable, attribute, element) attrD
   type elem = (funct, literal, variable, attribute, element) elemD
   type stmt = (funct, literal, variable, attribute, element, action) stmtD
