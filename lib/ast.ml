@@ -62,6 +62,12 @@ type ('f, 'l, 'v, 'a, 'e) attrD
   | OnAttribute of 'a * ('f, 'l, 'v, 'a, 'e) attrD
   | OnElement   of 'e * ('f, 'l, 'v) exprD * ('f, 'l, 'v, 'a, 'e) attrD
 
+type ('f, 'l, 'v, 'a, 'e) elemD
+  = Element     of 'e * ('f, 'l, 'v) exprD
+  | NotElement  of 'e * ('f, 'l, 'v) exprD
+  | OnAttribute of 'a * ('f, 'l, 'v, 'a, 'e) elemD
+  | OnElement   of 'e * ('f, 'l, 'v) exprD * ('f, 'l, 'v, 'a, 'e) elemD
+
 (* All statements, other than branches and terminators, take an additional
  * statement which is the "next" statement. This avoids having a Seq
  * constructor which would be somewhat annoying to implement *)
@@ -70,7 +76,7 @@ type ('f, 'l, 'v, 'a, 'e, 'c) stmtD
   | Assign   of 'v * ('f, 'l, 'v) exprD         * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
   | Add      of ('f, 'l, 'v, 'a, 'e) qualD      * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
   | Get      of 'v * ('f, 'l, 'v, 'a, 'e) attrD * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
-  | Contains of ('f, 'l, 'v, 'a, 'e) qualD
+  | Contains of ('f, 'l, 'v, 'a, 'e) elemD
               * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
               * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
   | Cond     of ('f, 'l, 'v) exprD
@@ -112,6 +118,7 @@ module type Ast_Defs = sig
   type qual = (funct, literal, variable, attribute, element) qualD
   type bqual = (funct, literal, variable, attribute, element) bqualD
   type attr = (funct, literal, variable, attribute, element) attrD
+  type elem = (funct, literal, variable, attribute, element) elemD
   type stmt = (funct, literal, variable, attribute, element, action) stmtD
 
   type env = (value * typ) VariableMap.t

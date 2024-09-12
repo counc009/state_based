@@ -44,6 +44,7 @@ module Ast_Base : Ast_Defs = struct
   type qual = (funct, literal, variable, attribute, element) qualD
   type bqual = (funct, literal, variable, attribute, element) bqualD
   type attr = (funct, literal, variable, attribute, element) attrD
+  type elem = (funct, literal, variable, attribute, element) elemD
   type stmt = (funct, literal, variable, attribute, element, action) stmtD
 
   let namedTyDef : namedTy -> typ * typ = function

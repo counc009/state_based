@@ -228,6 +228,21 @@ module Interp(Ast : Ast.Ast_Defs) = struct
              | Ok (Located v) -> Ok (v, s)
              | Ok (Created (v, new_init)) ->
                  Ok (v, { init = new_init; final = s.final; loops = s.loops; })
+    (* Either returns whether or not the element is in the state (left) or
+     * new initial states assuming the element does and does not exist
+     * respectively (right) *)
+    in let has_element (e : elem) (s : prg_type) (env : env)
+      : (bool, state * state) Either.t error =
+      let rec helper (e : elem) (State (els, ats)) : bool option error =
+        Err "todo"
+      in match helper e s.final with
+      | Err msg -> Err msg
+      | Ok (Some b) -> Ok (Left b)
+      | Ok None ->
+          match helper e s.init with
+          | Err msg -> Err msg
+          | Ok (Some b) -> Ok (Left b)
+          | Ok None -> Err "todo: add e and not(e) to s.init and return"
     (* Notes on loops: the bodies should return the special expression "Env",
      * which is used to thread the environment back to the processing here so
      * so that loop can modify the environment outside of it. This does mean
@@ -317,11 +332,25 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           | Ok (v, new_state) ->
               interp next new_state (VariableMap.add var (v, val_to_type v) env) ret
           end
-      | Contains (qual, thn, els) -> [] (* TODO *)
-      (* Contains only needs to handle the addition of one constraint and the
-         last level is just an element. Handling of attributes should be left
-         for the constraints (which may be more important to implement than
-         we originally thought) *)
+      (* Contains only needs to handle the addition of one constraint where the
+         last level is just an element. Adding attributes is handled by get
+         and constraining the values on elements should be handled by
+         constraints produced by Cond and Match *)
+      | Contains (elem, thn, els) ->
+          begin match has_element elem s env with
+          | Err msg -> Err msg :: []
+          (* If we definitively have or do not have the constraint, take the
+           * appropriate branch *)
+          | Ok (Left b) ->
+              interp (if b then thn else els) s env ret
+          (* Otherwise, take both branches in appropriate updated initial states *)
+          | Ok (Right (new_init_true, new_init_false)) ->
+              (interp thn { init = new_init_true; final = s.final; loops = s.loops; }
+                      env ret)
+              @
+              (interp els { init = new_init_false; final = s.final; loops = s.loops; }
+                      env ret)
+          end
       (* TODO: For both cond and match, if the result of expression is not
        * a concrete value we could evaluate both branches and track the
        * "constraint" of what we've assumed the value was (this is much like
