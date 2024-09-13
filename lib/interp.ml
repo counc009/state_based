@@ -1,3 +1,4 @@
+let uid = Ast.uid
 type uid = Ast.uid
 
 module Interp(Ast : Ast.Ast_Defs) = struct
@@ -66,6 +67,30 @@ module Interp(Ast : Ast.Ast_Defs) = struct
 
   type prg_type = { init : state; final : state; loops : uid ValueMap.t; }
   let init_prg_type = { init = init_state; final = init_state; loops = ValueMap.empty; }
+
+  (* These functions are used to replace loop variables with just values for
+   * handling after the loop ends. This is needed to distinguish actions
+   * performed within the loop from uses of the loop variable outside of the
+   * loop *)
+  let state_replace_loopvar (s : prg_type) (uid : uid) (elemTy : typ) : prg_type =
+    let rec helper_els (els : state ElementMap.t) =
+      ElementMap.mapi
+        (fun (_, v, _) st ->
+          if valueContains v (Unknown (Loop uid, elemTy))
+          then st
+          else helper_state st)
+        els
+    and helper_ats (ats : (value * state) AttributeMap.t) = 
+      AttributeMap.map (fun (v, st) -> (v, helper_state st)) ats
+    and helper_state (State (els, ats) : state) : state =
+      State (helper_els els, helper_ats ats)
+    in { init = helper_state s.init; final = helper_state s.final;
+         loops = s.loops }
+  let env_replace_loopvar (env : env) (uid : uid) (elemTy : typ) : env =
+    VariableMap.map
+      (fun (v, t) ->
+        (valueSubst v (Unknown (Loop uid, elemTy)) (Unknown (Val uid, elemTy)), t))
+      env
 
   let new_env = VariableMap.empty
 
@@ -175,7 +200,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
             begin match AttributeMap.find_opt a ats with
             | Some (v, _) -> Ok (Located v)
             | None ->
-                let v : value = Unknown (ref (), attributeDef a)
+                let v : value = Unknown (Val (uid ()), attributeDef a)
                 in Ok (Created (v, State (els, AttributeMap.add a (v, init_state) ats)))
             end
         | OnAttribute (a, at) ->
@@ -189,7 +214,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                 | Ok NotLocated -> Ok NotLocated
                 | Ok (Located _) -> failwith "Cannot find attribute in empty state"
                 | Ok (Created (v, st)) ->
-                    let new_value : value = Unknown (ref (), attributeDef a)
+                    let new_value : value = Unknown (Val (uid ()), attributeDef a)
                     in let new_ats = AttributeMap.add a (new_value, st) ats
                     in Ok (Created (v, State (els, new_ats)))
                 end
@@ -310,7 +335,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
         | OnAttribute (at, el) ->
             begin match AttributeMap.find_opt at ats with
             | None ->
-                let v : value = Unknown (ref (), attributeDef at)
+                let v : value = Unknown (Val (uid ()), attributeDef at)
                 in let (new_true, new_false) = add_elem el init_state
                 in let ats_true = AttributeMap.add at (v, new_true) ats
                 in let ats_false = AttributeMap.add at (v, new_false) ats
@@ -374,28 +399,29 @@ module Interp(Ast : Ast.Ast_Defs) = struct
             match ValueMap.find_opt lst s.loops with
             | Some uid -> (uid, s)
             | None ->
-                let uid = ref ()
+                let uid = uid ()
                 in let state = { init  = s.init; final = s.final;
                                  loops = ValueMap.add lst uid s.loops; }
                 in (uid, state)
-          in let head : value = Unknown (uid, elemTy)
-          in let res_loop = interp body s (VariableMap.add var (head, elemTy) env) envType
+          in let loopvar : value = Unknown (Loop uid, elemTy)
+          in let res_loop = interp body s (VariableMap.add var (loopvar, elemTy) env) envType
           in List.flatten
               (List.map
                 (fun s ->
                   match s with Err msg -> [Err msg]
-                  (* FIXME: We need to replace certain uses of the loop variable
-                     with some expression that signals that this is the last
-                     element of the list. This should occur everywhere in the
-                     environment and anywhere in the state that can be accessed
-                     without the loop variable occuring in an element; i.e.
-                     anywhere that the loop variable can be accessed from outside
-                     the loop should be replaced by tail(val) or perhaps a new
-                     unknown value that we add to what we track about loops
-                     Otherwise, it's possible for loop variables to escape past
-                     the body and we can update the state in ways that are
-                     not looped but are indistinguishable from the loop *)
-                  | Ok (s, e) -> interp next s (envFromVal e) ret)
+                  (* Note that we replace the loop variable in the state and
+                   * environment. What this does is replaces all occurences of
+                   * it in the environment and any instance in the state that
+                   * is not contained within an element depending on the
+                   * loop variable. This ensures that if the value is accessed
+                   * from outside the loop we can distinguish that it was not
+                   * the result of a loop, rather it takes the value of the
+                   * last element of the list *)
+                  | Ok (s, e) ->
+                      interp next
+                        (state_replace_loopvar s uid elemTy)
+                        (env_replace_loopvar (envFromVal e) uid elemTy)
+                        ret)
                 res_loop)
     and interp (b : stmt) (s : prg_type) (env : env) (ret : typ) : prg_res list =
       match b with

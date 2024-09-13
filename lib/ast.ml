@@ -1,4 +1,8 @@
-type uid = unit ref
+let uid_count = ref 0
+let uid () = let x = !uid_count in uid_count := x + 1 ; x
+
+type uid = int
+type id = Loop of int | Val of int
 
 type 'a eval = Reduced of 'a
              | Stuck
@@ -33,7 +37,7 @@ type ('f, 'l, 'v) exprD
   | Env
 
 type ('p, 'n, 's, 'f, 'l, 'd, 'r) valueD
-  = Unknown     of uid * ('p, 'n, 's) typD
+  = Unknown     of id * ('p, 'n, 's) typD
   | Literal     of 'l  * 'p
   | Function    of 'f 
                  * ('p, 'n, 's, 'f, 'l, 'd, 'r) valueD
@@ -149,4 +153,9 @@ module type Ast_Defs = sig
   val envType : typ
   val envToVal : env -> value
   val envFromVal : value -> env
+
+  (* valueSubst v f r = v[f -> r] *)
+  val valueSubst : value -> value -> value -> value
+  (* valueContains determines whether the second value appears in the first *)
+  val valueContains : value -> value -> bool
 end

@@ -149,4 +149,25 @@ module Ast_Base : Ast_Defs = struct
   let envToVal (env : env) = Literal (Env env, (Env : primTy))
   let envFromVal (v : value) =
     match v with Literal (Env env, _) -> env | _ -> failwith "Not environment"
+
+  let valueSubst v f r : value =
+    let rec helper (v : value) : value =
+      if v = f then r
+      else match v with
+      | Function (fn, v, t) -> Function (fn, helper v, t)
+      | Pair (x, y, t) -> Pair (helper x, helper y, t)
+      | Constructor (n, b, v) -> Constructor (n, b, helper v)
+      | Struct (s, Record r) -> Struct (s, Record (FieldMap.map helper r))
+      | _ -> v
+    in helper v
+  let valueContains v t : bool =
+    let rec helper (v : value) : bool =
+      if v = t then true
+      else match v with
+      | Function (_, v, _) -> helper v
+      | Pair (x, y, _) -> helper x || helper y
+      | Constructor (_, _, v) -> helper v
+      | Struct (_, Record r) -> FieldMap.exists (fun _ v -> helper v) r
+      | _ -> false
+    in helper v
 end
