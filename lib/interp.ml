@@ -180,7 +180,19 @@ module Interp(Ast : Ast.Ast_Defs) = struct
             end
         | OnAttribute (a, at) ->
             begin match AttributeMap.find_opt a ats with
-            | None -> Ok NotLocated (* TODO: Should this create the attribute? *)
+            | None ->
+                (* Even if the attribute doens't exist, we could create it
+                 * (since it's an attribute), so we do that and see what
+                 * happens *)
+                begin match helper at init_state with
+                | Err msg -> Err msg
+                | Ok NotLocated -> Ok NotLocated
+                | Ok (Located _) -> failwith "Cannot find attribute in empty state"
+                | Ok (Created (v, st)) ->
+                    let new_value : value = Unknown (ref (), attributeDef a)
+                    in let new_ats = AttributeMap.add a (new_value, st) ats
+                    in Ok (Created (v, State (els, new_ats)))
+                end
             | Some (av, qs) ->
                 match helper at qs with
                 | Err msg -> Err msg
