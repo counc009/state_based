@@ -228,7 +228,19 @@ module Interp(Ast : Ast.Ast_Defs) = struct
      * respectively (right) *)
     in let has_element (e : elem) (s : prg_type) (env : env)
       : (bool, state * state) Either.t error =
-      let rec helper (el : elem) (State (els, ats)) : bool option error =
+      (* Returns whether the given element only has attributes except at the
+       * last level, returns an error if there's an error in evaluating the
+       * expression on that last level *)
+      let rec only_attrs (el : elem) : bool error =
+        match el with
+        | Element (_, e) | NotElement (_, e) ->
+            begin match eval_expr e env with
+            | Err msg -> Err msg
+            | Ok _ -> Ok true
+            end
+        | OnElement _ -> Ok false
+        | OnAttribute (_, el) -> only_attrs el
+      in let rec helper (el : elem) (State (els, ats)) : bool option error =
         match el with
         | Element _ | NotElement _ ->
             let (elm, e, neg)
@@ -247,7 +259,18 @@ module Interp(Ast : Ast.Ast_Defs) = struct
             end
         | OnAttribute (at, q) ->
             begin match AttributeMap.find_opt at ats with
-            | None -> Err "Failed to locate element in state" (* TODO: should this create the attribute? *)
+            | None ->
+                (* If this attribute doesn't exist but the element being checked
+                 * for is on the end of a series of attributes (with no
+                 * elements), we could create all the attributes and then create
+                 * the positive/negative of the attribute.
+                 * Otherwise, if there's an element then we are unable to locate
+                 * the desired qualifier *)
+                begin match only_attrs q with
+                | Err msg -> Err msg
+                | Ok true -> Ok None
+                | Ok false -> Err "Failed to locate element in state"
+                end
             | Some (_, st) -> helper q st
             end
         | OnElement (el, e, q) ->
@@ -258,6 +281,44 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                 | None -> Err "Failed to locate element in state"
                 | Some st -> helper q st
             end
+      in let rec add_elem (el : elem) (State (els, ats)) : state * state =
+        match el with
+        | Element _ | NotElement _ ->
+            let (elem, e, neg)
+              = match el with Element (elm, e)    -> (elm, e, false)
+                            | NotElement (elm, e) -> (elm, e, true)
+                            | _ -> failwith "Match Failure"
+            in begin match eval_expr e env with
+            | Err _ -> failwith "Error evaluating expression"
+            | Ok (v, _) ->
+                let new_true = ElementMap.add (elem, v, neg) init_state els
+                in let new_false = ElementMap.add (elem, v, not neg) init_state els
+                in (State (new_true, ats), State (new_false, ats))
+            end
+        | OnAttribute (at, el) ->
+            begin match AttributeMap.find_opt at ats with
+            | None ->
+                let v : value = Unknown (ref (), attributeDef at)
+                in let (new_true, new_false) = add_elem el init_state
+                in let ats_true = AttributeMap.add at (v, new_true) ats
+                in let ats_false = AttributeMap.add at (v, new_false) ats
+                in (State (els, ats_true), State (els, ats_false))
+            | Some (v, st) ->
+                let (new_true, new_false) = add_elem el st
+                in let ats_true = AttributeMap.add at (v, new_true) ats
+                in let ats_false = AttributeMap.add at (v, new_false) ats
+                in (State (els, ats_true), State (els, ats_false))
+            end
+        | OnElement (el, e, q) ->
+            begin match eval_expr e env with
+            | Err _ -> failwith "Error evaluating expression"
+            | Ok (v, _) ->
+                let st = ElementMap.find (el, v, false) els
+                in let (new_true, new_false) = add_elem q st
+                in let els_true = ElementMap.add (el, v, false) new_true els
+                in let els_false = ElementMap.add (el, v, false) new_false els
+                in (State (els_true, ats), State (els_false, ats))
+            end
       in match helper e s.final with
       | Err msg -> Err msg
       | Ok (Some b) -> Ok (Left b)
@@ -265,7 +326,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           match helper e s.init with
           | Err msg -> Err msg
           | Ok (Some b) -> Ok (Left b)
-          | Ok None -> Err "TODO: add e and not(e) to s.init and return"
+          | Ok None -> Ok (Right (add_elem e s.init))
     (* Notes on loops: the bodies should return the special expression "Env",
      * which is used to thread the environment back to the processing here so
      * so that loop can modify the environment outside of it. This does mean
