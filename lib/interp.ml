@@ -65,8 +65,17 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           | [] -> state
     in helper (ElementMap.bindings els) (AttributeMap.bindings ats) ps
 
-  type prg_type = { init : state; final : state; loops : uid ValueMap.t; }
-  let init_prg_type = { init = init_state; final = init_state; loops = ValueMap.empty; }
+  type prg_type = { 
+    init : state; final : state;
+    loops : uid ValueMap.t;  (* Map between values and the loop variable over that value *)
+    bools : bool ValueMap.t; (* Map between values and its boolean value *)
+    constrs : (bool * value) ValueMap.t; (* Map between values and its constructor value (true = L) *)
+  }
+  let init_prg_type = {
+    init = init_state; final = init_state;
+    loops = ValueMap.empty;
+    bools = ValueMap.empty;
+    constrs = ValueMap.empty; }
 
   (* These functions are used to replace loop variables with just values for
    * handling after the loop ends. This is needed to distinguish actions
@@ -85,7 +94,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
     and helper_state (State (els, ats) : state) : state =
       State (helper_els els, helper_ats ats)
     in { init = helper_state s.init; final = helper_state s.final;
-         loops = s.loops }
+         loops = s.loops; bools = s.bools; constrs = s.constrs; }
   let env_replace_loopvar (env : env) (uid : uid) (elemTy : typ) : env =
     VariableMap.map
       (fun (v, t) ->
@@ -251,7 +260,8 @@ module Interp(Ast : Ast.Ast_Defs) = struct
               * in the initial state *)
              begin match helper a s.init with
              | Ok (Located v) -> Ok (v, s)
-             | _ -> Ok (v, { init = s.init; final = new_final; loops = s.loops; })
+             | _ -> Ok (v, { init = s.init; final = new_final; loops = s.loops;
+                             bools = s.bools; constrs = s.constrs; })
              end
          | Ok NotLocated ->
              match helper a s.init with
@@ -259,7 +269,8 @@ module Interp(Ast : Ast.Ast_Defs) = struct
              | Ok NotLocated -> Err "Failed to locate attribute in current state"
              | Ok (Located v) -> Ok (v, s)
              | Ok (Created (v, new_init)) ->
-                 Ok (v, { init = new_init; final = s.final; loops = s.loops; })
+                 Ok (v, { init = new_init; final = s.final; loops = s.loops;
+                          bools = s.bools; constrs = s.constrs; })
     (* Either returns whether or not the element is in the state (left) or
      * new initial states assuming the element does and does not exist
      * respectively (right) *)
@@ -401,7 +412,8 @@ module Interp(Ast : Ast.Ast_Defs) = struct
             | None ->
                 let uid = uid ()
                 in let state = { init  = s.init; final = s.final;
-                                 loops = ValueMap.add lst uid s.loops; }
+                                 loops = ValueMap.add lst uid s.loops;
+                                 bools = s.bools; constrs = s.constrs; }
                 in (uid, state)
           in let loopvar : value = Unknown (Loop uid, elemTy)
           in let res_loop = interp body s (VariableMap.add var (loopvar, elemTy) env) envType
@@ -456,7 +468,9 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                * could be cleaned up after the fact if we want.
                *)
               let new_final = add_qual q s.final
-              in let new_state = { init = s.init; final = new_final; loops = s.loops }
+              in let new_state = { init = s.init; final = new_final;
+                                   loops = s.loops; bools = s.bools;
+                                   constrs = s.constrs; }
               in interp next new_state env ret
           end
       | Get      (var, attr, next) ->
@@ -478,18 +492,18 @@ module Interp(Ast : Ast.Ast_Defs) = struct
               interp (if b then thn else els) s env ret
           (* Otherwise, take both branches in appropriate updated initial states *)
           | Ok (Right (new_init_true, new_init_false)) ->
-              (interp thn { init = new_init_true; final = s.final; loops = s.loops; }
+              (interp thn { init = new_init_true; final = s.final;
+                            loops = s.loops; bools = s.bools; constrs = s.constrs; }
                       env ret)
               @
-              (interp els { init = new_init_false; final = s.final; loops = s.loops; }
+              (interp els { init = new_init_false; final = s.final;
+                            loops = s.loops; bools = s.bools; constrs = s.constrs; }
                       env ret)
           end
-      (* TODO: For both cond and match, if the result of expression is not
-       * a concrete value we could evaluate both branches and track the
-       * "constraint" of what we've assumed the value was (this is much like
-       * you would do with refinement/dependent types). For the moment I have
-       * not done this for simplicity
-       *)
+      (* For both cond and match we try to reduce the expression to a concrete
+       * value that we can branch on. However, if it cannot reduce to such an
+       * expression then we check the constraints stored in the state and
+       * if there's nothing there try both possible options *)
       | Cond     (expr, thn, els) ->
           begin match eval_expr expr env with
           | Err msg -> Err msg :: []
@@ -497,10 +511,26 @@ module Interp(Ast : Ast.Ast_Defs) = struct
               if not (isTruthType t)
               then Err "Condition is not truthy" :: []
               else match asTruth v with
-                   (* If we were to track the constraints, we would do that here *)
-                   | None -> Err "Could not evaluate truth of condition" :: []
                    | Some true -> interp thn s env ret
                    | Some false -> interp els s env ret
+                   (* Since the value cannot be evaluated fully, check if we've
+                    * already evaluated it, and otherwise try both possible
+                    * values *)
+                   | None ->
+                       match ValueMap.find_opt v s.bools with
+                       | Some true -> interp thn s env ret
+                       | Some false -> interp els s env ret
+                       | None ->
+                           let bools_true = ValueMap.add v true s.bools
+                           in let bools_false = ValueMap.add v false s.bools
+                           in (interp thn { init = s.init; final = s.final;
+                                            loops = s.loops; bools = bools_true;
+                                            constrs = s.constrs; }
+                                      env ret)
+                            @ (interp els { init = s.init; final = s.final;
+                                            loops = s.loops; bools = bools_false;
+                                            constrs = s.constrs; }
+                                      env ret)
           end
       | Match    (expr, var, left, right) ->
           begin match eval_expr expr env with
@@ -513,8 +543,31 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                       let t = (if b then fst else snd) (namedTyDef n)
                       in interp (if b then left else right) s
                             (VariableMap.add var (v, t) env) ret
-                  (* Modify here to track constraints *)
-                  | _ -> Err "Could not evaluate to constructor on match" :: []
+                  (* The value cannot be evaluated sufficiently, so check the
+                   * constraints for it and otherwise try both options *)
+                  | _ ->
+                      match ValueMap.find_opt v s.constrs with
+                      | Some (b, v) ->
+                          let t = (if b then fst else snd) (namedTyDef n)
+                          in interp (if b then left else right) s
+                                (VariableMap.add var (v, t) env) ret
+                      | None ->
+                          let val_left : value =
+                            Unknown (Val (uid ()), fst (namedTyDef n))
+                          in let val_right : value =
+                            Unknown (Val (uid ()), snd (namedTyDef n))
+                          in let constr_left =
+                            ValueMap.add v (true, val_left) s.constrs
+                          in let constr_right =
+                            ValueMap.add v (false, val_right) s.constrs
+                          in (interp left { init = s.init; final = s.final;
+                                            loops = s.loops; bools = s.bools;
+                                            constrs = constr_left; }
+                                     env ret)
+                          @ (interp right { init = s.init; final = s.final;
+                                            loops = s.loops; bools = s.bools;
+                                            constrs = constr_right; }
+                                    env ret)
                   end
               | _ -> Err "Cannot match over non-named type" :: []
           end
