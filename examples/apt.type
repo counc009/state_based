@@ -1,16 +1,16 @@
 enum apt_state { absent, build-dep, latest, present, fixed }
 
-module ansible.builtin.apt
+module ansible.builtin.apt {
+  (name : string list)
+  [state : apt_state = present]
 
-(name : string list)
-[state : apt_state = present]
-
-for pkg in name {
-  match state with
-  | absent  => clear package(pkg)
-               package(pkg).installed = false
-  | latest  => package(pkg).installed = true
-               package(pkg).version   = latest
-  | present => package(pkg).installed = true
-  end
+  for pkg in name {
+    match state with
+    | absent  => clear package(pkg)
+                 package(pkg).installed = false
+    | latest  => package(pkg).installed = true
+                 package(pkg).version   = latest
+    | present => package(pkg).installed = true
+    end
+  }
 }
