@@ -1,5 +1,5 @@
-attribute running of bool
-attribute on_boot of bool
+attribute running(bool)
+attribute on_boot(bool)
 
 enum service_state { reloaded, restarted, started, stopped }
 

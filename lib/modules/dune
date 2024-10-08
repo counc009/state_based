@@ -1,2 +1,3 @@
 (library
-  (name modules))
+  (name modules)
+  (libraries angstrom))

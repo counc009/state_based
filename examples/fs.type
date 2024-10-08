@@ -1,11 +1,11 @@
 enum local_remote { remote, local }
 
-element file of path * local_remote
-element directory of path * local_remote
+element file(path, local_remote)
+element directory(path, local_remote)
 
-attribute content of string
-attribute owner of string
-attribute group of string
+attribute content(string)
+attribute owner(string)
+attribute group(string)
 
-attribute files of list<path>
-attribute dirs  of list<path>
+attribute files(list<path>)
+attribute dirs(list<path>)

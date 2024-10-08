@@ -1,8 +1,8 @@
 enum version { latest, specific(string) }
 
-element package of string
-attribute installed of bool
-attribute version of version
+element package(string)
+attribute installed(bool)
+attribute version(version)
 
 requirement package_present(pkg : string) {
   require package(pkg).installed
