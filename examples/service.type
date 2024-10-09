@@ -7,11 +7,11 @@ module ansible.builtin.service {
   (name : string) (enabled : bool | state : service_state)
 
   if provided enabled {
-    package(name).on_boot = enabled
+    package(name).on_boot = enabled;
   } else {
-    match state with
-    | started => package(name).running = true
-    | stopped => package(name).running = false
-    end
+    match state {
+      started => { package(name).running = true; }
+      stopped => { package(name).running = false; }
+    }
   }
 }

@@ -4,25 +4,25 @@ module ansible.builtin.template {
   (dest : path) (src : path)
   [group : string] [owner : string]
 
-  c = file(src, local).content
-  file(dest, remote).content = templated(c)
+  c = file(src, local).content;
+  file(dest, remote).content = templated(c);
 
-  prev_group = file(src, local).group
-  prev_owner = file(src, local).owner
+  prev_group = file(src, local).group;
+  prev_owner = file(src, local).owner;
 
   if provided group {
-    file(dest, remote).group = group
+    file(dest, remote).group = group;
   } else if env.is_root {
-    file(dest, remote).group = prev_group
+    file(dest, remote).group = prev_group;
   } else {
-    file(dest, remote).group = env.group
+    file(dest, remote).group = env.group;
   }
 
   if provided owner {
-    file(dest, remote).owner = owner
+    file(dest, remote).owner = owner;
   } else if env.is_root {
-    file(dest, remote).owner = prev_owner
+    file(dest, remote).owner = prev_owner;
   } else {
-    file(dest, remote).owner = env.user
+    file(dest, remote).owner = env.user;
   }
 }

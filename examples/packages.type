@@ -4,6 +4,6 @@ element package(string)
 attribute installed(bool)
 attribute version(version)
 
-requirement package_present(pkg : string) {
-  require package(pkg).installed
+procedure package_present(pkg : string) {
+  assert package(pkg).installed;
 }
