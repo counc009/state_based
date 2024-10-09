@@ -50,12 +50,30 @@ let optional p =
 
 type typ = Bool | Int | Float | String | Path | Named of string | Unit
          | Product of typ list
-type topLevel = Enum of string * (string * typ option) list
-              | Uninterp of string * typ * typ
-              | Attribute of string * typ
-              | Element of string * typ
 
-(* TODO: modules, requirements *)
+type expr = Id of string | BoolLit of bool | IntLit of int | FloatLit of float
+          | StringLit of string | UnitExp | ProductExp of expr list
+          | Provided of string | Function of string * expr list
+          | Field of expr * expr
+
+(* Patterns are just of the form <name>[(<names>)] *)
+type pattern = string * string list
+
+type stmt = RequiredVar of (string * string list * typ * expr option) list
+          | OptionalVar of (string * string list * typ * expr option) list
+          | ForLoop     of string * expr * stmt list
+          | IfThenElse  of expr * stmt list * stmt list
+          | Match       of expr * (pattern * stmt list) list
+          | Clear       of expr
+          | Assert      of expr
+          | Assign      of expr * expr
+
+type topLevel = Enum      of string * (string * typ option) list
+              | Uninterp  of string * typ * typ
+              | Attribute of string * typ
+              | Element   of string * typ
+              | Procedure of string * (string * typ) list * stmt list
+              | Module    of string * stmt list
 
 let typ =
   fix (fun t ->
@@ -91,6 +109,25 @@ let enum_case =
 
 let enum_cases =
   sep_by (whitespace *> char ',' *> whitespace) enum_case
+
+(* Arguments are of the form <name> : <type> *)
+let argument =
+  identifier
+  >>= fun nm ->
+  whitespace
+  *> char ':'
+  *> whitespace
+  *> typ
+  >>| fun typ -> (nm, typ)
+
+let proc_args =
+  sep_by (whitespace *> char ',' *> whitespace) argument
+
+let stmt =
+  choice [
+  ]
+
+let stmts = whitespace *> sep_by whitespace stmt
 
 let enum_def =
   string "enum"
@@ -132,3 +169,15 @@ let elem_def =
   whitespace
   *> parens ptype
   >>| fun t -> Element (nm, t)
+
+let proc_def =
+  string "procedure"
+  *> whitespace
+  *> identifier
+  >>= fun nm ->
+  whitespace
+  *> parens proc_args
+  >>= fun args ->
+  whitespace
+  *> brackets stmts
+  >>| fun body -> Procedure (nm, args, body)
