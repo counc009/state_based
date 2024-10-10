@@ -44,6 +44,7 @@ let identifier =
 
 let parens p = char '(' *> whitespace *> p <* whitespace <* char ')'
 let brackets p = char '{' *> whitespace *> p <* whitespace <* char '}'
+let square p = char '[' *> whitespace *> p <* whitespace <* char ']'
 
 let optional p =
   option None (lift (fun x -> Some x) p)
@@ -62,6 +63,7 @@ type pattern = string * string list
 type stmt = RequiredVar of (string * string list * typ * expr option) list
           | OptionalVar of (string * string list * typ * expr option) list
           | ForLoop     of string * expr * stmt list
+          | IfProvided  of string * stmt list * stmt list
           | IfThenElse  of expr * stmt list * stmt list
           | Match       of expr * (pattern * stmt list) list
           | Clear       of expr
@@ -110,8 +112,8 @@ let enum_case =
 let enum_cases =
   sep_by (whitespace *> char ',' *> whitespace) enum_case
 
-(* Arguments are of the form <name> : <type> *)
-let argument =
+(* Procedure arguments are of the form <name> : <type> *)
+let proc_arg =
   identifier
   >>= fun nm ->
   whitespace
@@ -121,10 +123,40 @@ let argument =
   >>| fun typ -> (nm, typ)
 
 let proc_args =
-  sep_by (whitespace *> char ',' *> whitespace) argument
+  sep_by (whitespace *> char ',' *> whitespace) proc_arg
 
+(* TODO *)
+let expr = string "TODO" >>| fun _ -> Id "todo"
+
+(* Module arguments are of the form <name> [aka <names>] : <type> [= <default>] *)
+let mod_aka =
+  option [] (string "aka" *> whitespace 
+            *> sep_by1 (whitespace *> char ',' *> whitespace) identifier)
+
+let mod_arg =
+  identifier
+  >>= fun nm ->
+  whitespace
+  *> mod_aka
+  >>= fun alias ->
+  whitespace
+  *> char ':'
+  *> whitespace
+  *> typ
+  >>= fun typ ->
+  whitespace
+  *> optional (char '=' *> whitespace *> expr)
+  >>| fun default -> (nm, alias, typ, default)
+
+(* Module arguments are separated by | since they represent options *)
+let mod_args =
+  sep_by (whitespace *> char '|' *> whitespace) mod_arg
+
+(* TODO *)
 let stmt =
-  choice [
+  choice 
+  [ (parens mod_args >>| fun args -> RequiredVar args)
+  ; (square mod_args >>| fun args -> OptionalVar args)
   ]
 
 let stmts = whitespace *> sep_by whitespace stmt
