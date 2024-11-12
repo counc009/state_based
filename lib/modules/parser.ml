@@ -54,9 +54,9 @@ let optional p =
 type typ = Bool | Int | Float | String | Path | Named of string | Unit
          | Product of typ list
 
-type expr = Id of string | BoolLit of bool | IntLit of int | FloatLit of float
-          | StringLit of string | UnitExp | ProductExp of expr list
-          | Provided of string | Function of string * expr list
+type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
+          | StringLit of string | UnitExp   | ProductExp of expr list
+          | RecordExp of string * expr list | Function of string * expr list
           | Field of expr * expr
 
 (* Patterns are just of the form <name>[(<names>)] *)
@@ -110,8 +110,14 @@ let func_arg =
 let func_args =
   sep_by (whitespace *> char ',' *> whitespace) func_arg
 
-(* TODO *)
-let expr = string "TODO" >>| fun _ -> Id "todo"
+let expr =
+  fix (fun expr ->
+    choice
+    [ string "true" *> return (BoolLit true)
+    ; string "false" *> return (BoolLit false)
+    (* TODO *)
+    ]
+  )
 
 (* Module arguments are of the form <name> [aka <names>] : <type> [= <default>] *)
 let mod_aka =
@@ -167,7 +173,8 @@ let stmt =
     in let ifStmts =
       string "if"
       *> whitespace
-      *> expr
+      *> ((string "provided" *> identifier >>| fun nm -> Either.Left nm)
+          <|> (expr >>| fun ex -> Either.Right ex))
       >>= fun cond ->
       whitespace
       *> brackets stmts
@@ -176,8 +183,8 @@ let stmt =
       *> option [] (string "else" *> whitespace *> brackets stmts)
       >>| fun els ->
         match cond with
-        | Provided nm -> IfProvided (nm, thn, els)
-        | _ -> IfThenElse (cond, thn, els)
+        | Either.Left nm -> IfProvided (nm, thn, els)
+        | Either.Right cond -> IfThenElse (cond, thn, els)
 
     in let matchCase =
       pattern
