@@ -42,6 +42,8 @@ let identifier =
   take_while (function 'a'..'z' | 'A'..'Z' | '_' | '-' -> true | _ -> false)
   >>| fun rest -> String.make 1 c ^ rest
 
+let module_name = sep_by1 (char '.') identifier
+
 let parens p = char '(' *> whitespace *> p <* whitespace <* char ')'
 let brackets p = char '{' *> whitespace *> p <* whitespace <* char '}'
 let square p = char '[' *> whitespace *> p <* whitespace <* char ']'
@@ -68,14 +70,16 @@ type stmt = RequiredVar of (string * string list * typ * expr option) list
           | Match       of expr * (pattern * stmt list) list
           | Clear       of expr
           | Assert      of expr
+          | Return      of expr
           | Assign      of expr * expr
 
 type topLevel = Enum      of string * (string * typ option) list
+              | Struct    of string * (string * typ) list
               | Uninterp  of string * typ * typ
               | Attribute of string * typ
               | Element   of string * typ
-              | Procedure of string * (string * typ) list * stmt list
-              | Module    of string * stmt list
+              | Function  of string * (string * typ) list * typ option * stmt list
+              | Module    of string list * typ option * stmt list
 
 let typ =
   fix (fun t ->
@@ -93,27 +97,8 @@ let typ =
           | ts -> Product ts)
       ])
 
-(* ptype parsed an already parens type, hence we handle commas *)
-let ptype =
-  sep_by (whitespace *> char ',' *> whitespace) typ
-  >>| function
-    | [] -> Unit
-    | [t] -> t
-    | ts -> Product ts
-
-let enum_case =
-  identifier
-  >>= fun nm ->
-  whitespace
-  *>
-  optional (parens ptype)
-  >>| fun ty -> (nm, ty)
-
-let enum_cases =
-  sep_by (whitespace *> char ',' *> whitespace) enum_case
-
-(* Procedure arguments are of the form <name> : <type> *)
-let proc_arg =
+(* Function arguments are of the form <name> : <type> *)
+let func_arg =
   identifier
   >>= fun nm ->
   whitespace
@@ -122,8 +107,8 @@ let proc_arg =
   *> typ
   >>| fun typ -> (nm, typ)
 
-let proc_args =
-  sep_by (whitespace *> char ',' *> whitespace) proc_arg
+let func_args =
+  sep_by (whitespace *> char ',' *> whitespace) func_arg
 
 (* TODO *)
 let expr = string "TODO" >>| fun _ -> Id "todo"
@@ -152,14 +137,118 @@ let mod_arg =
 let mod_args =
   sep_by (whitespace *> char '|' *> whitespace) mod_arg
 
-(* TODO *)
+(* A (match) pattern has form <name>[(<names>)] *)
+let pattern =
+  identifier
+  >>= fun nm ->
+  option []
+    (whitespace
+      *> parens (sep_by (whitespace *> char ',' *> whitespace) identifier))
+  >>| fun vars -> (nm, vars)
+
 let stmt =
-  choice 
-  [ (parens mod_args >>| fun args -> RequiredVar args)
-  ; (square mod_args >>| fun args -> OptionalVar args)
-  ]
+  fix (fun stmt ->
+    let stmts = whitespace *> sep_by whitespace stmt
+
+    in let forLoop =
+      string "for"
+      *> whitespace
+      *> identifier
+      >>= fun var ->
+      whitespace
+      *> string "in"
+      *> whitespace
+      *> expr
+      >>= fun lst ->
+      whitespace
+      *> brackets stmts
+      >>| fun body -> ForLoop (var, lst, body)
+
+    in let ifStmts =
+      string "if"
+      *> whitespace
+      *> expr
+      >>= fun cond ->
+      whitespace
+      *> brackets stmts
+      >>= fun thn ->
+      whitespace
+      *> option [] (string "else" *> whitespace *> brackets stmts)
+      >>| fun els ->
+        match cond with
+        | Provided nm -> IfProvided (nm, thn, els)
+        | _ -> IfThenElse (cond, thn, els)
+
+    in let matchCase =
+      pattern
+      >>= fun pat ->
+      whitespace
+      *> string "=>"
+      *> whitespace
+      *> brackets stmts
+      >>| fun body -> (pat, body)
+
+    in let cases = whitespace *> sep_by whitespace matchCase
+
+    in let matchStmt =
+      string "match"
+      *> whitespace
+      *> expr
+      >>= fun ex ->
+      whitespace
+      *> brackets cases
+      >>| fun cs -> Match (ex, cs)
+
+    in let keywordStmt (keyword : string) (c : expr -> stmt) =
+      string keyword *> whitespace
+      *> expr
+      <* whitespace <* char ';'
+      >>| c
+
+    in let assignStmt =
+      expr
+      >>= fun lhs ->
+      whitespace
+      *> char '='
+      *> whitespace
+      *> expr
+      <* whitespace
+      <* char ';'
+      >>| fun rhs -> Assign (lhs, rhs)
+
+    in choice 
+    [ (parens mod_args >>| fun args -> RequiredVar args)
+    ; (square mod_args >>| fun args -> OptionalVar args)
+    ; forLoop
+    ; ifStmts
+    ; matchStmt
+    ; keywordStmt "clear"  (fun e -> Clear e)
+    ; keywordStmt "assert" (fun e -> Assert e)
+    ; keywordStmt "return" (fun e -> Return e)
+    ; assignStmt
+    ]
+  )
 
 let stmts = whitespace *> sep_by whitespace stmt
+
+(* ptype parsed an already parens type, hence we handle commas *)
+let ptype =
+  sep_by (whitespace *> char ',' *> whitespace) typ
+  >>| function
+    | [] -> Unit
+    | [t] -> t
+    | ts -> Product ts
+
+let enum_case =
+  identifier
+  >>= fun nm ->
+  whitespace
+  *>
+  optional (parens ptype)
+  >>| fun ty -> (nm, ty)
+
+let enum_cases =
+  sep_by (whitespace *> char ',' *> whitespace) enum_case
 
 let enum_def =
   string "enum"
@@ -169,6 +258,27 @@ let enum_def =
   >>= fun nm ->
   brackets enum_cases
   >>| fun def -> Enum (nm, def)
+
+let struct_field =
+  identifier
+  >>= fun nm ->
+  whitespace
+  *> char ':'
+  *> whitespace
+  *> typ
+  >>| fun typ -> (nm, typ)
+
+let struct_fields =
+  sep_by (whitespace *> char ',' *> whitespace) struct_field
+
+let struct_def =
+  string "struct"
+  *> whitespace
+  *> identifier
+  <* whitespace
+  >>= fun nm ->
+  brackets struct_fields
+  >>| fun def -> Struct (nm, def)
 
 let uninterp_def =
   string "uninterpreted"
@@ -202,14 +312,29 @@ let elem_def =
   *> parens ptype
   >>| fun t -> Element (nm, t)
 
-let proc_def =
-  string "procedure"
+let func_def =
+  string "function"
   *> whitespace
   *> identifier
   >>= fun nm ->
   whitespace
-  *> parens proc_args
+  *> parens func_args
   >>= fun args ->
   whitespace
+  *> optional (string "->" *> whitespace *> typ)
+  >>= fun retTy ->
+  whitespace
   *> brackets stmts
-  >>| fun body -> Procedure (nm, args, body)
+  >>| fun body -> Function (nm, args, retTy, body)
+
+let mod_def =
+  string "module"
+  *> whitespace
+  *> module_name
+  >>= fun nm ->
+  whitespace
+  *> optional (string "->" *> whitespace *> typ)
+  >>= fun retTy ->
+  whitespace
+  *> brackets stmts
+  >>| fun body -> Module (nm, retTy, body)
