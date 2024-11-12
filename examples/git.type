@@ -3,7 +3,7 @@ uninterpreted gitClone(string, string) -> string
 module ansible.builtin.git {
   (dest : path)
   (repo aka name : string)
-  [version : string = HEAD]
+  [version : string = "HEAD"]
 
   assert package_present("git");
   directory(dest, remote).content = gitClone(repo, version);
