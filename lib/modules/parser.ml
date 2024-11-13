@@ -24,18 +24,6 @@ let dot =
     | Some '.' -> advance 1 >>| fun () -> true
     | _ -> return false
 
-let number =
-  sign
-  >>= fun sign ->
-  take_while1 is_digit
-  >>= fun whole ->
-  dot
-  >>= function
-  | false -> return (float_of_string (sign ^ whole))
-  | true ->
-      take_while1 is_digit >>= fun part ->
-      return (float_of_string (sign ^ whole ^ "." ^ part))
-
 let identifier =
   satisfy (function 'a'..'z' | 'A'..'Z' -> true | _ -> false)
   >>= fun c ->
@@ -110,14 +98,80 @@ let func_arg =
 let func_args =
   sep_by (whitespace *> char ',' *> whitespace) func_arg
 
+let number =
+  sign
+  >>= fun sign ->
+  take_while1 is_digit
+  >>= fun whole ->
+  dot
+  >>= function
+  | false -> return (IntLit (int_of_string (sign ^ whole)))
+  | true ->
+      take_while1 is_digit >>= fun part ->
+        return (FloatLit (float_of_string (sign ^ whole ^ "." ^ part)))
+
+let string_lit =
+  let string_body =
+    many ((take_while (function '\\' | '"' -> false | _ -> true))
+          <|> (char '\\' *> any_char >>| fun c -> String.make 1 c))
+    >>| String.concat ""
+  in char '"'
+  *> string_body
+  <* char '"'
+
+(* We use a shunting yard algorithm to parse expressions, with identifiers
+   and literals being the base values. We then the following operators
+   - . (left associative) [field accessor]
+   - ( and { [function calls]
+   - ! (right associative) TODO: unary minus
+   - *, /, % (left associative)
+   - + and - (left associative)
+   - << and >> (left associative)
+   - <, <=, >, >= (nonassociative)
+   - ==, != (left associative)
+   - && (left associative)
+   - || (left associative)
+*)
+type operator = Dot | LParen | RParen | LCurly | RCurly | Mul | Div | Mod
+              | Add | Sub | LShift | RShift | Lt | Le | Gt | Ge | Eq | Ne
+              | Not | And | Or
 let expr =
-  fix (fun expr ->
+  let parse_atom =
     choice
-    [ string "true" *> return (BoolLit true)
-    ; string "false" *> return (BoolLit false)
-    (* TODO *)
-    ]
-  )
+      (* First we have the atomic expressions (literals and identifiers) *)
+      [ string "true"  *> return (Either.Left (BoolLit true))
+      ; string "false" *> return (Either.Left (BoolLit false))
+      ; (number >>| fun num -> Either.Left num)
+      ; (string_lit >>| fun str -> Either.Left (StringLit str))
+      ; (identifier >>| fun nm -> Either.Left (Id nm))
+
+      (* and then we have the operators *)
+      ; char '.'    *> return (Either.Right Dot)
+      ; char '('    *> return (Either.Right LParen)
+      ; char ')'    *> return (Either.Right RParen)
+      ; char '{'    *> return (Either.Right LCurly)
+      ; char '}'    *> return (Either.Right RCurly)
+      ; char '*'    *> return (Either.Right Mul)
+      ; char '/'    *> return (Either.Right Div)
+      ; char '%'    *> return (Either.Right Mod)
+      ; char '+'    *> return (Either.Right Add)
+      ; char '-'    *> return (Either.Right Sub)
+      ; string "<<" *> return (Either.Right LShift)
+      ; string ">>" *> return (Either.Right RShift)
+      ; string "<=" *> return (Either.Right Le)
+      ; char '<'    *> return (Either.Right Lt)
+      ; string ">=" *> return (Either.Right Ge)
+      ; char '>'    *> return (Either.Right Gt)
+      ; string "==" *> return (Either.Right Eq)
+      ; string "!=" *> return (Either.Right Ne)
+      ; char '!'    *> return (Either.Right Not)
+      ; string "&&" *> return (Either.Right And)
+      ; string "||" *> return (Either.Right Or)
+      ]
+  in (* TODO *)
+     parse_atom >>| function
+                    | Either.Left e -> e
+                    | Either.Right _ -> failwith "TODO"
 
 (* Module arguments are of the form <name> [aka <names>] : <type> [= <default>] *)
 let mod_aka =
