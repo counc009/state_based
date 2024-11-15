@@ -145,10 +145,9 @@ let string_lit =
     expr5 ::= expr5 '+' expr6 | expr5 '-' expr6 | expr6
     expr6 ::= expr6 '*' expr7 | expr6 '/' expr7 | expr6 '%' expr7 | expr7
     expr7 ::= '!' expr7 | '-' expr7 | expr8
-    expr8 ::= expr9 '(' exprs ')' | expr9 '{' fields '}' | expr9 '{{' fields '}}'
-            | expr9
-    expr9 ::= expr9 '.' identifier | exprA
-    exprA ::= identifier | literals | '(' exprs ')'
+    expr8 ::= expr8 '.' identifier | expr8 '(' exprs ')' | expr8 '{' fields '}'
+            | expr8 '{{' fields '}}' | expr9
+    expr9 ::= identifier | literals | '(' exprs ')'
    in the implementation we eliminate left recursion in the standard way
 *)
 let expr =
@@ -161,7 +160,7 @@ let expr =
     in let fields =
       sep_by (whitespace *> char ',' *> whitespace) field_expr
 
-    in let exprA =
+    in let expr9 =
       choice
       [ string "true"  *> return (BoolLit true)
       ; string "false" *> return (BoolLit false)
@@ -172,23 +171,18 @@ let expr =
                                  | [x] -> x
                                  | xs -> ProductExp xs)
       ]
-    in let expr9 =
-      let rec expr9' exp =
-        whitespace
-        *> option exp
-          (char '.' *> whitespace *> identifier 
-            >>= fun field -> expr9' (Field (exp, field)))
-      in exprA >>= expr9'
     in let expr8 =
-      expr9
-      <* whitespace
-      >>= fun exp ->
-        choice
-        [ (parens exprs >>| fun args -> FuncExp (exp, args))
-        ; (doub_bracks fields >>| fun args -> ModuleExp (exp, args))
-        ; (brackets fields >>| fun args -> RecordExp (exp, args))
-        ; (return exp)
-        ]
+      let rec expr8' exp =
+        whitespace
+        *> choice
+          [ (char '.' *> whitespace *> identifier
+              >>= fun field -> expr8' (Field (exp, field)))
+          ; (parens exprs >>= fun args -> expr8' (FuncExp (exp, args)))
+          ; (doub_bracks fields >>= fun args -> expr8' (ModuleExp (exp, args)))
+          ; (brackets fields >>= fun args -> expr8' (RecordExp (exp, args)))
+          ; (return exp)
+          ]
+      in expr9 >>= expr8'
     in let expr7 =
       fix (fun expr7 ->
         choice
@@ -317,7 +311,8 @@ let stmt =
     in let ifStmts =
       string "if"
       *> whitespace1
-      *> ((string "provided" *> identifier >>| fun nm -> Either.Left nm)
+      *> ((string "provided" *> whitespace1 *> identifier
+            >>| fun nm -> Either.Left nm)
           <|> (expr >>| fun ex -> Either.Right ex))
       >>= fun cond ->
       whitespace
