@@ -35,6 +35,7 @@ let module_name = sep_by1 (char '.') identifier
 let parens p = char '(' *> whitespace *> p <* whitespace <* char ')'
 let brackets p = char '{' *> whitespace *> p <* whitespace <* char '}'
 let square p = char '[' *> whitespace *> p <* whitespace <* char ']'
+let doub_bracks p = string "{{" *> whitespace *> p <* whitespace <* string "}}"
 
 let optional p =
   option None (lift (fun x -> Some x) p)
@@ -42,10 +43,18 @@ let optional p =
 type typ = Bool | Int | Float | String | Path | Named of string | Unit
          | Product of typ list
 
+type unary = Not | Neg
+type binary = Or | And | Eq | Ne | Lt | Le | Gt | Ge | LShift | RShift
+            | Add | Sub | Mul | Div | Mod
+
 type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
           | StringLit of string | UnitExp   | ProductExp of expr list
-          | RecordExp of string * expr list | Function of string * expr list
-          | Field of expr * expr
+          | RecordExp of expr * (string * expr) list
+          | FuncExp   of expr * expr list
+          | ModuleExp of expr * (string * expr) list
+          | Field of expr * string
+          | UnaryExp of expr * unary
+          | BinaryExp of expr * expr * binary
 
 (* Patterns are just of the form <name>[(<names>)] *)
 type pattern = string * string list
@@ -119,59 +128,137 @@ let string_lit =
   *> string_body
   <* char '"'
 
-(* We use a shunting yard algorithm to parse expressions, with identifiers
-   and literals being the base values. We then the following operators
-   - . (left associative) [field accessor]
-   - ( and { [function calls]
-   - ! (right associative) TODO: unary minus
-   - *, /, % (left associative)
-   - + and - (left associative)
-   - << and >> (left associative)
-   - <, <=, >, >= (nonassociative)
-   - ==, != (left associative)
-   - && (left associative)
-   - || (left associative)
+(* Parsing of expressions is similar to how we would parse a disambiguated
+   CFG with precedence, so we use a number of auxiliary nonterminals. The CFG
+   for this is roughly:
+    expr  ::= expr1
+    expr1 ::= expr1 '||' expr2 | expr2
+    expr2 ::= expr2 '&&' expr3 | expr3
+    expr3 ::= expr4 '==' expr4 | expr4 '!=' expr4
+            | expr4 '<'  expr4 | expr4 '<=' expr4
+            | expr4 '>'  expr4 | expr4 '>=' expr4
+            | expr4
+    expr4 ::= expr4 '<<' expr5 | expr4 '>>' expr5 | expr5
+    expr5 ::= expr5 '+' expr6 | expr5 '-' expr6 | expr6
+    expr6 ::= expr6 '*' expr7 | expr6 '/' expr7 | expr6 '%' expr7 | expr7
+    expr7 ::= '!' expr7 | '-' expr7 | expr8
+    expr8 ::= expr9 '(' exprs ')' | expr9 '{' fields '}' | expr9 '{{' fields '}}'
+            | expr9
+    expr9 ::= expr9 '.' identifier | exprA
+    exprA ::= identifier | literals | '(' exprs ')'
+   in the implementation we eliminate left recursion in the standard way
 *)
-type operator = Dot | LParen | RParen | LCurly | RCurly | Mul | Div | Mod
-              | Add | Sub | LShift | RShift | Lt | Le | Gt | Ge | Eq | Ne
-              | Not | And | Or
 let expr =
-  let parse_atom =
-    choice
-      (* First we have the atomic expressions (literals and identifiers) *)
-      [ string "true"  *> return (Either.Left (BoolLit true))
-      ; string "false" *> return (Either.Left (BoolLit false))
-      ; (number >>| fun num -> Either.Left num)
-      ; (string_lit >>| fun str -> Either.Left (StringLit str))
-      ; (identifier >>| fun nm -> Either.Left (Id nm))
+  fix (fun expr ->
 
-      (* and then we have the operators *)
-      ; char '.'    *> return (Either.Right Dot)
-      ; char '('    *> return (Either.Right LParen)
-      ; char ')'    *> return (Either.Right RParen)
-      ; char '{'    *> return (Either.Right LCurly)
-      ; char '}'    *> return (Either.Right RCurly)
-      ; char '*'    *> return (Either.Right Mul)
-      ; char '/'    *> return (Either.Right Div)
-      ; char '%'    *> return (Either.Right Mod)
-      ; char '+'    *> return (Either.Right Add)
-      ; char '-'    *> return (Either.Right Sub)
-      ; string "<<" *> return (Either.Right LShift)
-      ; string ">>" *> return (Either.Right RShift)
-      ; string "<=" *> return (Either.Right Le)
-      ; char '<'    *> return (Either.Right Lt)
-      ; string ">=" *> return (Either.Right Ge)
-      ; char '>'    *> return (Either.Right Gt)
-      ; string "==" *> return (Either.Right Eq)
-      ; string "!=" *> return (Either.Right Ne)
-      ; char '!'    *> return (Either.Right Not)
-      ; string "&&" *> return (Either.Right And)
-      ; string "||" *> return (Either.Right Or)
+    let exprs = sep_by (whitespace *> char ',' *> whitespace) expr
+    in let field_expr =
+      identifier <* whitespace <* char ':' <* whitespace
+      >>= fun field -> expr >>| fun exp -> (field, exp)
+    in let fields =
+      sep_by (whitespace *> char ',' *> whitespace) field_expr
+
+    in let exprA =
+      choice
+      [ string "true"  *> return (BoolLit true)
+      ; string "false" *> return (BoolLit false)
+      ; number
+      ; (string_lit >>| fun str -> StringLit str)
+      ; (identifier >>| fun nm -> Id nm)
+      ; (parens exprs >>| function [] -> UnitExp
+                                 | [x] -> x
+                                 | xs -> ProductExp xs)
       ]
-  in (* TODO *)
-     parse_atom >>| function
-                    | Either.Left e -> e
-                    | Either.Right _ -> failwith "TODO"
+    in let expr9 =
+      let rec expr9' exp =
+        whitespace
+        *> option exp
+          (char '.' *> whitespace *> identifier 
+            >>= fun field -> expr9' (Field (exp, field)))
+      in exprA >>= expr9'
+    in let expr8 =
+      expr9
+      <* whitespace
+      >>= fun exp ->
+        choice
+        [ (parens exprs >>| fun args -> FuncExp (exp, args))
+        ; (doub_bracks fields >>| fun args -> ModuleExp (exp, args))
+        ; (brackets fields >>| fun args -> RecordExp (exp, args))
+        ; (return exp)
+        ]
+    in let expr7 =
+      fix (fun expr7 ->
+        choice
+        [ (char '!' *> whitespace *> expr7 >>| fun exp -> UnaryExp (exp, Not))
+        ; (char '-' *> whitespace *> expr7 >>| fun exp -> UnaryExp (exp, Neg))
+        ; expr8
+        ])
+    in let expr6 =
+      let rec expr6' lhs =
+        whitespace
+        *> option lhs
+          (choice
+          [ (char '*' *> whitespace *> expr7
+              >>= fun rhs -> expr6' (BinaryExp (lhs, rhs, Mul)))
+          ; (char '/' *> whitespace *> expr7
+              >>= fun rhs -> expr6' (BinaryExp (lhs, rhs, Div)))
+          ; (char '%' *> whitespace *> expr7
+              >>= fun rhs -> expr6' (BinaryExp (lhs, rhs, Mod))) ])
+      in expr7 >>= expr6'
+    in let expr5 =
+      let rec expr5' lhs =
+        whitespace
+        *> option lhs
+          (choice
+          [ (char '+' *> whitespace *> expr6
+              >>= fun rhs -> expr5' (BinaryExp (lhs, rhs, Add)))
+          ; (char '-' *> whitespace *> expr6
+              >>= fun rhs -> expr5' (BinaryExp (lhs, rhs, Sub))) ])
+      in expr6 >>= expr5'
+    in let expr4 =
+      let rec expr4' lhs =
+        whitespace
+        *> option lhs
+          (choice
+          [ (string "<<" *> whitespace *> expr5
+              >>= fun rhs -> expr4' (BinaryExp (lhs, rhs, LShift)))
+          ; (string ">>" *> whitespace *> expr5
+              >>= fun rhs -> expr4' (BinaryExp (lhs, rhs, RShift))) ])
+      in expr5 >>= expr4'
+    in let expr3 =
+      expr4
+      >>= fun lhs ->
+      whitespace
+      *> choice
+        [ (string "==" *> whitespace *> expr4
+            >>| fun rhs -> BinaryExp (lhs, rhs, Eq))
+        ; (string "!=" *> whitespace *> expr4
+            >>| fun rhs -> BinaryExp (lhs, rhs, Ne))
+        ; (string "<=" *> whitespace *> expr4
+            >>| fun rhs -> BinaryExp (lhs, rhs, Le))
+        ; (string "<" *> whitespace *> expr4
+            >>| fun rhs -> BinaryExp (lhs, rhs, Lt))
+        ; (string ">=" *> whitespace *> expr4
+            >>| fun rhs -> BinaryExp (lhs, rhs, Ge))
+        ; (string ">" *> whitespace *> expr4
+            >>| fun rhs -> BinaryExp (lhs, rhs, Gt))
+        ; (return lhs)
+        ]
+    in let expr2 =
+      let rec expr2' lhs =
+        whitespace
+        *> option lhs
+          (string "&&" *> whitespace *> expr3
+            >>= fun rhs -> expr2' (BinaryExp (lhs, rhs, And)))
+      in expr3 >>= expr2'
+    in let expr1 =
+      let rec expr1' lhs =
+        whitespace
+        *> option lhs
+          (string "||" *> whitespace *> expr2
+            >>= fun rhs -> expr1' (BinaryExp (lhs, rhs, Or)))
+      in expr2 >>= expr1'
+    in expr1)
 
 (* Module arguments are of the form <name> [aka <names>] : <type> [= <default>] *)
 let mod_aka =
