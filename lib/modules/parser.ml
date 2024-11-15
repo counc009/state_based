@@ -308,6 +308,26 @@ let stmt =
       *> brackets stmts
       >>| fun body -> ForLoop (var, lst, body)
 
+    in let elseStmt : stmt list t =
+      fix (fun elseStmt ->
+        option []
+          (string "else" *>
+            choice
+            [ (whitespace1 *> string "if" *> whitespace1
+                *> ((string "provided" *> whitespace1 *> identifier
+                      >>| fun nm -> Either.Left nm)
+                <|> (expr >>| fun ex -> Either.Right ex))
+              >>= fun cond ->
+              whitespace *> brackets stmts
+              >>= fun thn ->
+              whitespace *> elseStmt
+              >>| fun els ->
+                match cond with
+                | Either.Left nm -> [IfProvided (nm, thn, els)]
+                | Either.Right cond -> [IfThenElse (cond, thn, els)])
+            ; (whitespace *> brackets stmts)
+            ]))
+
     in let ifStmts =
       string "if"
       *> whitespace1
@@ -318,8 +338,7 @@ let stmt =
       whitespace
       *> brackets stmts
       >>= fun thn ->
-      whitespace
-      *> option [] (string "else" *> whitespace *> brackets stmts)
+      whitespace *> elseStmt
       >>| fun els ->
         match cond with
         | Either.Left nm -> IfProvided (nm, thn, els)
