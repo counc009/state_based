@@ -7,5 +7,5 @@ attribute content(string)
 attribute owner(string)
 attribute group(string)
 
-attribute files(list<path>)
-attribute dirs(list<path>)
+attribute files(list path)
+attribute dirs(list path)

@@ -6,6 +6,8 @@ let is_whitespace = function
 
 let whitespace = take_while is_whitespace
 
+let whitespace1 = take_while1 is_whitespace
+
 let is_digit = function '0'..'9' -> true | _ -> false
 
 let integer = take_while1 is_digit
@@ -41,7 +43,7 @@ let optional p =
   option None (lift (fun x -> Some x) p)
 
 type typ = Bool | Int | Float | String | Path | Named of string | Unit
-         | Product of typ list
+         | Product of typ list | List of typ
 
 type unary = Not | Neg
 type binary = Or | And | Eq | Ne | Lt | Le | Gt | Ge | LShift | RShift
@@ -86,6 +88,7 @@ let typ =
       ; (string "float"  >>| fun _ -> Float)
       ; (string "string" >>| fun _ -> String)
       ; (string "path"   >>| fun _ -> Path)
+      ; (string "list" *> whitespace1 *> t >>| fun t -> List t)
       ; (identifier >>| fun nm -> Named nm)
       ; (parens (sep_by (whitespace *> char ',' *> whitespace) t)
         >>| function
@@ -295,16 +298,16 @@ let pattern =
 
 let stmt =
   fix (fun stmt ->
-    let stmts = whitespace *> sep_by whitespace stmt
+    let stmts = sep_by whitespace stmt
 
     in let forLoop =
       string "for"
-      *> whitespace
+      *> whitespace1
       *> identifier
       >>= fun var ->
-      whitespace
+      whitespace1
       *> string "in"
-      *> whitespace
+      *> whitespace1
       *> expr
       >>= fun lst ->
       whitespace
@@ -313,7 +316,7 @@ let stmt =
 
     in let ifStmts =
       string "if"
-      *> whitespace
+      *> whitespace1
       *> ((string "provided" *> identifier >>| fun nm -> Either.Left nm)
           <|> (expr >>| fun ex -> Either.Right ex))
       >>= fun cond ->
@@ -340,7 +343,7 @@ let stmt =
 
     in let matchStmt =
       string "match"
-      *> whitespace
+      *> whitespace1
       *> expr
       >>= fun ex ->
       whitespace
@@ -348,7 +351,7 @@ let stmt =
       >>| fun cs -> Match (ex, cs)
 
     in let keywordStmt (keyword : string) (c : expr -> stmt) =
-      string keyword *> whitespace
+      string keyword *> whitespace1
       *> expr
       <* whitespace <* char ';'
       >>| c
@@ -486,3 +489,21 @@ let mod_def =
   whitespace
   *> brackets stmts
   >>| fun body -> Module (nm, retTy, body)
+
+let top_level =
+  sep_by whitespace
+    (choice
+      [ enum_def
+      ; struct_def
+      ; uninterp_def
+      ; attr_def
+      ; elem_def
+      ; func_def
+      ; mod_def
+      ])
+
+let parse_file (filename : string) : (topLevel list, string) result =
+  let ch = open_in filename
+  in let s = really_input_string ch (in_channel_length ch)
+  in close_in ch
+  ; Angstrom.parse_string ~consume:Prefix top_level s
