@@ -1,24 +1,28 @@
-open Ast
+open Calculus.Ast
 
 exception NotImplemented
+
+(* A 'a list2 is a list with at least two elements *)
+type 'a list2 = LastTwo of 'a * 'a | Cons of 'a * 'a list2
+type 'a list' = Nil | Singleton of 'a | List of 'a list2
 
 module Ast_Base : Ast_Defs = struct
   type primTy   = Unit | Bool | Int | Float | String | Path | Env
 
-  type namedTy  = List of typ | Either of typ * typ
-  and  structTy = Struct of (string * typ) list
-  and typ = (primTy, namedTy, structTy) typD
-
   type field = string
   module FieldMap = Map.Make(String)
 
-  type funct = Proj        of bool * typ * typ (* true = 1, false = 2 *)
-             | Constructor of bool * namedTy   (* true = L, false = R *)
-             | EmptyStruct of structTy
-             | AddField    of structTy * field
-             | ReadField   of structTy * field
-             | RemoveField of structTy * field
-             | LineInString | Download | Template | GitClone
+  type namedTy = List of typ | Cases of typ list2
+  and structTy = Struct of typ FieldMap.t
+  and typ = (primTy, namedTy, structTy) typD
+
+  type funct = Proj          of bool * typ * typ (* true = 1, false = 2 *)
+             | Constructor   of bool * namedTy   (* true = L, false = R *)
+             | EmptyStruct   of structTy
+             | AddField      of structTy * field
+             | ReadField     of structTy * field
+             (* Name and input and output types *)
+             | Uninterpreted of string * typ * typ
 
   type variable = string
   module VariableMap = Map.Make(String)
@@ -34,28 +38,22 @@ module Ast_Base : Ast_Defs = struct
    and value = (primTy, namedTy, structTy, funct, literal, field, record) valueD
    and env = (value * typ) VariableMap.t
 
+  type attribute = string * typ
+  type element = string * typ
 
-  type attribute = Content | Files | Dirs | User | Group
-  type element = File | Directory
-
-  type action = Copy
+  type action = Action of string * typ * typ * stmt
+  and stmt = (funct, literal, variable, attribute, element, action) stmtD
 
   type expr = (funct, literal, variable) exprD
   type qual = (funct, literal, variable, attribute, element) qualD
   type attr = (funct, literal, variable, attribute, element) attrD
   type elem = (funct, literal, variable, attribute, element) elemD
-  type stmt = (funct, literal, variable, attribute, element, action) stmtD
 
   let namedTyDef : namedTy -> typ * typ = function
     | List t -> (Primitive Unit, Product (t, Named (List t)))
-    | Either (s, t) -> (s, t)
-  let structTyDef (Struct fs) = FieldMap.of_seq (List.to_seq fs)
-
-  (* FIXME: Don't use Str maybe? *)
-  let is_substring sub str =
-    let re = Str.regexp_string sub
-    in try ignore (Str.search_forward re str 0); true
-       with Not_found -> false
+    | Cases (LastTwo (s, t)) -> (s, t)
+    | Cases (Cons (s, ts)) -> (s, Named (Cases ts))
+  let structTyDef (Struct fs) = fs
 
   let funcDef = function
     | Proj (true, s, t)  -> (Product (s, t), s,
@@ -86,26 +84,9 @@ module Ast_Base : Ast_Defs = struct
                                        | None -> Err ("Missing field " ^ f)
                                        end
                                     | _ -> Err "Read field failed to reduce")
-    | RemoveField (s, f) -> (Struct s, Struct s,
-                             fun v -> match v with Struct (_, Record fs)
-                                      -> Reduced (Struct (s, Record (FieldMap.remove f fs)))
-                                      | _ -> Err "Removed field failed to reduce")
-    (* First is string, second is desired line (no end line) *)
-    | LineInString -> (Product (Primitive String, Primitive String),
-                       Primitive String,
-                       fun v -> match v with Pair (Literal (String s, _), Literal (String l, _), _)
-                                  -> if is_substring l (s ^ "\n")
-                                     then Reduced (Literal (String s, String))
-                                     else Reduced (Literal (String (s ^ "\n" ^ l ^ "\n"), String))
-                                | _ -> Stuck)
     (* Uninterpreted functions never reduce *)
-    | Download -> (Primitive String, (* Path? URL? *)
-                   Primitive String,
-                   fun _ -> Stuck)
-    | Template -> (Primitive String, Primitive String, fun _ -> Stuck)
-    | GitClone -> (Primitive String, (* Path? URL? *)
-                   Primitive String,
-                   fun _ -> Stuck)
+    | Uninterpreted (_, in_typ, out_typ) ->
+        (in_typ, out_typ, fun _ -> Stuck)
 
   let literalTyp : literal -> primTy = function
     | Unit   _ -> Unit
@@ -116,19 +97,12 @@ module Ast_Base : Ast_Defs = struct
     | Path   _ -> Path
     | Env    _ -> Env
 
-  let attributeDef : attribute -> typ = function
-    | Content -> Primitive String
-    | Files   -> Named (List (Primitive Path))
-    | Dirs    -> Named (List (Primitive Path))
-    | User    -> Primitive String
-    | Group   -> Primitive String
+  let attributeDef (_, typ) : typ = typ
 
-  let elementDef : element -> typ = function
-    | File      -> Primitive Path
-    | Directory -> Primitive Path
+  let elementDef (_, typ) : typ = typ
 
   let actionDef = function
-    | Copy -> raise NotImplemented
+    | Action (_, in_typ, out_typ, def) -> ("#input", in_typ, out_typ, def)
 
   let isTruthType (t : typ) : bool =
     match t with

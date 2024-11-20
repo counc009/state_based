@@ -11,6 +11,7 @@ type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
           | FuncExp   of expr * expr list
           | ModuleExp of expr * (string * expr) list
           | Field of expr * string
+          | ProductField of expr * int
           | UnaryExp of expr * unary
           | BinaryExp of expr * expr * binary
 

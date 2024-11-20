@@ -1,3 +1,6 @@
 (library
   (name modules)
-  (libraries angstrom))
+  (libraries angstrom calculus))
+(env
+  (dev
+    (flags (:standard -w -37))))

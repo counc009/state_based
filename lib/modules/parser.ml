@@ -138,8 +138,10 @@ let expr =
       let rec expr8' exp =
         whitespace
         *> choice
-          [ (char '.' *> whitespace *> identifier
-              >>= fun field -> expr8' (Field (exp, field)))
+          [ (char '.' *> whitespace *>
+            ((identifier >>= fun field -> expr8' (Field (exp, field)))
+            <|> (take_while1 is_digit 
+              >>= fun whole -> expr8' (ProductField (exp, int_of_string whole)))))
           ; (parens exprs >>= fun args -> expr8' (FuncExp (exp, args)))
           ; (doub_bracks fields >>= fun args -> expr8' (ModuleExp (exp, args)))
           ; (brackets fields >>= fun args -> expr8' (RecordExp (exp, args)))
