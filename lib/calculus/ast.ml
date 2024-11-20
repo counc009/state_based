@@ -105,7 +105,6 @@ module type Ast_Defs = sig
   module VariableMap : Map.S with type key = variable
 
   type field
-  type record
   module FieldMap : Map.S with type key = field
 
   type attribute
@@ -115,7 +114,10 @@ module type Ast_Defs = sig
 
   type typ = (primTy, namedTy, structTy) typD
   type expr = (funct, literal, variable) exprD
+
   type value = (primTy, namedTy, structTy, funct, literal, field, record) valueD
+  and record = Record of value FieldMap.t
+
   type qual = (funct, literal, variable, attribute, element) qualD
   type attr = (funct, literal, variable, attribute, element) attrD
   type elem = (funct, literal, variable, attribute, element) elemD
@@ -153,9 +155,4 @@ module type Ast_Defs = sig
   val envType : typ
   val envToVal : env -> value
   val envFromVal : value -> env
-
-  (* valueSubst v f r = v[f -> r] *)
-  val valueSubst : value -> value -> value -> value
-  (* valueContains determines whether the second value appears in the first *)
-  val valueContains : value -> value -> bool
 end

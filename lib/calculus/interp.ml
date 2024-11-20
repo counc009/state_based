@@ -77,6 +77,29 @@ module Interp(Ast : Ast.Ast_Defs) = struct
     bools = ValueMap.empty;
     constrs = ValueMap.empty; }
 
+  (* valueSubst v f r = v[f -> r] *)
+  let valueSubst v f r : value =
+    let rec helper (v : value) : value =
+      if v = f then r
+      else match v with
+      | Function (fn, v, t) -> Function (fn, helper v, t)
+      | Pair (x, y, t) -> Pair (helper x, helper y, t)
+      | Constructor (n, b, v) -> Constructor (n, b, helper v)
+      | Struct (s, Record r) -> Struct (s, Record (FieldMap.map helper r))
+      | _ -> v
+    in helper v
+  (* valueContains determines whether the second value appears in the first *)
+  let valueContains v t : bool =
+    let rec helper (v : value) : bool =
+      if v = t then true
+      else match v with
+      | Function (_, v, _) -> helper v
+      | Pair (x, y, _) -> helper x || helper y
+      | Constructor (_, _, v) -> helper v
+      | Struct (_, Record r) -> FieldMap.exists (fun _ v -> helper v) r
+      | _ -> false
+    in helper v
+
   (* These functions are used to replace loop variables with just values for
    * handling after the loop ends. This is needed to distinguish actions
    * performed within the loop from uses of the loop variable outside of the
