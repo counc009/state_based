@@ -8,6 +8,7 @@ type binary = Or | And | Eq | Ne | Lt | Le | Gt | Ge | LShift | RShift
 type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
           | StringLit of string | UnitExp   | ProductExp of expr list
           | RecordExp of expr * (string * expr) list
+          | EnumExp   of expr * string * expr list
           | FuncExp   of expr * expr list
           | ModuleExp of expr * (string * expr) list
           | Field of expr * string
@@ -36,4 +37,3 @@ type topLevel = Enum      of string * (string * typ option) list
               | Element   of string * typ
               | Function  of string * (string * typ) list * typ option * stmt list
               | Module    of string list * typ option * stmt list
-

@@ -6,7 +6,7 @@ exception NotImplemented
 type 'a list2 = LastTwo of 'a * 'a | Cons of 'a * 'a list2
 type 'a list' = Nil | Singleton of 'a | List of 'a list2
 
-module Ast_Base : Ast_Defs = struct
+module Ast_Target : Ast_Defs = struct
   type primTy   = Unit | Bool | Int | Float | String | Path | Env
 
   type field = string
@@ -41,7 +41,7 @@ module Ast_Base : Ast_Defs = struct
   type attribute = string * typ
   type element = string * typ
 
-  type action = Action of string * typ * typ * stmt
+  type action = Action of string * typ * typ * stmt option ref
   and stmt = (funct, literal, variable, attribute, element, action) stmtD
 
   type expr = (funct, literal, variable) exprD
@@ -102,7 +102,10 @@ module Ast_Base : Ast_Defs = struct
   let elementDef (_, typ) : typ = typ
 
   let actionDef = function
-    | Action (_, in_typ, out_typ, def) -> ("#input", in_typ, out_typ, def)
+    | Action (nm, in_typ, out_typ, def) ->
+        match !def with
+        | Some def -> ("#input", in_typ, out_typ, def)
+        | None -> failwith (Printf.sprintf "Function %s was not compiled" nm)
 
   let isTruthType (t : typ) : bool =
     match t with
