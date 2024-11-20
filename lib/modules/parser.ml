@@ -515,9 +515,21 @@ let top_level =
       ; func_def
       ; mod_def
       ])
+let file_parser = top_level <* whitespace
 
 let parse_file (filename : string) : (topLevel list, string) result =
   let ch = open_in filename
   in let s = really_input_string ch (in_channel_length ch)
   in close_in ch
-  ; Angstrom.parse_string ~consume:Prefix top_level s
+  ; Angstrom.parse_string ~consume:All file_parser s
+
+let rec parse_files (files : string list) : (topLevel list list, string) result =
+  match files with
+  | [] -> Ok []
+  | f :: fs ->
+      match parse_file f, parse_files fs with
+      | Ok res_f, Ok res_fs -> Ok (res_f :: res_fs)
+      | Error msg, Ok _ -> Error (Printf.sprintf "Error in file %s%s" f msg)
+      | Ok _, Error msg -> Error msg
+      | Error msg_f, Error msg_fs ->
+          Error (Printf.sprintf "Error in file %s%s\n%s" f msg_f msg_fs)
