@@ -24,7 +24,7 @@ type typ = Bool | Int | Float | String | Path | Unit
          | List        of typ
          | Product     of typ list
          | Struct      of typ StringMap.t
-         | Enum        of typ StringMap.t
+         | Enum        of (typ list) StringMap.t
          | Placeholder of typ placeholder
 
 type module_info =
@@ -42,8 +42,8 @@ type type_env = typ UniqueMap.t
 type env_entry = Variable of typ
                | Attribute of string * typ
                | Element of string * typ
-               | Uninterpreted of string * typ * typ
-               | Function of string * typ * typ * Target.stmt placeholder
+               | Uninterpreted of string * typ list * typ
+               | Function of string * typ list * typ * Target.stmt placeholder
                | Module of module_info
                (* Environment is used to create a multi-level environment to
                 * handle fully qualified names *)
@@ -67,10 +67,10 @@ let rec create_type (t : Ast.typ) env : typ =
           let res = Placeholder (ref None)
           in UniqueMap.add nm res env; res
 
-let create_type_option (t : Ast.typ option) env : typ =
-  match t with
-  | None -> Unit
-  | Some t -> create_type t env
+let create_types_option (ts : Ast.typ list option) env : typ list =
+  match ts with
+  | None -> []
+  | Some ts -> List.map (fun t -> create_type t env) ts
 
 (* process_type (unlike create_type) fails if a named type is not defined *)
 let rec process_type (t : Ast.typ) env : typ =
@@ -123,7 +123,8 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
     | Enum (nm, variants) :: tl ->
         let variants = 
           StringMap.of_list
-            (List.map (fun (nm, t) -> (nm, create_type_option t env)) variants)
+            (List.map (fun (nm, ts) -> (nm, create_types_option ts env))
+              variants)
         in add_type nm (Enum variants) env; create_types tl env
     | Struct (nm, fields) :: tl ->
         let fields =
@@ -135,10 +136,10 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
   in let rec create_definitions (ts : Ast.topLevel list) types env =
     match ts with
     | [] -> ()
-    | Uninterp (nm, in_ty, out_ty) :: tl ->
-        let in_typ = process_type in_ty types
+    | Uninterp (nm, in_tys, out_ty) :: tl ->
+        let in_typs = List.map (fun t -> process_type t types) in_tys
         and out_typ = process_type out_ty types
-        in UniqueMap.add nm (Uninterpreted (nm, in_typ, out_typ)) env
+        in UniqueMap.add nm (Uninterpreted (nm, in_typs, out_typ)) env
         ; create_definitions tl types env
     | Attribute (nm, ty) :: tl ->
         let typ = process_type ty types

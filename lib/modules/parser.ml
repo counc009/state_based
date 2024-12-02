@@ -374,12 +374,15 @@ let ptype =
     | [t] -> t
     | ts -> Product ts
 
+let types =
+  sep_by (whitespace *> char ',' *> whitespace) typ
+
 let enum_case =
   identifier
   >>= fun nm ->
   whitespace
   *>
-  optional (parens ptype)
+  optional (parens types)
   >>| fun ty -> (nm, ty)
 
 let enum_cases =
@@ -421,13 +424,13 @@ let uninterp_def =
   *> identifier
   >>= fun nm ->
   whitespace
-  *> parens ptype
-  >>= fun arg ->
+  *> parens types
+  >>= fun args ->
   whitespace
   *> string "->"
   *> whitespace
   *> typ
-  >>| fun res -> Uninterp (nm, arg, res)
+  >>| fun res -> Uninterp (nm, args, res)
 
 let attr_def =
   string "attribute"

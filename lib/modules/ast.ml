@@ -30,9 +30,9 @@ type stmt = RequiredVar of (string * string list * typ * expr option) list
           | Return      of expr
           | Assign      of expr * expr
 
-type topLevel = Enum      of string * (string * typ option) list
+type topLevel = Enum      of string * (string * typ list option) list
               | Struct    of string * (string * typ) list
-              | Uninterp  of string * typ * typ
+              | Uninterp  of string * typ list * typ
               | Attribute of string * typ
               | Element   of string * typ
               | Function  of string * (string * typ) list * typ option * stmt list
