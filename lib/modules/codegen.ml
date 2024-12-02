@@ -21,6 +21,7 @@ end
 type 'a placeholder = 'a option ref
 
 type typ = Bool | Int | Float | String | Path | Unit
+         | Option      of typ
          | List        of typ
          | Product     of typ list
          | Struct      of typ StringMap.t
@@ -54,6 +55,19 @@ type env_entry = Variable of typ
                 * handle fully qualified names *)
                | Environment of global_env
 and global_env = env_entry UniqueMap.t
+
+let rec add_modules (nm : string list) (t : env_entry) env : unit =
+  match nm with
+  | [] -> failwith "Empty module name"
+  | [n] -> UniqueMap.add n t env
+  | n :: tl ->
+      match UniqueMap.find n env with
+      | Some (Environment env) -> add_modules tl t env
+      | Some _ -> failwith "Name already exists"
+      | None ->
+          let new_env = UniqueMap.empty ()
+          in UniqueMap.add n (Environment new_env) env
+          ; add_modules tl t new_env
 
 let rec create_type (t : Ast.typ) env : typ =
   match t with
@@ -112,7 +126,6 @@ let process_module_for_args (body : Ast.stmt list) env
   in let rec add_vars vars aliases var_types struct_def =
     match vars with
     | [] -> (aliases, var_types, struct_def)
-    (*| (nm, alias, typ, _) :: tl -> ???*)
     | (nm, alias, typ, _) :: tl ->
         let typ = process_type typ env
         in let var_types =
@@ -125,6 +138,7 @@ let process_module_for_args (body : Ast.stmt list) env
                   if type_equality t typ then var_types
                   else failwith "variable already used with incompatible types"
         in let aliases = add_alias alias nm aliases
+        in let struct_def = StringMap.add nm (Option typ) struct_def
         in add_vars tl aliases var_types struct_def
   in let rec process (body : Ast.stmt list) aliases var_types struct_def =
     match body with
@@ -228,11 +242,19 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
         and ret_ty  = process_type_option ret types
         in UniqueMap.add nm (Function (nm, arg_tys, ret_ty, ref None)) env
         ; create_functions tl types env
-    | Module (_, ret, body) :: tl ->
-        let (_, _, _)
+    | Module (nm, ret, body) :: tl ->
+        let (aliases, var_types, struct_def)
           = process_module_for_args body types
-        and _ = process_type_option ret types
-        in create_functions tl types env
+        and ret_ty = process_type_option ret types
+        in let mod_info =
+          { name = nm;
+            alias_map = aliases;
+            argument_types = var_types;
+            input_struct_def = struct_def;
+            out_type = ret_ty;
+            body = ref None }
+        in add_modules nm (Module mod_info) env
+        ; create_functions tl types env
     | _ :: _ -> failwith "partitioning error"
 
   in let (tys, dfs, fns) = partition files
