@@ -88,6 +88,11 @@ let rec process_type (t : Ast.typ) env : typ =
       | Some t -> t
       | None -> failwith (Printf.sprintf "undefined type %s" nm)
 
+(* process_stmt is used to handle statements in functions/Ansible (and loop
+ * bodies in modules) while process_module is used to handle statements in
+ * module definitions which are allowed to contain variable declarations *)
+(* TODO *)
+
 let codegen (files : Ast.topLevel list list) : type_env * global_env =
   (* The first step of our code generation is to divide the top levels into a
    * few groups: enums and structs; attributes, elements, and uninterpreted
@@ -106,10 +111,12 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
         | Enum _ | Struct _ -> (t :: tys, dfs, fns)
         | Uninterp _ | Attribute _ | Element _ -> (tys, t :: dfs, fns)
         | Function _ | Module _ -> (tys, dfs, t :: fns)
+
   in let add_type (nm : string) (t : typ) env =
     match UniqueMap.find nm env with
     | Some (Placeholder p) -> p := Some t
     | _ -> UniqueMap.add nm t env
+
   in let rec create_types (ts : Ast.topLevel list) env =
     match ts with
     | [] -> ()
@@ -124,6 +131,7 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
             (List.map (fun (nm, t) -> (nm, create_type t env)) fields)
         in add_type nm (Struct fields) env; create_types tl env
     | _ :: _ -> failwith "partitioning error"
+
   in let rec create_definitions (ts : Ast.topLevel list) types env =
     match ts with
     | [] -> ()
@@ -141,9 +149,23 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
         in UniqueMap.add nm (Element (nm, typ)) env
         ; create_definitions tl types env
     | _ :: _ -> failwith "partitioning error"
-  in let (tys, dfs, _) = partition files
+
+  (* Handling functions takes two steps, we first collect type information for
+   * all functions and modules and then with those definitions in hand in the
+   * global environment, we actually process each function and module
+   * definition *)
+  (* TODO *)
+  in let rec create_functions (ts : Ast.topLevel list) types env =
+    match ts with
+    | [] -> ()
+    | Function (_, _, _, _) :: tl -> create_functions tl types env
+    | Module (_, _, _) :: tl -> create_functions tl types env
+    | _ :: _ -> failwith "partitioning error"
+
+  in let (tys, dfs, fns) = partition files
   in let type_env = UniqueMap.empty ()
   in let global_env : global_env = UniqueMap.empty ()
   in create_types tys type_env
   ; create_definitions dfs type_env global_env
+  ; create_functions fns type_env global_env
   ; (type_env, global_env)
