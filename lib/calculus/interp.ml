@@ -85,7 +85,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
       | Function (fn, v, t) -> Function (fn, helper v, t)
       | Pair (x, y, t) -> Pair (helper x, helper y, t)
       | Constructor (n, b, v) -> Constructor (n, b, helper v)
-      | Struct (s, Record r) -> Struct (s, Record (FieldMap.map helper r))
+      | Struct (s, r) -> Struct (s, FieldMap.map helper r)
       | _ -> v
     in helper v
   (* valueContains determines whether the second value appears in the first *)
@@ -96,7 +96,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
       | Function (_, v, _) -> helper v
       | Pair (x, y, _) -> helper x || helper y
       | Constructor (_, _, v) -> helper v
-      | Struct (_, Record r) -> FieldMap.exists (fun _ v -> helper v) r
+      | Struct (_, r) -> FieldMap.exists (fun _ v -> helper v) r
       | _ -> false
     in helper v
 

@@ -8,92 +8,6 @@ type 'a eval = Reduced of 'a
              | Stuck
              | Err of string
 
-(* Type Variables:
-  * 'p : primitive types
-  * 'n : named types
-  * 's : struct types
-  * 'f : functions
-  * 'l : literals
-  * 'v : variables
-  * 'd : struct fields
-  * 'a : attributes
-  * 'e : elements
-  * 'c : actions
-  * 'r : record (i.e. the representation of a struct)
-  *)
-type ('p, 'n, 's) typD
-  = Product   of ('p, 'n, 's) typD * ('p, 'n, 's) typD
-  | Primitive of 'p
-  | Named     of 'n
-  | Struct    of 's
-
-type ('f, 'l, 'v) exprD
-  = Function of 'f * ('f, 'l, 'v) exprD
-  | Literal  of 'l
-  | Variable of 'v
-  | Pair     of ('f, 'l, 'v) exprD * ('f, 'l, 'v) exprD
-  (* Special expression, really intended for use as the return value of a loop
-   * Used to thread the environment from the loop body back into the interpreter *)
-  | Env
-
-type ('p, 'n, 's, 'f, 'l, 'd, 'r) valueD
-  = Unknown     of id * ('p, 'n, 's) typD
-  | Literal     of 'l  * 'p
-  | Function    of 'f 
-                 * ('p, 'n, 's, 'f, 'l, 'd, 'r) valueD
-                 * ('p, 'n, 's) typD
-  | Pair        of ('p, 'n, 's, 'f, 'l, 'd, 'r) valueD
-                 * ('p, 'n, 's, 'f, 'l, 'd, 'r) valueD
-                 * ('p, 'n, 's) typD
-  | Constructor of 'n  * bool (* true = L, false = R *)
-                 * ('p, 'n, 's, 'f, 'l, 'd, 'r) valueD
-  | Struct      of 's  * 'r
-
-(* A qualifier is either an attribute or element with qualifiers on it or
- * a negated element (which are not further qualified, as handling negations of
- * qualified qualifiers is quite difficult; it also doesn't make sense to negate
- * attributes) *)
-type ('f, 'l, 'v, 'a, 'e) qualD
-  = Attribute  of 'a * ('f, 'l, 'v) exprD * (('f, 'l, 'v, 'a, 'e) qualD) list
-  | Element    of 'e * ('f, 'l, 'v) exprD * (('f, 'l, 'v, 'a, 'e) qualD) list
-  | NotElement of 'e * ('f, 'l, 'v) exprD
-
-type ('f, 'l, 'v, 'a, 'e) attrD
-  = AttrAccess  of 'a
-  | OnAttribute of 'a * ('f, 'l, 'v, 'a, 'e) attrD
-  | OnElement   of 'e * ('f, 'l, 'v) exprD * ('f, 'l, 'v, 'a, 'e) attrD
-
-type ('f, 'l, 'v, 'a, 'e) elemD
-  = Element     of 'e * ('f, 'l, 'v) exprD
-  | NotElement  of 'e * ('f, 'l, 'v) exprD
-  | OnAttribute of 'a * ('f, 'l, 'v, 'a, 'e) elemD
-  | OnElement   of 'e * ('f, 'l, 'v) exprD * ('f, 'l, 'v, 'a, 'e) elemD
-
-(* All statements, other than branches and terminators, take an additional
- * statement which is the "next" statement. This avoids having a Seq
- * constructor which would be somewhat annoying to implement *)
-type ('f, 'l, 'v, 'a, 'e, 'c) stmtD
-  = Action   of 'v * 'c * ('f, 'l, 'v) exprD    * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
-  | Assign   of 'v * ('f, 'l, 'v) exprD         * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
-  | Add      of ('f, 'l, 'v, 'a, 'e) qualD      * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
-  | Get      of 'v * ('f, 'l, 'v, 'a, 'e) attrD * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
-  | Contains of ('f, 'l, 'v, 'a, 'e) elemD
-              * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
-              * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
-  | Cond     of ('f, 'l, 'v) exprD
-              * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
-              * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
-  (* Note: Because all statements have to finish with either a fail or a return,
-   * loop bodies must return () *)
-  | Loop     of 'v * ('f, 'l, 'v) exprD
-              * ('f, 'l, 'v, 'a, 'e, 'c) stmtD (* body of loop *)
-              * ('f, 'l, 'v, 'a, 'e, 'c) stmtD (* following the loop *)
-  | Match    of ('f, 'l, 'v) exprD * 'v (* variable is for value in constructor *)
-              * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
-              * ('f, 'l, 'v, 'a, 'e, 'c) stmtD
-  | Fail     of string
-  | Return   of ('f, 'l, 'v) exprD
-
 module type Ast_Defs = sig
   type primTy
   type namedTy
@@ -112,16 +26,61 @@ module type Ast_Defs = sig
 
   type action
 
-  type typ = (primTy, namedTy, structTy) typD
-  type expr = (funct, literal, variable) exprD
+  type typ = Product    of typ * typ
+           | Primitive  of primTy
+           | Named      of namedTy
+           | Struct     of structTy
+  type expr = Function  of funct * expr
+            | Literal   of literal
+            | Variable  of variable
+            | Pair      of expr * expr
+            (* Special expression, really intended for use as the return value
+             * of a loop
+             * Used to thread the environment from the loop body back into the
+             * interpreter *)
+            | Env
 
-  type value = (primTy, namedTy, structTy, funct, literal, field, record) valueD
-  and record = Record of value FieldMap.t
+  type value = Unknown      of id * typ
+             | Literal      of literal * primTy
+             | Function     of funct * value * typ
+             | Pair         of value * value * typ
+             | Constructor  of namedTy * bool (* true = L, false = R *)
+                             * value
+             | Struct       of structTy * record
+  and record = value FieldMap.t
 
-  type qual = (funct, literal, variable, attribute, element) qualD
-  type attr = (funct, literal, variable, attribute, element) attrD
-  type elem = (funct, literal, variable, attribute, element) elemD
-  type stmt = (funct, literal, variable, attribute, element, action) stmtD
+  (* A qualifier is either an attribute or element with qualifiers on it or
+   * a negated element (which are not further qualified, as handling negations
+   * of qualified qualifiers is quite difficult; it also doesn't make sense to
+   * negate attributes) *)
+  type qual = Attribute   of attribute * expr * qual list
+            | Element     of element * expr * qual list
+            | NotElement  of element * expr
+  type attr = AttrAccess  of attribute
+            | OnAttribute of attribute * attr
+            | OnElement   of element * expr * attr
+  type elem = Element     of element * expr
+            | NotElement  of element * expr
+            | OnAttribute of attribute * elem
+            | OnElement   of element * expr * elem
+
+  (* All statements, other than branches and terminators, take an additional
+   * statement which is the "next" statement. This avoids having a Seq
+   * constructor which would be somewhat annoying to implement *)
+  type stmt = Action   of variable * action * expr * stmt
+            | Assign   of variable * expr * stmt
+            | Add      of qual * stmt
+            | Get      of variable * attr * stmt
+            | Contains of elem * stmt * stmt
+            | Cond     of expr * stmt * stmt
+            (* Note: Because all statements have to finish with either a fail
+             * or a return, loop bodies must return the environment *)
+            | Loop     of variable * expr * stmt (* body of loop *)
+                        * stmt (* following the loop *)
+            | Match    of expr * variable (* value in constructor *)
+                        * stmt * stmt (* left and right cases *)
+            | Fail     of string
+            | Return   of expr
 
   type env = (value * typ) VariableMap.t
 

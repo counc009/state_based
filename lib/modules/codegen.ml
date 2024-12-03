@@ -25,7 +25,7 @@ type typ = Bool | Int | Float | String | Path | Unit
          | List        of typ
          | Product     of typ list
          | Struct      of typ StringMap.t
-         | Enum        of (typ list) StringMap.t
+         | Enum        of (int * typ list) StringMap.t
          | Placeholder of typ placeholder
 
 let rec type_equality (x : typ) (y : typ) : bool =
@@ -49,7 +49,8 @@ type env_entry = Variable of typ
                | Attribute of string * typ
                | Element of string * typ
                | Uninterpreted of string * typ list * typ
-               | Function of string * typ list * typ * Target.stmt placeholder
+               (* Function has its argument type and then return type *)
+               | Function of string * Target.typ * typ * Target.stmt placeholder
                | Module of module_info
                (* Environment is used to create a multi-level environment to
                 * handle fully qualified names *)
@@ -170,6 +171,43 @@ let process_module_for_args (body : Ast.stmt list) env
  * bodies in modules) while process_module is used to handle statements in
  * module definitions which are allowed to contain variable declarations *)
 (* TODO *)
+let process_stmt (_s : Ast.stmt list) _env : Target.stmt = Return Env
+let process_module (_s : Ast.stmt list) _env : Target.stmt = Return Env
+
+let rec target_type (t : typ) : Target.typ =
+  match t with
+  | Bool -> Primitive Bool
+  | Int -> Primitive Int
+  | Float -> Primitive Float
+  | String -> Primitive String
+  | Path -> Primitive Path
+  | Unit -> Primitive Unit
+  | Option t -> Named (Option (target_type t))
+  | List t -> Named (List (target_type t))
+  | Product ts -> construct_prod ts
+  | Struct fs -> Struct (StringMap.map target_type fs)
+  | Enum _cs -> Primitive Unit (*construct_cases cs*)
+  | Placeholder t ->
+      match !t with
+      | None -> failwith "Missing type definition"
+      | Some t -> target_type t
+and construct_prod (ts : typ list) : Target.typ =
+  match ts with
+  | [] -> Primitive Unit
+  | [t] -> target_type t
+  | t :: ts -> Product (target_type t, construct_prod ts)
+
+let rec generateVarInits (names : string list) (ty : Target.typ)
+    (exp : Target.expr) (k : Target.stmt) : Target.stmt =
+  match names with
+  | [] -> k
+  | [n] -> Assign (n, exp, k)
+  | n :: ns ->
+      match ty with
+      | Product (x, y) ->
+          Assign (n, Function (Proj (true, x, y), exp),
+            generateVarInits ns y (Function (Proj (false, x, y), exp)) k)
+      | _ -> failwith "Type error"
 
 let codegen (files : Ast.topLevel list list) : type_env * global_env =
   (* The first step of our code generation is to divide the top levels into a
@@ -201,8 +239,9 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
     | Enum (nm, variants) :: tl ->
         let variants = 
           StringMap.of_list
-            (List.map (fun (nm, ts) -> (nm, create_types_option ts env))
-              variants)
+            (List.map
+              (fun (i, (nm, ts)) -> (nm, (i, create_types_option ts env)))
+              (List.mapi (fun i x -> (i, x)) variants))
         in add_type nm (Enum variants) env; create_types tl env
     | Struct (nm, fields) :: tl ->
         let fields =
@@ -233,34 +272,53 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
    * all functions and modules and then with those definitions in hand in the
    * global environment, we actually process each function and module
    * definition *)
-  (* TODO *)
   in let rec create_functions (ts : Ast.topLevel list) types env =
     match ts with
-    | [] -> ()
-    | Function (nm, args, ret, _) :: tl ->
+    | [] -> []
+    | Function (nm, args, ret, body) :: tl ->
         let arg_tys = List.map (fun (_, t) -> process_type t types) args
         and ret_ty  = process_type_option ret types
-        in UniqueMap.add nm (Function (nm, arg_tys, ret_ty, ref None)) env
-        ; create_functions tl types env
+        and func_body = ref None
+        in let arg_ty = construct_prod arg_tys
+        in UniqueMap.add nm (Function (nm, arg_ty, ret_ty, func_body)) env
+        ; (Either.Left (body, List.map fst args, arg_ty), func_body)
+        :: create_functions tl types env
     | Module (nm, ret, body) :: tl ->
         let (aliases, var_types, struct_def)
           = process_module_for_args body types
         and ret_ty = process_type_option ret types
+        and mod_body = ref None
         in let mod_info =
           { name = nm;
             alias_map = aliases;
             argument_types = var_types;
             input_struct_def = struct_def;
             out_type = ret_ty;
-            body = ref None }
+            body = mod_body }
         in add_modules nm (Module mod_info) env
-        ; create_functions tl types env
+        ; (Either.Right body, mod_body) :: create_functions tl types env
     | _ :: _ -> failwith "partitioning error"
+  in let rec process_functions ts env =
+    match ts with
+    | [] -> ()
+    (* Function body *)
+    | (Either.Left (body, args, arg_ty), body_ref) :: tl ->
+        (* Because the calculus just has a single argument for everything we
+           generate code that reads each argument out of the initial argument
+           #input *)
+        body_ref :=
+          Some (generateVarInits args arg_ty (Variable "#input")
+                    (process_stmt body env))
+        ; process_functions tl env
+    (* Module body *)
+    | (Either.Right body, body_ref) :: tl ->
+        body_ref := Some(process_module body env)
+        ; process_functions tl env
 
   in let (tys, dfs, fns) = partition files
   in let type_env = UniqueMap.empty ()
   in let global_env : global_env = UniqueMap.empty ()
   in create_types tys type_env
   ; create_definitions dfs type_env global_env
-  ; create_functions fns type_env global_env
+  ; process_functions (create_functions fns type_env global_env) global_env
   ; (type_env, global_env)
