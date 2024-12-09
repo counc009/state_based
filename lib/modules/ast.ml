@@ -23,6 +23,7 @@ type stmt = RequiredVar of (string * string list * typ * expr option) list
           | OptionalVar of (string * string list * typ * expr option) list
           | ForLoop     of string * expr * stmt list
           | IfProvided  of string * stmt list * stmt list
+          | IfExists    of expr * stmt list * stmt list
           | IfThenElse  of expr * stmt list * stmt list
           | Match       of expr * (pattern * stmt list) list
           | Clear       of expr

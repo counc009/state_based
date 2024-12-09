@@ -260,6 +260,8 @@ let pattern =
       *> parens (sep_by (whitespace *> char ',' *> whitespace) identifier))
   >>| fun vars -> (nm, vars)
 
+type condType = Provided of string | Exists of expr | Condition of expr
+
 let stmt =
   fix (fun stmt ->
     let stmts = sep_by whitespace stmt
@@ -285,16 +287,19 @@ let stmt =
             choice
             [ (whitespace1 *> string "if" *> whitespace1
                 *> ((string "provided" *> whitespace1 *> identifier
-                      >>| fun nm -> Either.Left nm)
-                <|> (expr >>| fun ex -> Either.Right ex))
+                      >>| fun nm -> Provided nm)
+                <|> (string "exists" *> whitespace1 *> expr
+                      >>| fun ex -> Exists ex)
+                <|> (expr >>| fun ex -> Condition ex))
               >>= fun cond ->
               whitespace *> brackets stmts
               >>= fun thn ->
               whitespace *> elseStmt
               >>| fun els ->
                 match cond with
-                | Either.Left nm -> [IfProvided (nm, thn, els)]
-                | Either.Right cond -> [IfThenElse (cond, thn, els)])
+                | Provided nm    -> [IfProvided (nm, thn, els)]
+                | Exists e       -> [IfExists (e, thn, els)]
+                | Condition cond -> [IfThenElse (cond, thn, els)])
             ; (whitespace *> brackets stmts)
             ]))
 
@@ -302,8 +307,10 @@ let stmt =
       string "if"
       *> whitespace1
       *> ((string "provided" *> whitespace1 *> identifier
-            >>| fun nm -> Either.Left nm)
-          <|> (expr >>| fun ex -> Either.Right ex))
+            >>| fun nm -> Provided nm)
+          <|> (string "exists" *> whitespace1 *> expr
+            >>| fun ex -> Exists ex)
+          <|> (expr >>| fun ex -> Condition ex))
       >>= fun cond ->
       whitespace
       *> brackets stmts
@@ -311,8 +318,9 @@ let stmt =
       whitespace *> elseStmt
       >>| fun els ->
         match cond with
-        | Either.Left nm -> IfProvided (nm, thn, els)
-        | Either.Right cond -> IfThenElse (cond, thn, els)
+        | Provided nm    -> IfProvided (nm, thn, els)
+        | Exists e       -> IfExists (e, thn, els)
+        | Condition cond -> IfThenElse (cond, thn, els)
 
     in let matchCase =
       pattern
