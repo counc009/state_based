@@ -10,8 +10,8 @@ module ansible.builtin.service {
     package(name).on_boot = enabled;
   } else {
     match state {
-      started => { package(name).running = true; }
-      stopped => { package(name).running = false; }
+      service_state::started => { package(name).running = true; }
+      service_state::stopped => { package(name).running = false; }
     }
   }
 }

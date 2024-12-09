@@ -6,15 +6,15 @@ module ansible.builtin.apt {
 
   for pkg in name {
     match state {
-      absent  => {
+      apt_state::absent  => {
         clear package(pkg);
         package(pkg).installed = false;
       }
-      latest  => {
+      apt_state::latest  => {
         package(pkg).installed = true;
         package(pkg).version   = latest;
       }
-      present => {
+      apt_state::present => {
         package(pkg).installed = true;
       }
     }
