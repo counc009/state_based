@@ -55,6 +55,10 @@ type type_env = typ UniqueMap.t
 let rec extract_enum (t : typ) : (int * typ list) StringMap.t =
   match t with
   | Enum res -> res
+  | Option t ->
+      StringMap.of_list [("nothing", (0, [])); ("some", (1, [t]))]
+  | List t ->
+      StringMap.of_list [("nil", (0, [])); ("cons", (1, [List t]))]
   | Placeholder { contents  = Some t } -> extract_enum t
   | _ -> failwith "Not an enum type"
 
