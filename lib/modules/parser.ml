@@ -28,9 +28,9 @@ let dot =
     | _ -> return false
 
 let identifier =
-  satisfy (function 'a'..'z' | 'A'..'Z' -> true | _ -> false)
+  satisfy (function 'a'..'z' | 'A'..'Z' | '_' -> true | _ -> false)
   >>= fun c ->
-  take_while (function 'a'..'z' | 'A'..'Z' | '_' | '-' -> true | _ -> false)
+  take_while (function 'a'..'z' | 'A'..'Z' | '_' | '-' | '0'..'9' -> true | _ -> false)
   >>| fun rest -> String.make 1 c ^ rest
 
 let module_name = sep_by1 (char '.') identifier
