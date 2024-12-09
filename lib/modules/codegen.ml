@@ -18,6 +18,13 @@ module UniqueMap = struct
     | _ -> Hashtbl.add map key value
 end
 
+let array_foldr1 (arr : 'a array) (f : 'a -> 'a -> 'a) : 'a =
+  let rec process (i : int) : 'a =
+    if i + 1 = Array.length arr
+    then arr.(i)
+    else f arr.(i) (process (i+1))
+  in process 0
+
 type 'a placeholder = 'a option ref
 
 type typ = Bool | Int | Float | String | Path | Unit
@@ -45,8 +52,19 @@ type module_info =
 
 type type_env = typ UniqueMap.t
 
-type env_entry = Variable of typ
-               | Attribute of string * typ
+let rec extract_enum (t : typ) : (int * typ list) StringMap.t =
+  match t with
+  | Enum res -> res
+  | Placeholder { contents  = Some t } -> extract_enum t
+  | _ -> failwith "Not an enum type"
+
+let lookup_enum (tys : type_env) (nm : string)
+  : (int * typ list) StringMap.t =
+    match UniqueMap.find nm tys with
+    | None -> failwith "Undefined type"
+    | Some t -> extract_enum t
+
+type env_entry = Attribute of string * typ
                | Element of string * typ
                | Uninterpreted of string * typ list * typ
                (* Function has its argument type and then return type *)
@@ -167,6 +185,30 @@ let process_module_for_args (body : Ast.stmt list) env
     | _ :: tl -> process tl aliases var_types struct_def
   in process body StringMap.empty StringMap.empty StringMap.empty
 
+(* Convert an internal type into a target type *)
+let rec target_type (t : typ) : Target.typ =
+  match t with
+  | Bool -> Primitive Bool
+  | Int -> Primitive Int
+  | Float -> Primitive Float
+  | String -> Primitive String
+  | Path -> Primitive Path
+  | Unit -> Primitive Unit
+  | Option t -> Named (Option (target_type t))
+  | List t -> Named (List (target_type t))
+  | Product ts -> construct_prod ts
+  | Struct fs -> Struct (StringMap.map target_type fs)
+  | Enum _cs -> Primitive Unit (*construct_cases cs*)
+  | Placeholder t ->
+      match !t with
+      | None -> failwith "Missing type definition"
+      | Some t -> target_type t
+and construct_prod (ts : typ list) : Target.typ =
+  match ts with
+  | [] -> Primitive Unit
+  | [t] -> target_type t
+  | t :: ts -> Product (target_type t, construct_prod ts)
+
 (* TODO *)
 (* process_expr takes a continuation which takes an expression and produces a
  * statement and then returns a statement. The reason for this is that some
@@ -200,6 +242,27 @@ type lval = Error | Var of string | Qual of (Target.expr -> Target.qual)
 (* TODO *)
 let process_expr_as_lval (_e : Ast.expr) _env : lval = Error
 
+(* Given a list of names and a value and type constructs a target statement
+ * which extracts fields and assigns them to the given names.
+ * This is used since the calculus only allows single argument functions and
+ * pattern matching. *)
+let rec generateVarInits (names : string list) (ty : Target.typ)
+    (exp : Target.expr) (k : Target.stmt) : Target.stmt =
+  match names with
+  | [] -> k
+  | [n] -> Assign (n, exp, k)
+  | n :: ns ->
+      match ty with
+      | Product (x, y) ->
+          Assign (n, Function (Proj (true, x, y), exp),
+            generateVarInits ns y (Function (Proj (false, x, y), exp)) k)
+      | _ -> failwith "Type error"
+
+
+type 'a processed = Default of 'a | Set of 'a
+
+let of_processed (x : 'a processed) : 'a = match x with Default y | Set y -> y
+
 (* process_stmt is used to handle statements in functions/Ansible 
  * while process_module is used to handle statements in module definitions
  * which are allowed to contain variable declarations *)
@@ -207,8 +270,7 @@ let process_expr_as_lval (_e : Ast.expr) _env : lval = Error
  * at the end of the statements (such as the terminator for a loop or a return
  * for a unit-valued function). If it is not provided, reaching the end of
  * the list of statements will produce an error *)
-(* TODO *)
-let rec process_stmt (s : Ast.stmt list) env (k : Target.stmt option) : Target.stmt =
+let rec process_stmt (s : Ast.stmt list) env tys (k : Target.stmt option) : Target.stmt =
   match s with
   | [] ->
       begin match k with
@@ -221,74 +283,67 @@ let rec process_stmt (s : Ast.stmt list) env (k : Target.stmt option) : Target.s
       process_expr l env 
         (fun l ->
           Loop (v, l,
-                process_stmt b env (Some (Return Env)),
-                process_stmt tl env k))
+                process_stmt b env tys (Some (Return Env)),
+                process_stmt tl env tys k))
   | IfProvided _ :: _ -> failwith "unexpected variable check"
   | IfExists (q, thn, els) :: tl ->
-      let after = process_stmt tl env k
+      let after = process_stmt tl env tys k
       and elem = process_expr_as_elem q env
-      in Contains (elem, process_stmt thn env (Some after),
-                         process_stmt els env (Some after))
+      in Contains (elem, process_stmt thn env tys (Some after),
+                         process_stmt els env tys (Some after))
   | IfThenElse (c, thn, els) :: tl ->
-      let after = process_stmt tl env k
+      let after = process_stmt tl env tys k
       in process_expr c env
           (fun c ->
-            Cond (c, process_stmt thn env (Some after),
-                     process_stmt els env (Some after)))
-  | Match _ :: _ -> failwith "TODO"
+            Cond (c, process_stmt thn env tys (Some after),
+                     process_stmt els env tys (Some after)))
+  | Match (e, cs) :: tl ->
+      (* First, we need to identify the type that we are matching over. We look
+       * at the first case for this *)
+      begin match cs with
+      | [] -> process_expr e env (fun _ -> process_stmt tl env tys k)
+      | ((type_name, _, _), _) :: _ ->
+          let after = process_stmt tl env tys k
+          in let constructors = lookup_enum tys type_name
+          in let cases
+            = Array.make (StringMap.cardinal constructors) (Default after)
+          in List.iter
+              (fun ((typ, cons, vars), body) ->
+                if typ <> type_name then failwith "Mismatched match cases"
+                else let (pos, args) = StringMap.find cons constructors
+                in match cases.(pos) with
+                   | Default _ ->
+                      cases.(pos) <-
+                        Set (generateVarInits vars (construct_prod args)
+                                (Variable "#match")
+                                (process_stmt body env tys (Some after)))
+                   | Set _ -> failwith "Duplicate case")
+              cs
+          ; process_expr e env
+            (fun e -> Assign ("#match", e,
+              array_foldr1 (Array.map of_processed cases)
+                (fun l r -> Match (Variable "#match", "#match", l, r))))
+      end
   | Clear e :: tl ->
       process_expr_as_qual e env
-        (fun q -> Add (negate_qual q, process_stmt tl env k))
+        (fun q -> Add (negate_qual q, process_stmt tl env tys k))
   | Assert e :: tl ->
       process_expr e env
-        (fun e -> Cond (e, process_stmt tl env k, Fail "assertion failed"))
+        (fun e -> Cond (e, process_stmt tl env tys k, Fail "assertion failed"))
   | Return _ :: _ :: _ -> failwith "Code after return"
   | Return e :: [] -> process_expr e env (fun e -> Return e)
   | Assign (lhs, rhs) :: tl ->
       begin match process_expr_as_lval lhs env with
       | Error -> failwith "ERROR"
       | Var nm ->
-          process_expr rhs env (fun e -> Assign (nm, e, process_stmt tl env k))
+          process_expr rhs env
+            (fun e -> Assign (nm, e, process_stmt tl env tys k))
       | Qual q ->
-          process_expr rhs env (fun e -> Add (q e, process_stmt tl env k))
+          process_expr rhs env
+            (fun e -> Add (q e, process_stmt tl env tys k))
       end
 (* TODO *)
 let process_module (_s : Ast.stmt list) _env : Target.stmt = Return Env
-
-let rec target_type (t : typ) : Target.typ =
-  match t with
-  | Bool -> Primitive Bool
-  | Int -> Primitive Int
-  | Float -> Primitive Float
-  | String -> Primitive String
-  | Path -> Primitive Path
-  | Unit -> Primitive Unit
-  | Option t -> Named (Option (target_type t))
-  | List t -> Named (List (target_type t))
-  | Product ts -> construct_prod ts
-  | Struct fs -> Struct (StringMap.map target_type fs)
-  | Enum _cs -> Primitive Unit (*construct_cases cs*)
-  | Placeholder t ->
-      match !t with
-      | None -> failwith "Missing type definition"
-      | Some t -> target_type t
-and construct_prod (ts : typ list) : Target.typ =
-  match ts with
-  | [] -> Primitive Unit
-  | [t] -> target_type t
-  | t :: ts -> Product (target_type t, construct_prod ts)
-
-let rec generateVarInits (names : string list) (ty : Target.typ)
-    (exp : Target.expr) (k : Target.stmt) : Target.stmt =
-  match names with
-  | [] -> k
-  | [n] -> Assign (n, exp, k)
-  | n :: ns ->
-      match ty with
-      | Product (x, y) ->
-          Assign (n, Function (Proj (true, x, y), exp),
-            generateVarInits ns y (Function (Proj (false, x, y), exp)) k)
-      | _ -> failwith "Type error"
 
 let codegen (files : Ast.topLevel list list) : type_env * global_env =
   (* The first step of our code generation is to divide the top levels into a
@@ -379,7 +434,7 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
         in add_modules nm (Module mod_info) env
         ; (Either.Right body, mod_body) :: create_functions tl types env
     | _ :: _ -> failwith "partitioning error"
-  in let rec process_functions ts env =
+  in let rec process_functions ts env types =
     match ts with
     | [] -> ()
     (* Function body *)
@@ -389,17 +444,17 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
            #input *)
         body_ref :=
           Some (generateVarInits args arg_ty (Variable "#input")
-                    (process_stmt body env None))
-        ; process_functions tl env
+                    (process_stmt body env types None))
+        ; process_functions tl env types
     (* Module body *)
     | (Either.Right body, body_ref) :: tl ->
         body_ref := Some(process_module body env)
-        ; process_functions tl env
+        ; process_functions tl env types
 
   in let (tys, dfs, fns) = partition files
   in let type_env = UniqueMap.empty ()
   in let global_env : global_env = UniqueMap.empty ()
   in create_types tys type_env
   ; create_definitions dfs type_env global_env
-  ; process_functions (create_functions fns type_env global_env) global_env
+  ; process_functions (create_functions fns type_env global_env) global_env type_env
   ; (type_env, global_env)

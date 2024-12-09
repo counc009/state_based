@@ -16,8 +16,8 @@ type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
           | UnaryExp of expr * unary
           | BinaryExp of expr * expr * binary
 
-(* Patterns are just of the form <name>[(<names>)] *)
-type pattern = string * string list
+(* Patterns are just of the form <enum-name>::<constructor-name>[(<var-names>)] *)
+type pattern = string * string * string list
 
 type stmt = RequiredVar of (string * string list * typ * expr option) list
           | OptionalVar of (string * string list * typ * expr option) list

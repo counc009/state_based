@@ -251,14 +251,19 @@ let mod_arg =
 let mod_args =
   sep_by (whitespace *> char '|' *> whitespace) mod_arg
 
-(* A (match) pattern has form <name>[(<names>)] *)
+(* A (match) pattern has form <enum-name>::<case-name>[(<var-names>)] *)
 let pattern =
   identifier
+  >>= fun enum ->
+  whitespace
+  *> string "::"
+  *> whitespace
+  *> identifier
   >>= fun nm ->
   option []
     (whitespace
       *> parens (sep_by (whitespace *> char ',' *> whitespace) identifier))
-  >>| fun vars -> (nm, vars)
+  >>| fun vars -> (enum, nm, vars)
 
 type condType = Provided of string | Exists of expr | Condition of expr
 
