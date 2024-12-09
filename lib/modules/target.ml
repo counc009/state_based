@@ -180,3 +180,5 @@ module rec Ast_Target : Ast_Defs
   let envFromVal (v : value) =
     match v with Literal (Env env, _) -> env | _ -> failwith "Not environment"
 end
+
+module TargetInterp = Calculus.Interp.Interp(Ast_Target)

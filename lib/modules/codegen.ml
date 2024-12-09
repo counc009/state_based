@@ -178,6 +178,28 @@ let process_expr (_e : Ast.expr) _env (k : Target.expr -> Target.stmt)
   : Target.stmt 
   = k (Literal (Unit ()))
 
+(* TODO *)
+let process_expr_as_qual (_e : Ast.expr) _env (k : Target.qual -> Target.stmt) 
+  : Target.stmt
+  = k (NotElement (("foo", Primitive Unit), Literal (Unit ())))
+
+let rec negate_qual (q : Target.qual) : Target.qual =
+  match q with
+  | Attribute (_, _, []) -> failwith "Cannot negate an attribute"
+  | Attribute (a, e, qs) -> Attribute (a, e, List.map negate_qual qs)
+  | Element (e, ex, []) -> NotElement (e, ex)
+  | Element (e, ex, qs) -> Element (e, ex, List.map negate_qual qs)
+  | NotElement (_, _) -> failwith "Cannot generate negated qual from front-end"
+
+(* TODO *)
+let process_expr_as_elem (_e : Ast.expr) _env : Target.elem =
+  Element (("foo", Primitive Unit), (Literal (Unit ())))
+
+type lval = Error | Var of string | Qual of (Target.expr -> Target.qual)
+
+(* TODO *)
+let process_expr_as_lval (_e : Ast.expr) _env : lval = Error
+
 (* process_stmt is used to handle statements in functions/Ansible 
  * while process_module is used to handle statements in module definitions
  * which are allowed to contain variable declarations *)
@@ -202,7 +224,11 @@ let rec process_stmt (s : Ast.stmt list) env (k : Target.stmt option) : Target.s
                 process_stmt b env (Some (Return Env)),
                 process_stmt tl env k))
   | IfProvided _ :: _ -> failwith "unexpected variable check"
-  | IfExists _ :: _ -> failwith "TODO"
+  | IfExists (q, thn, els) :: tl ->
+      let after = process_stmt tl env k
+      and elem = process_expr_as_elem q env
+      in Contains (elem, process_stmt thn env (Some after),
+                         process_stmt els env (Some after))
   | IfThenElse (c, thn, els) :: tl ->
       let after = process_stmt tl env k
       in process_expr c env
@@ -210,18 +236,23 @@ let rec process_stmt (s : Ast.stmt list) env (k : Target.stmt option) : Target.s
             Cond (c, process_stmt thn env (Some after),
                      process_stmt els env (Some after)))
   | Match _ :: _ -> failwith "TODO"
-  | Clear _ :: _ -> failwith "TODO"
+  | Clear e :: tl ->
+      process_expr_as_qual e env
+        (fun q -> Add (negate_qual q, process_stmt tl env k))
   | Assert e :: tl ->
       process_expr e env
         (fun e -> Cond (e, process_stmt tl env k, Fail "assertion failed"))
   | Return _ :: _ :: _ -> failwith "Code after return"
-  | Return e :: [] ->
-      begin match k with
-      | Some _ -> failwith "Continuation provided but found return"
-      | None ->
-          process_expr e env (fun e -> Return e)
+  | Return e :: [] -> process_expr e env (fun e -> Return e)
+  | Assign (lhs, rhs) :: tl ->
+      begin match process_expr_as_lval lhs env with
+      | Error -> failwith "ERROR"
+      | Var nm ->
+          process_expr rhs env (fun e -> Assign (nm, e, process_stmt tl env k))
+      | Qual q ->
+          process_expr rhs env (fun e -> Add (q e, process_stmt tl env k))
       end
-  | Assign _ :: _ -> failwith "TODO"
+(* TODO *)
 let process_module (_s : Ast.stmt list) _env : Target.stmt = Return Env
 
 let rec target_type (t : typ) : Target.typ =
