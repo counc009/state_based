@@ -224,7 +224,6 @@ let process_expr (_e : Ast.expr) _env (k : Target.expr -> Target.stmt)
   : Target.stmt 
   = k (Literal (Unit ()))
 
-(* TODO *)
 let rec process_qual (e : Ast.expr) env (q : Target.qual)
   (k : Target.qual -> Target.stmt) : Target.stmt =
   match e with
@@ -249,6 +248,8 @@ let rec process_qual (e : Ast.expr) env (q : Target.qual)
       begin match UniqueMap.find attr env with
       | Some (Attribute (nm, typ)) ->
           let attr = (nm, target_type typ)
+          (* By processing the current expression we produce the current value
+           * of the attribute *)
           in process_expr e env
             (fun expr ->
               process_qual qual env (Attribute (attr, expr, [q])) k)
@@ -256,9 +257,29 @@ let rec process_qual (e : Ast.expr) env (q : Target.qual)
       end
   | _ -> failwith "Invalid qualifier"
 
-let process_expr_as_qual (_e : Ast.expr) _env (k : Target.qual -> Target.stmt) 
-  : Target.stmt
-  = k (NotElement (("foo", Primitive Unit), Literal (Unit ())))
+(* Process an expression for a clear statement (the final access is not an
+   attribute) *)
+let process_expr_as_qual (e : Ast.expr) env (k : Target.qual -> Target.stmt) 
+  : Target.stmt =
+  match e with
+  | FuncExp (Id elem, args) ->
+      begin match UniqueMap.find elem env with
+      | Some (Element (nm, typ)) ->
+          let elem = (nm, target_type typ)
+          in process_expr (ProductExp args) env
+              (fun expr -> k (Element (elem, expr, [])))
+      | _ -> failwith "Invalid element"
+      end
+  | FuncExp (Field (qual, elem), args) ->
+      begin match UniqueMap.find elem env with
+      | Some (Element (nm, typ)) ->
+          let elem = (nm, target_type typ)
+          in process_expr (ProductExp args) env
+            (fun expr ->
+              process_qual qual env (Element (elem, expr, [])) k)
+      | _ -> failwith "Invalid element"
+      end
+  | _ -> failwith "Invalid qualifier"
 
 let rec negate_qual (q : Target.qual) : Target.qual =
   match q with
@@ -268,9 +289,54 @@ let rec negate_qual (q : Target.qual) : Target.qual =
   | Element (e, ex, qs) -> Element (e, ex, List.map negate_qual qs)
   | NotElement (_, _) -> failwith "Cannot generate negated qual from front-end"
 
-(* TODO *)
-let process_expr_as_elem (_e : Ast.expr) _env : Target.elem =
-  Element (("foo", Primitive Unit), (Literal (Unit ())))
+let process_expr_as_elem (e : Ast.expr) env (k : Target.elem -> Target.stmt)
+  : Target.stmt =
+  let rec process_elem (q : Ast.expr) (e : Target.elem)
+    (k : Target.elem -> Target.stmt) : Target.stmt =
+    match q with
+    | FuncExp (Id elem, args) ->
+        begin match UniqueMap.find elem env with
+        | Some (Element (nm, typ)) ->
+            let elem = (nm, target_type typ)
+            in process_expr (ProductExp args) env
+                (fun expr -> k (OnElement (elem, expr, e)))
+        | _ -> failwith "Invalid element"
+        end
+    | FuncExp (Field (qual, elem), args) ->
+        begin match UniqueMap.find elem env with
+        | Some (Element (nm, typ)) ->
+            let elem = (nm, target_type typ)
+            in process_expr (ProductExp args) env
+              (fun expr ->
+                process_elem qual (OnElement (elem, expr, e)) k)
+        | _ -> failwith "Invalid element"
+        end
+    | Field (qual, attr) ->
+        begin match UniqueMap.find attr env with
+        | Some (Attribute (nm, typ)) ->
+            let attr = (nm, target_type typ)
+            in process_elem qual (OnAttribute (attr, e)) k
+        | _ -> failwith "Invalid attribute"
+        end
+    | _ -> failwith "Invalid qualifier"
+  in match e with
+  | FuncExp (Id elem, args) ->
+      begin match UniqueMap.find elem env with
+      | Some (Element (nm, typ)) ->
+          let elem = (nm, target_type typ)
+          in process_expr (ProductExp args) env
+              (fun expr -> k (Element (elem, expr)))
+      | _ -> failwith "Invalid element"
+      end
+  | FuncExp (Field (qual, elem), args) ->
+      begin match UniqueMap.find elem env with
+      | Some (Element (nm, typ)) ->
+          let elem = (nm, target_type typ)
+          in process_expr (ProductExp args) env
+            (fun expr -> process_elem qual (Element (elem, expr)) k)
+      | _ -> failwith "Invalid element"
+      end
+  | _ -> failwith "Invalid qualifier"
 
 (* L-values are only variables and attributes in the state *)
 let process_expr_as_lval (e : Ast.expr) env (assign : Target.expr)
@@ -333,9 +399,10 @@ let rec process_stmt (s : Ast.stmt list) env tys (k : Target.stmt option) : Targ
   | IfProvided _ :: _ -> failwith "unexpected variable check"
   | IfExists (q, thn, els) :: tl ->
       let after = process_stmt tl env tys k
-      and elem = process_expr_as_elem q env
-      in Contains (elem, process_stmt thn env tys (Some after),
-                         process_stmt els env tys (Some after))
+      in process_expr_as_elem q env
+        (fun elem ->
+          Contains (elem, process_stmt thn env tys (Some after),
+                          process_stmt els env tys (Some after)))
   | IfThenElse (c, thn, els) :: tl ->
       let after = process_stmt tl env tys k
       in process_expr c env
