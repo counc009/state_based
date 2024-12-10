@@ -225,6 +225,37 @@ let process_expr (_e : Ast.expr) _env (k : Target.expr -> Target.stmt)
   = k (Literal (Unit ()))
 
 (* TODO *)
+let rec process_qual (e : Ast.expr) env (q : Target.qual)
+  (k : Target.qual -> Target.stmt) : Target.stmt =
+  match e with
+  | FuncExp (Id elem, args) ->
+      begin match UniqueMap.find elem env with
+      | Some (Element (nm, typ)) ->
+          let elem = (nm, target_type typ)
+          in process_expr (ProductExp args) env
+              (fun expr -> k (Element (elem, expr, [q])))
+      | _ -> failwith "Invalid element"
+      end
+  | FuncExp (Field (qual, elem), args) ->
+      begin match UniqueMap.find elem env with
+      | Some (Element (nm, typ)) ->
+          let elem = (nm, target_type typ)
+          in process_expr (ProductExp args) env
+            (fun expr ->
+              process_qual qual env (Element (elem, expr, [q])) k)
+      | _ -> failwith "Invalid element"
+      end
+  | Field (qual, attr) ->
+      begin match UniqueMap.find attr env with
+      | Some (Attribute (nm, typ)) ->
+          let attr = (nm, target_type typ)
+          in process_expr e env
+            (fun expr ->
+              process_qual qual env (Attribute (attr, expr, [q])) k)
+      | _ -> failwith "Invalid attribute"
+      end
+  | _ -> failwith "Invalid qualifier"
+
 let process_expr_as_qual (_e : Ast.expr) _env (k : Target.qual -> Target.stmt) 
   : Target.stmt
   = k (NotElement (("foo", Primitive Unit), Literal (Unit ())))
@@ -241,10 +272,20 @@ let rec negate_qual (q : Target.qual) : Target.qual =
 let process_expr_as_elem (_e : Ast.expr) _env : Target.elem =
   Element (("foo", Primitive Unit), (Literal (Unit ())))
 
-type lval = Error | Var of string | Qual of (Target.expr -> Target.qual)
-
-(* TODO *)
-let process_expr_as_lval (_e : Ast.expr) _env : lval = Error
+(* L-values are only variables and attributes in the state *)
+let process_expr_as_lval (e : Ast.expr) env (assign : Target.expr)
+  (k : Target.stmt) : Target.stmt =
+  match e with
+  | Id nm -> Assign (nm, assign, k)
+  | Field (qual, attr) ->
+      begin match UniqueMap.find attr env with
+      | Some (Attribute (nm, typ)) ->
+          let attr = (nm, target_type typ)
+          in process_qual qual env (Attribute (attr, assign, []))
+              (fun q -> Add (q, k))
+      | _ -> failwith "attribute does not exist"
+      end
+  | _ -> failwith "invalid l-value expression"
 
 (* Given a list of names and a value and type constructs a target statement
  * which extracts fields and assigns them to the given names.
@@ -337,15 +378,8 @@ let rec process_stmt (s : Ast.stmt list) env tys (k : Target.stmt option) : Targ
   | Return _ :: _ :: _ -> failwith "Code after return"
   | Return e :: [] -> process_expr e env (fun e -> Return e)
   | Assign (lhs, rhs) :: tl ->
-      begin match process_expr_as_lval lhs env with
-      | Error -> failwith "ERROR"
-      | Var nm ->
-          process_expr rhs env
-            (fun e -> Assign (nm, e, process_stmt tl env tys k))
-      | Qual q ->
-          process_expr rhs env
-            (fun e -> Add (q e, process_stmt tl env tys k))
-      end
+      process_expr rhs env
+        (fun e -> process_expr_as_lval lhs env e (process_stmt tl env tys k))
 (* TODO *)
 let process_module (_s : Ast.stmt list) _env : Target.stmt = Return Env
 
