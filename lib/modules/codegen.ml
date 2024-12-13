@@ -379,6 +379,12 @@ let process_expr (e : Ast.expr) _env tys (k : Target.expr -> Target.stmt)
             end
         | _ -> failwith "expected enum name"
         end
+    | FuncExp (func, args) ->
+        begin match func with
+        | Id nm -> failwith "TODO"
+        | Field (qual, elem) -> failwith "TODO"
+        | _ -> failwith "invalid function expression"
+        end
     | _ -> failwith "TODO"
   in process e
     (fun e -> match e with
