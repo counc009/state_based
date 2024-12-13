@@ -54,6 +54,17 @@ type module_info =
 
 type type_env = typ UniqueMap.t
 
+type env_entry = Attribute of string * typ
+               | Element of string * typ
+               | Uninterpreted of string * typ list * typ
+               (* Function has its argument type and then return type *)
+               | Function of string * Target.typ * typ * Target.stmt placeholder
+               | Module of module_info
+               (* Environment is used to create a multi-level environment to
+                * handle fully qualified names *)
+               | Environment of global_env
+and global_env = env_entry UniqueMap.t
+
 let rec extract_enum (t : typ) : (int * typ list) StringMap.t =
   match t with
   | Enum res -> res
@@ -69,17 +80,6 @@ let lookup_enum (tys : type_env) (nm : string)
     match UniqueMap.find nm tys with
     | None -> failwith "Undefined type"
     | Some t -> extract_enum t
-
-type env_entry = Attribute of string * typ
-               | Element of string * typ
-               | Uninterpreted of string * typ list * typ
-               (* Function has its argument type and then return type *)
-               | Function of string * Target.typ * typ * Target.stmt placeholder
-               | Module of module_info
-               (* Environment is used to create a multi-level environment to
-                * handle fully qualified names *)
-               | Environment of global_env
-and global_env = env_entry UniqueMap.t
 
 let rec add_modules (nm : string list) (t : env_entry) env : unit =
   match nm with
@@ -271,6 +271,45 @@ let get_enum_info (tys : type_env) (nm : string) (constr : string)
   | Some t -> extract_enum_info t
   | None -> failwith "undefined type"
 
+(* get_module_info takes the environment and an expression representing the
+ * module name and returns a tuple of the information that forms the target
+ * action for the module, the definition of the module's input struct, and
+ * alias map for the module's arguments
+ *)
+let get_module_info env (modul : Ast.expr)
+  : Target.action * Target.structTy * string StringMap.t =
+  let rec find_module env (modul : Ast.expr)
+    : (global_env, module_info) Either.t =
+    match modul with
+    | Id nm ->
+        begin match UniqueMap.find nm env with
+        | Some (Module mod_info) -> Either.Right mod_info
+        | Some (Environment env) -> Either.Left env
+        | Some _ -> failwith "expected module"
+        | None -> failwith "undefined name"
+        end
+    | Field (modul, nm) ->
+        begin match find_module env modul with
+        | Either.Right _ -> failwith "no such field"
+        | Either.Left env ->
+            match UniqueMap.find nm env with
+            | Some (Module mod_info) -> Either.Right mod_info
+            | Some (Environment env) -> Either.Left env
+            | Some _ -> failwith "expected module"
+            | None -> failwith "undefined name"
+        end
+    | _ -> failwith "expected module name"
+  in match find_module env modul with
+  | Either.Left _ -> failwith "expected module name"
+  | Either.Right mod_info ->
+      let struct_def = StringMap.map target_type mod_info.input_struct_def
+      in let action_info : Target.action = 
+        (String.concat "." mod_info.name,
+         Struct struct_def,
+         target_type mod_info.out_type,
+         mod_info.body)
+      in (action_info, struct_def, mod_info.alias_map)
+
 (* construct_enum generates the constructors needed for an enum constructor
  * identified by the given named type and constructor index *)
 let construct_enum (enum : Target.namedTy) (idx : int) (e : Target.expr)
@@ -443,6 +482,31 @@ let process_expr (e : Ast.expr) env tys (k : Target.expr -> Target.stmt)
             | Some _ -> failwith "expected element"
             | None -> failwith "undefined name"
             end
+        | ModuleExp (func, args) ->
+            let (mod_info, record_def, aliases) = get_module_info env func
+            and tmp = temp_name ()
+            in let init_input : Target.expr =
+              Function (EmptyStruct record_def, Literal (Unit ()))
+            in let filled_args : Target.expr -> Target.stmt =
+              List.fold_left
+                (fun (k : Target.expr -> Target.stmt) (field, expr) record ->
+                  let canonical =
+                    match StringMap.find_opt field aliases with
+                    | Some nm -> nm
+                    | None -> field
+                  in if not (StringMap.mem canonical record_def)
+                  then failwith "unexpected argument"
+                  else
+                    process expr
+                      (fun field_expr ->
+                        match field_expr with
+                        | JustExpr e | ExprOrAttr (e, _) ->
+                            k (Function (AddField (record_def, canonical),
+                                Pair (record, e)))
+                        | _ -> failwith "expected expression"))
+              (fun e -> Action (tmp, mod_info, e, k (JustExpr (Variable tmp))))
+              args
+            in filled_args init_input
         | _ -> failwith "invalid function expression"
         end
     | _ -> failwith "TODO"
