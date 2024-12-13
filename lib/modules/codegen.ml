@@ -1,5 +1,7 @@
 (* TODO: Fix error handling *)
 
+type 'a list2 = 'a Target.list2
+
 module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
 module Target = Target.Ast_Target
@@ -213,6 +215,82 @@ and construct_prod (ts : typ list) : Target.typ =
   | [t] -> target_type t
   | t :: ts -> Product (target_type t, construct_prod ts)
 
+let rec to_list2 (xs : 'a list) : 'a list2 option =
+  match xs with
+  | [] | _ :: [] -> None
+  | x :: y :: [] -> Some (LastTwo (x, y))
+  | x :: xs ->
+      match to_list2 xs with
+      | Some xs -> Some (Cons (x, xs))
+      | None -> failwith "BUG in to_list2"
+
+(* get_enum_info takes the type environment, enum name, and constructor name
+ * and returns:
+ * - Left (named, index) if nm defines a multi-constructor enum and named is
+ *   the named type defining this enum and index is the constructor's index
+ * - Right typ if nm defines a single-constructor enum, and typ is the type
+ *   of the constructor
+ *)
+let get_enum_info (tys : type_env) (nm : string) (constr : string)
+  : (Target.namedTy * int, Target.typ) Either.t =
+  let rec extract_enum_info (t : typ)
+    : (Target.namedTy * int , Target.typ) Either.t =
+    match t with
+    | Enum constrs ->
+        begin match StringMap.find_opt constr constrs with
+        | None -> failwith "Invalid constructor"
+        | Some (idx, tys) -> 
+            if StringMap.cardinal constrs = 1
+            then Either.Right (target_type (Product tys))
+            else let cases : Target.typ Array.t 
+              = Array.make (StringMap.cardinal constrs) (Target.Primitive Unit)
+            in StringMap.iter
+              (fun _ (idx, tys) -> cases.(idx) <- target_type (Product tys))
+              constrs
+            ; match to_list2 (Array.to_list cases) with
+            | None -> failwith "enum does not have enough cases"
+            | Some cs -> Either.Left (Cases cs, idx)
+        end
+    | Option t     ->
+        let typ = target_type t
+        in if constr = "nothing"
+        then Either.Left (Option typ, 0)
+        else if constr = "some"
+        then Either.Left (Option typ, 1)
+        else failwith "Invalid constructor of option"
+    | List t       ->
+        let typ = target_type t
+        in if constr = "nil"
+        then Either.Left (List typ, 0)
+        else if constr = "cons"
+        then Either.Left (List typ, 1)
+        else failwith "Invalid constructor of list"
+    | Placeholder { contents = Some t } -> extract_enum_info t
+    | _ -> failwith "Not an enum type"
+  in match UniqueMap.find nm tys with
+  | Some t -> extract_enum_info t
+  | None -> failwith "undefined type"
+
+(* construct_enum generates the constructors needed for an enum constructor
+ * identified by the given named type and constructor index *)
+let construct_enum (enum : Target.namedTy) (idx : int) (e : Target.expr)
+  : Target.expr =
+  let rec construct_cases (cs : Target.typ list2) (idx : int) : Target.expr =
+    match cs with
+    | LastTwo (_, _) ->
+        if idx = 0 then Function (Constructor (true, Cases cs), e)
+        else if idx = 1 then Function (Constructor (true, Cases cs), e)
+        else failwith "internal error: invalid index for enum"
+    | Cons (_, r) ->
+        if idx = 0 then Function (Constructor (true, Cases cs), e)
+        else Function (Constructor (false, Cases cs), construct_cases r (idx-1))
+  in match enum with
+  | List _ | Option _ ->
+      if idx = 0 then Function (Constructor (true, enum), e)
+      else if idx = 1 then Function (Constructor (false, enum), e)
+      else failwith "internal error: invalid index for list or option"
+  | Cases cs -> construct_cases cs idx
+
 (* The result of our internal expression processing *)
 type expr_result = JustExpr of Target.expr
                  | JustAttr of (Target.attr -> Target.attr)
@@ -286,14 +364,18 @@ let process_expr (e : Ast.expr) _env tys (k : Target.expr -> Target.stmt)
             end
         | _ -> failwith "expected struct name"
         end
-    | EnumExp (enum, constr, _args) ->
+    | EnumExp (enum, constr, args) ->
         begin match enum with
         | Id enum ->
-            let constructors = lookup_enum tys enum
-            (* TODO: Construct the appropriate Named Type *)
-            in begin match StringMap.find_opt constr constructors with
-            | Some (_idx, _tys) -> failwith "TODO"
-            | None -> failwith "invalid constructor"
+            begin match get_enum_info tys enum constr with
+            | Either.Left (enum, idx) ->
+                process (ProductExp args)
+                  (fun a ->
+                    match a with
+                    | JustExpr e | ExprOrAttr (e, _) ->
+                        k (JustExpr (construct_enum enum idx e))
+                    | _ -> failwith "expected expression")
+            | Either.Right _ -> process (ProductExp args) k
             end
         | _ -> failwith "expected enum name"
         end
@@ -559,9 +641,9 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
     | Enum (nm, variants) :: tl ->
         let variants = 
           StringMap.of_list
-            (List.map
-              (fun (i, (nm, ts)) -> (nm, (i, create_types_option ts env)))
-              (List.mapi (fun i x -> (i, x)) variants))
+            (List.mapi
+              (fun i (nm, ts) -> (nm, (i, create_types_option ts env)))
+              variants)
         in add_type nm (Enum variants) env; create_types tl env
     | Struct (nm, fields) :: tl ->
         let fields =
