@@ -65,7 +65,10 @@ type env_entry = Attribute of string * typ
                | Environment of global_env
 and global_env = env_entry UniqueMap.t
 
-type local_env = Target.typ StringMap.t
+(* Local environments record the generated name (which may be different because
+ * the calculus is dynamically scoped but the module language is statically
+ * scoped *)
+type local_env = (string * Target.typ) StringMap.t
 
 let empty_local_env : local_env = StringMap.empty
 
@@ -347,6 +350,11 @@ let temp_name () : string =
   let n = !tmp_counter
   in tmp_counter := n + 1
   ; "#" ^ string_of_int n
+
+let fresh_var (v : string) : string =
+  let n = !tmp_counter
+  in tmp_counter := n + 1
+  ; v ^ "." ^ string_of_int n
 
 (* TODO *)
 (* process_expr takes a continuation which takes an expression and produces a
@@ -674,13 +682,16 @@ let rec generateVarInits (names : string list) (ty : Target.typ)
     : Target.stmt =
   match names with
   | [] -> k locals
-  | [n] -> Assign (n, exp, k (StringMap.add n ty locals))
+  | [n] ->
+      let fresh_n = fresh_var n
+      in Assign (fresh_n, exp, k (StringMap.add n (fresh_n, ty) locals))
   | n :: ns ->
       match ty with
       | Product (x, y) ->
-          Assign (n, Function (Proj (true, x, y), exp),
+          let fresh_n = fresh_var n
+          in Assign (fresh_n, Function (Proj (true, x, y), exp),
             generateVarInits ns y (Function (Proj (false, x, y), exp))
-              (StringMap.add n x locals) k)
+              (StringMap.add n (fresh_n, x) locals) k)
       | _ -> failwith "Type error"
 
 
@@ -708,9 +719,10 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
   | ForLoop (v, l, b) :: tl ->
       process_expr l env tys locals
         (fun l ->
-          let body_env = StringMap.add v (snd l) locals
+          let fresh_v = fresh_var v
+          in let body_env = StringMap.add v (fresh_v, snd l) locals
           in
-          Loop (v, fst l,
+          Loop (fresh_v, fst l,
                 process_stmt b env tys body_env (Some (Return Env)),
                 process_stmt tl env tys locals k))
   | IfProvided _ :: _ -> failwith "unexpected variable check"
@@ -771,8 +783,9 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
       | Id nm ->
           process_expr rhs env tys locals
             (fun (e, t) ->
-              let locals = StringMap.add nm t locals
-              in Assign (nm, e, process_stmt tl env tys locals k))
+              let fresh_nm = fresh_var nm
+              in let locals = StringMap.add nm (fresh_nm, t) locals
+              in Assign (fresh_nm, e, process_stmt tl env tys locals k))
       | _ ->
           process_expr rhs env tys locals
             (fun e ->
