@@ -97,7 +97,10 @@ let string_lit =
 (* Parsing of expressions is similar to how we would parse a disambiguated
    CFG with precedence, so we use a number of auxiliary nonterminals. The CFG
    for this is roughly:
-    expr  ::= expr1
+    expr  ::= expr0
+    expr0 ::= expr1 '?' expr0 ':' expr0
+            | 'provided' identifier '?' expr0 ':' expr0
+            | expr1
     expr1 ::= expr1 '||' expr2 | expr2
     expr2 ::= expr2 '&&' expr3 | expr3
     expr3 ::= expr4 '==' expr4 | expr4 '!=' expr4
@@ -225,7 +228,36 @@ let expr =
           (string "||" *> whitespace *> expr2
             >>= fun rhs -> expr1' (BinaryExp (lhs, rhs, Or)))
       in expr2 >>= expr1'
-    in expr1)
+    in let expr0 =
+      fix (fun expr0 ->
+        (expr1
+          >>= fun cond ->
+            whitespace
+          *> ((char '?' 
+            *> whitespace 
+            *> expr0
+            >>= fun thn ->
+              whitespace
+            *> char ':'
+            *> whitespace
+            *> expr0
+            >>| fun els -> CondExp (cond, thn, els))
+          <|> return cond))
+        <|> (string "provided"
+        *> whitespace
+        *> identifier
+        >>= fun id ->
+          whitespace
+        *> char '?'
+        *> whitespace
+        *> expr0
+        >>= fun thn ->
+          whitespace
+        *> char ':'
+        *> whitespace
+        *> expr0
+        >>| fun els -> CondProvidedExp (id, thn, els)))
+    in expr0)
 
 (* Module arguments are of the form <name> [aka <names>] : <type> [= <default>] *)
 let mod_aka =

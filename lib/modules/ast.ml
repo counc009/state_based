@@ -15,6 +15,8 @@ type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
           | ProductField of expr * int
           | UnaryExp of expr * unary
           | BinaryExp of expr * expr * binary
+          | CondExp of expr * expr * expr
+          | CondProvidedExp of string * expr * expr
 
 (* Patterns are just of the form <enum-name>::<constructor-name>[(<var-names>)] *)
 type pattern = string * string * string list
