@@ -270,9 +270,9 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                     | Err msg -> Err msg
                     | Ok NotLocated -> Ok NotLocated
                     | Ok (Located v) -> Ok (Located v)
-                    | Ok (Created (v, st)) ->
+                    | Ok (Created (res, st)) ->
                         let new_els = ElementMap.add (el, v, false) st els
-                        in Ok (Created (v, State (new_els, ats)))
+                        in Ok (Created (res, State (new_els, ats)))
             end
       in match helper a s.final with
          | Err msg -> Err msg
