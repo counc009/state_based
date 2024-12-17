@@ -532,27 +532,30 @@ let process_expr (e : Ast.expr) _env _tys _locals
               | JustExpr (e, t) | ExprOrAttr ((e, t), _) -> k (e, t)
               | JustAttr _ -> failwith "Expected expression, not element")
 
-(* FIXME *)
-let (*rec*) process_qual (_e : Ast.expr) _env _tys _locals (_q : Target.qual)
-  (_k : Target.qual -> Target.stmt) : Target.stmt =
-    failwith "FIXME"
-  (*
+let rec process_qual (e : Ast.expr) env tys locals (q : Target.qual)
+  (k : Target.qual -> Target.stmt) : Target.stmt =
   match e with
   | FuncExp (Id elem, args) ->
       begin match UniqueMap.find elem env with
       | Some (Element (nm, typ)) ->
           let elem = (nm, target_type typ)
-          in process_expr (ProductExp args) env tys
-              (fun expr -> k (Element (elem, expr, [q])))
+          in process_expr (ProductExp args) env tys locals
+              (fun (expr, typ) ->
+                if typ <> snd elem
+                then failwith "incorrect type in element"
+                else k (Element (elem, expr, [q])))
       | _ -> failwith "Invalid element"
       end
   | FuncExp (Field (qual, elem), args) ->
       begin match UniqueMap.find elem env with
       | Some (Element (nm, typ)) ->
           let elem = (nm, target_type typ)
-          in process_expr (ProductExp args) env tys
-            (fun expr ->
-              process_qual qual env tys (Element (elem, expr, [q])) k)
+          in process_expr (ProductExp args) env tys locals
+            (fun (expr, typ) ->
+              if typ <> snd elem
+              then failwith "incorrect type in element"
+              else process_qual qual env tys locals
+                                (Element (elem, expr, [q])) k)
       | _ -> failwith "Invalid element"
       end
   | Field (qual, attr) ->
@@ -561,40 +564,42 @@ let (*rec*) process_qual (_e : Ast.expr) _env _tys _locals (_q : Target.qual)
           let attr = (nm, target_type typ)
           (* By processing the current expression we produce the current value
            * of the attribute *)
-          in process_expr e env tys
-            (fun expr ->
-              process_qual qual env tys (Attribute (attr, expr, [q])) k)
+          in process_expr e env tys locals
+            (fun (expr, _) ->
+              process_qual qual env tys locals (Attribute (attr, expr, [q])) k)
       | _ -> failwith "Invalid attribute"
       end
   | _ -> failwith "Invalid qualifier"
-  *)
 
 (* Process an expression for a clear statement (the final access is not an
    attribute) *)
-let process_expr_as_qual (_e : Ast.expr) _env _tys _locals
-  (_k : Target.qual -> Target.stmt) : Target.stmt =
-    failwith "FIXME"
-  (*
+let process_expr_as_qual (e : Ast.expr) env tys locals
+  (k : Target.qual -> Target.stmt) : Target.stmt =
   match e with
   | FuncExp (Id elem, args) ->
       begin match UniqueMap.find elem env with
       | Some (Element (nm, typ)) ->
           let elem = (nm, target_type typ)
-          in process_expr (ProductExp args) env tys
-              (fun expr -> k (Element (elem, expr, [])))
+          in process_expr (ProductExp args) env tys locals
+              (fun (expr, typ) ->
+                if typ <> snd elem
+                then failwith "incorrect type on element"
+                else k (Element (elem, expr, [])))
       | _ -> failwith "Invalid element"
       end
   | FuncExp (Field (qual, elem), args) ->
       begin match UniqueMap.find elem env with
       | Some (Element (nm, typ)) ->
           let elem = (nm, target_type typ)
-          in process_expr (ProductExp args) env tys
-            (fun expr ->
-              process_qual qual env tys (Element (elem, expr, [])) k)
+          in process_expr (ProductExp args) env tys locals
+            (fun (expr, typ) ->
+              if typ <> snd elem
+              then failwith "incorrect type on element"
+              else process_qual qual env tys locals
+                                (Element (elem, expr, [])) k)
       | _ -> failwith "Invalid element"
       end
   | _ -> failwith "Invalid qualifier"
-  *)
 
 let rec negate_qual (q : Target.qual) : Target.qual =
   match q with
@@ -604,10 +609,8 @@ let rec negate_qual (q : Target.qual) : Target.qual =
   | Element (e, ex, qs) -> Element (e, ex, List.map negate_qual qs)
   | NotElement (_, _) -> failwith "Cannot generate negated qual from front-end"
 
-let process_expr_as_elem (_e : Ast.expr) _env _tys _locals
-  (_k : Target.elem -> Target.stmt) : Target.stmt =
-    failwith "FIXME"
-  (*
+let process_expr_as_elem (e : Ast.expr) env tys locals
+  (k : Target.elem -> Target.stmt) : Target.stmt =
   let rec process_elem (q : Ast.expr) (e : Target.elem)
     (k : Target.elem -> Target.stmt) : Target.stmt =
     match q with
@@ -615,17 +618,22 @@ let process_expr_as_elem (_e : Ast.expr) _env _tys _locals
         begin match UniqueMap.find elem env with
         | Some (Element (nm, typ)) ->
             let elem = (nm, target_type typ)
-            in process_expr (ProductExp args) env tys
-                (fun expr -> k (OnElement (elem, expr, e)))
+            in process_expr (ProductExp args) env tys locals
+                (fun (expr, typ) ->
+                  if typ <> snd elem
+                  then failwith "incorrect type on element"
+                  else k (OnElement (elem, expr, e)))
         | _ -> failwith "Invalid element"
         end
     | FuncExp (Field (qual, elem), args) ->
         begin match UniqueMap.find elem env with
         | Some (Element (nm, typ)) ->
             let elem = (nm, target_type typ)
-            in process_expr (ProductExp args) env tys
-              (fun expr ->
-                process_elem qual (OnElement (elem, expr, e)) k)
+            in process_expr (ProductExp args) env tys locals
+              (fun (expr, typ) ->
+                if typ <> snd elem
+                then failwith "incorrect type on element"
+                else process_elem qual (OnElement (elem, expr, e)) k)
         | _ -> failwith "Invalid element"
         end
     | Field (qual, attr) ->
@@ -641,22 +649,26 @@ let process_expr_as_elem (_e : Ast.expr) _env _tys _locals
       begin match UniqueMap.find elem env with
       | Some (Element (nm, typ)) ->
           let elem = (nm, target_type typ)
-          in process_expr (ProductExp args) env tys
-              (fun expr -> k (Element (elem, expr)))
+          in process_expr (ProductExp args) env tys locals
+              (fun (expr, typ) ->
+                if typ <> snd elem
+                then failwith "incorrect type on element"
+                else k (Element (elem, expr)))
       | _ -> failwith "Invalid element"
       end
   | FuncExp (Field (qual, elem), args) ->
       begin match UniqueMap.find elem env with
       | Some (Element (nm, typ)) ->
           let elem = (nm, target_type typ)
-          in process_expr (ProductExp args) env tys
-            (fun expr -> process_elem qual (Element (elem, expr)) k)
+          in process_expr (ProductExp args) env tys locals
+            (fun (expr, typ) ->
+              if typ <> snd elem
+              then failwith "incorrect type on element"
+              else process_elem qual (Element (elem, expr)) k)
       | _ -> failwith "Invalid element"
       end
   | _ -> failwith "Invalid qualifier"
-  *)
 
-(* L-values are only variables and attributes in the state *)
 let process_lval_as_qual (e : Ast.expr) env tys locals
   (assign : Target.expr * Target.typ) (k : Target.stmt) : Target.stmt =
   match e with
