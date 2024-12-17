@@ -991,7 +991,7 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
     | (t :: ts) :: fs ->
         let (tys, dfs, fns) = partition (ts :: fs) in
         match t with
-        | Enum _ | Struct _ -> (t :: tys, dfs, fns)
+        | Enum _ | Struct _ | Type _ -> (t :: tys, dfs, fns)
         | Uninterp _ | Attribute _ | Element _ -> (tys, t :: dfs, fns)
         | Function _ | Module _ -> (tys, dfs, t :: fns)
 
@@ -1015,6 +1015,9 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
           StringMap.of_list
             (List.map (fun (nm, t) -> (nm, create_type t env)) fields)
         in add_type nm (Struct fields) env; create_types tl env
+    | Type (nm, typ) :: tl ->
+        let ty = create_type typ env
+        in add_type nm ty env; create_types tl env
     | _ :: _ -> failwith "partitioning error"
 
   in let rec create_definitions (ts : Ast.topLevel list) types env =

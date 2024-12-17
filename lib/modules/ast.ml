@@ -37,6 +37,7 @@ type stmt = RequiredVar  of (string * string list * typ * expr option) list
 
 type topLevel = Enum      of string * (string * typ list option) list
               | Struct    of string * (string * typ) list
+              | Type      of string * typ
               | Uninterp  of string * typ list * typ
               | Attribute of string * typ
               | Element   of string * typ

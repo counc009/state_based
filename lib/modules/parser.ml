@@ -446,7 +446,7 @@ let enum_cases =
 
 let enum_def =
   string "enum"
-  *> whitespace
+  *> whitespace1
   *> identifier
   <* whitespace
   >>= fun nm ->
@@ -467,16 +467,27 @@ let struct_fields =
 
 let struct_def =
   string "struct"
-  *> whitespace
+  *> whitespace1
   *> identifier
   <* whitespace
   >>= fun nm ->
   brackets struct_fields
   >>| fun def -> Struct (nm, def)
 
+let type_def =
+  string "type"
+  *> whitespace1
+  *> identifier
+  <* whitespace
+  >>= fun nm ->
+  char '='
+  *> whitespace
+  *> typ
+  >>| fun typ -> Type (nm, typ)
+
 let uninterp_def =
   string "uninterpreted"
-  *> whitespace
+  *> whitespace1
   *> identifier
   >>= fun nm ->
   whitespace
@@ -490,7 +501,7 @@ let uninterp_def =
 
 let attr_def =
   string "attribute"
-  *> whitespace
+  *> whitespace1
   *> identifier
   >>= fun nm ->
   whitespace
@@ -499,7 +510,7 @@ let attr_def =
 
 let elem_def =
   string "element"
-  *> whitespace
+  *> whitespace1
   *> identifier
   >>= fun nm ->
   whitespace
@@ -508,7 +519,7 @@ let elem_def =
 
 let func_def =
   string "function"
-  *> whitespace
+  *> whitespace1
   *> identifier
   >>= fun nm ->
   whitespace
@@ -523,7 +534,7 @@ let func_def =
 
 let mod_def =
   string "module"
-  *> whitespace
+  *> whitespace1
   *> module_name
   >>= fun nm ->
   whitespace
@@ -538,6 +549,7 @@ let top_level =
     (choice
       [ enum_def
       ; struct_def
+      ; type_def
       ; uninterp_def
       ; attr_def
       ; elem_def
