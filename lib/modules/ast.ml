@@ -6,7 +6,8 @@ type binary = Or | And | Eq | Ne | Lt | Le | Gt | Ge | LShift | RShift
             | Add | Sub | Mul | Div | Mod
 
 type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
-          | StringLit of string | UnitExp   | ProductExp of expr list
+          | StringLit of string | PathLit of string | UnitExp
+          | ProductExp of expr list
           | RecordExp of expr * (string * expr) list
           | EnumExp   of expr * string * expr list
           | FuncExp   of expr * expr list

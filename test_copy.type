@@ -1,0 +1,22 @@
+enum local_remote { remote, local }
+
+element file(path, local_remote)
+element directory(path, local_remote)
+
+attribute content(string)
+attribute owner(string)
+attribute group(string)
+
+attribute files(list path)
+attribute dirs(list path)
+
+function copy(dst : path, src : path, group: string, owner: string) {
+  if exists file(src, local_remote::local) {
+    file(dst, local_remote::remote).content
+      = file(src, local_remote::local).content;
+    file(dst, local_remote::remote).owner = owner;
+    file(dst, local_remote::remote).group = group;
+  } else {
+    assert false;
+  }
+}

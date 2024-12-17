@@ -26,7 +26,7 @@ type ('v, 't) lit = Unit    of unit
                   | Env     of ('v * 't) StringMap.t
 
 module rec Ast_Target : Ast_Defs
-  with type variable  = string 
+  with type variable  = string
   with type field     = string
   with type primTy    = prims
   with type namedTy   = Ast_Target.typ constr
@@ -35,7 +35,7 @@ module rec Ast_Target : Ast_Defs
   with type literal   = (Ast_Target.value, Ast_Target.typ) lit
   with type attribute = string * Ast_Target.typ
   with type element   = string * Ast_Target.typ
-  with type action    = string * Ast_Target.typ * Ast_Target.typ 
+  with type action    = string * Ast_Target.typ * Ast_Target.typ
                       * Ast_Target.stmt option ref
 = struct
   type primTy = prims
@@ -132,7 +132,7 @@ module rec Ast_Target : Ast_Defs
                                    | _ -> Err "Add field failed to reduce")
     | ReadField (s, f) -> (Struct s, FieldMap.find f (structTyDef s),
                            fun v -> match v with Struct (_, fs)
-                                    -> begin match FieldMap.find_opt f fs with  
+                                    -> begin match FieldMap.find_opt f fs with
                                        | Some x -> Reduced x
                                        | None -> Err ("Missing field " ^ f)
                                        end
@@ -182,3 +182,78 @@ module rec Ast_Target : Ast_Defs
 end
 
 module TargetInterp = Calculus.Interp.Interp(Ast_Target)
+
+let rec value_to_string (v : Ast_Target.value) : string =
+  match v with
+  | Unknown (Loop x, _)   -> "?loop(" ^ string_of_int x ^ ")"
+  | Unknown (Val x, _)    -> "?" ^ string_of_int x
+  | Literal (Unit (), _)  -> "()"
+  | Literal (Bool b, _)   -> string_of_bool b
+  | Literal (Int i, _)    -> string_of_int i
+  | Literal (Float f, _)  -> string_of_float f
+  | Literal (String s, _) -> "\"" ^ s ^ "\""
+  | Literal (Path p, _)   -> "'" ^ p ^ "'"
+  | Literal (Env _, _)    -> "%%ENV%%"
+  | Pair    (x, y, _)     ->
+      "(" ^ value_to_string x ^ ", " ^ value_to_string y ^ ")"
+  | Constructor (_, left, v) ->
+      (if left then "L(" else "R(") ^ value_to_string v ^ ")"
+  | Struct (_, r) ->
+      "{" ^ String.concat ", "
+              (List.map (fun (nm, v) -> nm ^ ": " ^ value_to_string v)
+                (Ast_Target.FieldMap.to_list r))
+          ^ "}"
+  | Function (f, arg, _)  ->
+      match f with
+      | Proj (true, _, _)         -> "proj1(" ^ value_to_string arg ^ ")"
+      | Proj (false, _, _)        -> "proj2(" ^ value_to_string arg ^ ")"
+      | Uninterpreted (nm, _, _)  -> nm ^ "(" ^ value_to_string arg ^ ")"
+      | _ -> "%%FUNCTION%%(" ^ value_to_string arg ^ ")"
+
+let rec state_to_string (state : TargetInterp.state) : string =
+  let State(elems, attrs) = state
+  in Printf.sprintf "< %s >"
+    (String.concat ", "
+      (List.map
+        (fun (((elem, _), v, neg), s) ->
+          (if neg then "not " else "")
+          ^ elem ^ "(" ^ value_to_string v ^ ")"
+          ^ ": " ^ state_to_string s)
+        (TargetInterp.ElementMap.to_list elems)
+      @
+      List.map
+        (fun ((attr, _), (v, s)) -> attr ^ " = " ^ value_to_string v
+                                 ^ ": " ^ state_to_string s)
+        (TargetInterp.AttributeMap.to_list attrs)))
+
+let prg_type_to_string (state : TargetInterp.prg_type) : string =
+  Printf.sprintf "%s --> %s [{ %s }, { %s }, { %s }]"
+    (state_to_string state.init)
+    (state_to_string state.final)
+    (String.concat ", "
+      (List.map (fun (v, i) -> value_to_string v ^ ": #" ^ string_of_int i)
+        (TargetInterp.ValueMap.to_list state.loops)))
+    (String.concat ", "
+      (List.map (fun (v, b) -> value_to_string v ^ " = " ^ string_of_bool b)
+        (TargetInterp.ValueMap.to_list state.bools)))
+    (String.concat ", "
+      (List.map (fun (v, (b, w)) -> value_to_string v ^ " = "
+                  ^ (if b then "L" else "R") ^ "(" ^ value_to_string w ^ ")")
+        (TargetInterp.ValueMap.to_list state.constrs)))
+
+let results_to_string (res : TargetInterp.prg_res list) : string =
+  let rec process (res : TargetInterp.prg_res list) : string list * string list =
+    match res with
+    | [] -> ([], [])
+    | Err msg :: tl ->
+        let (succs, fails) = process tl
+        in (succs, msg :: fails)
+    | Ok (state, returned) :: tl ->
+        let (succs, fails) = process tl
+        in let state_str = prg_type_to_string state
+        in let value_str = value_to_string returned
+        in ((state_str ^ " returned " ^ value_str) :: succs, fails)
+  in match process res with
+  | ([], errors) ->
+      "All branches of computation failed:\n" ^ String.concat "\n" errors
+  | (states, _) -> String.concat "\n" states

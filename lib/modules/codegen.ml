@@ -408,6 +408,7 @@ let process_expr (e : Ast.expr) env tys locals
     | IntLit v    -> k (JustExpr (Literal (Int v), Primitive Int))
     | FloatLit v  -> k (JustExpr (Literal (Float v), Primitive Float))
     | StringLit v -> k (JustExpr (Literal (String v), Primitive String))
+    | PathLit v   -> k (JustExpr (Literal (Path v), Primitive Path))
     | UnitExp     -> k (JustExpr (Literal (Unit ()), Primitive Unit))
     | ProductExp es ->
         begin match es with
@@ -1088,3 +1089,6 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
   ; create_definitions dfs type_env global_env
   ; process_functions (create_functions fns type_env global_env) global_env type_env
   ; (type_env, global_env)
+
+let codegen_program (body : Ast.stmt list) tys env : Target.stmt =
+  process_stmt body env tys empty_local_env (Some (Return (Literal (Unit ()))))
