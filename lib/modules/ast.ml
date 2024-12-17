@@ -22,17 +22,18 @@ type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
 (* Patterns are just of the form <enum-name>::<constructor-name>[(<var-names>)] *)
 type pattern = string * string * string list
 
-type stmt = RequiredVar of (string * string list * typ * expr option) list
-          | OptionalVar of (string * string list * typ * expr option) list
-          | ForLoop     of string * expr * stmt list
-          | IfProvided  of string * stmt list * stmt list
-          | IfExists    of expr * stmt list * stmt list
-          | IfThenElse  of expr * stmt list * stmt list
-          | Match       of expr * (pattern * stmt list) list
-          | Clear       of expr
-          | Assert      of expr
-          | Return      of expr
-          | Assign      of expr * expr
+type stmt = RequiredVar  of (string * string list * typ * expr option) list
+          | OptionalVar  of (string * string list * typ * expr option) list
+          | ForLoop      of string * expr * stmt list
+          | IfProvided   of string * stmt list * stmt list
+          | IfExists     of expr * stmt list * stmt list
+          | IfThenElse   of expr * stmt list * stmt list
+          | Match        of expr * (pattern * stmt list) list
+          | Clear        of expr
+          | Assert       of expr
+          | AssertExists of expr
+          | Return       of expr
+          | Assign       of expr * expr
 
 type topLevel = Enum      of string * (string * typ list option) list
               | Struct    of string * (string * typ) list

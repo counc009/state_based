@@ -17,6 +17,6 @@ function copy(dst : path, src : path, group: string, owner: string) {
     file(dst, local_remote::remote).owner = owner;
     file(dst, local_remote::remote).group = group;
   } else {
-    assert false;
+    assert exists directory(src, local_remote::local);
   }
 }

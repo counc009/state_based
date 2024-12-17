@@ -411,6 +411,8 @@ let stmt =
     ; forLoop
     ; ifStmts
     ; matchStmt
+    ; (string "assert" *> whitespace1
+      *> keywordStmt "exists" (fun e -> AssertExists e))
     ; keywordStmt "clear"  (fun e -> Clear e)
     ; keywordStmt "assert" (fun e -> Assert e)
     ; keywordStmt "return" (fun e -> Return e)

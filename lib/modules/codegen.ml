@@ -950,6 +950,11 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
       process_expr e env tys locals
         (fun (e, _) ->
           Cond (e, process_stmt tl env tys locals k, Fail "assertion failed"))
+  | AssertExists q :: tl ->
+      process_expr_as_elem q env tys locals
+        (fun elem ->
+          Contains (elem, process_stmt tl env tys locals k,
+                    Fail "assertion failed"))
   | Return _ :: _ :: _ -> failwith "Code after return"
   | Return e :: [] -> process_expr e env tys locals (fun (e, _) -> Return e)
   | Assign (lhs, rhs) :: tl ->
