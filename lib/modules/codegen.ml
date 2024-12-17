@@ -341,7 +341,7 @@ let construct_enum (enum : Target.namedTy) (idx : int) (e : Target.expr)
     match cs with
     | LastTwo (_, _) ->
         if idx = 0 then Function (Constructor (true, Cases cs), e)
-        else if idx = 1 then Function (Constructor (true, Cases cs), e)
+        else if idx = 1 then Function (Constructor (false, Cases cs), e)
         else failwith "internal error: invalid index for enum"
     | Cons (_, r) ->
         if idx = 0 then Function (Constructor (true, Cases cs), e)

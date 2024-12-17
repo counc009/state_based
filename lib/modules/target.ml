@@ -183,6 +183,102 @@ end
 
 module TargetInterp = Calculus.Interp.Interp(Ast_Target)
 
+(* Debugging utilities *)
+
+let rec string_of_expr (e : Ast_Target.expr) : string =
+  match e with
+  | Variable v         -> v
+  | Literal (Unit ())  -> "()"
+  | Literal (Bool b)   -> string_of_bool b
+  | Literal (Int i)    -> string_of_int i
+  | Literal (Float f)  -> string_of_float f
+  | Literal (String s) -> "\"" ^ s ^ "\""
+  | Literal (Path p)   -> "'" ^ p ^ "'"
+  | Literal (Env _)    -> "%%SOME ENV%%"
+  | Env                -> "%%ENV%%"
+  | Pair (x, y)        ->
+      "(" ^ string_of_expr x ^ ", " ^ string_of_expr y ^ ")"
+  | Function (f, e) ->
+      let string_f =
+        match f with
+        | Proj (true, _, _)         -> "proj1"
+        | Proj (false, _, _)        -> "proj2"
+        | Constructor (true, _)     -> "L"
+        | Constructor (false, _)    -> "R"
+        | EmptyStruct _             -> "{}"
+        | AddField (_, field)       -> "add#" ^ field
+        | ReadField (_, field)      -> "get#" ^ field
+        | Uninterpreted (nm, _, _)  -> nm
+      in string_f ^ "(" ^ string_of_expr e ^ ")"
+
+let rec string_of_qual (q : Ast_Target.qual) : string =
+  match q with
+  | Attribute ((attr, _), e, qs) ->
+      attr ^ " = " ^ string_of_expr e ^ " : < "
+      ^ String.concat ", " (List.map string_of_qual qs) ^ " >"
+  | Element ((elem, _), e, qs) ->
+      elem ^ "(" ^ string_of_expr e ^ ") : < "
+      ^ String.concat ", " (List.map string_of_qual qs) ^ " >"
+  | NotElement ((elem, _), e) ->
+      "!" ^ elem ^ "(" ^ string_of_expr e ^ ")"
+
+let rec string_of_attr (a : Ast_Target.attr) : string =
+  match a with
+  | AttrAccess ((attr, _)) -> attr
+  | OnAttribute ((attr, _), rest) -> attr ^ "." ^ string_of_attr rest
+  | OnElement ((elem, _), e, rest) ->
+      elem ^ "(" ^ string_of_expr e ^ ")." ^ string_of_attr rest
+
+let rec string_of_elem (e : Ast_Target.elem) : string =
+  match e with
+  | Element ((elem, _), e) -> elem ^ "(" ^ string_of_expr e ^ ")"
+  | NotElement ((elem, _), e) -> "!" ^ elem ^ "(" ^ string_of_expr e ^ ")"
+  | OnAttribute ((attr, _), rest) ->
+      attr ^ "." ^ string_of_elem rest
+  | OnElement ((elem, _), e, rest) ->
+      elem ^ "(" ^ string_of_expr e ^ ")." ^ string_of_elem rest
+
+let string_of_stmt (s : Ast_Target.stmt) : string =
+  let rec process (s : Ast_Target.stmt) (indent : string) : string =
+    indent ^
+    match s with
+    | Action (v, (nm, _, _, _), arg, next) ->
+        v ^ " = " ^ nm ^ "{" ^ string_of_expr arg ^ "}\n" ^ process next indent
+    | Assign (v, e, next) ->
+        v ^ " = " ^ string_of_expr e ^ "\n"               ^ process next indent
+    | Add (q, next) ->
+        "add " ^ string_of_qual q ^ "\n"                  ^ process next indent
+    | Get (v, a, next) ->
+        v ^ " = get " ^ string_of_attr a ^ "\n"           ^ process next indent
+    | Contains (q, th, el) ->
+        "contains " ^ string_of_elem q ^ " {\n"
+        ^ process th ("\t" ^ indent)
+        ^ indent ^ "} else {\n"
+        ^ process el ("\t" ^ indent)
+        ^ indent ^ "}"
+    | Cond (e, th, el) ->
+        "if " ^ string_of_expr e ^ "{\n"
+        ^ process th ("\t" ^ indent)
+        ^ indent ^ "} else {\n"
+        ^ process el ("\t" ^ indent)
+        ^ indent ^ "}"
+    | Loop (v, lst, body, next) ->
+        "foreach " ^ v ^ " in " ^ string_of_expr lst ^ " {\n"
+        ^ process body ("\t" ^ indent)
+        ^ indent ^ "}\n"
+        ^ process next indent
+    | Match (e, v, l, r) ->
+        "match " ^ string_of_expr e ^ " with {\n"
+        ^ indent ^ "\tL(" ^ v ^ ") => {\n"
+        ^ process l ("\t\t" ^ indent)
+        ^ indent ^ "\t}\n"
+        ^ indent ^ "\tR(" ^ v ^ ") => {\n"
+        ^ process r ("\t\t" ^ indent)
+        ^ indent ^ "\t}\n"
+    | Fail msg -> "fail \"" ^ msg ^ "\"\n"
+    | Return e -> "return " ^ string_of_expr e ^ "\n"
+  in process s ""
+
 let rec value_to_string (v : Ast_Target.value) : string =
   match v with
   | Unknown (Loop x, _)   -> "?loop(" ^ string_of_int x ^ ")"
