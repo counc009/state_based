@@ -10,6 +10,9 @@ attribute group(string)
 attribute files(list path)
 attribute dirs(list path)
 
+uninterpreted pathfrom(path, path) -> path
+uninterpreted conspath(path, path) -> path
+
 function copy(dst : path, src : path, group: string, owner: string) {
   if exists file(src, local_remote::local) {
     file(dst, local_remote::remote).content
@@ -18,5 +21,12 @@ function copy(dst : path, src : path, group: string, owner: string) {
     file(dst, local_remote::remote).group = group;
   } else {
     assert exists directory(src, local_remote::local);
+    for f in directory(src, local_remote::local).files {
+      if exists directory(f, local_remote::local) {
+        assert false;
+      } else {
+        x = copy(conspath(dst, pathfrom(src, f)), f, group, owner);
+      }
+    }
   }
 }

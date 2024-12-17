@@ -892,13 +892,16 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
       failwith "unexpected variable declaration"
   | ForLoop (v, l, b) :: tl ->
       process_expr l env tys locals
-        (fun l ->
-          let fresh_v = fresh_var v
-          in let body_env = StringMap.add v (fresh_v, snd l) locals
-          in
-          Loop (fresh_v, fst l,
-                process_stmt b env tys body_env (Some (Return Env)),
-                process_stmt tl env tys locals k))
+        (fun (lst, typ) ->
+          match typ with
+          | Named (List t) ->
+            let fresh_v = fresh_var v
+            in let body_env = StringMap.add v (fresh_v, t) locals
+            in
+            Loop (fresh_v, lst,
+                  process_stmt b env tys body_env (Some (Return Env)),
+                  process_stmt tl env tys locals k)
+          | _ -> failwith "can only loop over lists")
   | IfProvided _ :: _ -> failwith "unexpected variable check"
   | IfExists (q, thn, els) :: tl ->
       let after = process_stmt tl env tys locals k
