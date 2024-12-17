@@ -229,34 +229,33 @@ let expr =
             >>= fun rhs -> expr1' (BinaryExp (lhs, rhs, Or)))
       in expr2 >>= expr1'
     in let expr0 =
-      fix (fun expr0 ->
-        (expr1
-          >>= fun cond ->
+      (string "provided"
+      *> whitespace
+      *> identifier
+      >>= fun id ->
+        whitespace
+      *> char '?'
+      *> whitespace
+      *> expr
+      >>= fun thn ->
+        whitespace
+      *> char ':'
+      *> whitespace
+      *> expr
+      >>| fun els -> CondProvidedExp (id, thn, els))
+      <|> (expr1
+        >>= fun cond ->
+          whitespace
+        *> ((char '?' 
+          *> whitespace 
+          *> expr
+          >>= fun thn ->
             whitespace
-          *> ((char '?' 
-            *> whitespace 
-            *> expr0
-            >>= fun thn ->
-              whitespace
-            *> char ':'
-            *> whitespace
-            *> expr0
-            >>| fun els -> CondExp (cond, thn, els))
-          <|> return cond))
-        <|> (string "provided"
-        *> whitespace
-        *> identifier
-        >>= fun id ->
-          whitespace
-        *> char '?'
-        *> whitespace
-        *> expr0
-        >>= fun thn ->
-          whitespace
-        *> char ':'
-        *> whitespace
-        *> expr0
-        >>| fun els -> CondProvidedExp (id, thn, els)))
+          *> char ':'
+          *> whitespace
+          *> expr
+          >>| fun els -> CondExp (cond, thn, els))
+        <|> return cond))
     in expr0)
 
 (* Module arguments are of the form <name> [aka <names>] : <type> [= <default>] *)

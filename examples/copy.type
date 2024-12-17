@@ -20,7 +20,7 @@ module ansible.builtin.copy {
     file(dest, remote).owner = owner;
   } else {
     file(dest, remote) = content;
-    file(dest, remote).group = if provided group ? group : env.group;
-    file(dest, remote).owner = if provided owner ? owner : env.user;
+    file(dest, remote).group = provided group ? group : env.group;
+    file(dest, remote).owner = provided owner ? owner : env.user;
   }
 }
