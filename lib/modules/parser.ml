@@ -122,7 +122,8 @@ let path_lit =
     expr7 ::= '!' expr7 | '-' expr7 | expr8
     expr8 ::= expr8 '.' identifier | expr8 '::' identifier ['(' exprs ')']
             | expr8 '(' exprs ')' | expr8 '{' fields '}'
-            | expr8 '{{' fields '}}' | expr9
+            | expr8 '{{' fields '}}' | expr8 '[' identifier '<-' expr ']'
+            | expr9
     expr9 ::= identifier | literals | '(' exprs ')'
    in the implementation we eliminate left recursion in the standard way
 *)
@@ -163,6 +164,10 @@ let expr =
           ; (parens exprs >>= fun args -> expr8' (FuncExp (exp, args)))
           ; (doub_bracks fields >>= fun args -> expr8' (ModuleExp (exp, args)))
           ; (brackets fields >>= fun args -> expr8' (RecordExp (exp, args)))
+          ; (square
+              (identifier <* whitespace <* string "<-" <* whitespace
+              >>= fun field
+              -> expr >>= fun arg -> expr8' (FieldSetExp (exp, field, arg))))
           ; (return exp)
           ]
       in expr9 >>= expr8'

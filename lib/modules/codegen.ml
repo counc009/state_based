@@ -459,6 +459,33 @@ let process_expr (e : Ast.expr) env tys locals
             end
         | _ -> failwith "expected struct name"
         end
+    | FieldSetExp (record, field, expr) ->
+        process record
+          (fun r ->
+            match r with
+            | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
+                begin match t with
+                | Struct fields ->
+                    begin match StringMap.find_opt field fields with
+                    | Some ty ->
+                        process expr
+                          (fun a ->
+                            match a with
+                            | JustExpr (f, t) | ExprOrAttr ((f, t), _) ->
+                                if t <> ty
+                                then failwith "incorrect type for field"
+                                else 
+                                  k (JustExpr
+                                    (Function
+                                      (AddField (fields, field),
+                                       Pair (e, f)),
+                                     Struct fields))
+                            | _ -> failwith "expected expression")
+                    | None -> failwith "type does not have field"
+                    end
+                | _ -> failwith "type has no fields"
+                end
+            | _ -> failwith "expected expression")
     | EnumExp (enum, constr, args) ->
         begin match enum with
         | Id enum ->
