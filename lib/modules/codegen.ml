@@ -339,6 +339,17 @@ let construct_enum (enum : Target.namedTy) (idx : int) (e : Target.expr)
       else failwith "internal error: invalid index for list or option"
   | Cases cs -> construct_cases cs idx
 
+(* construct_product_read takes a product (Target) expression, the type of that
+ * expression and an index and produces and expression that reads the desired
+ * index *)
+let rec construct_product_read (e : Target.expr) (t : Target.typ) (i : int)
+  : Target.expr * Target.typ =
+  match t with
+  | Product (x, y) ->
+      if i = 0 then (Function (Proj (true, x, y), e), x)
+      else construct_product_read (Function (Proj (false, x, y), e)) y (i - 1)
+  | _ -> if i = 0 then (e, t) else failwith "not such field"
+
 (* The result of our internal expression processing *)
 type expr_result = JustExpr of Target.expr * Target.typ
                  | JustAttr of (Target.attr -> Target.attr)
@@ -358,7 +369,6 @@ let fresh_var (v : string) : string =
   in tmp_counter := n + 1
   ; v ^ "." ^ string_of_int n
 
-(* TODO *)
 (* process_expr takes a continuation which takes an expression and produces a
  * statement and then returns a statement. The reason for this is that some
  * expressions in the Module language requires statmenets in the calculus and
@@ -625,7 +635,45 @@ let process_expr (e : Ast.expr) env tys locals
                         | None -> failwith "invalid field"
                         end
                     | _ -> failwith "does not have fields")
-    | _ -> failwith "TODO"
+    | ProductField (lhs, idx) ->
+        process lhs
+          (fun e ->
+            match e with
+            | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
+                let (res, res_ty) = construct_product_read e t idx
+                in k (JustExpr (res, res_ty))
+            | _ -> failwith "expected expression")
+    | UnaryExp (_, _) -> failwith "TODO"
+    | BinaryExp (_, _, _) -> failwith "TODO"
+    | CondExp (cond, thn, els) ->
+        process cond
+          (fun e ->
+            match e with
+            | JustExpr (c, t) | ExprOrAttr ((c, t), _) ->
+                if t <> Primitive Bool
+                then failwith "non-boolean condition"
+                else
+                  let tmp = temp_name ()
+                  in process thn (fun lhs ->
+                      process els (fun rhs ->
+                      let (thn, thn_t) =
+                        match lhs with
+                        | JustExpr (thn, thn_t) | ExprOrAttr ((thn, thn_t), _)
+                          -> (thn, thn_t)
+                        | _ -> failwith "expected expression"
+                      and (els, els_t) =
+                        match rhs with
+                        | JustExpr (els, els_t) | ExprOrAttr ((els, els_t), _)
+                          -> (els, els_t)
+                        | _ -> failwith "expected expression"
+                      in if thn_t <> els_t
+                      then failwith "types of ternary branches do not match"
+                      else
+                        let after = k (JustExpr (Variable tmp, thn_t))
+                        in Cond (c, Assign (tmp, thn, after),
+                                    Assign (tmp, els, after))))
+            | _ -> failwith "expected expression")
+    | CondProvidedExp (_var, _thn, _els) -> failwith "TODO"
   in process e
     (fun e -> match e with
               | JustExpr (e, t) | ExprOrAttr ((e, t), _) -> k (e, t)
