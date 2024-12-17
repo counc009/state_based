@@ -94,6 +94,15 @@ let string_lit =
   *> string_body
   <* char '"'
 
+let path_lit =
+  let path_body =
+    many ((take_while1 (function '\\' | '\'' -> false | _ -> true))
+          <|> (char '\\' *> any_char >>| fun c -> String.make 1 c))
+    >>| String.concat ""
+  in char '\''
+  *> path_body
+  <* char '\''
+
 (* Parsing of expressions is similar to how we would parse a disambiguated
    CFG with precedence, so we use a number of auxiliary nonterminals. The CFG
    for this is roughly:
@@ -133,6 +142,7 @@ let expr =
       ; string "false" *> return (BoolLit false)
       ; number
       ; (string_lit >>| fun str -> StringLit str)
+      ; (path_lit >>| fun path -> PathLit path)
       ; (identifier >>| fun nm -> Id nm)
       ; (parens exprs >>| function [] -> UnitExp
                                  | [x] -> x
