@@ -562,6 +562,69 @@ let process_expr (e : Ast.expr) env tys locals
                       k (JustExpr (Variable tmp, ret_ty))))
             args
           in filled_args init_input
+    | Field (lhs, field) ->
+        process lhs
+          (fun e ->
+            match e with
+            | JustExpr (e, t) ->
+                begin match t with
+                | Struct fields ->
+                    begin match StringMap.find_opt field fields with
+                    | Some ty -> 
+                        k (JustExpr
+                            (Function (ReadField (fields, field), e),
+                             ty))
+                    | None -> failwith "invalid field"
+                    end
+                | _ -> failwith "does not have fields"
+                end
+            | JustAttr qual ->
+                begin match UniqueMap.find field env with
+                | Some (Attribute (nm, typ)) ->
+                    let attr = (nm, target_type typ)
+                    and tmp = temp_name ()
+                    in Get (tmp, qual (AttrAccess attr),
+                        k (ExprOrAttr (
+                              (Variable tmp, snd attr),
+                              fun a -> qual (OnAttribute (attr, a)))))
+                | Some _ -> failwith "expected attribute"
+                | None -> failwith "undefined attribute"
+                end
+            | ExprOrAttr ((e, t), qual) ->
+                (* If the left-hand side can either be an expression or an
+                 * attribute (say because it is an attribute access) we check
+                 * whether this field exists as an attribute and whether it
+                 * exists on the expression. If it exists on both, fail.
+                 * TODO: We should report a warning but treat this as an
+                 * attribute access *)
+                match UniqueMap.find field env with
+                | Some (Attribute (nm, typ)) ->
+                    (* Check whether the expression interpretation has this as
+                     * a field *)
+                    if match t with
+                       | Struct fields -> StringMap.mem field fields
+                       | _ -> false
+                    then 
+                      failwith "field is either a struct field or an attribute"
+                    else
+                      let attr = (nm, target_type typ)
+                      and tmp = temp_name ()
+                      in Get (tmp, qual (AttrAccess attr),
+                          k (ExprOrAttr (
+                                (Variable tmp, snd attr),
+                                fun a -> qual (OnAttribute (attr, a)))))
+                | _ ->
+                    (* Read a field from a struct *)
+                    match t with
+                    | Struct fields ->
+                        begin match StringMap.find_opt field fields with
+                        | Some ty ->
+                            k (JustExpr
+                                (Function (ReadField (fields, field), e),
+                                 ty))
+                        | None -> failwith "invalid field"
+                        end
+                    | _ -> failwith "does not have fields")
     | _ -> failwith "TODO"
   in process e
     (fun e -> match e with
