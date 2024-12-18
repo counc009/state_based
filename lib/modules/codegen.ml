@@ -1082,6 +1082,13 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
       | None -> failwith "Reached end of statements, missing terminator"
       | Some s -> s
       end
+  (* TODO: Use functions to define a:
+   * - someDefinition function which tells us whether exactly one is some
+   * - noDuplicates function which tells us whether at most one is some
+   * - valOrDefault function which returns the specified variable if it is
+   *   defined or some other variable is defined and otherwise returns the
+   *   default (wrapped in a Some)
+   *)
   | RequiredVar _ :: _ | OptionalVar _ :: _ ->
       begin match is_mod with
       | None -> failwith "unexpected variable check"
