@@ -66,11 +66,6 @@ type env_entry = Attribute of string * typ
                | Environment of global_env
 and global_env = env_entry UniqueMap.t
 
-(* Local environments record the generated name (which may be different because
- * the calculus is dynamically scoped but the module language is statically
- * scoped *)
-type local_env = (string * Target.typ) StringMap.t
-
 (* Module environments reflect optional and required arguments and their state
  * so that we can determine when a variable must be provided
  * Each collection of variables is assigned a unique ID (an integer) and for
@@ -78,6 +73,13 @@ type local_env = (string * Target.typ) StringMap.t
  * set of variables that could be provided; we update this set as needed while
  * generating code based on the branches of if provided ... constructs *)
 type mod_env = (bool * StringSet.t) IntMap.t
+
+(* Local variables either have some name in the generated code and a type or
+ * are a module argument and record their ID in the module environment along
+ * with their type *)
+type local_entry = LocalVar  of string * Target.typ
+                 | ModuleVar of int * Target.typ
+type local_env = local_entry StringMap.t
 
 let empty_local_env : local_env = StringMap.empty
 let empty_mod_env : mod_env = IntMap.empty
@@ -417,7 +419,8 @@ let process_expr (e : Ast.expr) env tys locals (is_mod : mod_env option)
     match e with
     | Id nm       ->
         begin match StringMap.find_opt nm locals with
-        | Some (name, typ) -> k (JustExpr (Variable name, typ))
+        | Some (LocalVar (name, typ)) -> k (JustExpr (Variable name, typ))
+        | Some _ -> failwith ("variable " ^ nm ^ " may not be provided")
         | None -> failwith "undefined variable"
         end
     | BoolLit v   -> k (JustExpr (Literal (Bool v), Primitive Bool))
@@ -917,8 +920,9 @@ let process_lval (e : Ast.expr) env tys locals (is_mod : mod_env option)
         (* Attributes are not supported on the top-level of the state, so an
          * identifier must be a local variable *)
         begin match StringMap.find_opt nm locals with
-        | Some (var, typ) ->
+        | Some (LocalVar (var, typ)) ->
             k (LValue (typ, Variable var, fun e s -> Assign (var, e, s)))
+        | Some _ -> failwith ("variable " ^ nm ^ " may not be provided")
         | None -> failwith ("undefined variable " ^ nm)
         end
     | Field (lhs, field) ->
@@ -1047,14 +1051,15 @@ let rec generateVarInits (names : string list) (ty : Target.typ)
   | [] -> k locals
   | [n] ->
       let fresh_n = fresh_var n
-      in Assign (fresh_n, exp, k (StringMap.add n (fresh_n, ty) locals))
+      in Assign (fresh_n, exp,
+                  k (StringMap.add n (LocalVar (fresh_n, ty)) locals))
   | n :: ns ->
       match ty with
       | Product (x, y) ->
           let fresh_n = fresh_var n
           in Assign (fresh_n, Function (Proj (true, x, y), exp),
             generateVarInits ns y (Function (Proj (false, x, y), exp))
-              (StringMap.add n (fresh_n, x) locals) k)
+              (StringMap.add n (LocalVar (fresh_n, x)) locals) k)
       | _ -> failwith "Type error"
 
 
@@ -1088,7 +1093,7 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
           match typ with
           | Named (List t) ->
             let fresh_v = fresh_var v
-            in let body_env = StringMap.add v (fresh_v, t) locals
+            in let body_env = StringMap.add v (LocalVar (fresh_v, t)) locals
             in
             Loop (fresh_v, lst,
                   process_stmt b env tys body_env is_mod (Some (Return Env)),
@@ -1162,7 +1167,7 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
       process_expr exp env tys locals is_mod
         (fun (e, t) ->
           let fresh_var = fresh_var var
-          in let locals = StringMap.add var (fresh_var, t) locals
+          in let locals = StringMap.add var (LocalVar (fresh_var, t)) locals
           in Assign (fresh_var, e, process_stmt tl env tys locals is_mod k))
   | Assign (lhs, rhs) :: tl ->
       (* Assign statements do not create new bindings (lets do that) and so
