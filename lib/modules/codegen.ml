@@ -123,6 +123,12 @@ let create_types_option (ts : Ast.typ list option) env : typ list =
   | None -> []
   | Some ts -> List.map (fun t -> create_type t env) ts
 
+let option_some (e : Target.expr) (t : Target.typ) : Target.expr =
+  Function (Constructor (false, Option t), e)
+
+let option_none (t : Target.typ) : Target.expr =
+  Function (Constructor (true, Option t), Literal (Unit ()))
+
 (* process_type (unlike create_type) fails if a named type is not defined *)
 let rec process_type (t : Ast.typ) env : typ =
   match t with
@@ -588,31 +594,46 @@ let process_expr (e : Ast.expr) env tys locals (is_mod : bool)
           and tmp = temp_name ()
           in let init_input : Target.expr =
             Function (EmptyStruct record_def, Literal (Unit ()))
-          in let filled_args : Target.expr -> Target.stmt =
+          in let assigned_args : Ast.expr StringMap.t =
             List.fold_left
-              (fun (k : Target.expr -> Target.stmt) (field, expr) record ->
+              (fun (args : Ast.expr StringMap.t) (field, expr) ->
                 let canonical =
                   match StringMap.find_opt field aliases with
                   | Some nm -> nm
                   | None -> field
                 in if not (StringMap.mem canonical record_def)
-                then failwith "unexpected argument"
-                else
-                  process expr
+                then failwith ("unexpected argument " ^ canonical)
+                else StringMap.update canonical
+                  (fun v ->
+                    match v with
+                    | Some _ -> failwith ("multiple values for argument "
+                                          ^ canonical)
+                    | None -> Some expr) args)
+              StringMap.empty
+              args
+          in let filled_args : Target.expr -> Target.stmt =
+            StringMap.fold
+              (fun field ty (k : Target.expr -> Target.stmt) record ->
+                match StringMap.find_opt field assigned_args with
+                | Some e ->
+                    process e
                     (fun field_expr ->
                       match field_expr with
                       | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
-                          if t <> StringMap.find canonical record_def
+                          if t <> ty
                           then failwith "incorrect module argument type"
                           else
                             k (Function
-                                (AddField (record_def, canonical),
-                                Pair (record, e)))
-                      | _ -> failwith "expected expression"))
-            (fun e ->
-              Action (tmp, mod_info, e, 
-                      k (JustExpr (Variable tmp, ret_ty))))
-            args
+                                (AddField (record_def, field),
+                                Pair (record, option_some e ty)))
+                      | _ -> failwith "expected expression")
+                | None ->
+                    k (Function (AddField (record_def, field),
+                                 Pair (record, option_none ty))))
+              record_def
+              (fun e ->
+                Action (tmp, mod_info, e,
+                        k (JustExpr (Variable tmp, ret_ty))))
           in filled_args init_input
     | Field (lhs, field) ->
         process lhs
@@ -1047,7 +1068,7 @@ let rec process_stmt (s : Ast.stmt list) env tys locals (is_mod : bool)
       end
   | RequiredVar _ :: _ | OptionalVar _ :: _ ->
       if not is_mod
-      then failwith "unexepcted variable check"
+      then failwith "unexpected variable check"
       else failwith "TODO"
   | ForLoop (v, l, b) :: tl ->
       process_expr l env tys locals is_mod
@@ -1061,7 +1082,10 @@ let rec process_stmt (s : Ast.stmt list) env tys locals (is_mod : bool)
                   process_stmt b env tys body_env is_mod (Some (Return Env)),
                   process_stmt tl env tys locals is_mod k)
           | _ -> failwith "can only loop over lists")
-  | IfProvided _ :: _ -> failwith "TODO"
+  | IfProvided _ :: _ ->
+      if not is_mod
+      then failwith "unexpected variable check"
+      else failwith "TODO"
   | IfExists (q, thn, els) :: tl ->
       let after = process_stmt tl env tys locals is_mod k
       in process_expr_as_elem q env tys locals is_mod
