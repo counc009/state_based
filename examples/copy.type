@@ -5,15 +5,15 @@ module ansible.builtin.copy {
   if provided src {
     [remote_src : bool = false]
 
-    loc = remote_src ? remote : local;
+    let loc = remote_src ? remote : local;
 
-    c = file(src, loc).content;
-    group = provided group ? group
-          : env.is_root    ? file(src, loc).group
-                           : env.group;
-    owner = provided owner ? owner
-          : env.is_root    ? file(src, loc).owner
-                           : env.user;
+    let c = file(src, loc).content;
+    let group = provided group ? group
+              : env.is_root    ? file(src, loc).group
+                               : env.group;
+    let owner = provided owner ? owner
+              : env.is_root    ? file(src, loc).owner
+                               : env.user;
 
     file(dest, remote).content = c;
     file(dest, remote).group = group;

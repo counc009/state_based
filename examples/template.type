@@ -4,11 +4,11 @@ module ansible.builtin.template {
   (dest : path) (src : path)
   [group : string] [owner : string]
 
-  c = file(src, local).content;
+  let c = file(src, local).content;
   file(dest, remote).content = templated(c);
 
-  prev_group = file(src, local).group;
-  prev_owner = file(src, local).owner;
+  let prev_group = file(src, local).group;
+  let prev_owner = file(src, local).owner;
 
   if provided group {
     file(dest, remote).group = group;

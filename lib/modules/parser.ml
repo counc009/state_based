@@ -399,6 +399,15 @@ let stmt =
       <* whitespace <* char ';'
       >>| c
 
+    in let letStmt =
+      string "let" *> whitespace1
+      *> identifier
+      >>= fun var ->
+      whitespace *> char '=' *> whitespace
+      *> expr
+      <* whitespace <* char ';'
+      >>| fun rhs -> LetStmt (var, rhs)
+
     in let assignStmt =
       expr
       >>= fun lhs ->
@@ -416,6 +425,7 @@ let stmt =
     ; forLoop
     ; ifStmts
     ; matchStmt
+    ; letStmt
     ; (string "assert" *> whitespace1
       *> keywordStmt "exists" (fun e -> AssertExists e))
     ; keywordStmt "clear"  (fun e -> Clear e)

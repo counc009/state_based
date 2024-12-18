@@ -255,13 +255,13 @@ let string_of_stmt (s : Ast_Target.stmt) : string =
         ^ process th ("\t" ^ indent)
         ^ indent ^ "} else {\n"
         ^ process el ("\t" ^ indent)
-        ^ indent ^ "}"
+        ^ indent ^ "}\n"
     | Cond (e, th, el) ->
         "if " ^ string_of_expr e ^ "{\n"
         ^ process th ("\t" ^ indent)
         ^ indent ^ "} else {\n"
         ^ process el ("\t" ^ indent)
-        ^ indent ^ "}"
+        ^ indent ^ "}\n"
     | Loop (v, lst, body, next) ->
         "foreach " ^ v ^ " in " ^ string_of_expr lst ^ " {\n"
         ^ process body ("\t" ^ indent)

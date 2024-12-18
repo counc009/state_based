@@ -35,6 +35,7 @@ type stmt = RequiredVar  of (string * string list * typ * expr option) list
           | AssertExists of expr
           | Return       of expr
           | Assign       of expr * expr
+          | LetStmt      of string * expr
 
 type topLevel = Enum      of string * (string * typ list option) list
               | Struct    of string * (string * typ) list

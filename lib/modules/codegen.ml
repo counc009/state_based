@@ -862,21 +862,147 @@ let process_expr_as_elem (e : Ast.expr) env tys locals (is_mod : bool)
       end
   | _ -> failwith "Invalid qualifier"
 
-let process_lval_as_qual (e : Ast.expr) env tys locals (is_mod : bool)
-  (assign : Target.expr * Target.typ) (k : Target.stmt) : Target.stmt =
-  match e with
-  | Field (qual, attr) ->
-      begin match UniqueMap.find attr env with
-      | Some (Attribute (nm, typ)) ->
-          let attr = (nm, target_type typ)
-          in if snd attr != snd assign
-          then failwith "invalid type in attribute assignment"
-          else process_qual qual env tys locals is_mod
-                  (Attribute (attr, fst assign, []))
-                  (fun q -> Add (q, k))
-      | _ -> failwith "attribute does not exist"
-      end
-  | _ -> failwith "invalid l-value expression"
+(* As we process l-values we either have have a value (such as a variable or a
+ * field access) or we have an attribute *)
+type lval_res =
+  (* For values we return the type of the value, an expression which evaluates
+   * its current value, and a continuation which builds the assignment to that
+   * value for a given expression being assigned and statement to follow *)
+  | LValue     of Target.typ * Target.expr
+                * (Target.expr -> Target.stmt -> Target.stmt)
+  (* For attributes, we return both the attribute as a qualifier with other
+   * elements/attributes following it and as the top-level attribute (which is
+   * a continuation expecting the value being assigned) *)
+  | LAttribute of ((Target.qual -> Target.qual) * (Target.attr -> Target.attr))
+                * (Target.typ * Target.expr * (Target.expr -> Target.qual))
+  | LElement   of (Target.qual -> Target.qual) * (Target.attr -> Target.attr)
+
+let process_lval (e : Ast.expr) env tys locals (is_mod : bool)
+  (assigned : Target.expr) (typ : Target.typ) (k : Target.stmt) : Target.stmt =
+  let rec process (e : Ast.expr) (k : lval_res -> Target.stmt) : Target.stmt =
+    match e with
+    | Id nm ->
+        (* Attributes are not supported on the top-level of the state, so an
+         * identifier must be a local variable *)
+        begin match StringMap.find_opt nm locals with
+        | Some (var, typ) ->
+            k (LValue (typ, Variable var, fun e s -> Assign (var, e, s)))
+        | None -> failwith ("undefined variable " ^ nm)
+        end
+    | Field (lhs, field) ->
+        process lhs
+          (fun res ->
+            match res with
+            | LValue (typ, exp, assign) ->
+                begin match typ with
+                | Struct fields ->
+                    begin match StringMap.find_opt field fields with
+                    | Some ty ->
+                        k (LValue (ty, Function (ReadField (fields, field), exp),
+                          fun e s ->
+                            assign 
+                              (Function
+                                (AddField (fields, field),
+                                 Pair (exp, e)))
+                              s))
+                    | None -> failwith ("does not have field " ^ field)
+                    end
+                | _ -> failwith "has no fields"
+                end
+            | LAttribute ((as_qual, as_attr), (typ, expr, as_assign)) ->
+                let is_field =
+                  match typ with
+                  | Struct fields ->
+                      begin match StringMap.find_opt field fields with
+                      | Some ty -> Some (fields, ty)
+                      | _ -> None
+                      end
+                  | _ -> None
+                and is_attr =
+                  match UniqueMap.find field env with
+                  | Some (Attribute (nm, typ)) -> Some (nm, target_type typ)
+                  | _ -> None
+                in begin match is_field, is_attr with
+                | Some _, Some _ -> failwith "ambiguous field or attribute"
+                | None, None -> failwith "undefined field or attribute"
+                | Some (fields, field_ty), None ->
+                    k (LValue (field_ty, 
+                               Function (ReadField (fields, field), expr),
+                               fun e s -> Add (as_assign e, s)))
+                | None, Some attr ->
+                    let tmp = temp_name ()
+                    in Get (tmp, as_attr (AttrAccess attr),
+                    k (LAttribute (
+                        ((fun q
+                          -> as_qual (Attribute (attr, Variable tmp, [q]))),
+                         (fun a
+                          -> as_attr (OnAttribute (attr, a)))),
+                        (snd attr, Variable tmp,
+                         fun e -> as_qual (Attribute (attr, e, []))))))
+                end
+            | LElement (as_qual, as_attr) ->
+                match UniqueMap.find field env with
+                | Some (Attribute (nm, typ)) ->
+                    let attr = (nm, target_type typ)
+                    and tmp = temp_name ()
+                    in Get (tmp, as_attr (AttrAccess attr),
+                    k (LAttribute (
+                        ((fun q
+                          -> as_qual (Attribute (attr, Variable tmp, [q]))),
+                         (fun a
+                          -> as_attr (OnAttribute (attr, a)))),
+                        (snd attr, Variable tmp,
+                         fun e -> as_qual (Attribute (attr, e, []))))))
+                | _ -> failwith "expected attribute")
+    | ProductField (_lhs, _idx) -> failwith "TODO"
+    | FuncExp (Id elem, args) ->
+        begin match UniqueMap.find elem env with
+        | Some (Element (nm, typ)) ->
+            let elem = (nm, target_type typ)
+            in process_expr (ProductExp args) env tys locals is_mod
+              (fun (e, t) ->
+                if t <> snd elem
+                then failwith ("incorrect type for element " ^ nm)
+                else Add (Element (elem, e, []),
+                  k (LElement ((fun q -> Element (elem, e, [q])),
+                                  (fun a -> OnElement (elem, e, a))))))
+        | Some _ -> failwith "expected element"
+        | _ -> failwith ("undefined name " ^ elem)
+        end
+    | FuncExp (Field (lhs, elem), args) ->
+        begin match UniqueMap.find elem env with
+        | Some (Element (nm, typ)) ->
+          let elem = (nm, target_type typ)
+          in process lhs
+            (fun res ->
+              match res with
+              | LValue (_, _, _) -> failwith "cannot access element on value"
+              | LAttribute ((as_qual, as_attr), _)
+              | LElement   (as_qual, as_attr) ->
+                  process_expr (ProductExp args) env tys locals is_mod
+                  (fun (e, t) ->
+                    if t <> snd elem
+                    then failwith ("incorrect type for element " ^ nm)
+                    else Add (as_qual (Element (elem, e, [])),
+                      k (LElement (
+                            (fun q -> as_qual (Element (elem, e, [q]))),
+                            (fun a -> as_attr (OnElement (elem, e, a))))))))
+        | Some _ -> failwith "expected element"
+        | _ -> failwith ("undefined name " ^ elem)
+        end
+    | _ -> failwith "invalid l-value"
+  in process e
+    (fun res ->
+      match res with
+      | LValue (t, _, assign) ->
+          if t <> typ
+          then failwith "incorrect type in assignment"
+          else assign assigned k
+      | LAttribute (_, (t, _, attr)) ->
+          if t <> typ
+          then failwith "incorrect type in assignment"
+          else Add (attr assigned, k)
+      | LElement _ -> failwith "expected l-value, found element")
 
 (* Given a list of names and a value and type constructs a target statement
  * which extracts fields and assigns them to the given names.
@@ -995,7 +1121,20 @@ let rec process_stmt (s : Ast.stmt list) env tys locals (is_mod : bool)
   | Return _ :: _ :: _ -> failwith "Code after return"
   | Return e :: [] ->
       process_expr e env tys locals is_mod (fun (e, _) -> Return e)
+  | LetStmt (var, exp) :: tl ->
+      process_expr exp env tys locals is_mod
+        (fun (e, t) ->
+          let fresh_var = fresh_var var
+          in let locals = StringMap.add var (fresh_var, t) locals
+          in Assign (fresh_var, e, process_stmt tl env tys locals is_mod k))
   | Assign (lhs, rhs) :: tl ->
+      (* Assign statements do not create new bindings (lets do that) and so
+       * everything can be evaluated under the same local environment *)
+      process_expr rhs env tys locals is_mod
+        (fun (e, t) ->
+          process_lval lhs env tys locals is_mod e t
+            (process_stmt tl env tys locals is_mod k))
+(*
       match lhs with
       | Id nm ->
           process_expr rhs env tys locals is_mod
@@ -1008,6 +1147,7 @@ let rec process_stmt (s : Ast.stmt list) env tys locals (is_mod : bool)
             (fun e ->
               process_lval_as_qual lhs env tys locals is_mod e
                 (process_stmt tl env tys locals is_mod k))
+*)
 
 let codegen (files : Ast.topLevel list list) : type_env * global_env =
   (* The first step of our code generation is to divide the top levels into a

@@ -25,7 +25,7 @@ function copy(dst : path, src : path, group: string, owner: string) {
       if exists directory(f, local_remote::local) {
         assert false;
       } else {
-        x = copy(conspath(dst, pathfrom(src, f)), f, group, owner);
+        let x = copy(conspath(dst, pathfrom(src, f)), f, group, owner);
       }
     }
   }
