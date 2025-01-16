@@ -1122,8 +1122,8 @@ let generate_vars_check input (vars : (string * Ast.typ) list) (found : Target.s
         Match (Function (ReadField (input, v), Variable "#input"), "_",
                helper tl need_var,
                if need_var then helper tl false 
-               else Fail ("Only one of " ^ String.concat ", " vars 
-                          ^ " should be provided"))
+               else Fail ("Only one of [" ^ String.concat ", " vars
+                          ^ "] should be provided"))
   in helper vars true
 
 (* process_stmt's is_mod argument specifies whether variable declarations
@@ -1172,9 +1172,11 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
           in match default with
           | None ->
               generate_vars_check input vars body
-                (Fail ("One of the arguments "
+                (if required
+                then Fail ("One of the arguments ["
                        ^ String.concat ", " (List.map fst vars)
-                       ^ " is required"))
+                       ^ "] is required")
+                else body)
           | Some (var, value) ->
               process_expr value env tys locals is_mod
                 (fun (value, _) ->

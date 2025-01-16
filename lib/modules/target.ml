@@ -275,6 +275,7 @@ let string_of_stmt (s : Ast_Target.stmt) : string =
         ^ indent ^ "\tR(" ^ v ^ ") => {\n"
         ^ process r ("\t\t" ^ indent)
         ^ indent ^ "\t}\n"
+        ^ indent ^ "}\n"
     | Fail msg -> "fail \"" ^ msg ^ "\"\n"
     | Return e -> "return " ^ string_of_expr e ^ "\n"
   in process s ""
