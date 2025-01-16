@@ -1076,7 +1076,7 @@ let of_processed (x : 'a processed) : 'a = match x with Default y | Set y -> y
 
 let rec process_vars_codegen
   (vars : (string * string list * Ast.typ * Ast.expr option) list)
-  : (string * Ast.typ) list * (string * Ast.expr) option =
+  : (string * Ast.typ) list * (string * Ast.typ * Ast.expr) option =
   match vars with
   | [] -> ([], None)
   | (v, _, t, None) :: tl ->
@@ -1085,7 +1085,7 @@ let rec process_vars_codegen
   | (v, _, t, Some d) :: tl ->
       let (vs, default) = process_vars_codegen tl
       in match default with
-      | None -> ((v, t) :: vs, Some (v, d))
+      | None -> ((v, t) :: vs, Some (v, t, d))
       | Some _ -> failwith "multiple default values specified"
 
 (* Given a module variable information, determines whether we now know that a
@@ -1183,10 +1183,12 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
                        ^ String.concat ", " (List.map fst vars)
                        ^ "] is required")
                 else body)
-          | Some (var, value) ->
-              process_expr value env tys locals is_mod
-                (fun (value, _) ->
-                  generate_vars_check input vars body
+          | Some (var, typ, value) ->
+              let typ = target_type (process_type typ tys)
+              in process_expr value env tys locals is_mod
+                (fun (value, ty) ->
+                  if ty <> typ then failwith "default has wrong type"
+                  else generate_vars_check input vars body
                   (* If there's a default and none of the variables are provided,
                    * set #input = #input[.var <- Some(value)] to initialize the
                    * variable with a default value *)
