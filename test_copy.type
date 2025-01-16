@@ -33,4 +33,8 @@ function copy(dst : path, src : path, group: string, owner: string) {
 
 module new_copy {
   (dest: path) (src: path | content: string) [group: string] [owner: string]
+
+  if provided src {
+  } else {
+  }
 }

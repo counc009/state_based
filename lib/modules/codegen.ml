@@ -1107,6 +1107,19 @@ let update_module_var (info: bool * StringSet.t) input (locals: local_env)
     | _ -> k locals
   else k locals
 
+let update_module_var_env (mod_id: int) (options: StringSet.t) (var: string)
+  (nm: string) (typ: Target.typ) (env: local_env) : local_env =
+  let rec helper (vars: string list) (env: local_env) : local_env =
+    match vars with
+    | [] -> env
+    | v :: tl ->
+        match StringMap.find_opt v env with
+        | None | Some (LocalVar _) -> helper tl env
+        | Some (ModuleVar (id, _)) -> if id <> mod_id then helper tl env
+                                      else helper tl (StringMap.remove v env)
+  in StringMap.add var (LocalVar (nm, typ))
+        (helper (StringSet.to_list options) env)
+
 (* Given the input's record type, a list of variables, and a statements for
  * found and not found cases, construct match statements that execute the
  * found code if exactly one of the variables is defined, the not found code
@@ -1141,13 +1154,6 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
       | None -> failwith "Reached end of statements, missing terminator"
       | Some s -> s
       end
-  (* TODO: Use functions to define a:
-   * - someDefinition function which tells us whether exactly one is some
-   * - noDuplicates function which tells us whether at most one is some
-   * - valOrDefault function which returns the specified variable if it is
-   *   defined or some other variable is defined and otherwise returns the
-   *   default (wrapped in a Some)
-   *)
   | VarDecls (required, vars) :: tl ->
       begin match is_mod with
       | None -> failwith "unexpected variable check"
@@ -1201,10 +1207,34 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
                   process_stmt b env tys body_env is_mod (Some (Return Env)),
                   process_stmt tl env tys locals is_mod k)
           | _ -> failwith "can only loop over lists")
-  | IfProvided _ :: _ ->
+  | IfProvided (var, thn, els) :: tl ->
       begin match is_mod with
       | None -> failwith "unexpected variable check"
-      | Some _mod_env -> failwith "TODO"
+      | Some (mod_env, input) ->
+        let after = process_stmt tl env tys locals is_mod k
+        in match StringMap.find_opt var locals with
+        | Some (LocalVar _) ->
+            failwith ("expected a module variable on if-provided, but "
+                      ^ var ^ " is a local")
+        | None -> failwith ("variable " ^ var ^ " is undefined")
+        | Some (ModuleVar (mod_id, typ)) ->
+            let (required, options) = IntMap.find mod_id mod_env
+            in let fresh_nm = fresh_var var
+            in let false_mod_info = (required, StringSet.remove var options)
+            in let false_mod_env = IntMap.add mod_id false_mod_info mod_env
+            in let false_locals = StringMap.remove var locals
+            in let true_locals
+              = update_module_var_env mod_id options var fresh_nm typ locals
+            in Match (Function (ReadField (input, var), Variable "#input"),
+                      fresh_nm,
+                      (* Not provided, hence the else case *)
+                      update_module_var false_mod_info input false_locals
+                        (fun locals ->
+                          process_stmt els env tys locals
+                            (Some (false_mod_env, input)) (Some after)),
+                      (* Provided, the then case *)
+                      process_stmt thn env tys true_locals
+                        (Some (mod_env, input)) (Some after))
       end
   | IfExists (q, thn, els) :: tl ->
       let after = process_stmt tl env tys locals is_mod k
