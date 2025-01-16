@@ -23,8 +23,8 @@ type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
 (* Patterns are just of the form <enum-name>::<constructor-name>[(<var-names>)] *)
 type pattern = string * string * string list
 
-type stmt = RequiredVar  of (string * string list * typ * expr option) list
-          | OptionalVar  of (string * string list * typ * expr option) list
+(* For VarDecls, the bool indicates whether the variables are required or not *)
+type stmt = VarDecls     of bool * (string * string list * typ * expr option) list
           | ForLoop      of string * expr * stmt list
           | IfProvided   of string * stmt list * stmt list
           | IfExists     of expr * stmt list * stmt list

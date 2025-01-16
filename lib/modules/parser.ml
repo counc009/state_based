@@ -420,8 +420,8 @@ let stmt =
       >>| fun rhs -> Assign (lhs, rhs)
 
     in choice 
-    [ (parens mod_args >>| fun args -> RequiredVar args)
-    ; (square mod_args >>| fun args -> OptionalVar args)
+    [ (parens mod_args >>| fun args -> VarDecls (true, args))
+    ; (square mod_args >>| fun args -> VarDecls (false, args))
     ; forLoop
     ; ifStmts
     ; matchStmt
