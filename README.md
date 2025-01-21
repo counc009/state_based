@@ -7,4 +7,5 @@ Modules.Target.TargetInterp.interpret prg (Primitive Unit);;
 ```
 
 # TODO List
+1. Track enum case names so final output can reference those names rather than just L/R and improve result printer
 1. Make sure we automatically create the env() element
