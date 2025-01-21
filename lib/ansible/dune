@@ -1,0 +1,6 @@
+(library
+  (name ansible)
+  (libraries yaml modules))
+(env
+  (dev
+    (flags (:standard -w -37))))
