@@ -40,7 +40,7 @@ module ansible.builtin.copy {
   [group: string] [owner: string]
 
   if provided src {
-    [remote_src : bool = true]
+    [remote_src : bool = false]
 
     let loc = remote_src ? local_remote::remote : local_remote::local;
 

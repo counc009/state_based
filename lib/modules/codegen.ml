@@ -1232,7 +1232,7 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
                    * variable with a default value *)
                   (Assign ("#input", 
                     Function (AddField (input, var),
-                      Pair (Variable "#input", value)),
+                      Pair (Variable "#input", option_some value typ)),
                     body)))
       end
   | ForLoop (v, l, b) :: tl ->
