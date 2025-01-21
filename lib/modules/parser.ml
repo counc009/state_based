@@ -589,3 +589,9 @@ let rec parse_files (files : string list) : (topLevel list list, string) result 
       | Ok _, Error msg -> Error msg
       | Error msg_f, Error msg_fs ->
           Error (Printf.sprintf "Error in file %s%s\n%s" f msg_f msg_fs)
+
+(* Used for testing purposes *)
+let parse_stmts_string (body: string) : stmt list =
+  match Angstrom.parse_string ~consume:All stmts body with
+  | Ok res -> res
+  | Error msg -> failwith msg

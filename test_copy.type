@@ -1,3 +1,7 @@
+element env()
+attribute is_root(bool)
+attribute user(string)
+
 enum local_remote { remote, local }
 
 element file(path, local_remote)
@@ -13,28 +17,57 @@ attribute dirs(list path)
 uninterpreted pathfrom(path, path) -> path
 uninterpreted conspath(path, path) -> path
 
-function copy(dst : path, src : path, group: string, owner: string) {
-  if exists file(src, local_remote::local) {
-    file(dst, local_remote::remote).content
-      = file(src, local_remote::local).content;
+function copy(dst : path, src : path, src_loc : local_remote,
+              group: string, owner: string) {
+  if exists file(src, src_loc) {
+    file(dst, local_remote::remote).content = file(src, src_loc).content;
     file(dst, local_remote::remote).owner = owner;
     file(dst, local_remote::remote).group = group;
   } else {
-    assert exists directory(src, local_remote::local);
-    for f in directory(src, local_remote::local).files {
-      if exists directory(f, local_remote::local) {
+    assert exists directory(src, src_loc);
+    for f in directory(src, src_loc).files {
+      if exists directory(f, src_loc) {
         assert false;
       } else {
-        let x = copy(conspath(dst, pathfrom(src, f)), f, group, owner);
+        let x = copy(conspath(dst, pathfrom(src, f)), f, src_loc, group, owner);
       }
     }
   }
 }
 
-module new_copy {
-  (dest: path) (src: path | content: string) [group: string] [owner: string]
+module ansible.builtin.copy {
+  (dest: path) (src: path | content: string)
+  [group: string] [owner: string]
 
   if provided src {
+    [remote_src : bool = true]
+
+    let loc = remote_src ? local_remote::remote : local_remote::local;
+
+    if exists file(src, loc) {
+      let group = provided group ? group
+                : env().is_root  ? file(src, loc).group 
+                                 : env().group;
+      let owner = provided owner ? owner
+                : env().is_root  ? file(src, loc).owner
+                                 : env().user;
+
+      let _ = copy(dest, src, loc, group, owner);
+    } else {
+      assert exists directory(src, loc);
+
+      let group = provided group ? group
+                : env().is_root  ? directory(src, loc).group
+                                 : env().group;
+      let owner = provided owner ? owner
+                : env().is_root  ? directory(src, loc).owner
+                                 : env().user;
+      
+      let _ = copy(dest, src, loc, group, owner);
+    }
   } else {
+    file(dest, local_remote::remote).content = content;
+    file(dest, local_remote::remote).group = provided group ? group : env().group;
+    file(dest, local_remote::remote).owner = provided owner ? owner : env().user;
   }
 }
