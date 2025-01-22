@@ -1487,21 +1487,23 @@ let codegen_program (body : Ast.stmt list) tys env : Target.stmt =
   process_stmt body env tys empty_local_env None
     (Some (Return (Literal (Unit ()))))
 
-(* Used for testing purposes *)
-let find_module_def (name : string list) (env : global_env) : module_info =
+(* Looks up a module's definition given its name and a global environment
+ * Returns None if it could not be found for any reason *)
+let find_module_def (name : string list) (env : global_env)
+  : module_info option =
   let rec helper name entry =
     match name with
     | [] ->
         begin match entry with
-        | Module mod_info -> mod_info
-        | _ -> failwith "did not find module"
+        | Module mod_info -> Some mod_info
+        | _ -> None
         end
     | nm :: name ->
         match entry with
         | Environment env ->
             begin match UniqueMap.find nm env with
-            | None -> failwith "did not find module"
+            | None -> None
             | Some entry -> helper name entry
             end
-        | _ -> failwith "did not find module"
+        | _ -> None
   in helper name (Environment env)
