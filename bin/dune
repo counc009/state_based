@@ -1,4 +1,4 @@
 (executable
- (public_name state_based)
+ (public_name ansible-interp)
  (name main)
  (libraries state_based))

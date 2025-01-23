@@ -338,7 +338,7 @@ let prg_type_to_string (state : TargetInterp.prg_type) : string =
                   ^ (if b then "L" else "R") ^ "(" ^ value_to_string w ^ ")")
         (TargetInterp.ValueMap.to_list state.constrs)))
 
-let results_to_string (res : TargetInterp.prg_res list) : string =
+let results_to_string (res : TargetInterp.prg_res list) : (string, string) result =
   let rec process (res : TargetInterp.prg_res list) : string list * string list =
     match res with
     | [] -> ([], [])
@@ -351,6 +351,5 @@ let results_to_string (res : TargetInterp.prg_res list) : string =
         in let value_str = value_to_string returned
         in ((state_str ^ " returned " ^ value_str) :: succs, fails)
   in match process res with
-  | ([], errors) ->
-      "All branches of computation failed:\n" ^ String.concat "\n" errors
-  | (states, _) -> String.concat "\n" states
+  | ([], errors) -> Error(String.concat "\n" errors)
+  | (states, _) -> Ok(String.concat "\n" states)

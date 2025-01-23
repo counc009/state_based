@@ -84,7 +84,7 @@ class task_result =
 type play = {
   name        : string;
   hosts       : string option;
-  remote_user : string option;
+  remote_user : string;
   tasks       : task list
 }
 
@@ -123,7 +123,9 @@ class play_result =
         | Some t ->
             Ok { name         = Option.value name ~default:""
                ; hosts        = hosts
-               ; remote_user  = remote_user
+              (* Per https://docs.ansible.com/ansible/latest/inventory_guide/connection_details.html#setting-a-remote-user
+               * the default for the user is the name of the local user *)
+               ; remote_user  = Option.value remote_user ~default:"#local_user"
                ; tasks        = t }
   end
 
@@ -329,7 +331,15 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
           match codegen_task t with
           | Ok t -> Result.map (fun tl -> t :: tl) (codegen_tasks tl)
           | Error msg -> Error msg
-    in codegen_tasks play.tasks
+    in let tasks = codegen_tasks play.tasks
+    (* Set the user by env().user = remote_user *)
+    in Result.map
+      (fun tasks ->
+        Modules.Ast.Assign 
+          (Field (FuncExp (Id "env", []), "user"), 
+           StringLit play.remote_user)
+        :: tasks) 
+      tasks
   in let process_play play =
     match play with
     | `O map ->
