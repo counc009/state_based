@@ -1,0 +1,15 @@
+---
+- name: Create files
+  tasks:
+  - name: Create a new file
+    ansible.builtin.copy:
+      dest: /path/to/file
+      content: "This is the contents of the file that I want"
+      group: fizbaz
+      owner: dragon
+
+  - name: Copy the new file
+    ansible.builtin.copy:
+      dest: /path/to/copy
+      src: /path/to/file
+      remote_src: yes

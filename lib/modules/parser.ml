@@ -158,9 +158,13 @@ let expr =
             <|> (take_while1 is_digit 
               >>= fun whole -> expr8' (ProductField (exp, int_of_string whole)))))
           ; (string "::" *> whitespace *>
-              ((identifier >>= fun variant ->
+              (option None 
+                (char '<' *> whitespace *> typ <* whitespace <* char '>'
+                  <* whitespace <* string "::" >>| fun t -> Some t)
+              >>= fun type_arg ->
+              (identifier <* whitespace >>= fun variant ->
                 option [] (parens exprs)
-                >>= fun args -> expr8' (EnumExp (exp, variant, args)))))
+                >>= fun args -> expr8' (EnumExp (exp, type_arg, variant, args)))))
           ; (parens exprs >>= fun args -> expr8' (FuncExp (exp, args)))
           ; (doub_bracks fields >>= fun args -> expr8' (ModuleExp (exp, args)))
           ; (brackets fields >>= fun args -> expr8' (RecordExp (exp, args)))

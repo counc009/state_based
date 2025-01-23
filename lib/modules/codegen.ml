@@ -48,6 +48,7 @@ type module_info =
   { name : string list;
     (* Alias map maps from aliases to their canonical name *)
     alias_map : string StringMap.t;
+    args : Ast.typ StringMap.t;
     argument_types : typ StringMap.t;
     input_struct_def : typ StringMap.t;
     out_type : typ;
@@ -165,7 +166,7 @@ let process_type_option (t : Ast.typ option) env : typ =
   | Some t -> process_type t env
 
 let process_module_for_args (body : Ast.stmt list) env
-  : string StringMap.t * typ StringMap.t * typ StringMap.t = 
+  : string StringMap.t * Ast.typ StringMap.t * typ StringMap.t * typ StringMap.t = 
   let rec add_alias alias nm aliases =
     match alias with
     | [] -> aliases
@@ -175,11 +176,12 @@ let process_module_for_args (body : Ast.stmt list) env
         | Some n ->
             if n = nm then add_alias tl nm aliases
             else failwith "variable already used as alias with different canonical name"
-  in let rec add_vars vars aliases var_types struct_def =
+  in let rec add_vars vars aliases ast_types var_types struct_def =
     match vars with
-    | [] -> (aliases, var_types, struct_def)
+    | [] -> (aliases, ast_types, var_types, struct_def)
     | (nm, alias, typ, _) :: tl ->
-        let typ = process_type typ env
+        let ast_types = StringMap.add nm typ ast_types
+        in let typ = process_type typ env
         in let var_types =
           match StringMap.find_opt nm aliases with
           | Some _ -> failwith "variable already used as alias"
@@ -191,32 +193,32 @@ let process_module_for_args (body : Ast.stmt list) env
                   else failwith "variable already used with incompatible types"
         in let aliases = add_alias alias nm aliases
         in let struct_def = StringMap.add nm (Option typ) struct_def
-        in add_vars tl aliases var_types struct_def
-  in let rec process (body : Ast.stmt list) aliases var_types struct_def =
+        in add_vars tl aliases ast_types var_types struct_def
+  in let rec process (body : Ast.stmt list) aliases ast_types var_types struct_def =
     match body with
-    | [] -> (aliases, var_types, struct_def)
+    | [] -> (aliases, ast_types, var_types, struct_def)
     | VarDecls (_, vars) :: tl ->
-        let (aliases, var_types, struct_def)
-          = add_vars vars aliases var_types struct_def
-        in process tl aliases var_types struct_def
+        let (aliases, ast_types, var_types, struct_def)
+          = add_vars vars aliases ast_types var_types struct_def
+        in process tl aliases ast_types var_types struct_def
     | ForLoop (_, _, body) :: tl ->
-        let (aliases, var_types, struct_def)
-          = process body aliases var_types struct_def
-        in process tl aliases var_types struct_def
+        let (aliases, ast_types, var_types, struct_def)
+          = process body aliases ast_types var_types struct_def
+        in process tl aliases ast_types var_types struct_def
     | IfProvided (_, thn, els) :: tl | IfThenElse (_, thn, els) :: tl ->
-        let (aliases, var_types, struct_def)
-          = process thn aliases var_types struct_def
-        in let (aliases, var_types, struct_def)
-          = process els aliases var_types struct_def
-        in process tl aliases var_types struct_def
+        let (aliases, ast_types, var_types, struct_def)
+          = process thn aliases ast_types var_types struct_def
+        in let (aliases, ast_types, var_types, struct_def)
+          = process els aliases ast_types var_types struct_def
+        in process tl aliases ast_types var_types struct_def
     | Match (_, cases) :: tl ->
         List.fold_left
-          (fun (aliases, var_types, struct_def) (_, case)
-            -> process case aliases var_types struct_def)
-          (process tl aliases var_types struct_def)
+          (fun (aliases, ast_types, var_types, struct_def) (_, case)
+            -> process case aliases ast_types var_types struct_def)
+          (process tl aliases ast_types var_types struct_def)
           cases
-    | _ :: tl -> process tl aliases var_types struct_def
-  in process body StringMap.empty StringMap.empty StringMap.empty
+    | _ :: tl -> process tl aliases ast_types var_types struct_def
+  in process body StringMap.empty StringMap.empty StringMap.empty StringMap.empty
 
 (* Convert an internal type into a target type *)
 let rec target_type (t : typ) : Target.typ =
@@ -265,15 +267,16 @@ let rec to_list2 (xs : 'a list) : 'a list2 option =
       | Some xs -> Some (Cons (x, xs))
       | None -> failwith "BUG in to_list2"
 
-(* get_enum_info takes the type environment, enum name, and constructor name
- * and returns:
- * - Left (named, index, typ) if nm defines a multi-constructor enum and named
- *   is the named type defining this enum, index is the constructor's index,
- *   and typ the constructor's type
+(* get_enum_info takes the type environment, enum name, optional type argument
+ * (which only applies to option and list) and constructor name and returns:
+ * - Left (named, index, typ) if the type defines a multi-constructor enum and
+ *   named is the named type defining this enum, index is the constructor's
+ *   index, and typ the constructor's type
  * - Right typ if nm defines a single-constructor enum, and typ is the type
  *   of the constructor
  *)
-let get_enum_info (tys : type_env) (nm : string) (constr : string)
+let get_enum_info (tys : type_env) (nm : string) (ty_arg : Ast.typ option)
+  (constr : string)
   : (Target.namedTy * int * Target.typ, Target.typ) Either.t =
   let rec extract_enum_info (t : typ)
     : (Target.namedTy * int * Target.typ, Target.typ) Either.t =
@@ -309,9 +312,20 @@ let get_enum_info (tys : type_env) (nm : string) (constr : string)
         else failwith "Invalid constructor of list"
     | Placeholder { contents = Some t } -> extract_enum_info t
     | _ -> failwith "Not an enum type"
-  in match UniqueMap.find nm tys with
-  | Some t -> extract_enum_info t
-  | None -> failwith "undefined type"
+  in match ty_arg with
+  | None ->
+      (* An enum defined in the environment *)
+      begin match UniqueMap.find nm tys with
+      | Some t -> extract_enum_info t
+      | None -> failwith "undefined type"
+      end
+  | Some t ->
+      (* Either a list::<t> or option::<t> *)
+      let t = process_type t tys
+      in match nm with
+      | "list" -> extract_enum_info (List t)
+      | "option" -> extract_enum_info (Option t)
+      | _ -> failwith "undefined type constructor"
 
 (* get_module_info takes the environment and an expression representing the
  * module name and returns a tuple of the information that forms the target
@@ -549,10 +563,10 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                 | _ -> failwith "type has no fields"
                 end
             | _ -> failwith "expected expression")
-    | EnumExp (enum, constr, args) ->
+    | EnumExp (enum, type_arg, constr, args) ->
         begin match enum with
         | Id enum ->
-            begin match get_enum_info tys enum constr with
+            begin match get_enum_info tys enum type_arg constr with
             | Either.Left (enum, idx, typ) ->
                 process (ProductExp args)
                   (fun a ->
@@ -1427,13 +1441,14 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
         ; (Either.Left (body, List.map fst args, arg_ty), ret_ty, func_body)
         :: create_functions tl types env
     | Module (nm, ret, body) :: tl ->
-        let (aliases, var_types, struct_def)
+        let (aliases, ast_types, var_types, struct_def)
           = process_module_for_args body types
         and ret_ty = process_type_option ret types
         and mod_body = ref None
         in let mod_info =
           { name = nm;
             alias_map = aliases;
+            args = ast_types;
             argument_types = var_types;
             input_struct_def = struct_def;
             out_type = ret_ty;

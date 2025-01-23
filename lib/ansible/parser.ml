@@ -127,7 +127,8 @@ class play_result =
                ; tasks        = t }
   end
 
-let process_ansible (file: string) : (Modules.Ast.stmt list, string) result =
+let process_ansible (file: string) (tys : Modules.Codegen.type_env)
+  (env : Modules.Codegen.global_env) : (Modules.Ast.stmt list, string) result =
   let process_string v =
     match v with
     | `String s -> Ok s
@@ -156,15 +157,86 @@ let process_ansible (file: string) : (Modules.Ast.stmt list, string) result =
               | Error msg -> Error msg
         in Result.map (fun vs -> List vs) (process vs)
     | `O _      -> Error "expected value found mapping"
-  in let codegen_value v =
+  in let rec codegen_value v (t : Modules.Ast.typ) =
     match v with
-    | String s -> Ok (Modules.Ast.StringLit s)
-    | Float  f ->
-        if Float.is_integer f
-        then Ok (Modules.Ast.IntLit (Float.to_int f))
-        else Ok (Modules.Ast.FloatLit f)
-    | Bool   b -> Ok (Modules.Ast.BoolLit b)
-    | List _vs -> failwith "TODO: support list arguments"
+    | Float f ->
+        begin match t with
+        | Int ->
+            if Float.is_integer f
+            then Ok (Modules.Ast.IntLit (Float.to_int f))
+            else Error (Printf.sprintf "Expected integer found float '%f'" f)
+        | Float -> Ok (Modules.Ast.FloatLit f)
+        | _ -> Error ("Incorrect type, found number")
+        end
+    | Bool b ->
+        begin match t with
+        | Bool -> Ok (Modules.Ast.BoolLit b)
+        | _ -> Error ("Incorrect type, found bool")
+        end
+    | List vs ->
+        begin match t with
+        | List el ->
+            (* We construct a list as a series of cons *)
+            let vals =
+              let rec process_vals vs =
+                match vs with
+                | [] -> Ok []
+                | v :: vs ->
+                    match codegen_value v el with
+                    | Ok v ->
+                        Result.map (fun tl -> v :: tl) (process_vals vs)
+                    | Error msg -> Error msg
+              in process_vals vs
+            in Result.map
+                (fun vals ->
+                  List.fold_right
+                    (fun v e -> 
+                      Modules.Ast.EnumExp (
+                        Id "list",
+                        Some el,
+                        "cons",
+                        [v; e]))
+                    vals
+                    (* Nil list *)
+                    (Modules.Ast.EnumExp (Id "list", Some el, "nil", [])))
+                vals
+        | _ -> Error ("Incorrect type, found list")
+        end
+    | String s ->
+        (* Strings in YAML can actually represent many things in our type-system,
+         * specifically strings, paths, and enum values *)
+        begin match t with
+        | String -> Ok (StringLit s)
+        | Path   -> Ok (PathLit s)
+        | Named nm ->
+            begin match Modules.Codegen.UniqueMap.find nm tys with
+            | None -> Error ("Internal Error: type of module argument undefined")
+            | Some t ->
+                let rec process_for_type (t : Modules.Codegen.typ)
+                  : (Modules.Ast.expr, string) result =
+                  match t with
+                  | String -> Ok (StringLit s)
+                  | Path   -> Ok (PathLit s)
+                  | Placeholder { contents = Some t } -> process_for_type t
+                  | Placeholder { contents = None } -> Error ("Internal Error: unknown placeholder")
+                  | Enum constructors ->
+                      begin match Modules.Codegen.StringMap.find_opt s constructors with
+                      | None -> Error (Printf.sprintf
+                          "Invalid value '%s' expected one of [%s]"
+                          s
+                          (String.concat ", " 
+                            (List.map fst 
+                              (Modules.Codegen.StringMap.bindings constructors))))
+                      | Some (_, []) -> Ok(EnumExp (Id nm, None, s, []))
+                      | Some (_, _) -> Error (Printf.sprintf
+                          "Constructor %s cannot be used from Ansible, has argument"
+                          s)
+                      end
+                  | _ -> Error ("Incorrect type, found string-like")
+                in process_for_type t
+            end
+        | _ -> Error ("Incorrect type, found string-like")
+        end
   in let process_module_use nm args =
     match args with
     | `O map ->
@@ -216,20 +288,31 @@ let process_ansible (file: string) : (Modules.Ast.stmt list, string) result =
       | [] -> failwith "String.split_on_char always returns non-empty list"
       | base :: fields ->
           List.fold_left (fun m f -> Modules.Ast.Field (m, f)) (Id base) fields
-    (* FIXME: We actually need to know the type of the arguments to process them
-     * correctly, without it we have no way of differentiating strings, enums,
-     * and paths *)
-    in let module_args =
-      let rec process_args args =
-        match args with
-        | [] -> Ok []
-        | (nm, v) :: tl ->
-            match codegen_value v with
-            | Ok e -> Result.map (fun tl -> (nm, e) :: tl) (process_args tl)
-            | Error msg -> Error msg
-      in process_args m.args
-    in Result.map (fun args -> Modules.Ast.ModuleExp (module_expr, args))
-        module_args
+    in
+    (* Lookup the module, we need information on the types of its arguments *)
+    match Modules.Codegen.find_module_def module_name env with
+    | None -> Error (Printf.sprintf "Could not find module %s" m.mod_name)
+    | Some mod_info ->
+        let arg_aliases = mod_info.alias_map
+        in let arg_types = mod_info.args
+        in let module_args =
+          let rec process_args args =
+            match args with
+            | [] -> Ok []
+            | (nm, v) :: tl ->
+                let canon_name =
+                  match Modules.Codegen.StringMap.find_opt nm arg_aliases with
+                  | None -> nm
+                  | Some c -> c
+                in match Modules.Codegen.StringMap.find_opt canon_name arg_types with
+                | None -> Error (Printf.sprintf "No argument %s of module %s" nm m.mod_name)
+                | Some t ->
+                    match codegen_value v t with
+                    | Ok e -> Result.map (fun tl -> (canon_name, e) :: tl) (process_args tl)
+                    | Error msg -> Error msg
+          in process_args m.args
+        in Result.map (fun args -> Modules.Ast.ModuleExp (module_expr, args))
+            module_args
   in let codegen_task (t : task) : (Modules.Ast.stmt, string) result =
     (* TODO: currently ignoring the ignore_errors flag, should insert error
      * handling here eventually *)

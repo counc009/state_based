@@ -10,7 +10,7 @@ type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
           | ProductExp of expr list
           | RecordExp of expr * (string * expr) list
           | FieldSetExp of expr * string * expr
-          | EnumExp   of expr * string * expr list
+          | EnumExp   of expr * typ option * string * expr list
           | FuncExp   of expr * expr list
           | ModuleExp of expr * (string * expr) list
           | Field of expr * string
