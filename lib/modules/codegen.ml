@@ -35,7 +35,8 @@ type typ = Bool | Int | Float | String | Path | Unit
          | List        of typ
          | Product     of typ list
          | Struct      of typ StringMap.t
-         | Enum        of (int * typ list) StringMap.t
+         (* Store the name of the enum along with the info on its constructors *)
+         | Enum        of string * (int * typ list) StringMap.t
          | Placeholder of typ placeholder
 
 let rec type_equality (x : typ) (y : typ) : bool =
@@ -89,7 +90,7 @@ let empty_mod_env : mod_env = IntMap.empty
 
 let rec extract_enum (t : typ) : (int * typ list) StringMap.t =
   match t with
-  | Enum res -> res
+  | Enum (_, res) -> res
   | Option t ->
       StringMap.of_list [("nothing", (0, [])); ("some", (1, [t]))]
   | List t ->
@@ -233,7 +234,7 @@ let rec target_type (t : typ) : Target.typ =
   | List t -> Named (List (target_type t))
   | Product ts -> construct_prod ts
   | Struct fs -> Struct (StringMap.map target_type fs)
-  | Enum cs -> construct_cases cs
+  | Enum (nm, cs) -> construct_cases nm cs
   | Placeholder t ->
       match !t with
       | None -> failwith "Missing type definition"
@@ -243,20 +244,25 @@ and construct_prod (ts : typ list) : Target.typ =
   | [] -> Primitive Unit
   | [t] -> target_type t
   | t :: ts -> Product (target_type t, construct_prod ts)
-and construct_cases (cs : (int * typ list) StringMap.t) : Target.typ =
-  let types : typ list array = Array.make (StringMap.cardinal cs) []
+and construct_cases (enum_name : string) (cs : (int * typ list) StringMap.t)
+  : Target.typ =
+  let types : (string * typ list) array 
+    = Array.make (StringMap.cardinal cs) ("", [])
   in let ()
-    = List.iter (fun (_, (i, ts)) -> types.(i) <- ts) (StringMap.to_list cs)
+    = List.iter
+        (fun (nm, (i, ts)) -> types.(i) <- (nm, ts))
+        (StringMap.to_list cs)
   in if Array.length types = 0
   then Primitive Unit
   else if Array.length types = 1
-  then construct_prod types.(0)
-  else Named (Cases (build_cases (Array.to_list types)))
-and build_cases (cs : typ list list) : Target.typ list2 =
+  then construct_prod (snd types.(0))
+  else Named (Cases (enum_name, build_cases (Array.to_list types)))
+and build_cases (cs : (string * typ list) list) : (string * Target.typ) list2 =
   match cs with
   | [] | _ :: [] -> failwith "expected at least two cases"
-  | ts1 :: ts2 :: [] -> LastTwo (construct_prod ts1, construct_prod ts2)
-  | ts :: cs -> Cons (construct_prod ts, build_cases cs)
+  | (nm1, ts1) :: (nm2, ts2) :: [] ->
+      LastTwo ((nm1, construct_prod ts1), (nm2, construct_prod ts2))
+  | (nm, ts) :: cs -> Cons ((nm, construct_prod ts), build_cases cs)
 
 let rec to_list2 (xs : 'a list) : 'a list2 option =
   match xs with
@@ -281,20 +287,20 @@ let get_enum_info (tys : type_env) (nm : string) (ty_arg : Ast.typ option)
   let rec extract_enum_info (t : typ)
     : (Target.namedTy * int * Target.typ, Target.typ) Either.t =
     match t with
-    | Enum constrs ->
+    | Enum (enum_name, constrs) ->
         begin match StringMap.find_opt constr constrs with
         | None -> failwith "Invalid constructor"
         | Some (idx, tys) -> 
             if StringMap.cardinal constrs = 1
             then Either.Right (target_type (Product tys))
-            else let cases : Target.typ Array.t 
-              = Array.make (StringMap.cardinal constrs) (Target.Primitive Unit)
+            else let cases : (string * Target.typ) Array.t 
+              = Array.make (StringMap.cardinal constrs) ("", Target.Primitive Unit)
             in StringMap.iter
-              (fun _ (idx, tys) -> cases.(idx) <- target_type (Product tys))
+              (fun nm (idx, tys) -> cases.(idx) <- (nm, target_type (Product tys)))
               constrs
             ; match to_list2 (Array.to_list cases) with
             | None -> failwith "enum does not have enough cases"
-            | Some cs -> Either.Left (Cases cs, idx, cases.(idx))
+            | Some cs -> Either.Left (Cases (enum_name, cs), idx, snd cases.(idx))
         end
     | Option t     ->
         let typ = target_type t
@@ -373,21 +379,23 @@ let get_module_info env (modul : Ast.expr)
  * identified by the given named type and constructor index *)
 let construct_enum (enum : Target.namedTy) (idx : int) (e : Target.expr)
   : Target.expr =
-  let rec construct_cases (cs : Target.typ list2) (idx : int) : Target.expr =
+  let rec construct_cases (enum_name : string) (cs : (string * Target.typ) list2)
+    (idx : int) : Target.expr =
     match cs with
     | LastTwo (_, _) ->
-        if idx = 0 then Function (Constructor (true, Cases cs), e)
-        else if idx = 1 then Function (Constructor (false, Cases cs), e)
+        if idx = 0 then Function (Constructor (true, Cases (enum_name, cs)), e)
+        else if idx = 1 then Function (Constructor (false, Cases (enum_name, cs)), e)
         else failwith "internal error: invalid index for enum"
     | Cons (_, r) ->
-        if idx = 0 then Function (Constructor (true, Cases cs), e)
-        else Function (Constructor (false, Cases cs), construct_cases r (idx-1))
+        if idx = 0 then Function (Constructor (true, Cases (enum_name, cs)), e)
+        else Function (Constructor (false, Cases (enum_name, cs)),
+                        construct_cases enum_name r (idx-1))
   in match enum with
   | List _ | Option _ ->
       if idx = 0 then Function (Constructor (true, enum), e)
       else if idx = 1 then Function (Constructor (false, enum), e)
       else failwith "internal error: invalid index for list or option"
-  | Cases cs -> construct_cases cs idx
+  | Cases (enum_name, cs) -> construct_cases enum_name cs idx
 
 (* construct_product_read takes a product (Target) expression, the type of that
  * expression and an index and produces and expression that reads the desired
@@ -1396,7 +1404,7 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
             (List.mapi
               (fun i (nm, ts) -> (nm, (i, create_types_option ts env)))
               variants)
-        in add_type nm (Enum variants) env; create_types tl env
+        in add_type nm (Enum (nm, variants)) env; create_types tl env
     | Struct (nm, fields) :: tl ->
         let fields =
           StringMap.of_list

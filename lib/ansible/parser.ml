@@ -221,7 +221,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                   | Path   -> Ok (PathLit s)
                   | Placeholder { contents = Some t } -> process_for_type t
                   | Placeholder { contents = None } -> Error ("Internal Error: unknown placeholder")
-                  | Enum constructors ->
+                  | Enum (_, constructors) ->
                       begin match Modules.Codegen.StringMap.find_opt s constructors with
                       | None -> Error (Printf.sprintf
                           "Invalid value '%s' expected one of [%s]"

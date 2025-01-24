@@ -9,7 +9,10 @@ type 'a list' = Nil | Singleton of 'a | List of 'a list2
 module StringMap = Map.Make(String)
 
 type prims      = Unit | Bool | Int | Float | String | Path | Env
-type 't constr  = List of 't | Option of 't | Cases of 't list2
+type 't constr  = List of 't | Option of 't
+                (* For all other enums we store the name of the enum and the
+                 * name of each constructor *)
+                | Cases of string * (string * 't) list2
 type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | Constructor   of bool * 't constr (* true = L, false = R *)
                 | EmptyStruct   of 't StringMap.t
@@ -102,8 +105,8 @@ module rec Ast_Target : Ast_Defs
   let namedTyDef : namedTy -> typ * typ = function
     | List t -> (Primitive Unit, Product (t, Named (List t)))
     | Option t -> (Primitive Unit, t)
-    | Cases (LastTwo (s, t)) -> (s, t)
-    | Cases (Cons (s, ts)) -> (s, Named (Cases ts))
+    | Cases (_, LastTwo ((_, s), (_, t))) -> (s, t)
+    | Cases (nm, Cons ((_, s), ts)) -> (s, Named (Cases (nm, ts)))
   let structTyDef fs = fs
 
   let funcDef = function
@@ -183,7 +186,25 @@ end
 
 module TargetInterp = Calculus.Interp.Interp(Ast_Target)
 
-(* Debugging utilities *)
+(* Display utilities *)
+let rec string_of_type (t : Ast_Target.typ) : string =
+  match t with
+  | Product (x, y)   -> Printf.sprintf "(%s, %s)" (string_of_type x) (string_of_type y)
+  | Primitive Unit   -> "()"
+  | Primitive Bool   -> "bool"
+  | Primitive Int    -> "int"
+  | Primitive Float  -> "float"
+  | Primitive String -> "string"
+  | Primitive Path   -> "path"
+  | Primitive Env    -> "env"
+  | Struct tys       -> 
+      Printf.sprintf "{ %s }"
+        (String.concat ", "
+          (List.map (fun (nm, t) -> nm ^ ": " ^ string_of_type t)
+            (StringMap.to_list tys)))
+  | Named (List t)   -> Printf.sprintf "list<%s>" (string_of_type t)
+  | Named (Option t) -> Printf.sprintf "option<%s>" (string_of_type t)
+  | Named (Cases (nm, _)) -> nm
 
 let rec string_of_expr (e : Ast_Target.expr) : string =
   match e with
@@ -293,8 +314,19 @@ let rec value_to_string (v : Ast_Target.value) : string =
   | Literal (Env _, _)    -> "%%ENV%%"
   | Pair    (x, y, _)     ->
       "(" ^ value_to_string x ^ ", " ^ value_to_string y ^ ")"
-  | Constructor (_, left, v) ->
-      (if left then "L(" else "R(") ^ value_to_string v ^ ")"
+  | Constructor (ty, left, v) ->
+      begin match ty with
+      | List t ->
+          if left
+          then Printf.sprintf "nil::<%s>()" (string_of_type t)
+          else Printf.sprintf "list::<%s>[%s]" (string_of_type t) (string_of_list_val v)
+      | Option t ->
+          if left
+          then Printf.sprintf "None::<%s>()" (string_of_type t)
+          else Printf.sprintf "Some::<%s>(%s)" (string_of_type t) (value_to_string v)
+      | Cases (enum, constrs) ->
+          enum ^ "::" ^ string_of_constructor constrs left v
+      end
   | Struct (_, r) ->
       "{" ^ String.concat ", "
               (List.map (fun (nm, v) -> nm ^ ": " ^ value_to_string v)
@@ -306,6 +338,27 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | Proj (false, _, _)        -> "proj2(" ^ value_to_string arg ^ ")"
       | Uninterpreted (nm, _, _)  -> nm ^ "(" ^ value_to_string arg ^ ")"
       | _ -> "%%FUNCTION%%(" ^ value_to_string arg ^ ")"
+and string_of_list_val (v : Ast_Target.value) : string =
+  match v with
+  | Pair (hd, tl, _) ->
+      value_to_string hd
+      ^ begin match tl with
+        | Constructor (_, is_nil, lst) ->
+            if is_nil then "" else "; " ^ string_of_list_val lst
+        | _ -> "; <<ERROR: MALFORMED LIST>>"
+        end
+  | _ -> "<<ERROR: MALFORMED LIST>>"
+and string_of_constructor constr is_first v =
+  match constr, is_first with
+  | LastTwo ((nm, _), _), true 
+  | Cons    ((nm, _), _), true
+    -> nm ^ "(" ^ value_to_string v ^ ")"
+  | LastTwo (_, (nm, _)), false
+    -> nm ^ "(" ^ value_to_string v ^ ")"
+  | Cons (_, cs), false
+    -> match v with
+       | Constructor (_, is_first, v) -> string_of_constructor cs is_first v
+       | _ -> "<< ERROR: MALFORMED ENUM VALUE >>"
 
 let rec state_to_string (state : TargetInterp.state) : string =
   let State(elems, attrs) = state
