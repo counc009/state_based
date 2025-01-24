@@ -785,7 +785,19 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                 let (res, res_ty) = construct_product_read e t idx
                 in k (JustExpr (res, res_ty))
             | _ -> failwith "expected expression")
-    | UnaryExp (_, _) -> failwith "TODO"
+    | UnaryExp (e, op) ->
+        process e
+          (fun e ->
+            match e with
+            | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
+                begin match op with
+                | Not ->
+                    if t <> Primitive Bool
+                    then failwith "Incorrect type for negation"
+                    else k (JustExpr (Function (BoolNeg, e), Primitive Bool))
+                | _ -> failwith "TODO"
+                end
+            | _ -> failwith "expected expression")
     | BinaryExp (_, _, _) -> failwith "TODO"
     | CondExp (cond, thn, els) ->
         process cond

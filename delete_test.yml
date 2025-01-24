@@ -1,0 +1,13 @@
+---
+- name: Test failures
+  tasks:
+  - name: Delete a file
+    ansible.fake.delete:
+      dest: /path/to/file
+
+  - name: Try to copy that deleted file
+    ignore_errors: true
+    ansible.builtin.copy:
+      src: /path/to/file
+      dest: /path/to/dest
+      remote_src: yes

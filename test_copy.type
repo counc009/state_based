@@ -35,7 +35,9 @@ function copy(dst : path, src : path, src_loc : local_remote,
   }
 }
 
-module ansible.builtin.copy {
+struct copy_result { failed : bool }
+
+module ansible.builtin.copy -> copy_result {
   (dest: path) (src: path | content: string)
   [group: string] [owner: string]
 
@@ -53,8 +55,7 @@ module ansible.builtin.copy {
                                  : env().user;
 
       let _ = copy(dest, src, loc, group, owner);
-    } else {
-      assert exists directory(src, loc);
+    } else if exists directory(src, loc) {
 
       let group = provided group ? group
                 : env().is_root  ? directory(src, loc).group
@@ -64,10 +65,14 @@ module ansible.builtin.copy {
                                  : env().user;
       
       let _ = copy(dest, src, loc, group, owner);
+    } else {
+      return copy_result { failed: true };
     }
   } else {
     file(dest, local_remote::remote).content = content;
     file(dest, local_remote::remote).group = provided group ? group : env().group;
     file(dest, local_remote::remote).owner = provided owner ? owner : env().user;
   }
+
+  return copy_result { failed: false };
 }

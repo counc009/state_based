@@ -315,11 +315,16 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
           in process_args m.args
         in Result.map (fun args -> Modules.Ast.ModuleExp (module_expr, args))
             module_args
-  in let codegen_task (t : task) : (Modules.Ast.stmt, string) result =
+  in let codegen_task (t : task) : (Modules.Ast.stmt list, string) result =
     (* TODO: currently ignoring the ignore_errors flag, should insert error
      * handling here eventually *)
     Result.map
-      (fun v -> Modules.Ast.LetStmt (t.register, v))
+      (fun v ->
+        Modules.Ast.LetStmt (t.register, v)
+        ::
+        if t.ignore_errors
+        then []
+        else Assert (UnaryExp (Field (Id t.register, "failed"), Not)) :: [])
       (codegen_module_invocation t.module_invoke)
   in let codegen_play (play : play) : (Modules.Ast.stmt list, string) result =
     (* TODO: for now we're ignoring hosts and remote_user...
@@ -329,7 +334,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
       | [] -> Ok []
       | t :: tl ->
           match codegen_task t with
-          | Ok t -> Result.map (fun tl -> t :: tl) (codegen_tasks tl)
+          | Ok t -> Result.map (fun tl -> t @ tl) (codegen_tasks tl)
           | Error msg -> Error msg
     in let tasks = codegen_tasks play.tasks
     (* Set the user by env().user = remote_user *)
