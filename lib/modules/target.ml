@@ -1,7 +1,5 @@
 open Calculus.Ast
 
-exception NotImplemented
-
 (* A 'a list2 is a list with at least two elements *)
 type 'a list2 = LastTwo of 'a * 'a | Cons of 'a * 'a list2
 type 'a list' = Nil | Singleton of 'a | List of 'a list2
@@ -366,21 +364,27 @@ and string_of_constructor constr is_first v =
        | Constructor (_, is_first, v) -> string_of_constructor cs is_first v
        | _ -> "<< ERROR: MALFORMED ENUM VALUE >>"
 
-let rec state_to_string (state : TargetInterp.state) : string =
-  let State(elems, attrs) = state
-  in Printf.sprintf "< %s >"
-    (String.concat ", "
-      (List.map
-        (fun (((elem, _), v, neg), s) ->
-          (if neg then "not " else "")
-          ^ elem ^ "(" ^ value_to_string v ^ ")"
-          ^ ": " ^ state_to_string s)
-        (TargetInterp.ElementMap.to_list elems)
-      @
-      List.map
-        (fun ((attr, _), (v, s)) -> attr ^ " = " ^ value_to_string v
-                                 ^ ": " ^ state_to_string s)
-        (TargetInterp.AttributeMap.to_list attrs)))
+let string_of_list empty lhs sep rhs f lst : string =
+  if List.is_empty lst
+  then empty
+  else lhs ^ String.concat sep (List.map f lst) ^ rhs
+
+let state_to_string (state : TargetInterp.state) : string =
+  let rec inner_string_of_state if_empty lhs rhs (state : TargetInterp.state) =
+    let State(elems, attrs) = state
+    in string_of_list if_empty lhs ", " rhs (fun s -> s)
+        (List.map
+          (fun (((elem, _), v, neg), s) ->
+            (if neg then "not " else "")
+            ^ elem ^ "(" ^ value_to_string v ^ ")"
+            ^ inner_string_of_state "" ": <" " >" s)
+          (TargetInterp.ElementMap.to_list elems)
+        @
+        List.map
+          (fun ((attr, _), (v, s)) -> attr ^ " = " ^ value_to_string v
+                                   ^ inner_string_of_state "" ": < " " >" s)
+          (TargetInterp.AttributeMap.to_list attrs))
+  in inner_string_of_state "<>" "< " " >" state
 
 let prg_type_to_string (state : TargetInterp.prg_type) : string =
   Printf.sprintf "%s --> %s [{ %s }, { %s }, { %s }]"
