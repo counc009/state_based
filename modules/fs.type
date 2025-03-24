@@ -1,0 +1,16 @@
+enum file_system { remote, local }
+
+enum file_type {
+  file(string),
+  directory(list path),
+  hard(path),
+  link(path),
+}
+
+element fs(path, file_system)
+
+attribute fs_type(file_type)
+attribute owner(path)
+
+uninterpreted pathfrom(path, path) -> path
+uninterpreted conspath(path, path) -> path
