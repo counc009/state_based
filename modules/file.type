@@ -1,6 +1,16 @@
-struct file_result { }
+struct file_result { failed: bool, dest: path, path: path }
 
 enum file_state { absent, directory, file, hard, link, touch }
+
+function fs_state(p: path, loc: file_system) -> file_state {
+  assert exists fs(p, loc);
+  match fs(p, loc).fs_type {
+    file_type::file(_) => { return file_state::file; }
+    file_type::directory(_) => { return file_state::directory; }
+    file_type::hard(_) => { return file_state::hard; }
+    file_type::link(_) => { return file_state::link; }
+  }
+}
 
 module ansible.builtin.file -> file_result {
   (path aka dest, name: path)
@@ -13,4 +23,30 @@ module ansible.builtin.file -> file_result {
             : exists fs(path, file_system::remote) ? fs_state(path, file_system::remote)
             : recurse                              ? file_state::directory
                                                    : file_state::file;
+
+  let result = file_result { failed: false };
+
+  match state {
+    file_state::absent => {
+      clear fs(path, file_system::remote);
+      result.path = path;
+    }
+    file_state::directory => {
+      result.path = path;
+    }
+    file_state::file => {
+      result.path = path;
+    }
+    file_state::hard => {
+      result.dest = path;
+    }
+    file_state::link => {
+      result.dest = path;
+    }
+    file_state::touch => {
+      result.dest = path;
+    }
+  }
+
+  return result;
 }

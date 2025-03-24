@@ -3,8 +3,7 @@ struct delete_result { failed : bool }
 module ansible.fake.delete -> delete_result {
   (dest: path)
 
-  clear file(dest, local_remote::remote);
-  clear directory(dest, local_remote::remote);
+  clear fs(dest, file_system::remote);
 
   return delete_result { failed: false };
 }

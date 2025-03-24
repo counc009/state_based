@@ -112,6 +112,7 @@ let path_lit =
     expr  ::= expr0
     expr0 ::= expr1 '?' expr0 ':' expr0
             | 'provided' identifier '?' expr0 ':' expr0
+            | 'exists' expr8 '?' expr0 ':' expr0
             | expr1
     expr1 ::= expr1 '||' expr2 | expr2
     expr2 ::= expr2 '&&' expr3 | expr3
@@ -252,7 +253,7 @@ let expr =
       in expr2 >>= expr1'
     in let expr0 =
       (string "provided"
-      *> whitespace
+      *> whitespace1
       *> identifier
       >>= fun id ->
         whitespace
@@ -265,6 +266,20 @@ let expr =
       *> whitespace
       *> expr
       >>| fun els -> CondProvidedExp (id, thn, els))
+      <|> (string "exists"
+      *> whitespace1
+      *> expr8
+      >>= fun exp ->
+        whitespace
+      *> char '?'
+      *> whitespace
+      *> expr
+      >>= fun thn ->
+        whitespace
+      *> char ':'
+      *> whitespace
+      *> expr
+      >>| fun els -> CondExistsExp (exp, thn, els))
       <|> (expr1
         >>= fun cond ->
           whitespace
