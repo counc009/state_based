@@ -1,0 +1,11 @@
+---
+- name: Grant passwordless sudo to user dev
+  hosts: all
+  become: true  # Ensure we are using privilege escalation
+  tasks:
+    - name: Ensure the sudoers file includes passwordless sudo for dev
+      lineinfile:
+        path: /etc/sudoers
+        regexp: '^dev'
+        line: 'dev ALL=(ALL) NOPASSWD:ALL'
+        validate: '/usr/sbin/visudo -cf %s'  # Validate the sudoers file syntax

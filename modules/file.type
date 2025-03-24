@@ -1,0 +1,16 @@
+struct file_result { }
+
+enum file_state { absent, directory, file, hard, link, touch }
+
+module ansible.builtin.file -> file_result {
+  (path aka dest, name: path)
+  [group: string] [owner: string]
+
+  [state: file_state]
+  [recurse: bool = false]
+
+  let state = provided state                       ? state
+            : exists fs(path, file_system::remote) ? fs_state(path, file_system::remote)
+            : recurse                              ? file_state::directory
+                                                   : file_state::file;
+}
