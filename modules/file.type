@@ -32,18 +32,100 @@ module ansible.builtin.file -> file_result {
       result.path = path;
     }
     file_state::directory => {
+      if exists fs(path, file_system::remote) {
+        fs(path, file_system::remote).owner 
+          = provided owner ? owner
+          : env().is_root  ? fs(path, file_system::remote).owner
+                           : env().user;
+        fs(path, file_system::remote).group 
+          = provided group ? group
+          : env().is_root  ? fs(path, file_system::remote).group
+                           : env().group;
+      } else {
+        fs(path, file_system::remote).fs_type = file_type::directory(list::<path>::nil());
+        fs(path, file_system::remote).owner 
+          = provided owner ? owner : env().user;
+        fs(path, file_system::remote).group 
+          = provided group ? group : env().group;
+      }
+
       result.path = path;
     }
     file_state::file => {
+      if exists fs(path, file_system::remote) {
+        fs(path, file_system::remote).owner 
+          = provided owner ? owner
+          : env().is_root  ? fs(path, file_system::remote).owner
+                           : env().user;
+        fs(path, file_system::remote).group 
+          = provided group ? group
+          : env().is_root  ? fs(path, file_system::remote).group
+                           : env().group;
+      }
       result.path = path;
     }
     file_state::hard => {
+      (src: path)
+      assert exists fs(src, file_system::remote);
+
+      if exists fs(path, file_system::remote) {
+        fs(path, file_system::remote).owner 
+          = provided owner ? owner
+          : env().is_root  ? fs(path, file_system::remote).owner
+                           : env().user;
+        fs(path, file_system::remote).group 
+          = provided group ? group
+          : env().is_root  ? fs(path, file_system::remote).group
+                           : env().group;
+      } else {
+        fs(path, file_system::remote).owner 
+          = provided owner ? owner : env().user;
+        fs(path, file_system::remote).group 
+          = provided group ? group : env().group;
+      }
+      fs(path, file_system::remote).fs_type = file_type::hard(src);
+
       result.dest = path;
     }
     file_state::link => {
+      (src: path)
+
+      if exists fs(path, file_system::remote) {
+        fs(path, file_system::remote).owner 
+          = provided owner ? owner
+          : env().is_root  ? fs(path, file_system::remote).owner
+                           : env().user;
+        fs(path, file_system::remote).group 
+          = provided group ? group
+          : env().is_root  ? fs(path, file_system::remote).group
+                           : env().group;
+      } else {
+        fs(path, file_system::remote).owner 
+          = provided owner ? owner : env().user;
+        fs(path, file_system::remote).group 
+          = provided group ? group : env().group;
+      }
+      fs(path, file_system::remote).fs_type = file_type::link(src);
+
       result.dest = path;
     }
     file_state::touch => {
+      if exists fs(path, file_system::remote) {
+        fs(path, file_system::remote).owner 
+          = provided owner ? owner
+          : env().is_root  ? fs(path, file_system::remote).owner
+                           : env().user;
+        fs(path, file_system::remote).group 
+          = provided group ? group
+          : env().is_root  ? fs(path, file_system::remote).group
+                           : env().group;
+      } else {
+        fs(path, file_system::remote).fs_type = file_type::file("");
+        fs(path, file_system::remote).owner 
+          = provided owner ? owner : env().user;
+        fs(path, file_system::remote).group 
+          = provided group ? group : env().group;
+      }
       result.dest = path;
     }
   }
