@@ -43,6 +43,9 @@ let doub_bracks p = string "{{" *> whitespace *> p <* whitespace <* string "}}"
 let optional p =
   option None (lift (fun x -> Some x) p)
 
+(* a version of sep_by that allows a dangling separator at the end *)
+let sep_by_d s p = sep_by s p <* optional s
+
 let typ =
   fix (fun t ->
     choice
@@ -461,7 +464,7 @@ let enum_case =
   >>| fun ty -> (nm, ty)
 
 let enum_cases =
-  sep_by (whitespace *> char ',' *> whitespace) enum_case
+  sep_by_d (whitespace *> char ',' *> whitespace) enum_case
 
 let enum_def =
   string "enum"
