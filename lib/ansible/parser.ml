@@ -327,8 +327,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
         else Assert (UnaryExp (Field (Id t.register, "failed"), Not)) :: [])
       (codegen_module_invocation t.module_invoke)
   in let codegen_play (play : play) : (Modules.Ast.stmt list, string) result =
-    (* TODO: for now we're ignoring hosts and remote_user...
-     * remote_user should probably be used to update user listed in env() *)
+    (* TODO: for now we're ignoring hosts. We should also handle setting is_root *)
     let rec codegen_tasks ts =
       match ts with
       | [] -> Ok []
