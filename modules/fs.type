@@ -10,7 +10,7 @@ enum file_type {
 element fs(path, file_system)
 
 attribute fs_type(file_type)
-attribute owner(path)
+attribute owner(string)
 
 uninterpreted pathfrom(path, path) -> path
 uninterpreted conspath(path, path) -> path

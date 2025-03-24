@@ -24,7 +24,6 @@ function copy(dst : path, src : path, src_loc : file_system,
         }
         return true;
       }
-      file_type::directory(_) => { return false; }
       file_type::hard(_) => { return false; }
       file_type::link(_) => { return false; }
     }
