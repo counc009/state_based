@@ -595,11 +595,16 @@ let top_level =
       ])
 let file_parser = top_level <* whitespace
 
+let comments_regex = Str.regexp {|\(#\|//\).*|}
+
+let remove_comments (s : string) : string =
+  Str.global_replace comments_regex "" s
+
 let parse_file (filename : string) : (topLevel list, string) result =
   let ch = open_in filename
   in let s = really_input_string ch (in_channel_length ch)
   in close_in ch
-  ; Angstrom.parse_string ~consume:All file_parser s
+  ; Angstrom.parse_string ~consume:All file_parser (remove_comments s)
 
 let rec parse_files (files : string list) : (topLevel list list, string) result =
   match files with
