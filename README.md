@@ -7,3 +7,5 @@ Modules.Target.TargetInterp.interpret prg (Primitive Unit);;
 ```
 
 # TODO List
+- Improve pretty-printing of states with constructor constraints
+- Verify full functionality of copy where source file is unknown to exist
