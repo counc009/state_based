@@ -575,22 +575,28 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                           in interp (if b then left else right) s
                                 (VariableMap.add var (v, t) env) ret
                       | None ->
-                          let val_left : value =
-                            Unknown (Val (uid ()), fst (namedTyDef n))
+                          let type_left = fst (namedTyDef n)
+                          in let val_left : value =
+                            Unknown (Val (uid ()), type_left)
+                          in let type_right = snd (namedTyDef n)
                           in let val_right : value =
-                            Unknown (Val (uid ()), snd (namedTyDef n))
+                            Unknown (Val (uid ()), type_right)
                           in let constr_left =
                             ValueMap.add v (true, val_left) s.constrs
                           in let constr_right =
                             ValueMap.add v (false, val_right) s.constrs
+                          in let env_left =
+                            VariableMap.add var (val_left, type_left) env
+                          in let env_right =
+                            VariableMap.add var (val_right, type_right) env
                           in (interp left { init = s.init; final = s.final;
                                             loops = s.loops; bools = s.bools;
                                             constrs = constr_left; }
-                                     env ret)
+                                     env_left ret)
                           @ (interp right { init = s.init; final = s.final;
                                             loops = s.loops; bools = s.bools;
                                             constrs = constr_right; }
-                                    env ret)
+                                    env_right ret)
                   end
               | _ -> Err "Cannot match over non-named type" :: []
           end
