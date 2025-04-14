@@ -329,7 +329,7 @@ let rec value_to_string (v : Ast_Target.value) : string =
           then Printf.sprintf "None::<%s>()" (string_of_type t)
           else Printf.sprintf "Some::<%s>(%s)" (string_of_type t) (value_to_string v)
       | Cases (enum, constrs) ->
-          enum ^ "::" ^ string_of_constructor constrs left v
+          string_of_constructor enum constrs left v
       end
   | Struct (_, r) ->
       "{" ^ String.concat ", "
@@ -354,16 +354,16 @@ and string_of_list_val (v : Ast_Target.value) : string =
         end
   | Unknown (_, _) -> value_to_string v ^ " ..."
   | _ -> "<<ERROR: MALFORMED LIST>>"
-and string_of_constructor constr is_first v =
+and string_of_constructor enum constr is_first v =
   match constr, is_first with
   | LastTwo ((nm, _), _), true 
   | Cons    ((nm, _), _), true
-    -> nm ^ "(" ^ value_to_string v ^ ")"
+    -> enum ^ "::" ^ nm ^ "(" ^ value_to_string v ^ ")"
   | LastTwo (_, (nm, _)), false
-    -> nm ^ "(" ^ value_to_string v ^ ")"
+    -> enum ^ "::" ^ nm ^ "(" ^ value_to_string v ^ ")"
   | Cons (_, cs), false
     -> match v with
-       | Constructor (_, is_first, v) -> string_of_constructor cs is_first v
+       | Constructor (_, is_first, v) -> string_of_constructor enum cs is_first v
        | Unknown (_, _) -> value_to_string v
        | _ -> "<< ERROR: MALFORMED ENUM VALUE >>"
 
@@ -405,7 +405,7 @@ let string_of_constructor_constraint (v: Ast_Target.value) (left: bool)
           then Printf.sprintf "None::<%s>()" (string_of_type t)
           else Printf.sprintf "Some::<%s>(%s)" (string_of_type t) (value_to_string arg)
       | Cases (enum, constrs) ->
-          enum ^ "::" ^ string_of_constructor constrs left arg
+          string_of_constructor enum constrs left arg
       end
   | _ -> "<< ERROR: MALFORMED CONSTRUCTOR CONSTRAINT >>"
 
