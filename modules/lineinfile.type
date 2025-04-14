@@ -1,0 +1,64 @@
+struct lineinfile_result { failed: bool }
+
+enum lineinfile_state { absent, present }
+
+uninterpreted removelines_lit(string, string);
+uninterpreted removelines_regex(string, string);
+
+module ansible.builtin.lineinfile -> lineinfile_result {
+  (path AKA dest, destfile, name : path)
+  (state : lineinfile_state = lineinfile_state::present)
+
+  [backup: bool = false]
+  [group: string] powner: string]
+  [validate: string]
+
+  if exists fs(path, file_system::remote) {
+    let success = false;
+    let content = "";
+
+    match fs(path, file_system::remote).fs_type {
+      file_type::file(c) => { success = true; content = c; }
+    }
+
+    if !success {
+      return lineinfile_result { failed: true };
+    }
+
+    match state {
+      lineinfile_state::absent => {
+        (search_string: string | regexp: string)
+        if provided search_string {
+          fs(path, file_system::remote).fs_type = file_type::file(removelines_lit(search_string, content));
+        } else {
+          fs(path, file_system::remote).fs_type = file_type::file(removelines_regex(regexp, content));
+        }
+      }
+      lineinfile_state::present => {
+        (line: string)
+        [create: bool = false]
+        [search_string: string | regexp: string]
+
+        if provided regexp {
+          [backrefs: bool = false]
+          if backrefs {
+            # TODO
+          } else {
+            [insertbefore: string | insertafter: string]
+            [firstmatch: bool = false]
+            # TODO
+          }
+        } else {
+          [insertbefore: string | insertafter: string]
+          [firstmatch: bool = false]
+          # TODO
+        }
+      }
+    }
+  } else {
+    return lineinfile_result { failed: true };
+  }
+
+
+  return lineinfile_result { failed: false };
+}
