@@ -349,8 +349,10 @@ and string_of_list_val (v : Ast_Target.value) : string =
       ^ begin match tl with
         | Constructor (_, is_nil, lst) ->
             if is_nil then "" else "; " ^ string_of_list_val lst
+        | Unknown (_, _) -> ";" ^ value_to_string v ^ " ..."
         | _ -> "; <<ERROR: MALFORMED LIST>>"
         end
+  | Unknown (_, _) -> value_to_string v ^ " ..."
   | _ -> "<<ERROR: MALFORMED LIST>>"
 and string_of_constructor constr is_first v =
   match constr, is_first with
@@ -362,6 +364,7 @@ and string_of_constructor constr is_first v =
   | Cons (_, cs), false
     -> match v with
        | Constructor (_, is_first, v) -> string_of_constructor cs is_first v
+       | Unknown (_, _) -> value_to_string v
        | _ -> "<< ERROR: MALFORMED ENUM VALUE >>"
 
 let string_of_list empty lhs sep rhs f lst : string =
@@ -386,6 +389,26 @@ let state_to_string (state : TargetInterp.state) : string =
           (TargetInterp.AttributeMap.to_list attrs))
   in inner_string_of_state "<>" "< " " >" state
 
+let string_of_constructor_constraint (v: Ast_Target.value) (left: bool)
+  (arg: Ast_Target.value) : string =
+  let ty : Ast_Target.typ = TargetInterp.val_to_type v
+  in value_to_string v ^ " = " ^
+  match ty with
+  | Named ty ->
+      begin match ty with
+      | List t ->
+          if left
+          then Printf.sprintf "nil::<%s>()" (string_of_type t)
+          else Printf.sprintf "list::<%s>[%s]" (string_of_type t) (string_of_list_val arg)
+      | Option t ->
+          if left
+          then Printf.sprintf "None::<%s>()" (string_of_type t)
+          else Printf.sprintf "Some::<%s>(%s)" (string_of_type t) (value_to_string arg)
+      | Cases (enum, constrs) ->
+          enum ^ "::" ^ string_of_constructor constrs left arg
+      end
+  | _ -> "<< ERROR: MALFORMED CONSTRUCTOR CONSTRAINT >>"
+
 let prg_type_to_string (state : TargetInterp.prg_type) : string =
   Printf.sprintf "%s --> %s [{ %s }, { %s }, { %s }]"
     (state_to_string state.init)
@@ -397,8 +420,7 @@ let prg_type_to_string (state : TargetInterp.prg_type) : string =
       (List.map (fun (v, b) -> value_to_string v ^ " = " ^ string_of_bool b)
         (TargetInterp.ValueMap.to_list state.bools)))
     (String.concat ", "
-      (List.map (fun (v, (b, w)) -> value_to_string v ^ " = "
-                  ^ (if b then "L" else "R") ^ "(" ^ value_to_string w ^ ")")
+      (List.map (fun (v, (b, w)) -> string_of_constructor_constraint v b w)
         (TargetInterp.ValueMap.to_list state.constrs)))
 
 let results_to_string (res : TargetInterp.prg_res list) : (string, string) result =
