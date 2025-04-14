@@ -7,4 +7,3 @@ Modules.Target.TargetInterp.interpret prg (Primitive Unit);;
 ```
 
 # TODO List
-- Verify full functionality of copy where source file is unknown to exist
