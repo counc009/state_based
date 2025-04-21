@@ -8,11 +8,11 @@ module ansible.builtin.fetch -> fetch_result {
     match fs(src, file_system::remote).fs_type {
       file_type::file(c) => {
         if !flat {
-          fs(conspath(dest, conspath(path_of_string(env().hostname), src)),
+          fs(cons_path(dest, cons_path(path_of_string(env().hostname), src)),
             file_system::local).fs_type = file_type::file(c);
         } else {
           if ends_with_dir(dest) {
-            fs(conspath(dest, base_name(src)), file_system::local)
+            fs(cons_path(dest, base_name(src)), file_system::local)
               .fs_type = file_type::file(c);
           } else {
             fs(dest, file_system::local).fs_type = file_type::file(c);
