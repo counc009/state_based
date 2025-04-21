@@ -13,7 +13,7 @@ function copy(dst : path, src : path, src_loc : file_system,
           assert exists fs(f, src_loc);
           match fs(f, src_loc).fs_type {
             file_type::file(_) => {
-              if !copy(conspath(dst, pathfrom(src, f)), f, src_loc, group, owner) {
+              if !copy(cons_path(dst, path_from(src, f)), f, src_loc, group, owner) {
                 return false;
               }
             }
