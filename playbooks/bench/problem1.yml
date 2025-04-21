@@ -1,0 +1,7 @@
+---
+- name: Create directory /srv/www
+  tasks:
+  - name: Create directory
+    ansible.builtin.file:
+      path: /srv/www
+      state: directory

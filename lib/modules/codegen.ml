@@ -827,24 +827,36 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                 then Error "non-boolean condition"
                 else
                   let tmp = temp_name ()
-                  in process thn (fun lhs ->
-                      process els (fun rhs ->
-                      match lhs with
-                      | JustExpr (thn, thn_t) | ExprOrAttr ((thn, thn_t), _) ->
-                        (match rhs with
-                        | JustExpr (els, els_t) | ExprOrAttr ((els, els_t), _) ->
-                            if thn_t <> els_t
-                            then Error "types of ternary branches do not match"
-                            else Result.bind
-                              (k (JustExpr (Variable tmp, thn_t)))
-                              (fun after ->
-                                 Ok (Target.Cond 
-                                    (c, Assign (tmp, thn, after),
-                                        Assign (tmp, els, after))))
+                  in Result.map
+                    (fun (thn, els) -> Target.Cond (c, thn, els))
+                    (let thn_type = ref (Error "failure compiling then branch")
+                    in let after = ref (Error "failure compiling then branch")
+                    in let thn_stmt =
+                      process thn (fun thn ->
+                        match thn with
+                        | JustExpr (thn, thn_t) | ExprOrAttr ((thn, thn_t), _) ->
+                            thn_type := Ok thn_t
+                            ; after := k (JustExpr (Variable tmp, thn_t))
+                            ; Result.bind !after
+                              (fun after -> Ok (Target.Assign (tmp, thn, after)))
                         | _ -> Error "expected expression")
-                      | _ -> Error "expected expression"
-                      )
-                    )
+                    in let els_stmt =
+                      process els (fun els ->
+                        match els with
+                        | JustExpr (els, els_t) | ExprOrAttr ((els, els_t), _) ->
+                            begin match !thn_type with
+                            | Ok thn_t ->
+                                if thn_t <> els_t
+                                then Error "types of ternary branches do not match"
+                                else Result.bind !after
+                                  (fun after -> Ok (Target.Assign (tmp, els, after)))
+                            | Error _ -> Error "failure compiling then branch"
+                            end
+                        | _ -> Error "expected expression")
+                    in match thn_stmt, els_stmt with
+                    | Ok thn, Ok els -> Ok (thn, els)
+                    | Error err, _ -> Error err
+                    | _, Error err -> Error err)
             | _ -> Error "expected expression")
     | CondProvidedExp (var, thn, els) ->
         begin match is_mod with
@@ -866,45 +878,70 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                 in let tmp = temp_name ()
                 in update_module_var false_mod_info input false_locals
                   (fun false_locals ->
-                    process_expr thn env tys true_locals
-                      (Some (mod_env, input))
-                      (fun (thn_e, thn_t) ->
-                        process_expr els env tys false_locals
-                          (Some (false_mod_env, input))
-                          (fun (els_e, els_t) ->
-                            if thn_t <> els_t
-                            then Error "types of ternary branches do not match"
-                            else
-                              Result.bind (k (JustExpr (Variable tmp, thn_t)))
-                              (fun after ->
-                                 Ok (Target.Match (
-                                  Function (ReadField (input, var),
-                                            Variable "#input"),
-                                  fresh_nm,
-                                  (* Not provided, the else case *)
-                                  Assign (tmp, els_e, after),
-                                  Assign (tmp, thn_e, after)))))))
+                    Result.map
+                      (fun (thn, els) -> Target.Match 
+                        (Function (ReadField (input, var), Variable "#input"),
+                        fresh_nm, els, thn))
+                    (let thn_type = ref (Error "failure compiling then branch")
+                    in let after = ref (Error "failure compiling then branch")
+                    in let thn_stmt =
+                      process_expr thn env tys true_locals
+                        (Some (mod_env, input))
+                        (fun (thn, thn_t) ->
+                          thn_type := Ok thn_t
+                          ; after := k (JustExpr (Variable tmp, thn_t))
+                          ; Result.bind !after
+                            (fun after -> Ok (Target.Assign (tmp, thn, after))))
+                    in let els_stmt =
+                      process_expr els env tys false_locals 
+                        (Some (false_mod_env, input))
+                        (fun (els, els_t) ->
+                          match !thn_type with
+                          | Ok thn_t ->
+                              if thn_t <> els_t
+                              then Error "types of ternary branches do not match"
+                              else Result.bind !after
+                                (fun after -> Ok (Target.Assign (tmp, els, after)))
+                          | Error _ -> Error "failure compiling then branch")
+                    in match thn_stmt, els_stmt with
+                    | Ok thn, Ok els -> Ok (thn, els)
+                    | Error err, _ -> Error err
+                    | _, Error err -> Error err))
         end
     | CondExistsExp (q, thn, els) ->
         process_expr_as_elem q env tys locals is_mod
           (fun elem ->
             let tmp = temp_name ()
-            in process thn (fun thn ->
-                process els (fun els ->
+            in Result.map
+              (fun (thn, els) -> Target.Contains (elem, thn, els))
+              (let thn_type = ref (Error "failure compiling then branch")
+              in let after = ref (Error "failure compiling then branch")
+              in let thn_stmt =
+                process thn (fun thn ->
                   match thn with
                   | JustExpr (thn, thn_t) | ExprOrAttr ((thn, thn_t), _) ->
-                      (match els with
-                      | JustExpr (els, els_t) | ExprOrAttr ((els, els_t), _) ->
+                      thn_type := Ok thn_t
+                      ; after := k (JustExpr (Variable tmp, thn_t))
+                      ; Result.bind !after 
+                        (fun after -> Ok (Target.Assign (tmp, thn, after)))
+                  | _ -> Error "expected expression")
+              in let els_stmt =
+                process els (fun els ->
+                  match els with
+                  | JustExpr (els, els_t) | ExprOrAttr ((els, els_t), _) ->
+                      begin match !thn_type with
+                      | Ok thn_t ->
                           if thn_t <> els_t
                           then Error "types of ternary branches do not match"
-                          else Result.bind
-                            (k (JustExpr (Variable tmp, thn_t)))
-                            (fun after ->
-                              Ok (Target.Contains (elem,
-                                      Assign (tmp, thn, after),
-                                      Assign (tmp, els, after))))
-                      | _ -> Error "expected expression")
-                  | _ -> Error "expected expression")))
+                          else Result.bind !after
+                            (fun after -> Ok (Target.Assign (tmp, els, after)))
+                      | Error _ -> Error "failure compiling then branch"
+                      end
+                  | _ -> Error "expected expression")
+              in match thn_stmt, els_stmt with
+              | Ok thn, Ok els -> Ok (thn, els)
+              | Error err, _ -> Error err
+              | _, Error err -> Error err))
   in process e
     (fun e ->
       match e with
