@@ -1,0 +1,27 @@
+struct fetch_result { failed: bool }
+
+module ansible.builtin.fetch -> fetch_result {
+  (dest: path) (src: path)
+  (flat: bool = false)
+
+  if exists fs(src, file_system::remote) {
+    match fs(src, file_system::remote).fs_type {
+      file_type::file(c) => {
+        if !flat {
+          fs(conspath(dest, conspath(path_of_string(env().hostname), src)),
+            file_system::local).fs_type = file_type::file(c);
+        } else {
+          if ends_with_dir(dest) {
+            fs(conspath(dest, base_name(src)), file_system::local)
+              .fs_type = file_type::file(c);
+          } else {
+            fs(dest, file_system::local).fs_type = file_type::file(c);
+          }
+        }
+        return fetch_result { failed: false };
+      }
+    }
+  }
+
+  return fetch_result { failed: true };
+}

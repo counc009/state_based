@@ -12,5 +12,13 @@ element fs(path, file_system)
 attribute fs_type(file_type)
 attribute owner(string)
 
+# TODO: Implemented
 uninterpreted pathfrom(path, path) -> path
+# TODO: Implemented
 uninterpreted conspath(path, path) -> path
+# TODO: Implemented
+uninterpreted path_of_string(string) -> path
+# TODO: Implemented
+uninterpreted ends_with_dir(path) -> bool
+# TODO: Implemented
+uninterpreted base_name(path) -> path
