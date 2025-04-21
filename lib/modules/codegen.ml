@@ -5,6 +5,7 @@ type 'a list2 = 'a Target.list2
 module IntMap    = Map.Make(Int)
 module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
+module TargetAst = Target
 module Target = Target.Ast_Target
 
 module UniqueMap = struct
@@ -670,7 +671,34 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                                   (nm, arg_typ, ret_ty, body), e, res)))
                     | _ -> Error "expected expression")
             | Some _ -> Error "expected function"
-            | None -> Error ("undefined name " ^ nm)
+            | None ->
+                Result.bind
+                  (match nm with
+                  | "cons_path" ->
+                      let (arg_ty, res_ty, _) = Target.funcDef ConsPath
+                      in Ok (arg_ty, res_ty, TargetAst.ConsPath)
+                  | "path_of_string" ->
+                      let (arg_ty, res_ty, _) = Target.funcDef PathOfString
+                      in Ok (arg_ty, res_ty, TargetAst.PathOfString)
+                  | "ends_with_dir" ->
+                      let (arg_ty, res_ty, _) = Target.funcDef EndsWithDir
+                      in Ok (arg_ty, res_ty, TargetAst.EndsWithDir)
+                  | "base_name" ->
+                      let (arg_ty, res_ty, _) = Target.funcDef BaseName
+                      in Ok (arg_ty, res_ty, TargetAst.BaseName)
+                  | "path_from" ->
+                      let (arg_ty, res_ty, _) = Target.funcDef PathFrom
+                      in Ok (arg_ty, res_ty, TargetAst.PathFrom)
+                  | _ -> Error ("undefined name " ^ nm))
+                  (fun (arg_typ, ret_typ, func) ->
+                    process (ProductExp args)
+                      (fun a ->
+                        match a with
+                        | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
+                            if t <> arg_typ
+                            then Error ("incorrect type for function " ^ nm)
+                            else k (JustExpr ( Function (func, e), ret_typ))
+                        | _ -> Error "expected expression"))
             end
         | Field (qual, nm) ->
             begin match UniqueMap.find nm env with
