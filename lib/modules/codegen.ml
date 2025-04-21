@@ -93,6 +93,22 @@ type local_env = local_entry StringMap.t
 let empty_local_env : local_env = StringMap.empty
 let empty_mod_env : mod_env = IntMap.empty
 
+(* process_type (unlike create_type) fails if a named type is not defined *)
+let rec process_type (t : Ast.typ) env : typ =
+  match t with
+  | Bool -> Bool
+  | Int -> Int
+  | Float -> Float
+  | String -> String
+  | Path -> Path
+  | Unit -> Unit
+  | Product ts -> Product (List.map (fun t -> process_type t env) ts)
+  | List t -> List (process_type t env)
+  | Named nm ->
+      match UniqueMap.find nm env with
+      | Some t -> t
+      | None -> failwith (Printf.sprintf "undefined type %s" nm)
+
 let rec extract_enum (t : typ) : (int * typ list) StringMap.t =
   match t with
   | Enum (_, res) -> res
@@ -103,11 +119,28 @@ let rec extract_enum (t : typ) : (int * typ list) StringMap.t =
   | Placeholder { contents  = Some t } -> extract_enum t
   | _ -> failwith "Not an enum type"
 
-let lookup_enum (tys : type_env) (nm : string)
+let lookup_enum (tys : type_env) (nm : string) (ty_arg: Ast.typ option)
   : (int * typ list) StringMap.t =
-    match UniqueMap.find nm tys with
-    | None -> failwith "Undefined type"
-    | Some t -> extract_enum t
+  match ty_arg with
+  | None ->
+      (* An enum defined in the environment *)
+      begin match UniqueMap.find nm tys with
+      | None -> failwith "Undefined type"
+      | Some t -> extract_enum t
+      end
+  | Some t ->
+      (* Either a list::<t> or option::<t> *)
+      let t = process_type t tys
+      in match nm with
+      | "list" ->
+          StringMap.add "nil" (0, [])
+            (StringMap.add "cons" (1, [t; List t])
+              StringMap.empty)
+      | "option" ->
+          StringMap.add "nothing" (0, [])
+            (StringMap.add "some" (1, [t])
+              StringMap.empty)
+      | _ -> failwith "undefined type constructor"
 
 let rec add_modules (nm : string list) (t : env_entry) env : unit =
   match nm with
@@ -149,22 +182,6 @@ let option_some (e : Target.expr) (t : Target.typ) : Target.expr =
 
 let option_none (t : Target.typ) : Target.expr =
   Function (Constructor (true, Option t), Literal (Unit ()))
-
-(* process_type (unlike create_type) fails if a named type is not defined *)
-let rec process_type (t : Ast.typ) env : typ =
-  match t with
-  | Bool -> Bool
-  | Int -> Int
-  | Float -> Float
-  | String -> String
-  | Path -> Path
-  | Unit -> Unit
-  | Product ts -> Product (List.map (fun t -> process_type t env) ts)
-  | List t -> List (process_type t env)
-  | Named nm ->
-      match UniqueMap.find nm env with
-      | Some t -> t
-      | None -> failwith (Printf.sprintf "undefined type %s" nm)
 
 let process_type_option (t : Ast.typ option) env : typ =
   match t with
@@ -1452,14 +1469,15 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
       | [] ->
           process_expr e env tys locals is_mod
             (fun _ -> process_stmt tl env tys locals is_mod k)
-      | ((type_name, _, _), _) :: _ ->
+      | ((type_name, type_arg, _, _), _) :: _ ->
           let after = process_stmt tl env tys locals is_mod k
-          in let constructors = lookup_enum tys type_name
+          in let constructors = lookup_enum tys type_name type_arg
           in let cases
             = Array.make (StringMap.cardinal constructors) (Default after)
           in List.iter
-              (fun ((typ, cons, vars), body) ->
-                if typ <> type_name then failwith "Mismatched match cases"
+              (fun ((typ, ty_arg, cons, vars), body) ->
+                if typ <> type_name || ty_arg <> type_arg
+                then failwith "Mismatched match cases"
                 else let (pos, args) = StringMap.find cons constructors
                 in match cases.(pos) with
                    | Default _ ->
