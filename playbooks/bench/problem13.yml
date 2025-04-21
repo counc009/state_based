@@ -1,0 +1,8 @@
+---
+- name: Create the file /etc/file.txt with contents "beginning" if it does not already exist
+  tasks:
+  - name: Create the file if it does not exist
+    ansible.builtin.copy:
+      content: "beginning"
+      dest: /etc/file.txt
+      force: false
