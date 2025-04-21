@@ -28,7 +28,17 @@ module ansible.builtin.file -> file_result {
 
   match state {
     file_state::absent => {
-      clear fs(path, file_system::remote);
+      if exists fs(path, file_system::remote) {
+        match fs(path, file_system::remote).fs_type {
+          file_type::directory(files) => {
+            for p in files {
+              clear fs(p, file_system::remote);
+            }
+          }
+        }
+
+        clear fs(path, file_system::remote);
+      }
       result.path = path;
     }
     file_state::directory => {
