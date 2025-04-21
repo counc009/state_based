@@ -1,0 +1,30 @@
+struct git_result { failed: bool }
+
+uninterpreted git_files(string, string, string) -> list path
+uninterpreted git_content(string, string, string, path) -> string
+
+module ansible.builtin.git -> git_result {
+  (dest: path)
+  (repo: string)
+  (remote: string = "origin")
+  (version: string = "HEAD")
+
+  if exists fs(dest, file_system::remote) {
+    match fs(dest, file_system::remote).fs_type {
+      file_type::directory(files) => {
+        match files {
+          list::<path>::nil => {
+            let files = git_files(repo, version, remote);
+            fs(dest, file_system::remote).fs_type = file_type::directory(files);
+            for p in files {
+              fs(p, file_system::remote).fs_type = file_type::file(git_content(repo, version, remote, p));
+            }
+            return git_result { failed: false };
+          }
+        }
+      }
+    }
+  }
+
+  return git_result { failed: true };
+}
