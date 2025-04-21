@@ -37,6 +37,7 @@ struct copy_result { failed : bool }
 module ansible.builtin.copy -> copy_result {
   (dest: path) (src: path | content: string)
   [group: string] [owner: string]
+  (force: bool = true)
 
   if provided src {
     [remote_src : bool = false]
@@ -51,18 +52,29 @@ module ansible.builtin.copy -> copy_result {
                 : env().is_root  ? fs(src, loc).owner
                                  : env().user;
 
-      if copy(dest, src, loc, group, owner) {
-        return copy_result { failed: false };
+      let do_copy = exists fs(dest, file_system::remote) ? force : true;
+      if do_copy {
+        if copy(dest, src, loc, group, owner) {
+          return copy_result { failed: false };
+        } else {
+          return copy_result { failed: true };
+        }
       } else {
-        return copy_result { failed: true };
+        return copy_result { failed: false };
       }
     } else {
       return copy_result { failed: true };
     }
   } else {
-    fs(dest, file_system::remote).fs_type = file_type::file(content);
-    fs(dest, file_system::remote).group = provided group ? group : env().group;
-    fs(dest, file_system::remote).owner = provided owner ? owner : env().user;
+    let do_copy = exists fs(dest, file_system::remote) ? force : true;
+    if do_copy {
+      # NOTE: The docs are unclear whether the group/owner and updated if we
+      # don't perform the copy, need to figure that out
+      fs(dest, file_system::remote).fs_type = file_type::file(content);
+      fs(dest, file_system::remote).group = provided group ? group : env().group;
+      fs(dest, file_system::remote).owner = provided owner ? owner : env().user;
+    }
+
     return copy_result { failed: false };
   }
 }
