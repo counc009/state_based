@@ -1,0 +1,9 @@
+---
+- name: Permanently set the environment variable LC_ALL to "C" system-wide
+  tasks:
+  - name: Set variable LC_ALL to C
+    ansible.builtin.lineinfile:
+      path: /etc/environment
+      state: present
+      regexp: '^LC_ALL'
+      line: "LC_ALL=C"

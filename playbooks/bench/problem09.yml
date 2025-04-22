@@ -1,0 +1,7 @@
+---
+- name: Add the line 'module load gcc' to the end of foo's bashrc
+  tasks:
+  - name: Update bashrc for foo user
+    ansible.builtin.lineinfile:
+      path: /home/foo/.bashrc
+      line: "module load gcc"
