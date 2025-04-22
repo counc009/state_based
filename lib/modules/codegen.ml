@@ -1473,6 +1473,7 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
               cs
           ; process_expr e env tys locals is_mod
             (fun (e, _) ->
+              (* FIXME: Check that the type is correct based on the patterns *)
               Result.bind (array_foldr1 (Array.map of_processed cases)
                 (fun l r -> Result.bind l
                   (fun l -> Result.bind r
