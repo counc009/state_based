@@ -528,7 +528,7 @@ let stmt =
             [ (whitespace1 *> string "if" *> whitespace1
                 *> ((string "provided" *> whitespace1 *> identifier
                       >>| fun nm -> Provided nm)
-                <|> (string "exists" *> whitespace1 *> expr
+                <|> (string "exists" *> whitespace1 *> cond_expr
                       >>| fun ex -> Exists ex)
                 <|> (cond_expr >>| fun ex -> Condition ex))
               >>= fun cond ->
@@ -548,7 +548,7 @@ let stmt =
       *> whitespace1
       *> ((string "provided" *> whitespace1 *> identifier
             >>| fun nm -> Provided nm)
-          <|> (string "exists" *> whitespace1 *> expr
+          <|> (string "exists" *> whitespace1 *> cond_expr
             >>| fun ex -> Exists ex)
           <|> (cond_expr >>| fun ex -> Condition ex))
       >>= fun cond ->
