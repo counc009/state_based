@@ -864,7 +864,32 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                 | _ -> Error "TODO: support unary -"
                 end
             | _ -> Error "expected expression")
-    | BinaryExp (_, _, _) -> Error "TODO: support binary ops"
+    | BinaryExp (lhs, rhs, op) ->
+        process lhs
+          (fun lhs ->
+            match lhs with
+            | JustExpr (lhs, lhs_t) | ExprOrAttr ((lhs, lhs_t), _) ->
+                process rhs
+                  (fun rhs ->
+                    match rhs with
+                    | JustExpr (rhs, rhs_t) | ExprOrAttr ((rhs, rhs_t), _) ->
+                        let op_info =
+                          match op with
+                          | Concat ->
+                              if lhs_t = Target.Primitive String
+                              && rhs_t = Target.Primitive String
+                              then Ok (Target.Primitive String, TargetAst.Concat)
+                              else Error "Incorrect type for concat"
+                          | Eq ->
+                              if lhs_t = rhs_t
+                              then Ok (Target.Primitive Bool, TargetAst.Equal lhs_t)
+                              else Error "Incompatible types for equality"
+                          | _ -> Error "TODO: support binary ops"
+                        in Result.bind op_info
+                        (fun (ret_typ, func) ->
+                          k (JustExpr (Function (func, Pair (lhs, rhs)), ret_typ)))
+                    | _ -> Error "expected expression")
+            | _ -> Error "expected expression")
     | CondExp (cond, thn, els) ->
         process cond
           (fun e ->
