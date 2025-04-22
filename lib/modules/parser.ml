@@ -55,6 +55,7 @@ let typ =
       ; (string "string" >>| fun _ -> String)
       ; (string "path"   >>| fun _ -> Path)
       ; (string "list" *> whitespace1 *> t >>| fun t -> List t)
+      ; (string "option" *> whitespace1 *> t >>| fun t -> Option t)
       ; (identifier >>| fun nm -> Named nm)
       ; (parens (sep_by (whitespace *> char ',' *> whitespace) t)
         >>| function
@@ -144,7 +145,7 @@ let expr =
       identifier <* whitespace <* char ':' <* whitespace
       >>= fun field -> expr >>| fun exp -> (field, exp)
     in let fields =
-      sep_by (whitespace *> char ',' *> whitespace) field_expr
+      sep_by_d (whitespace *> char ',' *> whitespace) field_expr
 
     in let exprA =
       choice
@@ -501,19 +502,23 @@ let mod_arg =
 let mod_args =
   sep_by (whitespace *> char '|' *> whitespace) mod_arg
 
-(* A (match) pattern has form <enum-name>::<case-name>[(<var-names>)] *)
+(* A (match) pattern has form <enum-name>[::<type>]::<case-name>[(<var-names>)] *)
 let pattern =
   identifier
   >>= fun enum ->
   whitespace
   *> string "::"
   *> whitespace
-  *> identifier
+  *> (option None
+    (char '<' *> whitespace *> typ <* whitespace <* char '>'
+      <* whitespace <* string "::" >>| fun t -> Some t))
+  >>= fun type_arg ->
+  identifier
   >>= fun nm ->
   option []
     (whitespace
       *> parens (sep_by (whitespace *> char ',' *> whitespace) identifier))
-  >>| fun vars -> (enum, nm, vars)
+  >>| fun vars -> (enum, type_arg, nm, vars)
 
 type condType = Provided of string | Exists of expr | Condition of expr
 

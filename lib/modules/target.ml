@@ -17,6 +17,12 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | AddField      of 't StringMap.t * string
                 | ReadField     of 't StringMap.t * string
                 | BoolNeg
+                (* Path operations *)
+                | ConsPath
+                | PathOfString
+                | EndsWithDir
+                | BaseName
+                | PathFrom
                 (* Name and input and output types *)
                 | Uninterpreted of string * 't * 't
 type ('v, 't) lit = Unit    of unit
@@ -143,6 +149,38 @@ module rec Ast_Target : Ast_Defs
         fun v -> match v with Literal (Bool b, _) 
                     -> Reduced (Literal (Bool (not b), Bool))
                  | _ -> Stuck)
+    | ConsPath -> (Product (Primitive Path, Primitive Path),
+                   Primitive Path,
+        fun v -> match v with
+          | Pair (Literal (Path p, _), Literal (Path q, _), _)
+            -> Reduced (Literal (Path (p ^ "/" ^ q), Path))
+          | _ -> Stuck)
+    | PathOfString -> (Primitive String, Primitive Path,
+        fun v -> match v with
+          | Literal (String s, _) -> Reduced (Literal (Path s, Path))
+          | _ -> Stuck)
+    | EndsWithDir -> (Primitive Path, Primitive Bool,
+        fun v -> match v with
+          | Literal (Path p, _)
+            -> let lastChar = String.sub p (String.length p - 1) 1 
+               in let res = lastChar = "/"
+               in Reduced (Literal (Bool res, Bool))
+          | _ -> Stuck)
+    | BaseName -> (Primitive Path, Primitive Path,
+        fun v -> match v with
+          | Literal (Path p, _)
+            -> Reduced (Literal (Path (Filename.basename p), Path))
+          | _ -> Stuck)
+    | PathFrom -> (Product (Primitive Path, Primitive Path),
+                   Primitive Path,
+        fun v -> match v with
+          | Pair (Literal (Path base, _), Literal (Path full, _), _)
+            -> if String.sub full 0 (String.length base) = base
+               then
+                 let res = String.sub full (String.length base) (String.length full - String.length base)
+                 in Reduced (Literal (Path res, Path))
+               else Err "The base path in path_from must be the base of the full path"
+          | _ -> Stuck)
     (* Uninterpreted functions never reduce *)
     | Uninterpreted (_, in_typ, out_typ) ->
         (in_typ, out_typ, fun _ -> Stuck)
@@ -233,6 +271,11 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | AddField (_, field)       -> "add#" ^ field
         | ReadField (_, field)      -> "get#" ^ field
         | BoolNeg                   -> "not"
+        | ConsPath                  -> "cons_path"
+        | PathOfString              -> "path_of_string"
+        | EndsWithDir               -> "ends_with_dir"
+        | BaseName                  -> "base_name"
+        | PathFrom                  -> "path_from"
         | Uninterpreted (nm, _, _)  -> nm
       in string_f ^ "(" ^ string_of_expr e ^ ")"
 
@@ -340,6 +383,12 @@ let rec value_to_string (v : Ast_Target.value) : string =
       match f with
       | Proj (true, _, _)         -> "proj1(" ^ value_to_string arg ^ ")"
       | Proj (false, _, _)        -> "proj2(" ^ value_to_string arg ^ ")"
+      | BoolNeg                   -> "not(" ^ value_to_string arg ^ ")"
+      | ConsPath                  -> "cons_path(" ^ value_to_string arg ^ ")"
+      | PathOfString              -> "path_of_string(" ^ value_to_string arg ^ ")"
+      | EndsWithDir               -> "ends_with_dir(" ^ value_to_string arg ^ ")"
+      | BaseName                  -> "base_name(" ^ value_to_string arg ^ ")"
+      | PathFrom                  -> "path_from(" ^ value_to_string arg ^ ")"
       | Uninterpreted (nm, _, _)  -> nm ^ "(" ^ value_to_string arg ^ ")"
       | _ -> "%%FUNCTION%%(" ^ value_to_string arg ^ ")"
 and string_of_list_val (v : Ast_Target.value) : string =

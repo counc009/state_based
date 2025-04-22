@@ -1,5 +1,5 @@
 type typ = Bool | Int | Float | String | Path | Named of string | Unit
-         | Product of typ list | List of typ
+         | Product of typ list | List of typ | Option of typ
 
 type unary = Not | Neg
 type binary = Or | And | Eq | Ne | Lt | Le | Gt | Ge | LShift | RShift
@@ -22,8 +22,8 @@ type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
           | CondProvidedExp of string * expr * expr
           | CondExistsExp of expr * expr * expr
 
-(* Patterns are just of the form <enum-name>::<constructor-name>[(<var-names>)] *)
-type pattern = string * string * string list
+(* Patterns are just of the form <enum-name>[::<type>]::<constructor-name>[(<var-names>)] *)
+type pattern = string * typ option * string * string list
 
 (* For VarDecls, the bool indicates whether the variables are required or not *)
 type stmt = VarDecls     of bool * (string * string list * typ * expr option) list

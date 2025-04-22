@@ -1,0 +1,82 @@
+struct get_url_result { failed: bool, dest: path, group: string, owner: string,
+                        url: path }
+
+uninterpreted download_url(path, option (string, string)) -> string
+uninterpreted provided_filename_url(path, option (string, string)) -> option path
+uninterpreted validate_certificate(path) -> bool
+
+module ansible.builtin.get_url -> get_url_result {
+  (dest: path) (url: path)
+
+  (force: bool = false) (validate_certs: bool = true)
+
+  if validate_certs {
+    if !validate_certificate(url) {
+      return get_url_result { failed: true };
+    }
+  }
+
+  [group: string] [owner: string]
+
+  let login = option::<(string, string)>::nothing;
+  [url_username aka username: string]
+  if provided url_username {
+    [url_password aka password: string]
+    if provided url_password {
+      login = option::<(string, string)>::some((url_username, url_password));
+    } else {
+      login = option::<(string, string)>::some((url_username, ""));
+    }
+  }
+
+  let result = get_url_result { failed: false, url: url };
+
+  if ends_with_dir(dest) {
+    let name = '';
+    match provided_filename_url(url, login) {
+      option::<path>::some(filename) => { name = filename; }
+      option::<path>::nothing => { name = base_name(url); }
+    }
+    
+    let dst = cons_path(dest, name);
+    result.dest = dst;
+    
+    if !force {
+      if exists fs(dst, file_system::remote) {
+        // File already exists, do nothing
+        return result;
+      } else {
+        fs(dst, file_system::remote).fs_type
+          = file_type::file(download_url(url, login));
+        if provided group { fs(dst, file_system::remote).group = group; result.group = group; }
+        if provided owner { fs(dst, file_system::remote).owner = owner; result.owner = owner; }
+      }
+    } else {
+      fs(dst, file_system::remote).fs_type
+        = file_type::file(download_url(url, login));
+      if provided group { fs(dst, file_system::remote).group = group; result.group = group; }
+      if provided owner { fs(dst, file_system::remote).owner = owner; result.owner = owner; }
+    }
+  } else {
+    result.dest = dest;
+
+    if !force {
+      if exists fs(dest, file_system::remote) {
+        // File already exists, do nothing
+        return result;
+      } else {
+        fs(dest, file_system::remote).fs_type
+          = file_type::file(download_url(url, login));
+        if provided group { fs(dest, file_system::remote).group = group; result.group = group; }
+        if provided owner { fs(dest, file_system::remote).owner = owner; result.owner = owner; }
+      }
+    } else {
+      fs(dest, file_system::remote).fs_type
+        = file_type::file(download_url(url, login));
+      if provided group { fs(dest, file_system::remote).group = group; result.group = group; }
+      if provided owner { fs(dest, file_system::remote).owner = owner; result.owner = owner; }
+    }
+  }
+
+  return result;
+}

@@ -1,0 +1,8 @@
+---
+- name: Fetch file from remote
+  tasks:
+  - name: Fetch from remote
+    ansible.builtin.fetch:
+      src: /path/to/file
+      dest: /backup/
+      flat: true
