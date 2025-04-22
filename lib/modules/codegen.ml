@@ -440,6 +440,16 @@ type expr_result = JustExpr of Target.expr * Target.typ
                  | ExprOrAttr of (Target.expr * Target.typ) 
                                * (Target.attr -> Target.attr)
 
+let as_expr (e : expr_result) : (Target.expr * Target.typ, string) result =
+  match e with
+  | JustExpr (e, t) | ExprOrAttr ((e, t), _) -> Ok (e, t)
+  | _ -> Error "expected expression"
+
+let as_qual (e: expr_result) : (Target.attr -> Target.attr, string) result =
+  match e with
+  | JustAttr q | ExprOrAttr (_, q) -> Ok q
+  | _ -> Error "expected element"
+
 (* Generation of unique temporary names *)
 let tmp_counter : int ref = ref 0
 
@@ -532,15 +542,13 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
         | e :: es -> 
             process e
               (fun e ->
-                match e with
-                | JustExpr (e, t) | ExprOrAttr ((e, t), _)
-                -> process (ProductExp es)
-                  (fun es ->
-                    match es with
-                    | JustExpr (es, ts) | ExprOrAttr ((es, ts), _)
-                    -> k (JustExpr (Pair (e, es), Product (t, ts)))
-                    | _ -> Error "expected expression")
-                | _ -> Error "expected expression")
+                Result.bind (as_expr e)
+                (fun (e, t) ->
+                  process (ProductExp es)
+                    (fun es ->
+                      Result.bind (as_expr es)
+                      (fun (es, ts) ->
+                        k (JustExpr (Pair (e, es), Product (t, ts)))))))
         end
     | RecordExp (nm, fields) ->
         begin match nm with
@@ -559,15 +567,14 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                       else
                         process expr
                           (fun field_expr ->
-                            match field_expr with
-                            | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
-                                if t <> StringMap.find field target_struct
-                                then Error ("incorrect type for field " ^ field)
-                                else
+                            Result.bind (as_expr field_expr)
+                            (fun (e, t) ->
+                              if t <> StringMap.find field target_struct
+                              then Error ("incorrect type for field " ^ field)
+                              else
                                   k (Function
                                       (AddField (target_struct, field),
-                                       Pair (record, e)))
-                            | _ -> Error "expected expression"))
+                                       Pair (record, e))))))
                     (fun e -> k (JustExpr (e, Struct target_struct)))
                     fields
                 in filled_struct init_struct
@@ -578,52 +585,45 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
     | FieldSetExp (record, field, expr) ->
         process record
           (fun r ->
-            match r with
-            | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
-                begin match t with
-                | Struct fields ->
-                    begin match StringMap.find_opt field fields with
-                    | Some ty ->
-                        process expr
-                          (fun a ->
-                            match a with
-                            | JustExpr (f, t) | ExprOrAttr ((f, t), _) ->
-                                if t <> ty
-                                then Error ("incorrect type for field " ^ field)
-                                else 
-                                  k (JustExpr
-                                    (Function
-                                      (AddField (fields, field),
-                                       Pair (e, f)),
-                                     Struct fields))
-                            | _ -> Error "expected expression")
-                    | None -> Error ("type does not have field " ^ field)
-                    end
-                | _ -> Error "type has no fields"
-                end
-            | _ -> Error "expected expression")
+            Result.bind (as_expr r)
+            (fun (e, t) ->
+              match t with
+              | Struct fields ->
+                  begin match StringMap.find_opt field fields with
+                  | Some ty ->
+                      process expr
+                        (fun a ->
+                          Result.bind (as_expr a)
+                          (fun (f, t) ->
+                            if t <> ty
+                            then Error ("incorrect type for field " ^ field)
+                            else 
+                              k (JustExpr
+                                (Function
+                                  (AddField (fields, field),
+                                   Pair (e, f)),
+                                 Struct fields))))
+                  | None -> Error ("type does not have field " ^ field)
+                  end
+              | _ -> Error "type has no fields"))
     | EnumExp (enum, type_arg, constr, args) ->
         begin match enum with
         | Id enum ->
             begin match get_enum_info tys enum type_arg constr with
             | Either.Left (enum, idx, typ) ->
                 process (ProductExp args)
-                  (fun a ->
-                    match a with
-                    | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
-                        if t <> typ
-                        then Error ("incorrect type for constructor " ^ constr)
-                        else
-                          k (JustExpr (construct_enum enum idx e, Named enum))
-                    | _ -> Error "expected expression")
-            | Either.Right typ -> process (ProductExp args)
-                (fun a ->
-                  match a with
-                  | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
+                  (fun a -> Result.bind (as_expr a)
+                    (fun (e, t) ->
                       if t <> typ
                       then Error ("incorrect type for constructor " ^ constr)
-                      else k (JustExpr (e, t))
-                  | _ -> Error "expected expression")
+                      else
+                        k (JustExpr (construct_enum enum idx e, Named enum))))
+            | Either.Right typ -> process (ProductExp args)
+                (fun a -> Result.bind (as_expr a)
+                  (fun (e, t) ->
+                    if t <> typ
+                    then Error ("incorrect type for constructor " ^ constr)
+                    else k (JustExpr (e, t))))
             end
         | _ -> Error "expected enum name"
         end
@@ -634,45 +634,39 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
             | Some (Element (nm, tys)) ->
                 let elem = (nm, target_type tys)
                 in process (ProductExp args)
-                  (fun a ->
-                    match a with
-                    | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
-                        if t <> snd elem
-                        then Error ("incorrect type for element " ^ nm)
-                        else 
-                          k (JustAttr (fun attr -> OnElement (elem, e, attr)))
-                    | _ -> Error "expected expression")
+                  (fun a -> Result.bind (as_expr a)
+                    (fun (e, t) ->
+                      if t <> snd elem
+                      then Error ("incorrect type for element " ^ nm)
+                      else 
+                        k (JustAttr (fun attr -> OnElement (elem, e, attr)))))
             | Some (Uninterpreted (nm, in_tys, out_typ)) ->
                 let in_ty = target_type (Product in_tys)
                 and out_ty = target_type out_typ
                 in process (ProductExp args)
-                  (fun a ->
-                    match a with
-                    | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
-                        if t <> in_ty
-                        then Error ("incorrect type for uninterpreted function " ^ nm)
-                        else 
-                          k (JustExpr (
-                              Function (Uninterpreted (nm, in_ty, out_ty), e),
-                              out_ty))
-                    | _ -> Error "expected expression")
+                  (fun a -> Result.bind (as_expr a)
+                    (fun (e, t) ->
+                      if t <> in_ty
+                      then Error ("incorrect type for uninterpreted function " ^ nm)
+                      else 
+                        k (JustExpr (
+                            Function (Uninterpreted (nm, in_ty, out_ty), e),
+                            out_ty))))
             | Some (Function (nm, arg_typ, ret_typ, body)) ->
                 (* Function calls are translated into statements because
                  * functions actually become actions in the calculus *)
                 let ret_ty = target_type ret_typ
                 and tmp = temp_name ()
                 in process (ProductExp args)
-                  (fun a ->
-                    match a with
-                    | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
-                        if t <> arg_typ
-                        then Error ("incorrect type for function " ^ nm)
-                        else
-                          Result.bind (k (JustExpr (Variable tmp, ret_ty)))
-                          (fun res ->
-                           Ok (Target.Action (tmp, 
-                                  (nm, arg_typ, ret_ty, body), e, res)))
-                    | _ -> Error "expected expression")
+                  (fun a -> Result.bind (as_expr a)
+                    (fun (e, t) ->
+                      if t <> arg_typ
+                      then Error ("incorrect type for function " ^ nm)
+                      else
+                        Result.bind (k (JustExpr (Variable tmp, ret_ty)))
+                        (fun res ->
+                         Ok (Target.Action (tmp, 
+                                (nm, arg_typ, ret_ty, body), e, res)))))
             | Some _ -> Error "expected function"
             | None ->
                 Result.bind
@@ -695,33 +689,26 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                   | _ -> Error ("undefined name " ^ nm))
                   (fun (arg_typ, ret_typ, func) ->
                     process (ProductExp args)
-                      (fun a ->
-                        match a with
-                        | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
-                            if t <> arg_typ
-                            then Error ("incorrect type for function " ^ nm)
-                            else k (JustExpr ( Function (func, e), ret_typ))
-                        | _ -> Error "expected expression"))
+                      (fun a -> Result.bind (as_expr a)
+                        (fun (e, t) ->
+                          if t <> arg_typ
+                          then Error ("incorrect type for function " ^ nm)
+                          else k (JustExpr ( Function (func, e), ret_typ)))))
             end
         | Field (qual, nm) ->
             begin match UniqueMap.find nm env with
             | Some (Element (nm, tys)) ->
                 let elem = (nm, target_type tys)
                 in process qual
-                  (fun q ->
-                    match q with
-                    | JustAttr qual | ExprOrAttr (_, qual)
-                    -> process (ProductExp args)
-                    (fun a ->
-                      match a with
-                      | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
-                          if t <> snd elem
-                          then Error "incorrect type on element"
-                          else 
-                            k (JustAttr (fun attr 
-                              -> qual (OnElement (elem, e, attr))))
-                      | _ -> Error "expected expression")
-                    | JustExpr _ -> failwith "expected element")
+                  (fun q -> Result.bind (as_qual q)
+                    (fun qual ->
+                      process (ProductExp args)
+                        (fun a -> Result.bind (as_expr a)
+                          (fun (e, t) ->
+                            if t <> snd elem
+                            then Error "incorrect type on element"
+                            else k (JustAttr (fun attr
+                                  -> qual (OnElement (elem, e, attr))))))))
             | Some _ -> Error "expected element"
             | None -> Error "undefined name"
             end
@@ -760,17 +747,15 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                   match StringMap.find_opt field assigned_args with
                   | Some e ->
                       process e
-                      (fun field_expr ->
-                        match field_expr with
-                        | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
-                            if t <> ty
-                            then
-                              Error ("incorrect module argument type for " ^ field)
-                            else
-                              k (Function
-                                  (AddField (record_def, field),
-                                  Pair (record, option_some e ty)))
-                        | _ -> failwith "expected expression")
+                      (fun field_expr -> Result.bind (as_expr field_expr)
+                        (fun (e, t) ->
+                          if t <> ty
+                          then
+                            Error ("incorrect module argument type for " ^ field)
+                          else
+                            k (Function
+                                (AddField (record_def, field),
+                                Pair (record, option_some e ty)))))
                   | None ->
                       k (Function (AddField (record_def, field),
                                    Pair (record, option_none ty))))
@@ -846,91 +831,75 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                     | _ -> Error "does not have fields")
     | ProductField (lhs, idx) ->
         process lhs
-          (fun e ->
-            match e with
-            | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
-                let (res, res_ty) = construct_product_read e t idx
-                in k (JustExpr (res, res_ty))
-            | _ -> Error "expected expression")
+          (fun e -> Result.bind (as_expr e)
+            (fun (e, t) ->
+              let (res, res_ty) = construct_product_read e t idx
+              in k (JustExpr (res, res_ty))))
     | UnaryExp (e, op) ->
         process e
-          (fun e ->
-            match e with
-            | JustExpr (e, t) | ExprOrAttr ((e, t), _) ->
-                begin match op with
-                | Not ->
-                    if t <> Primitive Bool
-                    then Error "Incorrect type for negation"
-                    else k (JustExpr (Function (BoolNeg, e), Primitive Bool))
-                | _ -> Error "TODO: support unary -"
-                end
-            | _ -> Error "expected expression")
+          (fun e -> Result.bind (as_expr e)
+            (fun (e, t) ->
+              match op with
+              | Not ->
+                  if t <> Primitive Bool
+                  then Error "Incorrect type for negation"
+                  else k (JustExpr (Function (BoolNeg, e), Primitive Bool))
+              | _ -> Error "TODO: support unary -"))
     | BinaryExp (lhs, rhs, op) ->
         process lhs
-          (fun lhs ->
-            match lhs with
-            | JustExpr (lhs, lhs_t) | ExprOrAttr ((lhs, lhs_t), _) ->
-                process rhs
-                  (fun rhs ->
-                    match rhs with
-                    | JustExpr (rhs, rhs_t) | ExprOrAttr ((rhs, rhs_t), _) ->
-                        let op_info =
-                          match op with
-                          | Concat ->
-                              if lhs_t = Target.Primitive String
-                              && rhs_t = Target.Primitive String
-                              then Ok (Target.Primitive String, TargetAst.Concat)
-                              else Error "Incorrect type for concat"
-                          | Eq ->
-                              if lhs_t = rhs_t
-                              then Ok (Target.Primitive Bool, TargetAst.Equal lhs_t)
-                              else Error "Incompatible types for equality"
-                          | _ -> Error "TODO: support binary ops"
-                        in Result.bind op_info
-                        (fun (ret_typ, func) ->
-                          k (JustExpr (Function (func, Pair (lhs, rhs)), ret_typ)))
-                    | _ -> Error "expected expression")
-            | _ -> Error "expected expression")
+          (fun lhs -> Result.bind (as_expr lhs)
+            (fun (lhs, lhs_t) ->
+              process rhs
+                (fun rhs -> Result.bind (as_expr rhs)
+                  (fun (rhs, rhs_t) ->
+                    let op_info =
+                      match op with
+                      | Concat ->
+                          if lhs_t = Target.Primitive String
+                          && rhs_t = Target.Primitive String
+                          then Ok (Target.Primitive String, TargetAst.Concat)
+                          else Error "Incorrect type for concat"
+                      | Eq ->
+                          if lhs_t = rhs_t
+                          then Ok (Target.Primitive Bool, TargetAst.Equal lhs_t)
+                          else Error "Incompatible types for equality"
+                      | _ -> Error "TODO: support binary ops"
+                    in Result.bind op_info
+                    (fun (ret_typ, func) ->
+                      k (JustExpr (Function (func, Pair (lhs, rhs)), ret_typ)))))))
     | CondExp (cond, thn, els) ->
         process cond
-          (fun e ->
-            match e with
-            | JustExpr (c, t) | ExprOrAttr ((c, t), _) ->
-                if t <> Primitive Bool
-                then Error "non-boolean condition"
-                else
-                  let tmp = temp_name ()
-                  in Result.map
-                    (fun (thn, els) -> Target.Cond (c, thn, els))
-                    (let thn_type = ref (Error "failure compiling then branch")
-                    in let after = ref (Error "failure compiling then branch")
-                    in let thn_stmt =
-                      process thn (fun thn ->
-                        match thn with
-                        | JustExpr (thn, thn_t) | ExprOrAttr ((thn, thn_t), _) ->
-                            thn_type := Ok thn_t
-                            ; after := k (JustExpr (Variable tmp, thn_t))
-                            ; Result.bind !after
-                              (fun after -> Ok (Target.Assign (tmp, thn, after)))
-                        | _ -> Error "expected expression")
-                    in let els_stmt =
-                      process els (fun els ->
-                        match els with
-                        | JustExpr (els, els_t) | ExprOrAttr ((els, els_t), _) ->
-                            begin match !thn_type with
-                            | Ok thn_t ->
-                                if thn_t <> els_t
-                                then Error "types of ternary branches do not match"
-                                else Result.bind !after
-                                  (fun after -> Ok (Target.Assign (tmp, els, after)))
-                            | Error _ -> Error "failure compiling then branch"
-                            end
-                        | _ -> Error "expected expression")
-                    in match thn_stmt, els_stmt with
-                    | Ok thn, Ok els -> Ok (thn, els)
-                    | Error err, _ -> Error err
-                    | _, Error err -> Error err)
-            | _ -> Error "expected expression")
+          (fun e -> Result.bind (as_expr e)
+            (fun (c, t) ->
+              if t <> Primitive Bool
+              then Error "non-boolean condition"
+              else
+                let tmp = temp_name ()
+                in Result.map
+                  (fun (thn, els) -> Target.Cond (c, thn, els))
+                  (let thn_type = ref (Error "failure compiling then branch")
+                  in let after = ref (Error "failure compiling then branch")
+                  in let thn_stmt =
+                    process thn (fun thn -> Result.bind (as_expr thn)
+                      (fun (thn, thn_t) ->
+                        thn_type := Ok thn_t
+                        ; after := k (JustExpr (Variable tmp, thn_t))
+                        ; Result.bind !after
+                          (fun after -> Ok (Target.Assign (tmp, thn, after)))))
+                  in let els_stmt =
+                    process els (fun els -> Result.bind (as_expr els)
+                      (fun (els, els_t) ->
+                        match !thn_type with
+                        | Ok thn_t ->
+                            if thn_t <> els_t
+                            then Error "types of ternary branches do not match"
+                            else Result.bind !after
+                              (fun after -> Ok (Target.Assign (tmp, els, after)))
+                        | Error _ -> Error "failure compiling then branch"))
+                  in match thn_stmt, els_stmt with
+                  | Ok thn, Ok els -> Ok (thn, els)
+                  | Error err, _ -> Error err
+                  | _, Error err -> Error err)))
     | CondProvidedExp (var, thn, els) ->
         begin match is_mod with
         | None -> Error "unexpected variable check"
@@ -990,36 +959,27 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
               (let thn_type = ref (Error "failure compiling then branch")
               in let after = ref (Error "failure compiling then branch")
               in let thn_stmt =
-                process thn (fun thn ->
-                  match thn with
-                  | JustExpr (thn, thn_t) | ExprOrAttr ((thn, thn_t), _) ->
-                      thn_type := Ok thn_t
-                      ; after := k (JustExpr (Variable tmp, thn_t))
-                      ; Result.bind !after 
-                        (fun after -> Ok (Target.Assign (tmp, thn, after)))
-                  | _ -> Error "expected expression")
+                process thn (fun thn -> Result.bind (as_expr thn)
+                  (fun (thn, thn_t) ->
+                    thn_type := Ok thn_t
+                    ; after := k (JustExpr (Variable tmp, thn_t))
+                    ; Result.bind !after 
+                      (fun after -> Ok (Target.Assign (tmp, thn, after)))))
               in let els_stmt =
-                process els (fun els ->
-                  match els with
-                  | JustExpr (els, els_t) | ExprOrAttr ((els, els_t), _) ->
-                      begin match !thn_type with
-                      | Ok thn_t ->
-                          if thn_t <> els_t
-                          then Error "types of ternary branches do not match"
-                          else Result.bind !after
-                            (fun after -> Ok (Target.Assign (tmp, els, after)))
-                      | Error _ -> Error "failure compiling then branch"
-                      end
-                  | _ -> Error "expected expression")
+                process els (fun els -> Result.bind (as_expr els)
+                  (fun (els, els_t) ->
+                    match !thn_type with
+                    | Ok thn_t ->
+                        if thn_t <> els_t
+                        then Error "types of ternary branches do not match"
+                        else Result.bind !after
+                          (fun after -> Ok (Target.Assign (tmp, els, after)))
+                    | Error _ -> Error "failure compiling then branch"))
               in match thn_stmt, els_stmt with
               | Ok thn, Ok els -> Ok (thn, els)
               | Error err, _ -> Error err
               | _, Error err -> Error err))
-  in process e
-    (fun e ->
-      match e with
-      | JustExpr (e, t) | ExprOrAttr ((e, t), _) -> k (e, t)
-      | JustAttr _ -> Error "Expected expression, not element")
+  in process e (fun e -> Result.bind (as_expr e) k)
 
 and process_expr_as_elem (e : Ast.expr) env tys locals
   (is_mod : mod_info option) (k : Target.elem -> (Target.stmt, string) result)
