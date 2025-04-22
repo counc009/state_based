@@ -12,14 +12,14 @@ uninterpreted replace_last(regex: string, line: string, body: string) -> string
 uninterpreted insert_line(loc: insert_loc, regex: string, line: string, body: string) -> string
 
 uninterpreted regex_matches(regex: string, body: string) -> bool
+uninterpreted validate_contents(command: string, content: string) -> bool
 
 module ansible.builtin.lineinfile -> lineinfile_result {
   (path aka dest, destfile, name : path)
   (state : lineinfile_state = lineinfile_state::present)
 
-  [backup: bool = false] # TODO: Use
-  [group: string] [owner: string] # TODO: Use
-  [validate: string] # TODO: Use
+  [group: string] [owner: string]
+  [validate: string]
 
   if exists fs(path, file_system::remote) {
     let success = false;
@@ -135,7 +135,14 @@ module ansible.builtin.lineinfile -> lineinfile_result {
       }
     }
 
+    if provided validate {
+      if validate_contents(validate, result) {}
+      else { return lineinfile_result { failed: true }; }
+    }
+
     fs(path, file_system::remote).fs_type = file_type::file(result);
+    if provided owner { fs(path, file_system::remote).owner = owner; }
+    if provided group { fs(path, file_system::remote).group = group; }
   } else {
     match state {
       lineinfile_state::absent => {
@@ -148,7 +155,19 @@ module ansible.builtin.lineinfile -> lineinfile_result {
         if !create {
           return lineinfile_result { failed: true };
         } else {
-          fs(path, file_system::remote).fs_type = file_type::file(line ^ "\n");
+          let result = line ^ "\n";
+
+          if provided validate {
+            if validate_contents(validate, result) {}
+            else { return lineinfile_result { failed: true }; }
+          }
+
+          fs(path, file_system::remote).fs_type = file_type::file(result);
+
+          if provided owner { fs(path, file_system::remote).owner = owner; }
+          else { fs(path, file_system::remote).owner = env().user; }
+          if provided group { fs(path, file_system::remote).group = group; }
+          else { fs(path, file_system::remote).group = env().group; }
         }
       }
     }
