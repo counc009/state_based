@@ -231,7 +231,8 @@ let process_module_for_args (body : Ast.stmt list) env
         let (aliases, ast_types, var_types, struct_def)
           = process body aliases ast_types var_types struct_def
         in process tl aliases ast_types var_types struct_def
-    | IfProvided (_, thn, els) :: tl | IfThenElse (_, thn, els) :: tl ->
+    | IfProvided (_, thn, els) :: tl | IfThenElse (_, thn, els) :: tl
+    | IfExists (_, thn, els) :: tl ->
         let (aliases, ast_types, var_types, struct_def)
           = process thn aliases ast_types var_types struct_def
         in let (aliases, ast_types, var_types, struct_def)

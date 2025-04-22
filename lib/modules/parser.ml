@@ -92,7 +92,7 @@ let number =
 let string_lit =
   let string_body =
     many ((take_while1 (function '\\' | '"' -> false | _ -> true))
-          <|> (char '\\' *> any_char >>| fun c -> String.make 1 c))
+          <|> (char '\\' *> any_char >>| fun c -> "\\" ^ String.make 1 c))
     >>| String.concat ""
   in char '"'
   *> string_body
