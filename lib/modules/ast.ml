@@ -4,6 +4,7 @@ type typ = Bool | Int | Float | String | Path | Named of string | Unit
 type unary = Not | Neg
 type binary = Or | And | Eq | Ne | Lt | Le | Gt | Ge | LShift | RShift
             | Add | Sub | Mul | Div | Mod
+            | Concat
 
 type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
           | StringLit of string | PathLit of string | UnitExp
