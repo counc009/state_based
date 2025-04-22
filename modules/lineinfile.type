@@ -1,0 +1,178 @@
+struct lineinfile_result { failed: bool }
+
+enum lineinfile_state { absent, present }
+
+enum insert_loc { before_first, before_last, after_first, after_last }
+
+uninterpreted regex_of_literal(line: string) -> string
+
+uninterpreted remove_lines(regex: string, body: string) -> string
+uninterpreted replace_last_expand(regex: string, line: string, body: string) -> string
+uninterpreted replace_last(regex: string, line: string, body: string) -> string
+uninterpreted insert_line(loc: insert_loc, regex: string, line: string, body: string) -> string
+
+uninterpreted regex_matches(regex: string, body: string) -> bool
+uninterpreted validate_contents(command: string, content: string) -> bool
+
+module ansible.builtin.lineinfile -> lineinfile_result {
+  (path aka dest, destfile, name : path)
+  (state : lineinfile_state = lineinfile_state::present)
+
+  [group: string] [owner: string]
+  [validate: string]
+
+  if exists fs(path, file_system::remote) {
+    let success = false;
+    let content = "";
+
+    match fs(path, file_system::remote).fs_type {
+      file_type::file(c) => { success = true; content = c; }
+    }
+
+    if !success {
+      return lineinfile_result { failed: true };
+    }
+
+    let result = content;
+
+    match state {
+      lineinfile_state::absent => {
+        (search_string: string | regexp: string)
+        if provided search_string {
+          result = remove_lines(regex_of_literal(search_string), content);
+        } else {
+          result = remove_lines(regexp, content);
+        }
+      }
+      lineinfile_state::present => {
+        (line: string)
+        [create: bool = false]
+        [search_string: string | regexp: string]
+
+        if provided regexp {
+          [backrefs: bool = false]
+          if backrefs {
+            # When backrefs are provided insertbefore/after are ignored, hence
+            # the annoying definition here
+            result = replace_last_expand(regexp, line, content);
+          } else {
+            (insertbefore: string | insertafter: string = "EOF")
+            (firstmatch: bool = false)
+
+            if regex_matches(regexp, content) {
+                result = replace_last(regexp, line, content);
+            } else if provided insertbefore {
+              if insertbefore == "BOF" {
+                result = line ^ "\n" ^ content;
+              } else if regex_matches(insertbefore, content) {
+                result = insert_line(firstmatch ? insert_loc::before_first : insert_loc::before_last,
+                                     insertbefore, line, content);
+              } else {
+                result = content ^ line ^ "\n";
+              }
+            } else {
+              if insertafter == "EOF" {
+                result = content ^ line ^ "\n";
+              } else if regex_matches(insertafter, content) {
+                result = insert_line(firstmatch ? insert_loc::after_first : insert_loc::after_last,
+                                     insertafter, line, content);
+              } else {
+                result = content ^ line ^ "\n";
+              }
+            }
+          }
+        } else if provided search_string {
+          (insertbefore: string | insertafter: string = "EOF")
+          (firstmatch: bool = false)
+
+          let regexp = regex_of_literal(search_string);
+
+          if regex_matches(regexp, content) {
+              result = replace_last(regexp, line, content);
+          } else if provided insertbefore {
+            if insertbefore == "BOF" {
+              result = line ^ "\n" ^ content;
+            } else if regex_matches(insertbefore, content) {
+              result = insert_line(firstmatch ? insert_loc::before_first : insert_loc::before_last,
+                                   insertbefore, line, content);
+            } else {
+              result = content ^ line ^ "\n";
+            }
+          } else {
+            if insertafter == "EOF" {
+              result = content ^ line ^ "\n";
+            } else if regex_matches(insertafter, content) {
+              result = insert_line(firstmatch ? insert_loc::after_first : insert_loc::after_last,
+                                   insertafter, line, content);
+            } else {
+              result = content ^ line ^ "\n";
+            }
+          }
+        } else {
+          (insertbefore: string | insertafter: string = "EOF")
+          (firstmatch: bool = false)
+
+          if provided insertbefore {
+            if insertbefore == "BOF" {
+              result = line ^ "\n" ^ content;
+            } else if regex_matches(insertbefore, content) {
+              result = insert_line(firstmatch ? insert_loc::before_first : insert_loc::before_last,
+                                   insertbefore, line, content);
+            } else {
+              result = content ^ line ^ "\n";
+            }
+          } else {
+            if insertafter == "EOF" {
+              result = content ^ line ^ "\n";
+            } else if regex_matches(insertafter, content) {
+              result = insert_line(firstmatch ? insert_loc::after_first : insert_loc::after_last,
+                                   insertafter, line, content);
+            } else {
+              result = content ^ line ^ "\n";
+            }
+          }
+        }
+      }
+    }
+
+    if provided validate {
+      if validate_contents(validate, result) {}
+      else { return lineinfile_result { failed: true }; }
+    }
+
+    fs(path, file_system::remote).fs_type = file_type::file(result);
+    if provided owner { fs(path, file_system::remote).owner = owner; }
+    if provided group { fs(path, file_system::remote).group = group; }
+  } else {
+    match state {
+      lineinfile_state::absent => {
+        return lineinfile_result { failed: true };
+      }
+      lineinfile_state::present => {
+        (line: string)
+        [create: bool = false]
+
+        if !create {
+          return lineinfile_result { failed: true };
+        } else {
+          let result = line ^ "\n";
+
+          if provided validate {
+            if validate_contents(validate, result) {}
+            else { return lineinfile_result { failed: true }; }
+          }
+
+          fs(path, file_system::remote).fs_type = file_type::file(result);
+
+          if provided owner { fs(path, file_system::remote).owner = owner; }
+          else { fs(path, file_system::remote).owner = env().user; }
+          if provided group { fs(path, file_system::remote).group = group; }
+          else { fs(path, file_system::remote).group = env().group; }
+        }
+      }
+    }
+  }
+
+
+  return lineinfile_result { failed: false };
+}

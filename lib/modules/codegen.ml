@@ -105,6 +105,7 @@ let rec process_type (t : Ast.typ) env : typ =
   | Unit -> Unit
   | Product ts -> Product (List.map (fun t -> process_type t env) ts)
   | List t -> List (process_type t env)
+  | Option t -> Option (process_type t env)
   | Named nm ->
       match UniqueMap.find nm env with
       | Some t -> t
@@ -166,6 +167,7 @@ let rec create_type (t : Ast.typ) env : typ =
   | Unit -> Unit
   | Product ts -> Product (List.map (fun t -> create_type t env) ts)
   | List t -> List (create_type t env)
+  | Option t -> Option (create_type t env)
   | Named nm ->
       match UniqueMap.find nm env with
       | Some t -> t
@@ -229,7 +231,8 @@ let process_module_for_args (body : Ast.stmt list) env
         let (aliases, ast_types, var_types, struct_def)
           = process body aliases ast_types var_types struct_def
         in process tl aliases ast_types var_types struct_def
-    | IfProvided (_, thn, els) :: tl | IfThenElse (_, thn, els) :: tl ->
+    | IfProvided (_, thn, els) :: tl | IfThenElse (_, thn, els) :: tl
+    | IfExists (_, thn, els) :: tl ->
         let (aliases, ast_types, var_types, struct_def)
           = process thn aliases ast_types var_types struct_def
         in let (aliases, ast_types, var_types, struct_def)
@@ -862,7 +865,32 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                 | _ -> Error "TODO: support unary -"
                 end
             | _ -> Error "expected expression")
-    | BinaryExp (_, _, _) -> Error "TODO: support binary ops"
+    | BinaryExp (lhs, rhs, op) ->
+        process lhs
+          (fun lhs ->
+            match lhs with
+            | JustExpr (lhs, lhs_t) | ExprOrAttr ((lhs, lhs_t), _) ->
+                process rhs
+                  (fun rhs ->
+                    match rhs with
+                    | JustExpr (rhs, rhs_t) | ExprOrAttr ((rhs, rhs_t), _) ->
+                        let op_info =
+                          match op with
+                          | Concat ->
+                              if lhs_t = Target.Primitive String
+                              && rhs_t = Target.Primitive String
+                              then Ok (Target.Primitive String, TargetAst.Concat)
+                              else Error "Incorrect type for concat"
+                          | Eq ->
+                              if lhs_t = rhs_t
+                              then Ok (Target.Primitive Bool, TargetAst.Equal lhs_t)
+                              else Error "Incompatible types for equality"
+                          | _ -> Error "TODO: support binary ops"
+                        in Result.bind op_info
+                        (fun (ret_typ, func) ->
+                          k (JustExpr (Function (func, Pair (lhs, rhs)), ret_typ)))
+                    | _ -> Error "expected expression")
+            | _ -> Error "expected expression")
     | CondExp (cond, thn, els) ->
         process cond
           (fun e ->
@@ -1519,6 +1547,7 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
               cs
           ; process_expr e env tys locals is_mod
             (fun (e, _) ->
+              (* FIXME: Check that the type is correct based on the patterns *)
               Result.bind (array_foldr1 (Array.map of_processed cases)
                 (fun l r -> Result.bind l
                   (fun l -> Result.bind r

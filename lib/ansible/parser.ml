@@ -357,7 +357,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                 | "hosts"       -> Result.map res#add_hosts (process_string v)
                 | "remote_user" -> Result.map res#add_remote_user (process_string v)
                 | "tasks"       -> Result.map res#add_tasks (process_tasks v)
-                | _             -> Error "unrecognized field in play"
+                | _             -> Error (Printf.sprintf "unrecognized field '%s' in play" field)
               with
               | Ok ()     -> process_play_fields tl res
               | Error msg -> Error msg

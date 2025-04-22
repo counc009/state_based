@@ -17,6 +17,8 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | AddField      of 't StringMap.t * string
                 | ReadField     of 't StringMap.t * string
                 | BoolNeg
+                | Concat
+                | Equal         of 't
                 (* Path operations *)
                 | ConsPath
                 | PathOfString
@@ -107,6 +109,65 @@ module rec Ast_Target : Ast_Defs
             | Fail     of string
             | Return   of expr
 
+  type values_equal_res = Yes | No | Unsure
+  let rec values_equal x y : values_equal_res =
+    match x, y with
+    | Unknown (x, _), Unknown (y, _) -> if x = y then Yes else Unsure
+    | Unknown (_, _), _ | _, Unknown (_, _) -> Unsure
+
+    | Literal (x, _), Literal (y, _) -> if x = y then Yes else No
+
+    | Function (fx, vx, _), Function (fy, vy, _) when fx = fy ->
+        begin match values_equal vx vy with
+        | Yes -> Yes
+        | _ -> Unsure
+        end
+    | Function (_, _, _), _ | _, Function (_, _, _) -> Unsure
+
+    | Pair (xa, xb, _), Pair (ya, yb, _) ->
+        begin match values_equal xa ya, values_equal xb yb with
+        | No, _ | _, No -> No
+        | Unsure, _ | _, Unsure -> Unsure
+        | Yes, Yes -> Yes
+        end
+
+    | Constructor (_, cx, vx), Constructor (_, cy, vy) ->
+        if cx <> cy then No else values_equal vx vy
+
+    | Struct (_, xs), Struct (_, ys) ->
+        (* Collect the bindings where xs and ys are not (necessarily) equal
+         * (possibly because only one of them defines it) *)
+        let diffs =
+          FieldMap.merge (fun _ x_val y_val ->
+            match x_val, y_val with
+            | Some x, Some y ->
+                begin match values_equal x y with
+                | Yes -> None
+                | Unsure -> Some Unsure
+                | No -> Some No
+                end
+            | _, _ -> Some No)
+            xs ys
+        in if FieldMap.is_empty diffs
+        then Yes (* nothing in the diffs means all bindings are equal *)
+        else if FieldMap.exists (fun _ v -> v = No) diffs
+        then No
+        else Unsure
+
+    | Literal (_, _), Pair (_, _, _)
+    | Literal (_, _), Constructor (_, _, _)
+    | Literal (_, _), Struct (_, _)
+    | Pair (_, _, _), Literal (_, _)
+    | Pair (_, _, _), Constructor (_, _, _)
+    | Pair (_, _, _), Struct (_, _)
+    | Constructor (_, _, _), Literal (_, _)
+    | Constructor (_, _, _), Pair (_, _, _)
+    | Constructor (_, _, _), Struct (_, _)
+    | Struct (_, _), Literal (_, _)
+    | Struct (_, _), Pair (_, _, _)
+    | Struct (_, _), Constructor (_, _, _) ->
+        failwith "Attempted to compare values that are of different types"
+
   let namedTyDef : namedTy -> typ * typ = function
     | List t -> (Primitive Unit, Product (t, Named (List t)))
     | Option t -> (Primitive Unit, t)
@@ -149,6 +210,21 @@ module rec Ast_Target : Ast_Defs
         fun v -> match v with Literal (Bool b, _) 
                     -> Reduced (Literal (Bool (not b), Bool))
                  | _ -> Stuck)
+    | Concat -> (Product (Primitive String, Primitive String),
+                 Primitive String,
+        fun v -> match v with
+          | Pair (Literal (String p, _), Literal (String q, _), _)
+            -> Reduced (Literal (String (p ^ q), String))
+          | _ -> Stuck)
+    | Equal t -> (Product (t, t), Primitive Bool,
+        fun v -> match v with
+          | Pair (x, y, _) ->
+              begin match values_equal x y with
+              | Yes -> Reduced (Literal (Bool true, Bool))
+              | No  -> Reduced (Literal (Bool false, Bool))
+              | Unsure -> Stuck
+              end
+          | _ -> Stuck)
     | ConsPath -> (Product (Primitive Path, Primitive Path),
                    Primitive Path,
         fun v -> match v with
@@ -271,6 +347,8 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | AddField (_, field)       -> "add#" ^ field
         | ReadField (_, field)      -> "get#" ^ field
         | BoolNeg                   -> "not"
+        | Concat                    -> "concat"
+        | Equal _                   -> "equal"
         | ConsPath                  -> "cons_path"
         | PathOfString              -> "path_of_string"
         | EndsWithDir               -> "ends_with_dir"
@@ -384,6 +462,8 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | Proj (true, _, _)         -> "proj1(" ^ value_to_string arg ^ ")"
       | Proj (false, _, _)        -> "proj2(" ^ value_to_string arg ^ ")"
       | BoolNeg                   -> "not(" ^ value_to_string arg ^ ")"
+      | Concat                    -> "concat(" ^ value_to_string arg ^ ")"
+      | Equal _                   -> "equal(" ^ value_to_string arg ^ ")"
       | ConsPath                  -> "cons_path(" ^ value_to_string arg ^ ")"
       | PathOfString              -> "path_of_string(" ^ value_to_string arg ^ ")"
       | EndsWithDir               -> "ends_with_dir(" ^ value_to_string arg ^ ")"

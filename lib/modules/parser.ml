@@ -55,6 +55,7 @@ let typ =
       ; (string "string" >>| fun _ -> String)
       ; (string "path"   >>| fun _ -> Path)
       ; (string "list" *> whitespace1 *> t >>| fun t -> List t)
+      ; (string "option" *> whitespace1 *> t >>| fun t -> Option t)
       ; (identifier >>| fun nm -> Named nm)
       ; (parens (sep_by (whitespace *> char ',' *> whitespace) t)
         >>| function
@@ -91,7 +92,7 @@ let number =
 let string_lit =
   let string_body =
     many ((take_while1 (function '\\' | '"' -> false | _ -> true))
-          <|> (char '\\' *> any_char >>| fun c -> String.make 1 c))
+          <|> (char '\\' *> any_char >>| fun c -> "\\" ^ String.make 1 c))
     >>| String.concat ""
   in char '"'
   *> string_body
@@ -112,7 +113,7 @@ let path_lit =
     expr  ::= expr0
     expr0 ::= expr1 '?' expr0 ':' expr0
             | 'provided' identifier '?' expr0 ':' expr0
-            | 'exists' expr8 '?' expr0 ':' expr0
+            | 'exists' expr9 '?' expr0 ':' expr0
             | expr1
     expr1 ::= expr1 '||' expr2 | expr2
     expr2 ::= expr2 '&&' expr3 | expr3
@@ -121,15 +122,20 @@ let path_lit =
             | expr4 '>'  expr4 | expr4 '>=' expr4
             | expr4
     expr4 ::= expr4 '<<' expr5 | expr4 '>>' expr5 | expr5
-    expr5 ::= expr5 '+' expr6 | expr5 '-' expr6 | expr6
-    expr6 ::= expr6 '*' expr7 | expr6 '/' expr7 | expr6 '%' expr7 | expr7
-    expr7 ::= '!' expr7 | '-' expr7 | expr8
-    expr8 ::= expr8 '.' identifier | expr8 '::' identifier ['(' exprs ')']
-            | expr8 '(' exprs ')' | expr8 '{' fields '}'
-            | expr8 '{{' fields '}}' | expr8 '[' identifier '<-' expr ']'
-            | expr9
-    expr9 ::= identifier | literals | '(' exprs ')'
+    expr5 ::= expr6 '^' expr5 | expr6
+    expr6 ::= expr6 '+' expr7 | expr6 '-' expr7 | expr7
+    expr7 ::= expr7 '*' expr8 | expr7 '/' expr8 | expr7 '%' expr8 | expr8
+    expr8 ::= '!' expr8 | '-' expr8 | expr9
+    expr9 ::= expr9 '.' identifier | expr9 '::' identifier ['(' exprs ')']
+            | expr9 '(' exprs ')' | expr9 '{' fields '}'
+            | expr9 '{{' fields '}}' | expr9 '[' identifier '<-' expr ']'
+            | exprA
+    exprA ::= identifier | literals | '(' exprs ')'
    in the implementation we eliminate left recursion in the standard way
+
+   There are two versions of the expression parser, one that allows (top-level)
+   record values and one that doesn't since they are ambiguous with if-else
+   statements and so much be prohibited as conditions
 *)
 let expr =
   fix (fun expr ->
@@ -141,7 +147,7 @@ let expr =
     in let fields =
       sep_by_d (whitespace *> char ',' *> whitespace) field_expr
 
-    in let expr9 =
+    in let exprA =
       choice
       [ string "true"  *> return (BoolLit true)
       ; string "false" *> return (BoolLit false)
@@ -153,14 +159,14 @@ let expr =
                                  | [x] -> x
                                  | xs -> ProductExp xs)
       ]
-    in let expr8 =
-      let rec expr8' exp =
+    in let expr9 =
+      let rec expr9' exp =
         whitespace
         *> choice
           [ (char '.' *> whitespace *>
-            ((identifier >>= fun field -> expr8' (Field (exp, field)))
+            ((identifier >>= fun field -> expr9' (Field (exp, field)))
             <|> (take_while1 is_digit 
-              >>= fun whole -> expr8' (ProductField (exp, int_of_string whole)))))
+              >>= fun whole -> expr9' (ProductField (exp, int_of_string whole)))))
           ; (string "::" *> whitespace *>
               (option None 
                 (char '<' *> whitespace *> typ <* whitespace <* char '>'
@@ -168,46 +174,53 @@ let expr =
               >>= fun type_arg ->
               (identifier <* whitespace >>= fun variant ->
                 option [] (parens exprs)
-                >>= fun args -> expr8' (EnumExp (exp, type_arg, variant, args)))))
-          ; (parens exprs >>= fun args -> expr8' (FuncExp (exp, args)))
-          ; (doub_bracks fields >>= fun args -> expr8' (ModuleExp (exp, args)))
-          ; (brackets fields >>= fun args -> expr8' (RecordExp (exp, args)))
+                >>= fun args -> expr9' (EnumExp (exp, type_arg, variant, args)))))
+          ; (parens exprs >>= fun args -> expr9' (FuncExp (exp, args)))
+          ; (doub_bracks fields >>= fun args -> expr9' (ModuleExp (exp, args)))
+          ; (brackets fields >>= fun args -> expr9' (RecordExp (exp, args)))
           ; (square
               (identifier <* whitespace <* string "<-" <* whitespace
               >>= fun field
-              -> expr >>= fun arg -> expr8' (FieldSetExp (exp, field, arg))))
+              -> expr >>= fun arg -> expr9' (FieldSetExp (exp, field, arg))))
           ; (return exp)
           ]
-      in expr9 >>= expr8'
-    in let expr7 =
-      fix (fun expr7 ->
+      in exprA >>= expr9'
+    in let expr8 =
+      fix (fun expr8 ->
         choice
-        [ (char '!' *> whitespace *> expr7 >>| fun exp -> UnaryExp (exp, Not))
-        ; (char '-' *> whitespace *> expr7 >>| fun exp -> UnaryExp (exp, Neg))
-        ; expr8
+        [ (char '!' *> whitespace *> expr8 >>| fun exp -> UnaryExp (exp, Not))
+        ; (char '-' *> whitespace *> expr8 >>| fun exp -> UnaryExp (exp, Neg))
+        ; expr9
         ])
+    in let expr7 =
+      let rec expr7' lhs =
+        whitespace
+        *> option lhs
+          (choice
+          [ (char '*' *> whitespace *> expr8
+              >>= fun rhs -> expr7' (BinaryExp (lhs, rhs, Mul)))
+          ; (char '/' *> whitespace *> expr8
+              >>= fun rhs -> expr7' (BinaryExp (lhs, rhs, Div)))
+          ; (char '%' *> whitespace *> expr8
+              >>= fun rhs -> expr7' (BinaryExp (lhs, rhs, Mod))) ])
+      in expr8 >>= expr7'
     in let expr6 =
       let rec expr6' lhs =
         whitespace
         *> option lhs
           (choice
-          [ (char '*' *> whitespace *> expr7
-              >>= fun rhs -> expr6' (BinaryExp (lhs, rhs, Mul)))
-          ; (char '/' *> whitespace *> expr7
-              >>= fun rhs -> expr6' (BinaryExp (lhs, rhs, Div)))
-          ; (char '%' *> whitespace *> expr7
-              >>= fun rhs -> expr6' (BinaryExp (lhs, rhs, Mod))) ])
+          [ (char '+' *> whitespace *> expr7
+              >>= fun rhs -> expr6' (BinaryExp (lhs, rhs, Add)))
+          ; (char '-' *> whitespace *> expr7
+              >>= fun rhs -> expr6' (BinaryExp (lhs, rhs, Sub))) ])
       in expr7 >>= expr6'
     in let expr5 =
-      let rec expr5' lhs =
-        whitespace
-        *> option lhs
-          (choice
-          [ (char '+' *> whitespace *> expr6
-              >>= fun rhs -> expr5' (BinaryExp (lhs, rhs, Add)))
-          ; (char '-' *> whitespace *> expr6
-              >>= fun rhs -> expr5' (BinaryExp (lhs, rhs, Sub))) ])
-      in expr6 >>= expr5'
+      fix (fun expr5 ->
+        expr6 >>= fun lhs ->
+          whitespace
+          *> option lhs
+              (char '^' *> whitespace *> expr5
+                >>| fun rhs -> BinaryExp (lhs, rhs, Concat)))
     in let expr4 =
       let rec expr4' lhs =
         whitespace
@@ -268,7 +281,7 @@ let expr =
       >>| fun els -> CondProvidedExp (id, thn, els))
       <|> (string "exists"
       *> whitespace1
-      *> expr8
+      *> expr9
       >>= fun exp ->
         whitespace
       *> char '?'
@@ -294,6 +307,176 @@ let expr =
           >>| fun els -> CondExp (cond, thn, els))
         <|> return cond))
     in expr0)
+
+let cond_expr =
+  (* exprs and fields are always contained within some brackets that avoid
+   * the ambiguity and so they all allow unrestricted expressions *)
+  let exprs = sep_by (whitespace *> char ',' *> whitespace) expr
+  in let field_expr =
+    identifier <* whitespace <* char ':' <* whitespace
+    >>= fun field -> expr >>| fun exp -> (field, exp)
+  in let fields =
+    sep_by (whitespace *> char ',' *> whitespace) field_expr
+
+  in let exprA =
+    choice
+    [ string "true"  *> return (BoolLit true)
+    ; string "false" *> return (BoolLit false)
+    ; number
+    ; (string_lit >>| fun str -> StringLit str)
+    ; (path_lit >>| fun path -> PathLit path)
+    ; (identifier >>| fun nm -> Id nm)
+    ; (parens exprs >>| function [] -> UnitExp
+                               | [x] -> x
+                               | xs -> ProductExp xs)
+    ]
+  in let expr9 =
+    let rec expr9' exp =
+      whitespace
+      *> choice
+        [ (char '.' *> whitespace *>
+          ((identifier >>= fun field -> expr9' (Field (exp, field)))
+          <|> (take_while1 is_digit 
+            >>= fun whole -> expr9' (ProductField (exp, int_of_string whole)))))
+        ; (string "::" *> whitespace *>
+            (option None 
+              (char '<' *> whitespace *> typ <* whitespace <* char '>'
+                <* whitespace <* string "::" >>| fun t -> Some t)
+            >>= fun type_arg ->
+            (identifier <* whitespace >>= fun variant ->
+              option [] (parens exprs)
+              >>= fun args -> expr9' (EnumExp (exp, type_arg, variant, args)))))
+        ; (parens exprs >>= fun args -> expr9' (FuncExp (exp, args)))
+        ; (doub_bracks fields >>= fun args -> expr9' (ModuleExp (exp, args)))
+        ; (square
+            (identifier <* whitespace <* string "<-" <* whitespace
+            >>= fun field
+            -> expr >>= fun arg -> expr9' (FieldSetExp (exp, field, arg))))
+        ; (return exp)
+        ]
+  in exprA >>= expr9'
+  in let expr8 =
+    fix (fun expr8 ->
+      choice
+      [ (char '!' *> whitespace *> expr8 >>| fun exp -> UnaryExp (exp, Not))
+      ; (char '-' *> whitespace *> expr8 >>| fun exp -> UnaryExp (exp, Neg))
+      ; expr9
+      ])
+  in let expr7 =
+    let rec expr7' lhs =
+      whitespace
+      *> option lhs
+        (choice
+        [ (char '*' *> whitespace *> expr8
+            >>= fun rhs -> expr7' (BinaryExp (lhs, rhs, Mul)))
+        ; (char '/' *> whitespace *> expr8
+            >>= fun rhs -> expr7' (BinaryExp (lhs, rhs, Div)))
+        ; (char '%' *> whitespace *> expr8
+            >>= fun rhs -> expr7' (BinaryExp (lhs, rhs, Mod))) ])
+    in expr8 >>= expr7'
+  in let expr6 =
+    let rec expr6' lhs =
+      whitespace
+      *> option lhs
+        (choice
+        [ (char '+' *> whitespace *> expr7
+            >>= fun rhs -> expr6' (BinaryExp (lhs, rhs, Add)))
+        ; (char '-' *> whitespace *> expr7
+            >>= fun rhs -> expr6' (BinaryExp (lhs, rhs, Sub))) ])
+    in expr7 >>= expr6'
+  in let expr5 =
+    fix (fun expr5 ->
+      expr6 >>= fun lhs ->
+        whitespace
+        *> option lhs
+            (char '^' *> whitespace *> expr5
+              >>| fun rhs -> BinaryExp (lhs, rhs, Concat)))
+  in let expr4 =
+    let rec expr4' lhs =
+      whitespace
+      *> option lhs
+        (choice
+        [ (string "<<" *> whitespace *> expr5
+            >>= fun rhs -> expr4' (BinaryExp (lhs, rhs, LShift)))
+        ; (string ">>" *> whitespace *> expr5
+            >>= fun rhs -> expr4' (BinaryExp (lhs, rhs, RShift))) ])
+    in expr5 >>= expr4'
+  in let expr3 =
+    expr4
+    >>= fun lhs ->
+    whitespace
+    *> choice
+      [ (string "==" *> whitespace *> expr4
+          >>| fun rhs -> BinaryExp (lhs, rhs, Eq))
+      ; (string "!=" *> whitespace *> expr4
+          >>| fun rhs -> BinaryExp (lhs, rhs, Ne))
+      ; (string "<=" *> whitespace *> expr4
+          >>| fun rhs -> BinaryExp (lhs, rhs, Le))
+      ; (string "<" *> whitespace *> expr4
+          >>| fun rhs -> BinaryExp (lhs, rhs, Lt))
+      ; (string ">=" *> whitespace *> expr4
+          >>| fun rhs -> BinaryExp (lhs, rhs, Ge))
+      ; (string ">" *> whitespace *> expr4
+          >>| fun rhs -> BinaryExp (lhs, rhs, Gt))
+      ; (return lhs)
+      ]
+  in let expr2 =
+    let rec expr2' lhs =
+      whitespace
+      *> option lhs
+        (string "&&" *> whitespace *> expr3
+          >>= fun rhs -> expr2' (BinaryExp (lhs, rhs, And)))
+    in expr3 >>= expr2'
+  in let expr1 =
+    let rec expr1' lhs =
+      whitespace
+      *> option lhs
+        (string "||" *> whitespace *> expr2
+          >>= fun rhs -> expr1' (BinaryExp (lhs, rhs, Or)))
+    in expr2 >>= expr1'
+  in let expr0 =
+    (string "provided"
+    *> whitespace1
+    *> identifier
+    >>= fun id ->
+      whitespace
+    *> char '?'
+    *> whitespace
+    *> expr
+    >>= fun thn ->
+      whitespace
+    *> char ':'
+    *> whitespace
+    *> expr
+    >>| fun els -> CondProvidedExp (id, thn, els))
+    <|> (string "exists"
+    *> whitespace1
+    *> expr9
+    >>= fun exp ->
+      whitespace
+    *> char '?'
+    *> whitespace
+    *> expr
+    >>= fun thn ->
+      whitespace
+    *> char ':'
+    *> whitespace
+    *> expr
+    >>| fun els -> CondExistsExp (exp, thn, els))
+    <|> (expr1
+      >>= fun cond ->
+        whitespace
+      *> ((char '?' 
+        *> whitespace 
+        *> expr
+        >>= fun thn ->
+          whitespace
+        *> char ':'
+        *> whitespace
+        *> expr
+        >>| fun els -> CondExp (cond, thn, els))
+      <|> return cond))
+  in expr0
 
 (* Module arguments are of the form <name> [aka <names>] : <type> [= <default>] *)
 let mod_aka =
@@ -365,9 +548,9 @@ let stmt =
             [ (whitespace1 *> string "if" *> whitespace1
                 *> ((string "provided" *> whitespace1 *> identifier
                       >>| fun nm -> Provided nm)
-                <|> (string "exists" *> whitespace1 *> expr
+                <|> (string "exists" *> whitespace1 *> cond_expr
                       >>| fun ex -> Exists ex)
-                <|> (expr >>| fun ex -> Condition ex))
+                <|> (cond_expr >>| fun ex -> Condition ex))
               >>= fun cond ->
               whitespace *> brackets stmts
               >>= fun thn ->
@@ -385,9 +568,9 @@ let stmt =
       *> whitespace1
       *> ((string "provided" *> whitespace1 *> identifier
             >>| fun nm -> Provided nm)
-          <|> (string "exists" *> whitespace1 *> expr
+          <|> (string "exists" *> whitespace1 *> cond_expr
             >>| fun ex -> Exists ex)
-          <|> (expr >>| fun ex -> Condition ex))
+          <|> (cond_expr >>| fun ex -> Condition ex))
       >>= fun cond ->
       whitespace
       *> brackets stmts
@@ -471,15 +654,16 @@ let ptype =
     | [t] -> t
     | ts -> Product ts
 
-let types =
-  sep_by (whitespace *> char ',' *> whitespace) typ
+let arg_types =
+  sep_by (whitespace *> char ',' *> whitespace)
+    (optional (identifier *> whitespace *> char ':' *> whitespace) *> typ)
 
 let enum_case =
   identifier
   >>= fun nm ->
   whitespace
   *>
-  optional (parens types)
+  optional (parens arg_types)
   >>| fun ty -> (nm, ty)
 
 let enum_cases =
@@ -532,7 +716,7 @@ let uninterp_def =
   *> identifier
   >>= fun nm ->
   whitespace
-  *> parens types
+  *> parens arg_types
   >>= fun args ->
   whitespace
   *> string "->"
