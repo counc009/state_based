@@ -1,5 +1,5 @@
 type typ = Bool | Int | Float | String | Path | Named of string | Unit
-         | Product of typ list | List of typ
+         | Product of typ list | List of typ | Option of typ
 
 type unary = Not | Neg
 type binary = Or | And | Eq | Ne | Lt | Le | Gt | Ge | LShift | RShift

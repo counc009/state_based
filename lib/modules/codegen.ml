@@ -105,6 +105,7 @@ let rec process_type (t : Ast.typ) env : typ =
   | Unit -> Unit
   | Product ts -> Product (List.map (fun t -> process_type t env) ts)
   | List t -> List (process_type t env)
+  | Option t -> Option (process_type t env)
   | Named nm ->
       match UniqueMap.find nm env with
       | Some t -> t
@@ -166,6 +167,7 @@ let rec create_type (t : Ast.typ) env : typ =
   | Unit -> Unit
   | Product ts -> Product (List.map (fun t -> create_type t env) ts)
   | List t -> List (create_type t env)
+  | Option t -> Option (create_type t env)
   | Named nm ->
       match UniqueMap.find nm env with
       | Some t -> t

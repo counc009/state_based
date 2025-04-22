@@ -55,6 +55,7 @@ let typ =
       ; (string "string" >>| fun _ -> String)
       ; (string "path"   >>| fun _ -> Path)
       ; (string "list" *> whitespace1 *> t >>| fun t -> List t)
+      ; (string "option" *> whitespace1 *> t >>| fun t -> Option t)
       ; (identifier >>| fun nm -> Named nm)
       ; (parens (sep_by (whitespace *> char ',' *> whitespace) t)
         >>| function
