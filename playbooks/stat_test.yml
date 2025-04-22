@@ -1,0 +1,7 @@
+---
+- name: Stat a file on the system
+  tasks:
+  - name: Stat a file
+    ignore_errors: true
+    ansible.builtin.stat:
+      path: /path/to/file

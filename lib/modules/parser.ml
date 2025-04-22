@@ -139,7 +139,7 @@ let expr =
       identifier <* whitespace <* char ':' <* whitespace
       >>= fun field -> expr >>| fun exp -> (field, exp)
     in let fields =
-      sep_by (whitespace *> char ',' *> whitespace) field_expr
+      sep_by_d (whitespace *> char ',' *> whitespace) field_expr
 
     in let expr9 =
       choice

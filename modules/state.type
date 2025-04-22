@@ -1,0 +1,34 @@
+struct stat_res { exists: bool, gr_name: string, isdir: bool, islnk: bool,
+                  isreg: bool, path: path, pw_name: string }
+
+struct stat_result { failed: bool, stat: stat_res }
+
+module ansible.builtin.stat -> stat_result {
+  (path aka dest, name : path)
+
+  if exists fs(path, file_system::remote) {
+    let result = stat_result { 
+                    failed: false,
+                    stat: stat_res {
+                      exists: true,
+                      gr_name: fs(path, file_system::remote).group,
+                      isdir: false,
+                      islnk: false,
+                      isreg: false,
+                      path: path,
+                      pw_name: fs(path, file_system::remote).owner,
+                    } };
+    match fs(path, file_system::remote).fs_type {
+      file_type::file(_) => { result.stat.isreg = true; }
+      file_type::directory(_) => { result.stat.isdir = true; }
+      file_type::hard(_) => {}
+      file_type::link(_) => { result.stat.islnk = true; }
+    }
+    return result;
+  } else {
+    return stat_result {
+      failed: false,
+      stat: stat_res { exists: false },
+    };
+  }
+}
