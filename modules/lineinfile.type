@@ -17,9 +17,9 @@ module ansible.builtin.lineinfile -> lineinfile_result {
   (path aka dest, destfile, name : path)
   (state : lineinfile_state = lineinfile_state::present)
 
-  [backup: bool = false]
-  [group: string] [owner: string]
-  [validate: string]
+  [backup: bool = false] # TODO: Use
+  [group: string] [owner: string] # TODO: Use
+  [validate: string] # TODO: Use
 
   if exists fs(path, file_system::remote) {
     let success = false;
@@ -143,11 +143,7 @@ module ansible.builtin.lineinfile -> lineinfile_result {
       }
       lineinfile_state::present => {
         (line: string)
-        [search_string: string | regexp: string]
         [create: bool = false]
-        [backrefs: bool = false]
-        [insertbefore: string | insertafter: string]
-        [firstmatch: bool]
 
         if !create {
           return lineinfile_result { failed: true };

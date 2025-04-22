@@ -1,10 +1,10 @@
 ---
 - name: Grant passwordless sudo to user dev
   hosts: all
-  become: true  # Ensure we are using privilege escalation
+  #become: true
   tasks:
     - name: Ensure the sudoers file includes passwordless sudo for dev
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/sudoers
         regexp: '^dev'
         line: 'dev ALL=(ALL) NOPASSWD:ALL'
