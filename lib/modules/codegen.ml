@@ -1350,6 +1350,24 @@ let generate_vars_check input (vars : (string * Ast.typ) list)
 
 let init_stmt_k = Error "Reached end of statements, missing terminator"
 
+(* Given an enum name and possible type argument check that it matches a target
+ * type that the scrutinee has been determined to have *)
+let pattern_type_matches (type_name, type_arg) (t: Target.typ) tys : bool =
+  match type_arg with
+  | None ->
+      begin match t with
+      | Named (Cases (enum_name, _)) when enum_name = type_name -> true
+      | _ -> false
+      end
+  | Some ty_arg ->
+      begin match t with
+      | Named (List t) when type_name = "list"
+          && target_type (process_type ty_arg tys) = t -> true
+      | Named (Option t) when type_name = "option"
+          && target_type (process_type ty_arg tys) = t -> true
+      | _ -> false
+      end
+
 (* process_stmt's is_mod argument specifies whether variable declarations
  * and checks are allowed in the code or not, so this function can be used to
  * generate code for both functions and modules. *)
@@ -1490,10 +1508,10 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
           in let constructors = lookup_enum tys type_name type_arg
           in let cases
             = Array.make (StringMap.cardinal constructors) (Default after)
-          in List.iter
+          in List.iter (* FIXME: Instead of panic this should return a result *)
               (fun ((typ, ty_arg, cons, vars), body) ->
                 if typ <> type_name || ty_arg <> type_arg
-                then failwith "Mismatched match cases"
+                then failwith "Mismatched types in match cases"
                 else let (pos, args) = StringMap.find cons constructors
                 in match cases.(pos) with
                    | Default _ ->
@@ -1507,15 +1525,15 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
               cs
           ; process_expr e env tys locals is_mod
             (fun (e, t) ->
-              match t with
-              | Named (Cases (enum_name, _)) when enum_name = type_name ->
+              if pattern_type_matches (type_name, type_arg) t tys
+              then
                 Result.bind (array_foldr1 (Array.map of_processed cases)
                   (fun l r -> Result.bind l
                     (fun l -> Result.bind r
                       (fun r ->
                         Ok (Target.Match (Variable "#match", "#match", l, r))))))
-                (fun cases -> Ok (Target.Assign ("#match", e, cases)))
-              | _ -> Error "incorrect type of scrutinee")
+                  (fun cases -> Ok (Target.Assign ("#match", e, cases)))
+              else Error "incorrect type of scrutinee")
       end
   | Clear e :: tl ->
       process_expr_as_qual e env tys locals is_mod
