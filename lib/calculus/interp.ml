@@ -278,11 +278,15 @@ module Interp(Ast : Ast.Ast_Defs) = struct
          | Err msg -> Err msg
          | Ok (Located v) -> Ok (v, s)
          | Ok (Created (v, new_final)) ->
-             (* If we can create a value for the attribute in the final state,
-              * we return that unless we can find a value for the attribute
-              * in the initial state *)
+             (* We prefer to create a value for an attribute on the initial
+              * state rather than the final state since that way if we set one
+              * attribute and then fetch another we still put that value onto
+              * the original state rather than creating it on the final state *)
              begin match helper a s.init with
              | Ok (Located v) -> Ok (v, s)
+             | Ok (Created (v, new_init)) ->
+                 Ok (v, { init = new_init; final = s.final; loops = s.loops;
+                          bools = s.bools; constrs = s.constrs; })
              | _ -> Ok (v, { init = s.init; final = new_final; loops = s.loops;
                              bools = s.bools; constrs = s.constrs; })
              end
