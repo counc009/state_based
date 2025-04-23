@@ -3,11 +3,21 @@
  * playbooks and tasks handles and reports errors if a field is set multiple
  * times *)
 
+module Jinterp = Jingoo.Jg_interp
+module Jtypes = Jingoo.Jg_types
+
+type unary  = Not
+type binary = Concat | Equals | And | Or
+
 type value =
   | String of string
+  | Int    of int
   | Float  of float
   | Bool   of bool
   | List   of value list
+  | Ident  of string
+  | Unary  of value * unary
+  | Binary of value * binary * value
 
 type mod_use = {
   mod_name: string;
@@ -129,6 +139,52 @@ class play_result =
                ; tasks        = t }
   end
 
+let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
+  let rec jlit_to_value (j: Jtypes.tvalue) : (value, string) result =
+    match j with
+    | Tnull -> Ok (String "")
+    | Tint i -> Ok (Int i)
+    | Tbool b -> Ok (Bool b)
+    | Tfloat f -> Ok (Float f)
+    | Tstr s -> Ok (String s)
+    | Tlist xs -> Result.map (fun xs -> List xs)
+      (List.fold_right
+        (fun x xs ->
+          Result.bind (jlit_to_value x) 
+            (fun x -> Result.bind xs (fun xs -> Ok (x :: xs))))
+        xs
+        (Ok []))
+    | _ -> Error "Unsupported Jinja literal value"
+  in let rec jexpr_to_value (j: Jtypes.expression) : (value, string) result =
+    match j with
+    | IdentExpr nm -> Ok (Ident nm)
+    | LiteralExpr v -> jlit_to_value v
+    | NotOpExpr e -> Result.map (fun v -> Unary (v, Not)) (jexpr_to_value e)
+    | AndOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
+        (fun lhs -> Result.bind (jexpr_to_value rhs)
+          (fun rhs -> Ok (Binary (lhs, And, rhs))))
+    | OrOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
+        (fun lhs -> Result.bind (jexpr_to_value rhs)
+          (fun rhs -> Ok (Binary (lhs, Or, rhs))))
+    | EqEqOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
+        (fun lhs -> Result.bind (jexpr_to_value rhs)
+          (fun rhs -> Ok (Binary (lhs, Equals, rhs))))
+    | NotEqOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
+        (fun lhs -> Result.bind (jexpr_to_value rhs)
+          (fun rhs -> Ok (Unary (Binary (lhs, Equals, rhs), Not))))
+    | _ -> Error "unhandled Jinja expression form"
+  in let jstmt_to_value (j: Jtypes.statement) : (value, string) result =
+    match j with
+    | TextStatement s -> Ok (String s)
+    | ExpandStatement e -> jexpr_to_value e
+    | _ -> Error "Unsupported Jinja form"
+  in match j with
+  | [] -> Ok (String "")
+  | [e] -> jstmt_to_value e
+  | e :: js -> Result.bind (jstmt_to_value e)
+      (fun hd -> Result.bind (jinja_to_value js)
+        (fun tl -> Ok (Binary (hd, Concat, tl))))
+
 let process_ansible (file: string) (tys : Modules.Codegen.type_env)
   (env : Modules.Codegen.global_env) : (Modules.Ast.stmt list, string) result =
   let process_string v =
@@ -148,19 +204,24 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
     | `Null     -> Ok (String "")
     | `Bool b   -> Ok (Bool b)
     | `Float f  -> Ok (Float f)
-    | `String s -> Ok (String s)
+    | `String s -> jinja_to_value (Jinterp.ast_from_string s)
     | `A vs     ->
         let rec process vs =
           match vs with
           | [] -> Ok []
           | hd :: tl ->
-              match process_value hd with
-              | Ok h -> Result.map (fun tl -> h :: tl) (process tl)
-              | Error msg -> Error msg
+              Result.bind (process_value hd)
+                (fun h -> Result.map (fun tl -> h :: tl) (process tl))
         in Result.map (fun vs -> List vs) (process vs)
     | `O _      -> Error "expected value found mapping"
   in let rec codegen_value v (t : Modules.Ast.typ) =
     match v with
+    | Int i ->
+        begin match t with
+        | Int -> Ok (Modules.Ast.IntLit i)
+        | Float -> Ok (Modules.Ast.FloatLit (float_of_int i))
+        | _ -> Error "Incorrect type, found integer"
+        end
     | Float f ->
         begin match t with
         | Int ->
@@ -239,6 +300,30 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
             end
         | _ -> Error ("Incorrect type, found string-like")
         end
+    | Ident nm -> Ok (Modules.Ast.Id nm)
+    | Unary (v, op) ->
+        begin match op, t with
+        | Not, Bool -> 
+            Result.map (fun v -> Modules.Ast.UnaryExp (v, Not)) (codegen_value v Bool)
+        | Not, _ -> Error "Incorrect type for not (productes boolean)"
+        end
+    | Binary (lhs, op, rhs) ->
+        let op_info : (Modules.Ast.typ * Modules.Ast.typ * Modules.Ast.binary, string) result =
+          match op, t with
+          | Concat, String -> Ok (String, String, Concat)
+          | Concat, _ -> Error "Incorrect type for concat (produces string)"
+          (* FIXME: This probably isn't the correct type for equality... *)
+          | Equals, Bool -> Ok (String, String, Eq)
+          | Equals, _ -> Error "Incorrect type for equals (produces bool)"
+          | And, Bool -> Ok (Bool, Bool, And)
+          | And, _ -> Error "Incorrect type for and (produces bool)"
+          | Or, Bool -> Ok (Bool, Bool, Or)
+          | Or, _ -> Error "Incorrect type for or (produces bool)"
+        in Result.bind op_info
+          (fun (lhs_t, rhs_t, op) ->
+            Result.bind (codegen_value lhs lhs_t)
+              (fun lhs -> Result.bind (codegen_value rhs rhs_t)
+                (fun rhs -> Ok (Modules.Ast.BinaryExp (lhs, rhs, op)))))
   in let process_module_use nm args =
     match args with
     | `O map ->
@@ -316,8 +401,6 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
         in Result.map (fun args -> Modules.Ast.ModuleExp (module_expr, args))
             module_args
   in let codegen_task (t : task) : (Modules.Ast.stmt list, string) result =
-    (* TODO: currently ignoring the ignore_errors flag, should insert error
-     * handling here eventually *)
     Result.map
       (fun v ->
         Modules.Ast.LetStmt (t.register, v)
