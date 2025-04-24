@@ -18,6 +18,7 @@ type value =
   | Ident  of string
   | Unary  of value * unary
   | Binary of value * binary * value
+  | Dot    of value * string
 
 type mod_use = {
   mod_name: string;
@@ -172,6 +173,8 @@ let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
     | NotEqOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
         (fun lhs -> Result.bind (jexpr_to_value rhs)
           (fun rhs -> Ok (Unary (Binary (lhs, Equals, rhs), Not))))
+    | DotExpr (ex, field) -> Result.bind (jexpr_to_value ex)
+        (fun ex -> Ok (Dot (ex, field)))
     | _ -> Error "unhandled Jinja expression form"
   in let jstmt_to_value (j: Jtypes.statement) : (value, string) result =
     match j with
@@ -324,6 +327,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
             Result.bind (codegen_value lhs lhs_t)
               (fun lhs -> Result.bind (codegen_value rhs rhs_t)
                 (fun rhs -> Ok (Modules.Ast.BinaryExp (lhs, rhs, op)))))
+    | Dot (_, _) -> Error "TODO: Implement dot operator"
   in let process_module_use nm args =
     match args with
     | `O map ->
