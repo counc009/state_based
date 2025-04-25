@@ -58,6 +58,7 @@ type module_info =
     args : Ast.typ StringMap.t;
     argument_types : typ StringMap.t;
     input_struct_def : typ StringMap.t;
+    ret_type: Ast.typ;
     out_type : typ;
     body : Target.stmt placeholder }
 
@@ -686,6 +687,10 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                   | "path_from" ->
                       let (arg_ty, res_ty, _) = Target.funcDef PathFrom
                       in Ok (arg_ty, res_ty, TargetAst.PathFrom)
+                  | "file_glob" ->
+                      let arg_ty = Target.Primitive String
+                      in let res_ty = Target.Named (List (Primitive Path))
+                      in Ok (arg_ty, res_ty, Uninterpreted ("file_glob", arg_ty, res_ty))
                   | _ -> Error ("undefined name " ^ nm))
                   (fun (arg_typ, ret_typ, func) ->
                     process (ProductExp args)
@@ -1658,6 +1663,7 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
             argument_types = var_types;
             input_struct_def = struct_def;
             out_type = ret_ty;
+            ret_type = (match ret with None -> Product [] | Some t -> t);
             body = mod_body }
         in add_modules nm (Module mod_info) env
         ; (Either.Right (body, struct_def), ret_ty, mod_body)
