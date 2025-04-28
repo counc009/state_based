@@ -217,6 +217,21 @@ let list_to_and (v: value) : value =
   | List (v::vs) -> List.fold_right (fun x y -> Binary (x, And, y)) vs v
   | _ -> v
 
+let rec codegen_type_to_ast_typ (t: Modules.Codegen.typ) : Modules.Ast.typ =
+  match t with
+  | Bool -> Bool
+  | Int -> Int
+  | Float -> Float
+  | String -> String
+  | Path -> Path
+  | Unit -> Unit
+  | Option t -> Option (codegen_type_to_ast_typ t)
+  | List t -> List (codegen_type_to_ast_typ t)
+  | Product ts -> Product (List.map codegen_type_to_ast_typ ts)
+  | Struct (nm, _) | Enum (nm, _) -> Named nm
+  | Placeholder { contents = Some t } -> codegen_type_to_ast_typ t
+  | Placeholder { contents = None } -> failwith "Internal Error: unresolved placeholder"
+
 let process_ansible (file: string) (tys : Modules.Codegen.type_env)
   (env : Modules.Codegen.global_env) : (Modules.Ast.stmt list, string) result =
   let process_string v =
@@ -355,7 +370,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
         | Some Path   -> Ok (PathLit s, Modules.Ast.Path)
         | Some (Named nm) ->
             begin match Modules.Codegen.UniqueMap.find nm tys with
-            | None -> Error ("Internal Error: type of module argument undefined")
+            | None -> Error "Internal Error: type undefined"
             | Some typ ->
                 let rec process_for_type (typ : Modules.Codegen.typ)
                   : (Modules.Ast.expr * Modules.Ast.typ, string) result =
@@ -424,7 +439,28 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
               (fun (lhs, lhs_t) ->
                 Result.bind (codegen_value rhs (rhs_t lhs_t) play_env)
                 (fun (rhs, _) -> Ok (Modules.Ast.BinaryExp (lhs, rhs, op), ret_typ))))
-    | Dot (_, _) -> Error "TODO: Implement dot operator"
+    | Dot (ex, field) ->
+        Result.bind (codegen_value ex None play_env)
+        (fun (ex, ty) ->
+          match ty with
+          | Named nm ->
+              begin match Modules.Codegen.UniqueMap.find nm tys with
+              | None -> Error "Internal Error: type undefined"
+              | Some typ ->
+                  let rec process_for_field (typ: Modules.Codegen.typ)
+                    : (Modules.Ast.expr * Modules.Ast.typ, string) result =
+                    match typ with
+                    | Placeholder { contents = Some typ } -> process_for_field typ
+                    | Placeholder { contents = None } -> Error "Internal Error: unknown placeholder"
+                    | Struct (_, fields) ->
+                        begin match Modules.Codegen.StringMap.find_opt field fields with
+                        | None -> Error (Printf.sprintf "Value has no field '%s'" field)
+                        | Some t -> Ok (Field (ex, field), codegen_type_to_ast_typ t)
+                        end
+                    | _ -> Error (Printf.sprintf "Value has no field '%s'" field)
+                  in process_for_field typ
+              end
+          | _ -> Error (Printf.sprintf "Value has no field '%s'" field))
   in let process_module_use nm args =
     match args with
     | `O map ->

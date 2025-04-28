@@ -40,7 +40,8 @@ type typ = Bool | Int | Float | String | Path | Unit
          | Option      of typ
          | List        of typ
          | Product     of typ list
-         | Struct      of typ StringMap.t
+         (* Store the name of the struct along with the info on its fields *)
+         | Struct      of string * typ StringMap.t
          (* Store the name of the enum along with the info on its constructors *)
          | Enum        of string * (int * typ list) StringMap.t
          | Placeholder of typ placeholder
@@ -260,7 +261,7 @@ let rec target_type (t : typ) : Target.typ =
   | Option t -> Named (Option (target_type t))
   | List t -> Named (List (target_type t))
   | Product ts -> construct_prod ts
-  | Struct fs -> Struct (StringMap.map target_type fs)
+  | Struct (_, fs) -> Struct (StringMap.map target_type fs)
   | Enum (nm, cs) -> construct_cases nm cs
   | Placeholder t ->
       match !t with
@@ -555,7 +556,7 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
         begin match nm with
         | Id nm ->
             begin match UniqueMap.find nm tys with
-            | Some (Struct struct_def) ->
+            | Some (Struct (_, struct_def)) ->
                 let target_struct = StringMap.map target_type struct_def
                 in let init_struct : Target.expr
                   = Function (EmptyStruct target_struct, Literal (Unit ()))
@@ -1612,7 +1613,7 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
         let fields =
           StringMap.of_list
             (List.map (fun (nm, t) -> (nm, create_type t env)) fields)
-        in add_type nm (Struct fields) env; create_types tl env
+        in add_type nm (Struct (nm, fields)) env; create_types tl env
     | Type (nm, typ) :: tl ->
         let ty = create_type typ env
         in add_type nm ty env; create_types tl env
