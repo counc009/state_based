@@ -246,6 +246,22 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                 (fun h -> Result.map (fun tl -> h :: tl) (process tl))
         in Result.map (fun vs -> List vs) (process vs)
     | `O _      -> Error "expected value found mapping"
+  in let rec process_condition v =
+    match v with
+    | `Null -> Ok (Bool true)
+    | `Bool b -> Ok (Bool b)
+    | `Float f -> Ok (Float f)
+    | `String s ->
+        jinja_to_value (Jinterp.ast_from_string (Printf.sprintf "{{ %s }}" s))
+    | `A vs ->
+        let rec process vs =
+          match vs with
+          | [] -> Ok []
+          | hd :: tl ->
+              Result.bind (process_condition hd)
+                (fun h -> Result.map (fun tl -> h :: tl) (process tl))
+        in Result.map (fun vs -> List vs) (process vs)
+    | `O _ -> Error "expected conditions, found mapping"
   in let rec codegen_value v (t : Modules.Ast.typ option) (play_env: play_env)
     : (Modules.Ast.expr * Modules.Ast.typ, string) result =
     match v with
@@ -375,7 +391,9 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
             let () = Hashtbl.add play_env nm (Concrete t)
             in Ok (Modules.Ast.Id nm, t)
         | Some (Unknown _), None -> Error ("Variable of unknown type used in unknown type setting, cannot solve")
-        | None, _ -> Error ("Unknown variable " ^ nm)
+        | None, _ ->
+            (* TODO: Builtin variables *)
+            Error ("Unknown variable " ^ nm)
         end
     | Unary (v, op) ->
         begin match op, t with
@@ -431,7 +449,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                 | "name" -> Result.map res#add_name (process_string v)
                 | "register" -> Result.map res#add_register (process_string v)
                 | "ignore_errors" -> Result.map res#add_ignore_errors (process_bool v)
-                | "when" -> Result.map res#add_when (process_value v)
+                | "when" -> Result.map res#add_when (process_condition v)
                 | "with_items" | "loop"
                   -> Result.map (fun v -> res#add_loop (ItemLoop v)) (process_value v)
                 | "with_fileglob"
