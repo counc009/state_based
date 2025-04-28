@@ -407,8 +407,16 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
             in Ok (Modules.Ast.Id nm, t)
         | Some (Unknown _), None -> Error ("Variable of unknown type used in unknown type setting, cannot solve")
         | None, _ ->
-            (* TODO: Builtin variables *)
-            Error ("Unknown variable " ^ nm)
+            (* See if this is a built-in variable *)
+            match nm with
+            | "ansible_os_family" ->
+                begin match t with
+                | Some String | None ->
+                    (* env().os_family *)
+                    Ok (Field (FuncExp (Id "env", []), "os_family"), String)
+                | _ -> Error "mismatched types"
+                end
+            | _ -> Error ("Unknown variable " ^ nm)
         end
     | Unary (v, op) ->
         begin match op, t with

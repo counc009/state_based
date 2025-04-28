@@ -7,4 +7,3 @@ Modules.Target.TargetInterp.interpret prg (Primitive Unit);;
 ```
 
 # TODO List
-- Add builtin variables to Ansible
