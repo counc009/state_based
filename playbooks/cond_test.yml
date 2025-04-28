@@ -1,0 +1,10 @@
+---
+- name: Test conditions
+  remote_user: aaron
+
+  tasks:
+  - name: Delete file on Debian
+    ansible.builtin.file:
+      path: /file/debian
+      state: touch
+    when: ansible_os_family == "Debian"
