@@ -290,6 +290,8 @@ module rec Ast_Target : Ast_Defs
     | Literal (Bool b, Bool) -> Some b
     | _ -> None
 
+  let boolAsValue (b: bool) : value = Literal (Bool b, Bool)
+
   let isUnit (t : typ) : bool =
     match t with
     | Primitive Unit -> true
@@ -299,6 +301,27 @@ module rec Ast_Target : Ast_Defs
   let envToVal (env : env) : value = Literal (Env env, (Env : primTy))
   let envFromVal (v : value) =
     match v with Literal (Env env, _) -> env | _ -> failwith "Not environment"
+
+  type constr = IsBool of bool | IsConstructor of bool * (id * typ)
+  type result_constraint = IsBool        of value * bool
+                         | IsConstructor of value * (bool * (id * typ))
+                         | IsEqual       of id * value
+  type func_constraints = Unreducible | Reducible of result_constraint list list
+
+  (* Reductions of constraints can leave out any reductions that are handled by
+   * the actual definitions, like proj1(pair(x, y)), that will already have
+   * simplified by this point and so if we get proj1(x) at this point that means
+   * we can't do anything *)
+  let reduceFuncConstraint (f: funct) (v: value) (c: constr) =
+    match f, c with
+    | BoolNeg, IsBool b -> Reducible [[ IsBool (v, not b) ]]
+    | Equal _, IsBool true ->
+        begin match v with
+        | Pair (Unknown (x, _), y, _) -> Reducible [[ IsEqual (x, y) ]]
+        | Pair (x, Unknown (y, _), _) -> Reducible [[ IsEqual (y, x) ]]
+        | _ -> Unreducible
+        end
+    | _, _ -> Unreducible
 end
 
 module TargetInterp = Calculus.Interp.Interp(Ast_Target)
@@ -538,12 +561,18 @@ let string_of_constructor_constraint (v: Ast_Target.value) (left: bool)
       end
   | _ -> "<< ERROR: MALFORMED CONSTRUCTOR CONSTRAINT >>"
 
+let string_of_loop_info (i: TargetInterp.loop_info) : string =
+  match i with
+  | AllUnknown i -> "#" ^ string_of_int i
+  | AllKnown v -> value_to_string v
+  | LastKnown (i, v) -> "#" ^ string_of_int i ^ "/" ^ value_to_string v
+
 let prg_type_to_string (state : TargetInterp.prg_type) : string =
   Printf.sprintf "%s --> %s [{ %s }, { %s }, { %s }]"
     (state_to_string state.init)
     (state_to_string state.final)
     (String.concat ", "
-      (List.map (fun (v, i) -> value_to_string v ^ ": #" ^ string_of_int i)
+      (List.map (fun (v, i) -> value_to_string v ^ ": " ^ string_of_loop_info i)
         (TargetInterp.ValueMap.to_list state.loops)))
     (String.concat ", "
       (List.map (fun (v, b) -> value_to_string v ^ " = " ^ string_of_bool b)

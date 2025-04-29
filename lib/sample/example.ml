@@ -97,11 +97,21 @@ module rec Calc : Ast_Defs
 
   let isTruthType (_ : typ)   : bool = false
   let asTruth     (_ : value) : bool option = None
+  let boolAsValue (_ : bool)  : value = failwith "No boolean support"
+
   let isUnit      (_ : typ)   : bool = false
 
   let envType : typ = Primitive Env
   let envToVal (_ : env) : value = failwith "No environment support"
   let envFromVal (_ : value) : env = failwith "No environment support"
+
+  type constr = IsBool of bool | IsConstructor of bool * (id * typ)
+  type result_constraint = IsBool        of value * bool
+                         | IsConstructor of value * (bool * (id * typ))
+                         | IsEqual       of id * value
+  type func_constraints = Unreducible | Reducible of result_constraint list list
+
+  let reduceFuncConstraint : funct -> _ = function _ -> .
 end
 
 module CalcInterp = Calculus.Interp.Interp(Calc)
@@ -148,12 +158,18 @@ let string_of_state (state: CalcInterp.state) : string =
         (CalcInterp.AttributeMap.to_list attrs))
   in inner_string_of_state "<>" "< " " >" state
 
+let string_of_loop_info (i: CalcInterp.loop_info) : string =
+  match i with
+  | AllUnknown i -> "#" ^ string_of_int i
+  | AllKnown v -> string_of_value v
+  | LastKnown (i, v) -> "#" ^ string_of_int i ^ "/" ^ string_of_value v
+
 let string_of_prg_type (state : CalcInterp.prg_type) : string =
   Printf.sprintf "%s --> %s [{ %s }, { %s }, { %s }]"
     (string_of_state state.init)
     (string_of_state state.final)
     (String.concat ", "
-      (List.map (fun (v, i) -> string_of_value v ^ ": #" ^ string_of_int i)
+      (List.map (fun (v, i) -> string_of_value v ^ ": " ^ string_of_loop_info i)
         (CalcInterp.ValueMap.to_list state.loops)))
     (String.concat ", "
       (List.map (fun (v, b) -> string_of_value v ^ " = " ^ string_of_bool b)

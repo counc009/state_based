@@ -6,5 +6,23 @@
   - name: Delete file on Debian
     ansible.builtin.file:
       path: /file/debian
+      state: absent
+    when: ansible_os_family == "Debian"
+
+  - name: Create empty file on Debian
+    ansible.builtin.file:
+      path: /file/debian
       state: touch
     when: ansible_os_family == "Debian"
+
+  - name: Delete file on RedHat
+    ansible.builtin.file:
+      path: /file/redhat
+      state: absent
+    when: ansible_os_family == "RedHat"
+
+  - name: Create empty file on RedHat
+    ansible.builtin.file:
+      path: /file/redhat
+      state: touch
+    when: ansible_os_family == "RedHat"
