@@ -99,9 +99,12 @@ module type Ast_Defs = sig
   (* Used to handle conditionals
    * - isTruthType returns whether a type can be used like a truth value 
    * - asTruth takes a value and produces its truth value (true/false) or
-   *   fails if it cannot be reduced to a boolean value for any reason *)
+   *   fails if it cannot be reduced to a boolean value for any reason
+   * - boolAsVAlue takes a boolean and returns a value representing that bool
+   *)
   val isTruthType : typ -> bool
   val asTruth : value -> bool option
+  val boolAsValue : bool -> value
   
   (* Used to handle loops
    * - To determine that a type is loop-like we need to know if types are unit
@@ -114,4 +117,17 @@ module type Ast_Defs = sig
   val envType : typ
   val envToVal : env -> value
   val envFromVal : value -> env
+
+  (* Many times constraints on function values can be simplified in some manner,
+   * for instance (not v) = true is equivalent to v = false which is simpler
+   * or (and x y) = true is equivalent to x = y = true. To enable such
+   * simplifications we allow implementations to define how constraints on a
+   * function can be simplified *)
+  type constr = IsBool of bool | IsConstructor of bool * (id * typ)
+  type result_constraint = IsBool        of value * bool
+                         | IsConstructor of value * (bool * (id * typ))
+                         | IsEqual       of id * value
+  type func_constraints = Unreducible | Reducible of result_constraint list list
+
+  val reduceFuncConstraint : funct -> value -> constr -> func_constraints
 end

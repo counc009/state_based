@@ -596,7 +596,7 @@ let stmt =
     in let matchStmt =
       string "match"
       *> whitespace1
-      *> expr
+      *> cond_expr
       >>= fun ex ->
       whitespace
       *> brackets cases

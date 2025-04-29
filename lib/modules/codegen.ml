@@ -40,7 +40,8 @@ type typ = Bool | Int | Float | String | Path | Unit
          | Option      of typ
          | List        of typ
          | Product     of typ list
-         | Struct      of typ StringMap.t
+         (* Store the name of the struct along with the info on its fields *)
+         | Struct      of string * typ StringMap.t
          (* Store the name of the enum along with the info on its constructors *)
          | Enum        of string * (int * typ list) StringMap.t
          | Placeholder of typ placeholder
@@ -58,6 +59,7 @@ type module_info =
     args : Ast.typ StringMap.t;
     argument_types : typ StringMap.t;
     input_struct_def : typ StringMap.t;
+    ret_type: Ast.typ;
     out_type : typ;
     body : Target.stmt placeholder }
 
@@ -259,7 +261,7 @@ let rec target_type (t : typ) : Target.typ =
   | Option t -> Named (Option (target_type t))
   | List t -> Named (List (target_type t))
   | Product ts -> construct_prod ts
-  | Struct fs -> Struct (StringMap.map target_type fs)
+  | Struct (_, fs) -> Struct (StringMap.map target_type fs)
   | Enum (nm, cs) -> construct_cases nm cs
   | Placeholder t ->
       match !t with
@@ -554,7 +556,7 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
         begin match nm with
         | Id nm ->
             begin match UniqueMap.find nm tys with
-            | Some (Struct struct_def) ->
+            | Some (Struct (_, struct_def)) ->
                 let target_struct = StringMap.map target_type struct_def
                 in let init_struct : Target.expr
                   = Function (EmptyStruct target_struct, Literal (Unit ()))
@@ -686,6 +688,10 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                   | "path_from" ->
                       let (arg_ty, res_ty, _) = Target.funcDef PathFrom
                       in Ok (arg_ty, res_ty, TargetAst.PathFrom)
+                  | "file_glob" ->
+                      let arg_ty = Target.Primitive String
+                      in let res_ty = Target.Named (List (Primitive Path))
+                      in Ok (arg_ty, res_ty, Uninterpreted ("file_glob", arg_ty, res_ty))
                   | _ -> Error ("undefined name " ^ nm))
                   (fun (arg_typ, ret_typ, func) ->
                     process (ProductExp args)
@@ -1350,6 +1356,24 @@ let generate_vars_check input (vars : (string * Ast.typ) list)
 
 let init_stmt_k = Error "Reached end of statements, missing terminator"
 
+(* Given an enum name and possible type argument check that it matches a target
+ * type that the scrutinee has been determined to have *)
+let pattern_type_matches (type_name, type_arg) (t: Target.typ) tys : bool =
+  match type_arg with
+  | None ->
+      begin match t with
+      | Named (Cases (enum_name, _)) when enum_name = type_name -> true
+      | _ -> false
+      end
+  | Some ty_arg ->
+      begin match t with
+      | Named (List t) when type_name = "list"
+          && target_type (process_type ty_arg tys) = t -> true
+      | Named (Option t) when type_name = "option"
+          && target_type (process_type ty_arg tys) = t -> true
+      | _ -> false
+      end
+
 (* process_stmt's is_mod argument specifies whether variable declarations
  * and checks are allowed in the code or not, so this function can be used to
  * generate code for both functions and modules. *)
@@ -1490,10 +1514,10 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
           in let constructors = lookup_enum tys type_name type_arg
           in let cases
             = Array.make (StringMap.cardinal constructors) (Default after)
-          in List.iter
+          in List.iter (* FIXME: Instead of panic this should return a result *)
               (fun ((typ, ty_arg, cons, vars), body) ->
                 if typ <> type_name || ty_arg <> type_arg
-                then failwith "Mismatched match cases"
+                then failwith "Mismatched types in match cases"
                 else let (pos, args) = StringMap.find cons constructors
                 in match cases.(pos) with
                    | Default _ ->
@@ -1506,14 +1530,16 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
                    | Set _ -> failwith "Duplicate case")
               cs
           ; process_expr e env tys locals is_mod
-            (fun (e, _) ->
-              (* FIXME: Check that the type is correct based on the patterns *)
-              Result.bind (array_foldr1 (Array.map of_processed cases)
-                (fun l r -> Result.bind l
-                  (fun l -> Result.bind r
-                    (fun r -> 
-                      Ok (Target.Match (Variable "#match", "#match", l, r))))))
-              (fun cases -> Ok (Target.Assign ("#match", e, cases))))
+            (fun (e, t) ->
+              if pattern_type_matches (type_name, type_arg) t tys
+              then
+                Result.bind (array_foldr1 (Array.map of_processed cases)
+                  (fun l r -> Result.bind l
+                    (fun l -> Result.bind r
+                      (fun r ->
+                        Ok (Target.Match (Variable "#match", "#match", l, r))))))
+                  (fun cases -> Ok (Target.Assign ("#match", e, cases)))
+              else Error "incorrect type of scrutinee")
       end
   | Clear e :: tl ->
       process_expr_as_qual e env tys locals is_mod
@@ -1587,7 +1613,7 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
         let fields =
           StringMap.of_list
             (List.map (fun (nm, t) -> (nm, create_type t env)) fields)
-        in add_type nm (Struct fields) env; create_types tl env
+        in add_type nm (Struct (nm, fields)) env; create_types tl env
     | Type (nm, typ) :: tl ->
         let ty = create_type typ env
         in add_type nm ty env; create_types tl env
@@ -1638,6 +1664,7 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
             argument_types = var_types;
             input_struct_def = struct_def;
             out_type = ret_ty;
+            ret_type = (match ret with None -> Product [] | Some t -> t);
             body = mod_body }
         in add_modules nm (Module mod_info) env
         ; (Either.Right (body, struct_def), ret_ty, mod_body)

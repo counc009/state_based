@@ -1,0 +1,12 @@
+---
+- name: Test loops
+  remote_user: aaron
+
+  tasks:
+  - name: Create new files
+    ansible.builtin.file:
+      path: /path/to/file
+      state: "{{ item }}"
+    with_items:
+      - absent
+      - touch
