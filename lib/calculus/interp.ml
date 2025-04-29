@@ -212,6 +212,8 @@ module Interp(Ast : Ast.Ast_Defs) = struct
             in match asTruth new_v with
             | Some c -> if b = c then Some new_bools else None
             | None ->
+                (* TODO: the substitution (and simplification) might enable us
+                 * to simplify the constraint *)
                 match ValueMap.find_opt new_v new_bools with
                 | None -> Some (ValueMap.add new_v b new_bools)
                 | Some c -> if b = c then Some new_bools else None))
