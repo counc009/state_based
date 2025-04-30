@@ -1,0 +1,9 @@
+---
+- name: Copy all .war files from /backup on the controller into /tmp on the remote
+  tasks:
+  - name: Copy war files from controller
+    ansible.builtin.copy:
+      src: "{{ item }}"
+      dest: "/backup/"
+    with_fileglob:
+      - "/tmp/*.war"
