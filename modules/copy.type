@@ -53,15 +53,53 @@ module ansible.builtin.copy -> copy_result {
                 : env().is_root  ? fs(src, loc).owner
                                  : env().user;
 
-      let do_copy = exists fs(dest, file_system::remote) ? force : true;
-      if do_copy {
-        if copy(dest, src, loc, group, owner) {
-          return copy_result { failed: false };
-        } else {
-          return copy_result { failed: true };
+      if ends_with_dir(dest) {
+        # If src is a file, add it's base name, if it's a directory we copy
+        # all contents of the directory (but not the directory itself)
+        match fs(src, loc).fs_type {
+          file_type::file(content) => {
+            let dest = cons_path(dest, base_name(src));
+            let do_copy = exists fs(dest, file_system::remote) ? force : true;
+            if do_copy {
+              fs(dest, file_system::remote).fs_type = file_type::file(content);
+              fs(dest, file_system::remote).owner = owner;
+              fs(dest, file_system::remote).group = group;
+              return copy_result { failed: false };
+            } else {
+              return copy_result { failed: false };
+            }
+          }
+          file_type::directory(files) => {
+            for f in files {
+              assert exists fs(f, loc);
+              match fs(f, loc).fs_type {
+                file_type::file(c) => {
+                  let f_dst = cons_path(dest, path_from(src, f));
+                  fs(f_dst, file_system::remote).fs_type = file_type::file(c);
+                  fs(f_dst, file_system::remote).owner = owner;
+                  fs(f_dst, file_system::remote).group = group;
+                }
+                file_type::directory(_) => { return copy_result { failed: true }; }
+                file_type::hard(_) => { return copy_result { failed: true }; }
+                file_type::link(_) => { return copy_result { failed: true }; }
+              }
+            }
+            return copy_result { failed: false };
+          }
+          file_type::hard(_) => { return copy_result { failed: true }; }
+          file_type::link(_) => { return copy_result { failed: true }; }
         }
       } else {
-        return copy_result { failed: false };
+        let do_copy = exists fs(dest, file_system::remote) ? force : true;
+        if do_copy {
+          if copy(dest, src, loc, group, owner) {
+            return copy_result { failed: false };
+          } else {
+            return copy_result { failed: true };
+          }
+        } else {
+          return copy_result { failed: false };
+        }
       }
     } else {
       return copy_result { failed: true };
