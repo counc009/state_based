@@ -584,7 +584,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                   (fun conditioned ->
                     Ok [Modules.Ast.ForLoop ("item", lst, conditioned)]))
           | Some (FileGlob glob) ->
-              Result.bind (codegen_value glob (Some String) play_env)
+              Result.bind (codegen_value glob (Some (List String)) play_env)
                 (fun (glob, _) ->
                   let files = Modules.Ast.FuncExp (Id "file_glob", [glob])
                   in Result.bind conditioned
