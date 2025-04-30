@@ -584,12 +584,28 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                   (fun conditioned ->
                     Ok [Modules.Ast.ForLoop ("item", lst, conditioned)]))
           | Some (FileGlob glob) ->
+              (* Per the documentation: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/fileglob_lookup.html
+                 with_fileglob will only return files, so within the loop we
+                 add assertions that the files exist and are just files *)
               Result.bind (codegen_value glob (Some (List String)) play_env)
                 (fun (glob, _) ->
                   let files = Modules.Ast.FuncExp (Id "file_glob", [glob])
                   in Result.bind conditioned
                     (fun conditioned ->
-                      Ok [Modules.Ast.ForLoop ("item", files, conditioned)]))
+                      let item_file =
+                        Modules.Ast.FuncExp (Id "fs", 
+                          [Id "item"; EnumExp (Id "file_system", None, "local", [])])
+                      in let assert_false = Modules.Ast.Assert (BoolLit false)
+                      in let loop_body =
+                        Modules.Ast.AssertExists item_file
+                        :: Match (Field (item_file, "fs_type"),
+                          [ (("file_type", None, "file", ["_"]), [])
+                          ; (("file_type", None, "directory", ["_"]), [assert_false])
+                          ; (("file_type", None, "hard", ["_"]), [assert_false])
+                          ; (("file_type", None, "link", ["_"]), [assert_false])
+                          ])
+                        :: conditioned
+                      in Ok [Modules.Ast.ForLoop ("item", files, loop_body)]))
         in let () = if Option.is_some t.loop then Hashtbl.remove play_env "item"
         in looped)
   in let codegen_play (play : play) : (Modules.Ast.stmt list, string) result =
