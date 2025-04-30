@@ -1,0 +1,14 @@
+---
+- name: Copy files test
+
+  tasks:
+  - name: Create the source file
+    ansible.builtin.copy:
+      dest: /path/to/file.txt
+      content: "File Content"
+
+  - name: Copy the file to /tmp
+    ansible.builtin.copy:
+      dest: /tmp/
+      src: /path/to/file.txt
+      remote_src: yes
