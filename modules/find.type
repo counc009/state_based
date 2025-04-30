@@ -1,0 +1,51 @@
+struct find_result { failed: bool, files: list stat_res }
+
+enum find_file_type { any, directory, file, link }
+
+uninterpreted file_glob_remote(list string, find_file_type) -> list path
+
+module ansible.builtin.find -> find_result {
+  (paths : list path)
+  (file_type : find_file_type = find_file_type::file)
+  (patterns: list string = list::<string>::cons("*", list::<string>::nil()))
+
+  let globs = list::<string>::nil();
+  for path in paths {
+    for pat in patterns {
+      globs = list::<string>::cons(string_of_path(path) ^ "/" ^ pat, globs);
+    }
+  }
+
+  let paths = file_glob_remote(globs, file_type);
+
+  let files = foreach f in paths {
+    match file_type {
+      find_file_type::file => {
+        assert exists fs(f, file_system::remote);
+        match fs(f, file_system::remote).fs_type {
+          file_type::file(_) => {
+            // TODO: Add other fields
+            return stat_res { exists: true, path: f };
+          }
+          file_type::directory(_) => { assert false; }
+          file_type::hard(_) => { assert false; }
+          file_type::link(_) => { assert false; }
+        }
+      }
+      find_file_type::directory => {
+        # TODO
+        assert false; 
+      }
+      find_file_type::any => {
+        # TODO
+        assert false; 
+      }
+      find_file_type::link => {
+        # TODO
+        assert false; 
+      }
+    }
+  };
+
+  return find_result { failed: false, files: files };
+}

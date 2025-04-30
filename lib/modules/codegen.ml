@@ -146,6 +146,17 @@ let lookup_enum (tys : type_env) (nm : string) (ty_arg: Ast.typ option)
               StringMap.empty)
       | _ -> failwith "undefined type constructor"
 
+let lookup_struct (tys: type_env) (nm: string)
+  : (typ StringMap.t, string) result =
+  let rec extract_struct (t: typ) =
+    match t with
+    | Struct (_, struct_def) -> Ok struct_def
+    | Placeholder { contents = Some t } -> extract_struct t
+    | _ -> Error (Printf.sprintf "%s is not a struct type" nm)
+  in match UniqueMap.find nm tys with
+  | None -> Error (Printf.sprintf "%s is not a type" nm)
+  | Some t -> extract_struct t
+
 let rec add_modules (nm : string list) (t : env_entry) env : unit =
   match nm with
   | [] -> failwith "Empty module name"
@@ -555,8 +566,8 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
     | RecordExp (nm, fields) ->
         begin match nm with
         | Id nm ->
-            begin match UniqueMap.find nm tys with
-            | Some (Struct (_, struct_def)) ->
+            Result.bind (lookup_struct tys nm)
+              (fun struct_def ->
                 let target_struct = StringMap.map target_type struct_def
                 in let init_struct : Target.expr
                   = Function (EmptyStruct target_struct, Literal (Unit ()))
@@ -579,9 +590,7 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                                        Pair (record, e))))))
                     (fun e -> k (JustExpr (e, Struct target_struct)))
                     fields
-                in filled_struct init_struct
-            | _ -> Error "expected struct name"
-            end
+                in filled_struct init_struct)
         | _ -> Error "expected struct name"
         end
     | FieldSetExp (record, field, expr) ->
@@ -679,6 +688,9 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                   | "path_of_string" ->
                       let (arg_ty, res_ty, _) = Target.funcDef PathOfString
                       in Ok (arg_ty, res_ty, TargetAst.PathOfString)
+                  | "string_of_path" ->
+                      let (arg_ty, res_ty, _) = Target.funcDef StringOfPath
+                      in Ok (arg_ty, res_ty, TargetAst.StringOfPath)
                   | "ends_with_dir" ->
                       let (arg_ty, res_ty, _) = Target.funcDef EndsWithDir
                       in Ok (arg_ty, res_ty, TargetAst.EndsWithDir)

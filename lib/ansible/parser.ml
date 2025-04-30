@@ -206,7 +206,7 @@ let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
       (fun hd -> Result.bind (jinja_to_value js)
         (fun tl -> Ok (Binary (hd, Concat, tl))))
 
-type var_typ = Unknown of string (* name of the variable *)
+type var_typ = Unknown of string * Modules.Ast.typ (* name of the variable and a suggested type *)
              | Concrete of Modules.Ast.typ
 type play_env = (string, var_typ) Hashtbl.t
 
@@ -402,10 +402,12 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
         | Some (Concrete ty), Some t when t = ty -> Ok (Modules.Ast.Id nm, t)
         | Some (Concrete _), Some _ -> Error "mismatched types"
         | Some (Concrete ty), None -> Ok (Modules.Ast.Id nm, ty)
-        | Some (Unknown _), Some t ->
+        | Some (Unknown (_, _)), Some t ->
             let () = Hashtbl.add play_env nm (Concrete t)
             in Ok (Modules.Ast.Id nm, t)
-        | Some (Unknown _), None -> Error ("Variable of unknown type used in unknown type setting, cannot solve")
+        | Some (Unknown (_, t)), None ->
+            let () = Hashtbl.add play_env nm (Concrete t)
+            in Ok (Modules.Ast.Id nm, t)
         | None, _ ->
             (* See if this is a built-in variable *)
             match nm with
@@ -554,7 +556,18 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
           module_args
   in let codegen_task (t : task) (play_env: play_env)
     : (Modules.Ast.stmt list, string) result =
-    let () = if Option.is_some t.loop then Hashtbl.add play_env "item" (Unknown "item")
+    let () =
+      match t.loop with
+      | None -> ()
+      | Some (ItemLoop v) ->
+          (* Item loops may end up with the item type constrained by a usage
+           * to give us more information, but we'll first try to type it in
+           * case the item's usage is not in a constrained context *)
+          begin match codegen_value v None play_env with
+          | Ok (_, List t) -> Hashtbl.add play_env "item" (Unknown ("item", t))
+          | _ -> Hashtbl.add play_env "item" (Unknown ("item", String))
+          end
+      | Some (FileGlob _) -> Hashtbl.add play_env "item" (Concrete Path)
     in Result.bind (codegen_module_invocation t.module_invoke play_env)
       (fun (modul, typ) ->
         let body = Modules.Ast.LetStmt (t.register, modul)

@@ -22,6 +22,7 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 (* Path operations *)
                 | ConsPath
                 | PathOfString
+                | StringOfPath
                 | EndsWithDir
                 | BaseName
                 | PathFrom
@@ -235,6 +236,10 @@ module rec Ast_Target : Ast_Defs
         fun v -> match v with
           | Literal (String s, _) -> Reduced (Literal (Path s, Path))
           | _ -> Stuck)
+    | StringOfPath -> (Primitive Path, Primitive String,
+        fun v -> match v with
+          | Literal (Path s, _) -> Reduced (Literal (String s, String))
+          | _ -> Stuck)
     | EndsWithDir -> (Primitive Path, Primitive Bool,
         fun v -> match v with
           | Literal (Path p, _)
@@ -374,6 +379,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | Equal _                   -> "equal"
         | ConsPath                  -> "cons_path"
         | PathOfString              -> "path_of_string"
+        | StringOfPath              -> "string_of_path"
         | EndsWithDir               -> "ends_with_dir"
         | BaseName                  -> "base_name"
         | PathFrom                  -> "path_from"
@@ -489,6 +495,7 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | Equal _                   -> "equal(" ^ value_to_string arg ^ ")"
       | ConsPath                  -> "cons_path(" ^ value_to_string arg ^ ")"
       | PathOfString              -> "path_of_string(" ^ value_to_string arg ^ ")"
+      | StringOfPath              -> "string_of_path(" ^ value_to_string arg ^ ")"
       | EndsWithDir               -> "ends_with_dir(" ^ value_to_string arg ^ ")"
       | BaseName                  -> "base_name(" ^ value_to_string arg ^ ")"
       | PathFrom                  -> "path_from(" ^ value_to_string arg ^ ")"
