@@ -169,7 +169,7 @@ let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
     | Tlist xs -> Result.map (fun xs -> List xs)
       (List.fold_right
         (fun x xs ->
-          Result.bind (jlit_to_value x) 
+          Result.bind (jlit_to_value x)
             (fun x -> Result.bind xs (fun xs -> Ok (x :: xs))))
         xs
         (Ok []))
@@ -348,7 +348,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
             in Result.map
                 (fun vals ->
                   (List.fold_right
-                    (fun v e -> 
+                    (fun v e ->
                       Modules.Ast.EnumExp (
                         Id "list",
                         Some el,
@@ -384,8 +384,8 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                       | None -> Error (Printf.sprintf
                           "Invalid value '%s' expected one of [%s]"
                           s
-                          (String.concat ", " 
-                            (List.map fst 
+                          (String.concat ", "
+                            (List.map fst
                               (Modules.Codegen.StringMap.bindings constructors))))
                       | Some (_, []) -> Ok(EnumExp (Id nm, None, s, []), Named nm)
                       | Some (_, _) -> Error (Printf.sprintf
@@ -422,13 +422,13 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
         end
     | Unary (v, op) ->
         begin match op, t with
-        | Not, Some Bool | Not, None -> 
+        | Not, Some Bool | Not, None ->
             Result.bind (codegen_value v (Some Bool) play_env)
               (fun (v, t) -> Ok (Modules.Ast.UnaryExp (v, Not), t))
         | Not, _ -> Error "Incorrect type for not (productes boolean)"
         end
     | Binary (lhs, op, rhs) ->
-        let op_info : (Modules.Ast.typ option 
+        let op_info : (Modules.Ast.typ option
                     * (Modules.Ast.typ -> Modules.Ast.typ option)
                     * Modules.Ast.typ
                     * Modules.Ast.binary, string) result =
@@ -551,7 +551,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                     | Ok (e, _) -> Result.map (fun tl -> (canon_name, e) :: tl) (process_args tl)
                     | Error msg -> Error msg
           in process_args m.args
-        in Result.map 
+        in Result.map
           (fun args -> (Modules.Ast.ModuleExp (module_expr, args), res_type))
           module_args
   in let codegen_task (t : task) (play_env: play_env)
@@ -580,7 +580,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
               Result.bind
                 (codegen_value (list_to_and cond) (Some Bool) play_env)
                 (fun (c, _) -> Ok [Modules.Ast.IfThenElse (c, body, [])])
-        in let () = 
+        in let () =
           if t.register <> "_" then Hashtbl.add play_env t.register (Concrete typ)
         in let looped =
           match t.loop with
@@ -606,7 +606,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                   in Result.bind conditioned
                     (fun conditioned ->
                       let item_file =
-                        Modules.Ast.FuncExp (Id "fs", 
+                        Modules.Ast.FuncExp (Id "fs",
                           [Id "item"; EnumExp (Id "file_system", None, "local", [])])
                       in let assert_false = Modules.Ast.Assert (BoolLit false)
                       in let loop_body =
@@ -635,10 +635,10 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
     (* Set the user by env().user = remote_user *)
     in Result.map
       (fun tasks ->
-        Modules.Ast.Assign 
-          (Field (FuncExp (Id "env", []), "user"), 
+        Modules.Ast.Assign
+          (Field (FuncExp (Id "env", []), "user"),
            StringLit play.remote_user)
-        :: tasks) 
+        :: tasks)
       tasks
   in let process_play play =
     match play with
@@ -647,7 +647,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
           match map with
           | [] -> Result.map_error (String.concat "\n") res#to_play
           | (field, v) :: tl ->
-              match 
+              match
                 match field with
                 | "name"        -> Result.map res#add_name (process_string v)
                 | "hosts"       -> Result.map res#add_hosts (process_string v)
@@ -662,7 +662,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
   in let rec process_plays plays =
     match plays with
     | [] -> Ok []
-    | hd :: tl -> 
+    | hd :: tl ->
         match process_play hd, process_plays tl with
         | Ok hd, Ok tl -> Ok (hd @ tl)
         | Ok _, Error msg -> Error msg

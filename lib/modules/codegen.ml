@@ -205,7 +205,7 @@ let process_type_option (t : Ast.typ option) env : typ =
   | Some t -> process_type t env
 
 let process_module_for_args (body : Ast.stmt list) env
-  : string StringMap.t * Ast.typ StringMap.t * typ StringMap.t * typ StringMap.t = 
+  : string StringMap.t * Ast.typ StringMap.t * typ StringMap.t * typ StringMap.t =
   let rec add_alias alias nm aliases =
     match alias with
     | [] -> aliases
@@ -285,7 +285,7 @@ and construct_prod (ts : typ list) : Target.typ =
   | t :: ts -> Product (target_type t, construct_prod ts)
 and construct_cases (enum_name : string) (cs : (int * typ list) StringMap.t)
   : Target.typ =
-  let types : (string * typ list) array 
+  let types : (string * typ list) array
     = Array.make (StringMap.cardinal cs) ("", [])
   in let ()
     = List.iter
@@ -329,10 +329,10 @@ let get_enum_info (tys : type_env) (nm : string) (ty_arg : Ast.typ option)
     | Enum (enum_name, constrs) ->
         begin match StringMap.find_opt constr constrs with
         | None -> failwith "Invalid constructor"
-        | Some (idx, tys) -> 
+        | Some (idx, tys) ->
             if StringMap.cardinal constrs = 1
             then Either.Right (target_type (Product tys))
-            else let cases : (string * Target.typ) Array.t 
+            else let cases : (string * Target.typ) Array.t
               = Array.make (StringMap.cardinal constrs) ("", Target.Primitive Unit)
             in StringMap.iter
               (fun nm (idx, tys) -> cases.(idx) <- (nm, target_type (Product tys)))
@@ -406,7 +406,7 @@ let get_module_info env (modul : Ast.expr)
   | Either.Right mod_info ->
       let arg_types = StringMap.map target_type mod_info.argument_types
       in let struct_def = StringMap.map target_type mod_info.input_struct_def
-      in let action_info : Target.action = 
+      in let action_info : Target.action =
         (String.concat "." mod_info.name,
          Struct struct_def,
          target_type mod_info.out_type,
@@ -450,7 +450,7 @@ let rec construct_product_read (e : Target.expr) (t : Target.typ) (i : int)
 (* The result of our internal expression processing *)
 type expr_result = JustExpr of Target.expr * Target.typ
                  | JustAttr of (Target.attr -> Target.attr)
-                 | ExprOrAttr of (Target.expr * Target.typ) 
+                 | ExprOrAttr of (Target.expr * Target.typ)
                                * (Target.attr -> Target.attr)
 
 let as_expr (e : expr_result) : (Target.expr * Target.typ, string) result =
@@ -552,7 +552,7 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
         begin match es with
         | [] -> k (JustExpr (Literal (Unit ()), Primitive Unit))
         | [e] -> process e k
-        | e :: es -> 
+        | e :: es ->
             process e
               (fun e ->
                 Result.bind (as_expr e)
@@ -572,7 +572,7 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                 in let init_struct : Target.expr
                   = Function (EmptyStruct target_struct, Literal (Unit ()))
                 in let filled_struct : Target.expr -> (Target.stmt, string) result
-                  = List.fold_left 
+                  = List.fold_left
                     (fun (k : Target.expr -> (Target.stmt, string) result)
                          (field, expr) record ->
                       if not (StringMap.mem field struct_def)
@@ -608,7 +608,7 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                           (fun (f, t) ->
                             if t <> ty
                             then Error ("incorrect type for field " ^ field)
-                            else 
+                            else
                               k (JustExpr
                                 (Function
                                   (AddField (fields, field),
@@ -649,7 +649,7 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                     (fun (e, t) ->
                       if t <> snd elem
                       then Error ("incorrect type for element " ^ nm)
-                      else 
+                      else
                         k (JustAttr (fun attr -> OnElement (elem, e, attr)))))
             | Some (Uninterpreted (nm, in_tys, out_typ)) ->
                 let in_ty = target_type (Product in_tys)
@@ -659,7 +659,7 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                     (fun (e, t) ->
                       if t <> in_ty
                       then Error ("incorrect type for uninterpreted function " ^ nm)
-                      else 
+                      else
                         k (JustExpr (
                             Function (Uninterpreted (nm, in_ty, out_ty), e),
                             out_ty))))
@@ -676,7 +676,7 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                       else
                         Result.bind (k (JustExpr (Variable tmp, ret_ty)))
                         (fun res ->
-                         Ok (Target.Action (tmp, 
+                         Ok (Target.Action (tmp,
                                 (nm, arg_typ, ret_ty, body), e, res)))))
             | Some _ -> Error "expected function"
             | None ->
@@ -733,7 +733,7 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
         | _ -> Error "invalid function expression"
         end
       | ModuleExp (func, args) ->
-          let (mod_info, arg_types, record_def, ret_ty, aliases) 
+          let (mod_info, arg_types, record_def, ret_ty, aliases)
             = get_module_info env func
           and tmp = temp_name ()
           in let init_input : Target.expr =
@@ -790,7 +790,7 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                 begin match t with
                 | Struct fields ->
                     begin match StringMap.find_opt field fields with
-                    | Some ty -> 
+                    | Some ty ->
                         k (JustExpr
                             (Function (ReadField (fields, field), e),
                              ty))
@@ -825,7 +825,7 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                     if match t with
                        | Struct fields -> StringMap.mem field fields
                        | _ -> false
-                    then 
+                    then
                       Error "field is either a struct field or an attribute"
                     else
                       let attr = (nm, target_type typ)
@@ -939,7 +939,7 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                 in update_module_var false_mod_info input false_locals
                   (fun false_locals ->
                     Result.map
-                      (fun (thn, els) -> Target.Match 
+                      (fun (thn, els) -> Target.Match
                         (Function (ReadField (input, var), Variable "#input"),
                         fresh_nm, els, thn))
                     (let thn_type = ref (Error "failure compiling then branch")
@@ -953,7 +953,7 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                           ; Result.bind !after
                             (fun after -> Ok (Target.Assign (tmp, thn, after))))
                     in let els_stmt =
-                      process_expr els env tys false_locals 
+                      process_expr els env tys false_locals
                         (Some (false_mod_env, input))
                         (fun (els, els_t) ->
                           match !thn_type with
@@ -981,7 +981,7 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                   (fun (thn, thn_t) ->
                     thn_type := Ok thn_t
                     ; after := k (JustExpr (Variable tmp, thn_t))
-                    ; Result.bind !after 
+                    ; Result.bind !after
                       (fun after -> Ok (Target.Assign (tmp, thn, after)))))
               in let els_stmt =
                 process els (fun els -> Result.bind (as_expr els)
@@ -1096,7 +1096,7 @@ let rec process_qual (e : Ast.expr) env tys locals (is_mod : mod_info option)
            * of the attribute *)
           in process_expr e env tys locals is_mod
             (fun (expr, _) ->
-              process_qual qual env tys locals is_mod 
+              process_qual qual env tys locals is_mod
                            (Attribute (attr, expr, [q])) k)
       | _ -> Error ("Invalid attribute " ^ attr)
       end
@@ -1168,7 +1168,7 @@ let process_lval (e : Ast.expr) env tys locals (is_mod : mod_info option)
          * identifier must be a local variable *)
         begin match StringMap.find_opt nm locals with
         | Some (LocalVar (var, typ)) ->
-            k (LValue (typ, Variable var, 
+            k (LValue (typ, Variable var,
                        fun e -> Result.map (fun s -> Target.Assign (var, e, s))))
         | Some _ -> Error ("variable " ^ nm ^ " may not be provided")
         | None -> Error ("undefined variable " ^ nm)
@@ -1184,7 +1184,7 @@ let process_lval (e : Ast.expr) env tys locals (is_mod : mod_info option)
                     | Some ty ->
                         k (LValue (ty, Function (ReadField (fields, field), exp),
                           fun e s ->
-                            assign 
+                            assign
                               (Function
                                 (AddField (fields, field),
                                  Pair (exp, e)))
@@ -1210,7 +1210,7 @@ let process_lval (e : Ast.expr) env tys locals (is_mod : mod_info option)
                 | Some _, Some _ -> Error "ambiguous field or attribute"
                 | None, None -> Error "undefined field or attribute"
                 | Some (fields, field_ty), None ->
-                    k (LValue (field_ty, 
+                    k (LValue (field_ty,
                                Function (ReadField (fields, field), expr),
                                fun e -> Result.map (fun s -> Target.Add (as_assign e, s))))
                 | None, Some attr ->
@@ -1249,7 +1249,7 @@ let process_lval (e : Ast.expr) env tys locals (is_mod : mod_info option)
               (fun (e, t) ->
                 if t <> snd elem
                 then Error ("incorrect type for element " ^ nm)
-                else Result.bind (k 
+                else Result.bind (k
                         (LElement ((fun q -> Element (elem, e, [q])),
                                   (fun a -> OnElement (elem, e, a)))))
                 (fun after -> Ok (Target.Add (Element (elem, e, []), after))))
@@ -1273,7 +1273,7 @@ let process_lval (e : Ast.expr) env tys locals (is_mod : mod_info option)
                     else Result.bind (k (LElement (
                             (fun q -> as_qual (Element (elem, e, [q]))),
                             (fun a -> as_attr (OnElement (elem, e, a))))))
-                    (fun after -> 
+                    (fun after ->
                       Ok (Target.Add (as_qual (Element (elem, e, [])), after)))
                   ))
         | Some _ -> Error ("expected element " ^ elem ^ " is not one")
@@ -1311,7 +1311,7 @@ let rec generateVarInits (names : string list) (ty : Target.typ)
       match ty with
       | Product (x, y) ->
           let fresh_n = fresh_var n
-          in Result.bind 
+          in Result.bind
               (generateVarInits ns y (Function (Proj (false, x, y), exp))
                 (StringMap.add n (LocalVar (fresh_n, x)) locals) k)
             (fun rest ->
@@ -1410,9 +1410,9 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
                           StringSet.of_list (List.map fst vars))
           in let var_id = uniq ()
           in let new_mod_env = IntMap.add var_id var_info mod_env
-          in let new_locals = 
-            List.fold_left (fun env (var, typ) -> 
-                  StringMap.add 
+          in let new_locals =
+            List.fold_left (fun env (var, typ) ->
+                  StringMap.add
                     var
                     (ModuleVar (var_id, target_type (process_type typ tys)))
                     env)
@@ -1453,12 +1453,12 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
           | Named (List t) ->
             let fresh_v = fresh_var v
             in let body_env = StringMap.add v (LocalVar (fresh_v, t)) locals
-            in Result.bind 
+            in Result.bind
               (process_stmt b env tys body_env is_mod (Ok (Return Env)))
               (fun body ->
                 Result.bind (process_stmt tl env tys locals is_mod k)
                 (fun after ->
-                  Ok (Target.Loop (fresh_v, lst, body, after))))
+                  Ok (Target.ForEach ("_", Primitive Unit, lst, fresh_v, body, after))))
           | _ -> Error "can only loop over lists")
   | IfProvided (var, thn, els) :: tl ->
       begin match is_mod with
@@ -1536,7 +1536,7 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
                       cases.(pos) <-
                         Set (generateVarInits vars (construct_prod args)
                                 (Variable "#match") locals
-                                (fun locals -> 
+                                (fun locals ->
                                   process_stmt body env tys locals is_mod
                                                after))
                    | Set _ -> failwith "Duplicate case")
@@ -1555,7 +1555,7 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
       end
   | Clear e :: tl ->
       process_expr_as_qual e env tys locals is_mod
-        (fun q -> 
+        (fun q ->
           Result.bind (process_stmt tl env tys locals is_mod k)
             (fun after -> Ok (Target.Add (negate_qual q, after))))
   | Assert e :: tl ->
@@ -1615,7 +1615,7 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
     match ts with
     | [] -> ()
     | Enum (nm, variants) :: tl ->
-        let variants = 
+        let variants =
           StringMap.of_list
             (List.mapi
               (fun i (nm, ts) -> (nm, (i, create_types_option ts env)))
@@ -1709,7 +1709,7 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
           then Ok (Return (Literal (Unit ())))
           else Error ("Reached end of statements, missing terminator")
         in
-        body_ref := 
+        body_ref :=
           Some(unwrap(process_stmt body env types empty_local_env
                 (Some (empty_mod_env, StringMap.map target_type input))
                 default_ret))

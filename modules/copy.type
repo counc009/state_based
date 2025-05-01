@@ -59,7 +59,8 @@ module ansible.builtin.copy -> copy_result {
         match fs(src, loc).fs_type {
           file_type::file(content) => {
             let dest = cons_path(dest, base_name(src));
-            let do_copy = exists fs(dest, file_system::remote) ? force : true;
+            let do_copy = force ? true 
+                        : exists fs(dest, file_system::remote) ? false : true;
             if do_copy {
               fs(dest, file_system::remote).fs_type = file_type::file(content);
               fs(dest, file_system::remote).owner = owner;
@@ -90,7 +91,8 @@ module ansible.builtin.copy -> copy_result {
           file_type::link(_) => { return copy_result { failed: true }; }
         }
       } else {
-        let do_copy = exists fs(dest, file_system::remote) ? force : true;
+        let do_copy = force ? true
+                    : exists fs(dest, file_system::remote) ? false : true;
         if do_copy {
           if copy(dest, src, loc, group, owner) {
             return copy_result { failed: false };
@@ -105,7 +107,8 @@ module ansible.builtin.copy -> copy_result {
       return copy_result { failed: true };
     }
   } else {
-    let do_copy = exists fs(dest, file_system::remote) ? force : true;
+    let do_copy = force ? true
+                : exists fs(dest, file_system::remote) ? false : true;
     if do_copy {
       # NOTE: The docs are unclear whether the group/owner and updated if we
       # don't perform the copy, need to figure that out

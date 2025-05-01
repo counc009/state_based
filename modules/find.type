@@ -18,34 +18,35 @@ module ansible.builtin.find -> find_result {
 
   let paths = file_glob_remote(globs, file_type);
 
-  let files = foreach f in paths {
-    match file_type {
-      find_file_type::file => {
-        assert exists fs(f, file_system::remote);
-        match fs(f, file_system::remote).fs_type {
-          file_type::file(_) => {
-            // TODO: Add other fields
-            return stat_res { exists: true, path: f };
-          }
-          file_type::directory(_) => { assert false; }
-          file_type::hard(_) => { assert false; }
-          file_type::link(_) => { assert false; }
-        }
-      }
-      find_file_type::directory => {
-        # TODO
-        assert false; 
-      }
-      find_file_type::any => {
-        # TODO
-        assert false; 
-      }
-      find_file_type::link => {
-        # TODO
-        assert false; 
-      }
-    }
-  };
+#  let files = foreach f in paths {
+#    match file_type {
+#      find_file_type::file => {
+#        assert exists fs(f, file_system::remote);
+#        match fs(f, file_system::remote).fs_type {
+#          file_type::file(_) => {
+#            // TODO: Add other fields
+#            return stat_res { exists: true, path: f };
+#          }
+#          file_type::directory(_) => { assert false; }
+#          file_type::hard(_) => { assert false; }
+#          file_type::link(_) => { assert false; }
+#        }
+#      }
+#      find_file_type::directory => {
+#        # TODO
+#        assert false; 
+#      }
+#      find_file_type::any => {
+#        # TODO
+#        assert false; 
+#      }
+#      find_file_type::link => {
+#        # TODO
+#        assert false; 
+#      }
+#    }
+#  };
 
-  return find_result { failed: false, files: files };
+#  return find_result { failed: false, files: files };
+  return find_result { failed: false };
 }

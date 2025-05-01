@@ -43,6 +43,7 @@ module rec Calc : Ast_Defs
                | Pair        of value * value * typ
                | Constructor of namedTy * bool * value
                | Struct      of structTy * record
+               | ListVal     of namedTy * value
 
   type env = (value * typ) VariableMap.t
 
@@ -73,8 +74,8 @@ module rec Calc : Ast_Defs
               | Get      of variable * attr * stmt
               | Contains of elem * stmt * stmt
               | Cond     of expr * stmt * stmt
-              | Loop     of variable * expr * stmt * stmt
               | Match    of expr * variable * stmt * stmt
+              | ForEach  of variable * typ * expr * variable * stmt * stmt
               | Fail     of string
               | Return   of expr
 
@@ -100,6 +101,7 @@ module rec Calc : Ast_Defs
   let boolAsValue (_ : bool)  : value = failwith "No boolean support"
 
   let isUnit      (_ : typ)   : bool = false
+  let listType    (_ : typ)   : namedTy = failwith "No list support"
 
   let envType : typ = Primitive Env
   let envToVal (_ : env) : value = failwith "No environment support"
@@ -126,6 +128,7 @@ let rec string_of_value (v : Calc.value) : string =
   | Struct (_, _) -> .
   | Constructor (_, _, _) -> .
   | Function (_, _, _) -> .
+  | ListVal (_, _) -> .
 
 let string_of_element (e : Calc.element) : string =
   match e with
@@ -193,7 +196,7 @@ let string_of_results (res : CalcInterp.prg_res list) : (string, string) result 
   | ([], errors) -> Error(String.concat "\n" errors)
   | (states, _) -> Ok(String.concat "\n" states)
 
-let example1 : Calc.stmt = 
+let example1 : Calc.stmt =
   Get ("c", OnElement (File, Variable "S", AttrAccess Content),
   Add (Element (File, Variable "D", [Attribute (Content, Variable "c", [])]),
   Add (NotElement (File, Variable "S"),

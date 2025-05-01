@@ -165,10 +165,10 @@ let expr =
         *> choice
           [ (char '.' *> whitespace *>
             ((identifier >>= fun field -> expr9' (Field (exp, field)))
-            <|> (take_while1 is_digit 
+            <|> (take_while1 is_digit
               >>= fun whole -> expr9' (ProductField (exp, int_of_string whole)))))
           ; (string "::" *> whitespace *>
-              (option None 
+              (option None
                 (char '<' *> whitespace *> typ <* whitespace <* char '>'
                   <* whitespace <* string "::" >>| fun t -> Some t)
               >>= fun type_arg ->
@@ -296,8 +296,8 @@ let expr =
       <|> (expr1
         >>= fun cond ->
           whitespace
-        *> ((char '?' 
-          *> whitespace 
+        *> ((char '?'
+          *> whitespace
           *> expr
           >>= fun thn ->
             whitespace
@@ -336,10 +336,10 @@ let cond_expr =
       *> choice
         [ (char '.' *> whitespace *>
           ((identifier >>= fun field -> expr9' (Field (exp, field)))
-          <|> (take_while1 is_digit 
+          <|> (take_while1 is_digit
             >>= fun whole -> expr9' (ProductField (exp, int_of_string whole)))))
         ; (string "::" *> whitespace *>
-            (option None 
+            (option None
               (char '<' *> whitespace *> typ <* whitespace <* char '>'
                 <* whitespace <* string "::" >>| fun t -> Some t)
             >>= fun type_arg ->
@@ -466,8 +466,8 @@ let cond_expr =
     <|> (expr1
       >>= fun cond ->
         whitespace
-      *> ((char '?' 
-        *> whitespace 
+      *> ((char '?'
+        *> whitespace
         *> expr
         >>= fun thn ->
           whitespace
@@ -480,7 +480,7 @@ let cond_expr =
 
 (* Module arguments are of the form <name> [aka <names>] : <type> [= <default>] *)
 let mod_aka =
-  option [] (string "aka" *> whitespace 
+  option [] (string "aka" *> whitespace
             *> sep_by1 (whitespace *> char ',' *> whitespace) identifier)
 
 let mod_arg =
@@ -628,7 +628,7 @@ let stmt =
       <* char ';'
       >>| fun rhs -> Assign (lhs, rhs)
 
-    in choice 
+    in choice
     [ (parens mod_args >>| fun args -> VarDecls (true, args))
     ; (square mod_args >>| fun args -> VarDecls (false, args))
     ; forLoop
