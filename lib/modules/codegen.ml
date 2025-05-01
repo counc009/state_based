@@ -1454,7 +1454,10 @@ let rec process_stmt (s : Ast.stmt list) env tys locals
             let fresh_v = fresh_var v
             in let body_env = StringMap.add v (LocalVar (fresh_v, t)) locals
             in Result.bind
-              (process_stmt b env tys body_env is_mod (Ok (Return Env)))
+              (process_stmt b env tys body_env is_mod
+                (* for-each must return a pair with the second element being
+                 * the environment, we have the first element just be unit *)
+                (Ok (Return (Pair (Literal (Unit ()), Env)))))
               (fun body ->
                 Result.bind (process_stmt tl env tys locals is_mod k)
                 (fun after ->
