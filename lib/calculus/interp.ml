@@ -81,52 +81,43 @@ module Interp(Ast : Ast.Ast_Defs) = struct
     bools = ValueMap.empty;
     constrs = ValueMap.empty; }
 
-  (* valueSubst v f r = v[f -> r] *)
-  let valueSubst v f r : value =
-    let rec helper (v : value) : value =
-      if v = f then r
-      else match v with
-      | Function (fn, v, t) -> Function (fn, helper v, t)
-      | Pair (x, y, t) -> Pair (helper x, helper y, t)
-      | Constructor (n, b, v) -> Constructor (n, b, helper v)
-      | Struct (s, r) -> Struct (s, FieldMap.map helper r)
-      | _ -> v
-    in helper v
-  (* valueContains determines whether the second value appears in the first *)
-  let valueContains v t : bool =
-    let rec helper (v : value) : bool =
-      if v = t then true
-      else match v with
-      | Function (_, v, _) -> helper v
-      | Pair (x, y, _) -> helper x || helper y
-      | Constructor (_, _, v) -> helper v
-      | Struct (_, r) -> FieldMap.exists (fun _ v -> helper v) r
-      | _ -> false
-    in helper v
-
   (* These functions are used to replace loop variables with just values for
    * handling after the loop ends. This is needed to distinguish actions
    * performed within the loop from uses of the loop variable outside of the
    * loop *)
-  let state_replace_loopvar (s : prg_type) (uid : uid) (elemTy : typ) : prg_type =
-    let rec helper_els (els : state ElementMap.t) =
+  let replace_loopvar (s: prg_type) (env: env) (uid: uid) : prg_type * env =
+    let rec replaceLoop (v: value) : value =
+      match v with
+      | Unknown (Loop x, elemTy) when x = uid -> Unknown (Val x, elemTy)
+      | Function (f, v, t) -> Function (f, replaceLoop v, t)
+      | Pair (x, y, t) -> Pair (replaceLoop x, replaceLoop y, t)
+      | Constructor (n, b, v) -> Constructor (n, b, replaceLoop v)
+      | Struct (s, r) -> Struct (s, FieldMap.map replaceLoop r)
+      | _ -> v
+    in let rec containsLoop (v: value) : bool =
+      match v with
+      | Unknown (Loop x, _) when x = uid -> true
+      | Function (_, v, _) -> containsLoop v
+      | Pair (x, y, _) -> containsLoop x || containsLoop y
+      | Constructor (_, _, v) -> containsLoop v
+      | Struct (_, r) -> FieldMap.exists (fun _ v -> containsLoop v) r
+      (* ListVal are not checked because they are allowed to contain loop
+       * variables (that's basically the whole reason they exist) *)
+      | _ -> false
+    in let rec helper_els (els : state ElementMap.t) =
       ElementMap.mapi
         (fun (_, v, _) st ->
-          if valueContains v (Unknown (Loop uid, elemTy))
+          if containsLoop v
           then st
           else helper_state st)
         els
     and helper_ats (ats : (value * state) AttributeMap.t) =
-      AttributeMap.map (fun (v, st) -> (v, helper_state st)) ats
+      AttributeMap.map (fun (v, st) -> (replaceLoop v, helper_state st)) ats
     and helper_state (State (els, ats) : state) : state =
       State (helper_els els, helper_ats ats)
-    in { init = helper_state s.init; final = helper_state s.final;
-         loops = s.loops; bools = s.bools; constrs = s.constrs; }
-  let env_replace_loopvar (env : env) (uid : uid) (elemTy : typ) : env =
-    VariableMap.map
-      (fun (v, t) ->
-        (valueSubst v (Unknown (Loop uid, elemTy)) (Unknown (Val uid, elemTy)), t))
-      env
+    in ({ init = helper_state s.init; final = helper_state s.final;
+          loops = s.loops; bools = s.bools; constrs = s.constrs; },
+        VariableMap.map (fun (v, t) -> (replaceLoop v, t)) env)
 
   let new_env = VariableMap.empty
 
@@ -158,6 +149,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
     | Pair (_, _, t) -> t
     | Constructor (n, _, _) -> Named n
     | Struct (s, _) -> Struct s
+    | ListVal (n, _) -> Named n
 
   let substitute_unknown (u: id) (v: value) (s: prg_type) (env: env)
     : (prg_type * env) option =
@@ -180,6 +172,10 @@ module Interp(Ast : Ast.Ast_Defs) = struct
       | Pair (x, y, t) -> Pair (subst_in_value x, subst_in_value y, t)
       | Constructor (n, c, v) -> Constructor (n, c, subst_in_value v)
       | Struct (t, r) -> Struct (t, FieldMap.map subst_in_value r)
+      (* Unlike substituting loop variables where we skip listvals we do handle
+       * listvals here since they may contain unknown values that we want to
+       * eliminate *)
+      | ListVal (n, w) -> ListVal (n, subst_in_value w)
     in let rec subst_in_state (s: state) =
       match s with
       | State (elems, attrs) ->
@@ -587,28 +583,51 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           | Err msg -> Err msg
           | Ok (Some b) -> Ok (Left b)
           | Ok None -> Ok (Right (add_elem e s.init))
-    (* Notes on loops: the bodies should return the special expression "Env",
-     * which is used to thread the environment back to the processing here so
-     * so that loop can modify the environment outside of it. This does mean
-     * you cannot return a value for an entire action from inside a loop *)
-    (* Note: ret arg here is the return for the next statement not the loop *)
-    in let rec process_loop (var : variable) (lst : value) (elemTy : typ)
-                            (body : stmt) (next : stmt) (s : prg_type)
-                            (env : env) (ret : typ) : prg_res list =
+    (* Notes on loops: the bodies must return a pair of the value yielded by
+     * each iteration and the the special expression "Env", which is used to
+     * thread the environment back to the processing here so so that loop can
+     * modify the environment outside of it. This does mean you cannot return a
+     * value for an entire action from inside a loop *)
+    in let rec process_foreach (lst: value) (elemTy: typ) (var: variable)
+                        (resTy: typ) (body: stmt)  (s: prg_type) (env: env)
+                        : ((value * typ) * prg_type * env) error list =
       match lst with
       | Literal _ | Pair _ | Struct _ ->
           failwith "Loop value has non-list value"
-      | Constructor (_, true, _) -> (* Nil case *)
-          interp next s env ret
+      | Constructor (_, true, u) -> (* Nil case *)
+          [Ok ((Constructor (listType resTy, true, u), Named (listType resTy)),
+                s, env)]
       | Constructor (_, false, Pair (hd, tl, _)) -> (* Cons case *)
-          let res_hd = interp body s (VariableMap.add var (hd, elemTy) env) envType
+          let res_hd = interp body s (VariableMap.add var (hd, elemTy) env)
+                              (Product (resTy, envType))
           in List.flatten
-              (List.map
-                (fun s ->
-                  match s with Err msg -> [Err msg]
-                  | Ok (s, e) ->
-                      process_loop var tl elemTy body next s (envFromVal e) ret)
-                res_hd)
+            (List.map
+              (fun s ->
+                match s with Err msg -> [Err msg]
+                | Ok (s, Pair (resHd, envv, _)) ->
+                    let res_tl = process_foreach tl elemTy var resTy body s
+                                                 (envFromVal envv)
+                    in List.map (fun resTl ->
+                      match resTl with Err msg -> Err msg
+                      | Ok ((resTl, resTy), resS, resEnv) ->
+                        Ok ((Constructor (listType resTy, false,
+                            Pair (resHd, resTl,
+                              Product (resTy, Named (listType resTy)))),
+                            Named (listType resTy)),
+                         resS, resEnv))
+                      res_tl
+                | _ -> failwith "Return from for-each body must be a pair")
+              res_hd)
+      | ListVal (_, elemVal) ->
+          let res = interp body s (VariableMap.add var (elemVal, elemTy) env)
+                           (Product (resTy, envType))
+          in List.map
+            (fun s -> match s with Err msg -> Err msg
+              | Ok (s, Pair (res, envv, _)) ->
+                  Ok ((ListVal (listType resTy, res), Named (listType resTy)),
+                      s, envFromVal envv)
+              | _ -> failwith "Return from for-each body must be a pair")
+            res
       | _ -> (* Loop over an unknown value *)
           (* The way we handle loops over unknown lists is to assign the value
            * we loop over a particular UID which represents the loop variable
@@ -618,6 +637,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           (* Identify whether there's already a "loop variable" for looping over
            * this value. If so, use it, otherwise create our own.
            * If we create our own, we also update the map in the state *)
+          (* The result of looping over an unknown value will be a ListVal *)
           let (loopvar, uid, s) =
             match ValueMap.find_opt lst s.loops with
             | Some (AllUnknown uid) | Some (LastKnown (uid, _))
@@ -629,29 +649,30 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                                  loops = ValueMap.add lst (AllUnknown uid) s.loops;
                                  bools = s.bools; constrs = s.constrs; }
                 in (Unknown (Loop uid, elemTy), Some uid, state)
-          in let res_loop = interp body s (VariableMap.add var (loopvar, elemTy) env) envType
-          in List.flatten
-              (List.map
-                (fun s ->
-                  match s with Err msg -> [Err msg]
-                  (* Note that we replace the loop variable in the state and
-                   * environment. What this does is replaces all occurences of
-                   * it in the environment and any instance in the state that
-                   * is not contained within an element depending on the
-                   * loop variable. This ensures that if the value is accessed
-                   * from outside the loop we can distinguish that it was not
-                   * the result of a loop, rather it takes the value of the
-                   * last element of the list *)
-                  | Ok (s, e) ->
-                      interp next
-                        (Option.fold ~none:s
-                          ~some:(fun uid -> state_replace_loopvar s uid elemTy)
-                          uid)
-                        (Option.fold ~none:env
-                          ~some:(fun uid -> env_replace_loopvar (envFromVal e) uid elemTy)
-                          uid)
-                        ret)
-                res_loop)
+          in let res_loop
+            = interp body s (VariableMap.add var (loopvar, elemTy) env)
+                     (Product (resTy, envType))
+          in List.map
+              (fun s -> match s with Err msg -> Err msg
+                (* Note that we replace the loop variable in the state and
+                 * environment. What this does is replaces all occurences of
+                 * it in the environment and any instance in the state that
+                 * is not contained within an element depending on the
+                 * loop variable. This ensures that if the value is accessed
+                 * from outside the loop we can distinguish that it was not
+                 * the result of a loop, rather it takes the value of the
+                 * last element of the list.
+                 * We don't do this to the value in the resulting ListVal since
+                 * that is allowed to preserve these loop variables *)
+                | Ok (s, Pair (res, envv, _)) ->
+                    let (state, env) =
+                      Option.fold ~none:(s, env)
+                        ~some:(fun uid -> replace_loopvar s (envFromVal envv) uid)
+                        uid
+                    in Ok ((ListVal (listType resTy, res), Named (listType resTy)),
+                           state, env)
+                | _ -> failwith "Return from for-each body must be a pair")
+              res_loop
     and interp (b : stmt) (s : prg_type) (env : env) (ret : typ) : prg_res list =
       match b with
       | Action   (var, action, expr, next) ->
@@ -780,8 +801,8 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                   end
               | _ -> Err "Cannot match over non-named type" :: []
           end
-      | Loop     (var, expr, body, next) ->
-          begin match eval_expr expr env with
+      | ForEach (var, resTyp, lst, elemVar, body, next) ->
+          begin match eval_expr lst env with
           | Err msg -> Err msg :: []
           | Ok (v, t) ->
               match t with
@@ -789,7 +810,16 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                   begin match list_like n with
                   | None -> Err "Cannot loop over non list-like type" :: []
                   | Some elemTy ->
-                      process_loop var v elemTy body next s env ret
+                      let results
+                        = process_foreach v elemTy elemVar resTyp body s env
+                      in List.flatten
+                        (List.map
+                          (fun res ->
+                            match res with Err msg -> [Err msg]
+                            | Ok (res, s, env) ->
+                              let new_env = VariableMap.add var res env
+                              in interp next s new_env ret)
+                          results)
                   end
               | _ -> Err "Cannot loop over non-list-like type" :: []
           end

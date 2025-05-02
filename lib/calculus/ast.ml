@@ -47,6 +47,13 @@ module type Ast_Defs = sig
              | Constructor  of namedTy * bool (* true = L, false = R *)
                              * value
              | Struct       of structTy * record
+             (* A ListVal represents a list that was constructed by a ForEach
+              * loop over an unknown list; the value represents the element(s)
+              * of the list and may include loop values which would normally
+              * be eliminated upon exit of a loop to avoid re-use of a loop
+              * index outside the loop when the index can only refer to a single
+              * value anymore. *)
+             | ListVal      of namedTy * value
   and record = value FieldMap.t
 
   (* A qualifier is either an attribute or element with qualifiers on it or
@@ -73,12 +80,13 @@ module type Ast_Defs = sig
             | Get      of variable * attr * stmt
             | Contains of elem * stmt * stmt
             | Cond     of expr * stmt * stmt
-            (* Note: Because all statements have to finish with either a fail
-             * or a return, loop bodies must return the environment *)
-            | Loop     of variable * expr * stmt (* body of loop *)
-                        * stmt (* following the loop *)
             | Match    of expr * variable (* value in constructor *)
                         * stmt * stmt (* left and right cases *)
+            | ForEach  of variable (* variable for result of for-each *)
+                        * typ (* element type of the result *)
+                        * expr * variable (* list and element var *)
+                        * stmt (* body: returns a value and the environment *)
+                        * stmt (* after *)
             | Fail     of string
             | Return   of expr
 
@@ -97,7 +105,7 @@ module type Ast_Defs = sig
   val actionDef : action -> variable * typ * typ * stmt
 
   (* Used to handle conditionals
-   * - isTruthType returns whether a type can be used like a truth value 
+   * - isTruthType returns whether a type can be used like a truth value
    * - asTruth takes a value and produces its truth value (true/false) or
    *   fails if it cannot be reduced to a boolean value for any reason
    * - boolAsVAlue takes a boolean and returns a value representing that bool
@@ -105,11 +113,14 @@ module type Ast_Defs = sig
   val isTruthType : typ -> bool
   val asTruth : value -> bool option
   val boolAsValue : bool -> value
-  
+
   (* Used to handle loops
-   * - To determine that a type is loop-like we need to know if types are unit
-   *   types *)
+   * - isUnit determines whether a type is the unit type, which is needed to
+   *   determine if a type is list-like
+   * - listType produces the named type for a list of elements of the given type
+   *)
   val isUnit : typ -> bool
+  val listType : typ -> namedTy
 
   (* Used to handle the special "Env" expression:
    * - The envType is a primitive (the type of the Env expression)

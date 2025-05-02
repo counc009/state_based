@@ -131,13 +131,14 @@ let path_lit =
             | expr9 '{{' fields '}}' | expr9 '[' identifier '<-' expr ']'
             | exprA
     exprA ::= identifier | literals | '(' exprs ')'
+            | 'foreach' id ':' expr '{' stmts '}'
    in the implementation we eliminate left recursion in the standard way
 
    There are two versions of the expression parser, one that allows (top-level)
    record values and one that doesn't since they are ambiguous with if-else
    statements and so much be prohibited as conditions
 *)
-let expr =
+let expr (stmts : stmt list Angstrom.t) =
   fix (fun expr ->
 
     let exprs = sep_by (whitespace *> char ',' *> whitespace) expr
@@ -152,6 +153,12 @@ let expr =
       [ string "true"  *> return (BoolLit true)
       ; string "false" *> return (BoolLit false)
       ; number
+      ; (string "foreach" *> whitespace1 *> identifier
+        >>= fun var ->
+        whitespace *> char ':' *> whitespace *> expr
+        >>= fun lst ->
+        whitespace *> brackets stmts
+        >>| fun body -> ForEachExp (var, lst, body))
       ; (string_lit >>| fun str -> StringLit str)
       ; (path_lit >>| fun path -> PathLit path)
       ; (identifier >>| fun nm -> Id nm)
@@ -165,10 +172,10 @@ let expr =
         *> choice
           [ (char '.' *> whitespace *>
             ((identifier >>= fun field -> expr9' (Field (exp, field)))
-            <|> (take_while1 is_digit 
+            <|> (take_while1 is_digit
               >>= fun whole -> expr9' (ProductField (exp, int_of_string whole)))))
           ; (string "::" *> whitespace *>
-              (option None 
+              (option None
                 (char '<' *> whitespace *> typ <* whitespace <* char '>'
                   <* whitespace <* string "::" >>| fun t -> Some t)
               >>= fun type_arg ->
@@ -296,8 +303,8 @@ let expr =
       <|> (expr1
         >>= fun cond ->
           whitespace
-        *> ((char '?' 
-          *> whitespace 
+        *> ((char '?'
+          *> whitespace
           *> expr
           >>= fun thn ->
             whitespace
@@ -308,10 +315,11 @@ let expr =
         <|> return cond))
     in expr0)
 
-let cond_expr =
+let cond_expr (stmts : stmt list Angstrom.t) =
+  let expr = expr stmts
   (* exprs and fields are always contained within some brackets that avoid
    * the ambiguity and so they all allow unrestricted expressions *)
-  let exprs = sep_by (whitespace *> char ',' *> whitespace) expr
+  in let exprs = sep_by (whitespace *> char ',' *> whitespace) expr
   in let field_expr =
     identifier <* whitespace <* char ':' <* whitespace
     >>= fun field -> expr >>| fun exp -> (field, exp)
@@ -329,6 +337,12 @@ let cond_expr =
     ; (parens exprs >>| function [] -> UnitExp
                                | [x] -> x
                                | xs -> ProductExp xs)
+    ; (string "foreach" *> whitespace1 *> identifier
+      >>= fun var ->
+      whitespace *> char ':' *> whitespace *> expr
+      >>= fun lst ->
+      whitespace *> brackets stmts
+      >>| fun body -> ForEachExp (var, lst, body))
     ]
   in let expr9 =
     let rec expr9' exp =
@@ -336,10 +350,10 @@ let cond_expr =
       *> choice
         [ (char '.' *> whitespace *>
           ((identifier >>= fun field -> expr9' (Field (exp, field)))
-          <|> (take_while1 is_digit 
+          <|> (take_while1 is_digit
             >>= fun whole -> expr9' (ProductField (exp, int_of_string whole)))))
         ; (string "::" *> whitespace *>
-            (option None 
+            (option None
               (char '<' *> whitespace *> typ <* whitespace <* char '>'
                 <* whitespace <* string "::" >>| fun t -> Some t)
             >>= fun type_arg ->
@@ -466,8 +480,8 @@ let cond_expr =
     <|> (expr1
       >>= fun cond ->
         whitespace
-      *> ((char '?' 
-        *> whitespace 
+      *> ((char '?'
+        *> whitespace
         *> expr
         >>= fun thn ->
           whitespace
@@ -480,10 +494,10 @@ let cond_expr =
 
 (* Module arguments are of the form <name> [aka <names>] : <type> [= <default>] *)
 let mod_aka =
-  option [] (string "aka" *> whitespace 
+  option [] (string "aka" *> whitespace
             *> sep_by1 (whitespace *> char ',' *> whitespace) identifier)
 
-let mod_arg =
+let mod_arg (stmts : stmt list Angstrom.t) =
   identifier
   >>= fun nm ->
   whitespace
@@ -495,12 +509,12 @@ let mod_arg =
   *> typ
   >>= fun typ ->
   whitespace
-  *> optional (char '=' *> whitespace *> expr)
+  *> optional (char '=' *> whitespace *> expr stmts)
   >>| fun default -> (nm, alias, typ, default)
 
 (* Module arguments are separated by | since they represent options *)
-let mod_args =
-  sep_by (whitespace *> char '|' *> whitespace) mod_arg
+let mod_args (stmts : stmt list Angstrom.t) =
+  sep_by (whitespace *> char '|' *> whitespace) (mod_arg stmts)
 
 (* A (match) pattern has form <enum-name>[::<type>]::<case-name>[(<var-names>)] *)
 let pattern =
@@ -534,7 +548,7 @@ let stmt =
       whitespace1
       *> string "in"
       *> whitespace1
-      *> expr
+      *> expr stmts
       >>= fun lst ->
       whitespace
       *> brackets stmts
@@ -548,9 +562,9 @@ let stmt =
             [ (whitespace1 *> string "if" *> whitespace1
                 *> ((string "provided" *> whitespace1 *> identifier
                       >>| fun nm -> Provided nm)
-                <|> (string "exists" *> whitespace1 *> cond_expr
+                <|> (string "exists" *> whitespace1 *> cond_expr stmts
                       >>| fun ex -> Exists ex)
-                <|> (cond_expr >>| fun ex -> Condition ex))
+                <|> (cond_expr stmts >>| fun ex -> Condition ex))
               >>= fun cond ->
               whitespace *> brackets stmts
               >>= fun thn ->
@@ -568,9 +582,9 @@ let stmt =
       *> whitespace1
       *> ((string "provided" *> whitespace1 *> identifier
             >>| fun nm -> Provided nm)
-          <|> (string "exists" *> whitespace1 *> cond_expr
+          <|> (string "exists" *> whitespace1 *> cond_expr stmts
             >>| fun ex -> Exists ex)
-          <|> (cond_expr >>| fun ex -> Condition ex))
+          <|> (cond_expr stmts >>| fun ex -> Condition ex))
       >>= fun cond ->
       whitespace
       *> brackets stmts
@@ -596,7 +610,7 @@ let stmt =
     in let matchStmt =
       string "match"
       *> whitespace1
-      *> cond_expr
+      *> cond_expr stmts
       >>= fun ex ->
       whitespace
       *> brackets cases
@@ -604,7 +618,7 @@ let stmt =
 
     in let keywordStmt (keyword : string) (c : expr -> stmt) =
       string keyword *> whitespace1
-      *> expr
+      *> expr stmts
       <* whitespace <* char ';'
       >>| c
 
@@ -613,24 +627,24 @@ let stmt =
       *> identifier
       >>= fun var ->
       whitespace *> char '=' *> whitespace
-      *> expr
+      *> expr stmts
       <* whitespace <* char ';'
       >>| fun rhs -> LetStmt (var, rhs)
 
     in let assignStmt =
-      expr
+      expr stmts
       >>= fun lhs ->
       whitespace
       *> char '='
       *> whitespace
-      *> expr
+      *> expr stmts
       <* whitespace
       <* char ';'
       >>| fun rhs -> Assign (lhs, rhs)
 
-    in choice 
-    [ (parens mod_args >>| fun args -> VarDecls (true, args))
-    ; (square mod_args >>| fun args -> VarDecls (false, args))
+    in choice
+    [ (parens (mod_args stmts) >>| fun args -> VarDecls (true, args))
+    ; (square (mod_args stmts) >>| fun args -> VarDecls (false, args))
     ; forLoop
     ; ifStmts
     ; matchStmt
@@ -640,6 +654,7 @@ let stmt =
     ; keywordStmt "clear"  (fun e -> Clear e)
     ; keywordStmt "assert" (fun e -> Assert e)
     ; keywordStmt "return" (fun e -> Return e)
+    ; keywordStmt "yield"  (fun e -> Yield e)
     ; assignStmt
     ]
   )

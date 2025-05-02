@@ -22,6 +22,7 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 (* Path operations *)
                 | ConsPath
                 | PathOfString
+                | StringOfPath
                 | EndsWithDir
                 | BaseName
                 | PathFrom
@@ -71,9 +72,9 @@ module rec Ast_Target : Ast_Defs
              | Literal      of literal * primTy
              | Function     of funct * value * typ
              | Pair         of value * value * typ
-             | Constructor  of namedTy * bool (* true = L, false = R *)
-                             * value
+             | Constructor  of namedTy * bool * value
              | Struct       of structTy * record
+             | ListVal      of namedTy * value
 
   type env = (value * typ) VariableMap.t
 
@@ -104,8 +105,8 @@ module rec Ast_Target : Ast_Defs
             | Get      of variable * attr * stmt
             | Contains of elem * stmt * stmt
             | Cond     of expr * stmt * stmt
-            | Loop     of variable * expr * stmt * stmt
             | Match    of expr * variable * stmt * stmt
+            | ForEach  of variable * typ * expr * variable * stmt * stmt
             | Fail     of string
             | Return   of expr
 
@@ -154,18 +155,29 @@ module rec Ast_Target : Ast_Defs
         then No
         else Unsure
 
+    | ListVal (_, vx), ListVal (_, vy) -> values_equal vx vy
+
+    | ListVal (_, _), Constructor (_, _, _)
+    | Constructor (_, _, _), ListVal (_, _) -> Unsure
+
     | Literal (_, _), Pair (_, _, _)
     | Literal (_, _), Constructor (_, _, _)
     | Literal (_, _), Struct (_, _)
+    | Literal (_, _), ListVal (_, _)
     | Pair (_, _, _), Literal (_, _)
     | Pair (_, _, _), Constructor (_, _, _)
     | Pair (_, _, _), Struct (_, _)
+    | Pair (_, _, _), ListVal (_, _)
     | Constructor (_, _, _), Literal (_, _)
     | Constructor (_, _, _), Pair (_, _, _)
     | Constructor (_, _, _), Struct (_, _)
     | Struct (_, _), Literal (_, _)
     | Struct (_, _), Pair (_, _, _)
-    | Struct (_, _), Constructor (_, _, _) ->
+    | Struct (_, _), Constructor (_, _, _)
+    | Struct (_, _), ListVal (_, _)
+    | ListVal (_, _), Literal (_, _)
+    | ListVal (_, _), Pair (_, _, _)
+    | ListVal (_, _), Struct (_, _) ->
         failwith "Attempted to compare values that are of different types"
 
   let namedTyDef : namedTy -> typ * typ = function
@@ -207,7 +219,7 @@ module rec Ast_Target : Ast_Defs
                                        end
                                     | _ -> Err "Read field failed to reduce")
     | BoolNeg -> (Primitive Bool, Primitive Bool,
-        fun v -> match v with Literal (Bool b, _) 
+        fun v -> match v with Literal (Bool b, _)
                     -> Reduced (Literal (Bool (not b), Bool))
                  | _ -> Stuck)
     | Concat -> (Product (Primitive String, Primitive String),
@@ -235,10 +247,14 @@ module rec Ast_Target : Ast_Defs
         fun v -> match v with
           | Literal (String s, _) -> Reduced (Literal (Path s, Path))
           | _ -> Stuck)
+    | StringOfPath -> (Primitive Path, Primitive String,
+        fun v -> match v with
+          | Literal (Path s, _) -> Reduced (Literal (String s, String))
+          | _ -> Stuck)
     | EndsWithDir -> (Primitive Path, Primitive Bool,
         fun v -> match v with
           | Literal (Path p, _)
-            -> let lastChar = String.sub p (String.length p - 1) 1 
+            -> let lastChar = String.sub p (String.length p - 1) 1
                in let res = lastChar = "/"
                in Reduced (Literal (Bool res, Bool))
           | _ -> Stuck)
@@ -296,6 +312,7 @@ module rec Ast_Target : Ast_Defs
     match t with
     | Primitive Unit -> true
     | _ -> false
+  let listType (t : typ) : namedTy = List t
 
   let envType : typ = Primitive Env
   let envToVal (env : env) : value = Literal (Env env, (Env : primTy))
@@ -337,7 +354,7 @@ let rec string_of_type (t : Ast_Target.typ) : string =
   | Primitive String -> "string"
   | Primitive Path   -> "path"
   | Primitive Env    -> "env"
-  | Struct tys       -> 
+  | Struct tys       ->
       Printf.sprintf "{ %s }"
         (String.concat ", "
           (List.map (fun (nm, t) -> nm ^ ": " ^ string_of_type t)
@@ -374,6 +391,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | Equal _                   -> "equal"
         | ConsPath                  -> "cons_path"
         | PathOfString              -> "path_of_string"
+        | StringOfPath              -> "string_of_path"
         | EndsWithDir               -> "ends_with_dir"
         | BaseName                  -> "base_name"
         | PathFrom                  -> "path_from"
@@ -431,11 +449,6 @@ let string_of_stmt (s : Ast_Target.stmt) : string =
         ^ indent ^ "} else {\n"
         ^ process el ("\t" ^ indent)
         ^ indent ^ "}\n"
-    | Loop (v, lst, body, next) ->
-        "foreach " ^ v ^ " in " ^ string_of_expr lst ^ " {\n"
-        ^ process body ("\t" ^ indent)
-        ^ indent ^ "}\n"
-        ^ process next indent
     | Match (e, v, l, r) ->
         "match " ^ string_of_expr e ^ " with {\n"
         ^ indent ^ "\tL(" ^ v ^ ") => {\n"
@@ -445,6 +458,11 @@ let string_of_stmt (s : Ast_Target.stmt) : string =
         ^ process r ("\t\t" ^ indent)
         ^ indent ^ "\t}\n"
         ^ indent ^ "}\n"
+    | ForEach (v, _, lst, w, body, next) ->
+        v ^ " = foreach " ^ w ^ " in " ^ string_of_expr lst ^ " {\n"
+        ^ process body ("\t" ^ indent)
+        ^ indent ^ "};\n"
+        ^ process next indent
     | Fail msg -> "fail \"" ^ msg ^ "\"\n"
     | Return e -> "return " ^ string_of_expr e ^ "\n"
   in process s ""
@@ -480,6 +498,7 @@ let rec value_to_string (v : Ast_Target.value) : string =
               (List.map (fun (nm, v) -> nm ^ ": " ^ value_to_string v)
                 (Ast_Target.FieldMap.to_list r))
           ^ "}"
+  | ListVal (_, v) -> "list { " ^ value_to_string v ^ " }"
   | Function (f, arg, _)  ->
       match f with
       | Proj (true, _, _)         -> "proj1(" ^ value_to_string arg ^ ")"
@@ -489,6 +508,7 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | Equal _                   -> "equal(" ^ value_to_string arg ^ ")"
       | ConsPath                  -> "cons_path(" ^ value_to_string arg ^ ")"
       | PathOfString              -> "path_of_string(" ^ value_to_string arg ^ ")"
+      | StringOfPath              -> "string_of_path(" ^ value_to_string arg ^ ")"
       | EndsWithDir               -> "ends_with_dir(" ^ value_to_string arg ^ ")"
       | BaseName                  -> "base_name(" ^ value_to_string arg ^ ")"
       | PathFrom                  -> "path_from(" ^ value_to_string arg ^ ")"
@@ -508,7 +528,7 @@ and string_of_list_val (v : Ast_Target.value) : string =
   | _ -> "<<ERROR: MALFORMED LIST>>"
 and string_of_constructor enum constr is_first v =
   match constr, is_first with
-  | LastTwo ((nm, _), _), true 
+  | LastTwo ((nm, _), _), true
   | Cons    ((nm, _), _), true
     -> enum ^ "::" ^ nm ^ "(" ^ value_to_string v ^ ")"
   | LastTwo (_, (nm, _)), false

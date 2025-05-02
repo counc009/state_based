@@ -169,7 +169,7 @@ let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
     | Tlist xs -> Result.map (fun xs -> List xs)
       (List.fold_right
         (fun x xs ->
-          Result.bind (jlit_to_value x) 
+          Result.bind (jlit_to_value x)
             (fun x -> Result.bind xs (fun xs -> Ok (x :: xs))))
         xs
         (Ok []))
@@ -206,7 +206,7 @@ let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
       (fun hd -> Result.bind (jinja_to_value js)
         (fun tl -> Ok (Binary (hd, Concat, tl))))
 
-type var_typ = Unknown of string (* name of the variable *)
+type var_typ = Unknown of string * Modules.Ast.typ (* name of the variable and a suggested type *)
              | Concrete of Modules.Ast.typ
 type play_env = (string, var_typ) Hashtbl.t
 
@@ -348,7 +348,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
             in Result.map
                 (fun vals ->
                   (List.fold_right
-                    (fun v e -> 
+                    (fun v e ->
                       Modules.Ast.EnumExp (
                         Id "list",
                         Some el,
@@ -384,8 +384,8 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                       | None -> Error (Printf.sprintf
                           "Invalid value '%s' expected one of [%s]"
                           s
-                          (String.concat ", " 
-                            (List.map fst 
+                          (String.concat ", "
+                            (List.map fst
                               (Modules.Codegen.StringMap.bindings constructors))))
                       | Some (_, []) -> Ok(EnumExp (Id nm, None, s, []), Named nm)
                       | Some (_, _) -> Error (Printf.sprintf
@@ -402,10 +402,12 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
         | Some (Concrete ty), Some t when t = ty -> Ok (Modules.Ast.Id nm, t)
         | Some (Concrete _), Some _ -> Error "mismatched types"
         | Some (Concrete ty), None -> Ok (Modules.Ast.Id nm, ty)
-        | Some (Unknown _), Some t ->
+        | Some (Unknown (_, _)), Some t ->
             let () = Hashtbl.add play_env nm (Concrete t)
             in Ok (Modules.Ast.Id nm, t)
-        | Some (Unknown _), None -> Error ("Variable of unknown type used in unknown type setting, cannot solve")
+        | Some (Unknown (_, t)), None ->
+            let () = Hashtbl.add play_env nm (Concrete t)
+            in Ok (Modules.Ast.Id nm, t)
         | None, _ ->
             (* See if this is a built-in variable *)
             match nm with
@@ -420,13 +422,13 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
         end
     | Unary (v, op) ->
         begin match op, t with
-        | Not, Some Bool | Not, None -> 
+        | Not, Some Bool | Not, None ->
             Result.bind (codegen_value v (Some Bool) play_env)
               (fun (v, t) -> Ok (Modules.Ast.UnaryExp (v, Not), t))
         | Not, _ -> Error "Incorrect type for not (productes boolean)"
         end
     | Binary (lhs, op, rhs) ->
-        let op_info : (Modules.Ast.typ option 
+        let op_info : (Modules.Ast.typ option
                     * (Modules.Ast.typ -> Modules.Ast.typ option)
                     * Modules.Ast.typ
                     * Modules.Ast.binary, string) result =
@@ -549,12 +551,23 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                     | Ok (e, _) -> Result.map (fun tl -> (canon_name, e) :: tl) (process_args tl)
                     | Error msg -> Error msg
           in process_args m.args
-        in Result.map 
+        in Result.map
           (fun args -> (Modules.Ast.ModuleExp (module_expr, args), res_type))
           module_args
   in let codegen_task (t : task) (play_env: play_env)
     : (Modules.Ast.stmt list, string) result =
-    let () = if Option.is_some t.loop then Hashtbl.add play_env "item" (Unknown "item")
+    let () =
+      match t.loop with
+      | None -> ()
+      | Some (ItemLoop v) ->
+          (* Item loops may end up with the item type constrained by a usage
+           * to give us more information, but we'll first try to type it in
+           * case the item's usage is not in a constrained context *)
+          begin match codegen_value v None play_env with
+          | Ok (_, List t) -> Hashtbl.add play_env "item" (Unknown ("item", t))
+          | _ -> Hashtbl.add play_env "item" (Unknown ("item", String))
+          end
+      | Some (FileGlob _) -> Hashtbl.add play_env "item" (Concrete Path)
     in Result.bind (codegen_module_invocation t.module_invoke play_env)
       (fun (modul, typ) ->
         let body = Modules.Ast.LetStmt (t.register, modul)
@@ -567,7 +580,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
               Result.bind
                 (codegen_value (list_to_and cond) (Some Bool) play_env)
                 (fun (c, _) -> Ok [Modules.Ast.IfThenElse (c, body, [])])
-        in let () = 
+        in let () =
           if t.register <> "_" then Hashtbl.add play_env t.register (Concrete typ)
         in let looped =
           match t.loop with
@@ -589,11 +602,17 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                  add assertions that the files exist and are just files *)
               Result.bind (codegen_value glob (Some (List String)) play_env)
                 (fun (glob, _) ->
-                  let files = Modules.Ast.FuncExp (Id "file_glob", [glob])
+                  let files = Modules.Ast.FuncExp 
+                    (* We use the file_glob uninterpreted function defined in
+                     * the find module *)
+                    (Id "file_glob",
+                      [ glob
+                      ; EnumExp (Id "find_file_type", None, "file", [])
+                      ; EnumExp (Id "file_system", None, "local", []) ])
                   in Result.bind conditioned
                     (fun conditioned ->
                       let item_file =
-                        Modules.Ast.FuncExp (Id "fs", 
+                        Modules.Ast.FuncExp (Id "fs",
                           [Id "item"; EnumExp (Id "file_system", None, "local", [])])
                       in let assert_false = Modules.Ast.Assert (BoolLit false)
                       in let loop_body =
@@ -622,10 +641,10 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
     (* Set the user by env().user = remote_user *)
     in Result.map
       (fun tasks ->
-        Modules.Ast.Assign 
-          (Field (FuncExp (Id "env", []), "user"), 
+        Modules.Ast.Assign
+          (Field (FuncExp (Id "env", []), "user"),
            StringLit play.remote_user)
-        :: tasks) 
+        :: tasks)
       tasks
   in let process_play play =
     match play with
@@ -634,7 +653,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
           match map with
           | [] -> Result.map_error (String.concat "\n") res#to_play
           | (field, v) :: tl ->
-              match 
+              match
                 match field with
                 | "name"        -> Result.map res#add_name (process_string v)
                 | "hosts"       -> Result.map res#add_hosts (process_string v)
@@ -649,7 +668,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
   in let rec process_plays plays =
     match plays with
     | [] -> Ok []
-    | hd :: tl -> 
+    | hd :: tl ->
         match process_play hd, process_plays tl with
         | Ok hd, Ok tl -> Ok (hd @ tl)
         | Ok _, Error msg -> Error msg
