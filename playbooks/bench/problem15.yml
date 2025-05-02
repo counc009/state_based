@@ -1,0 +1,9 @@
+---
+- name: Delete the contents of the /home/mydata/web/ directory
+  tasks:
+  - ansible.builtin.file:
+      state: "{{ item }}"
+      path: /home/mydata/web
+    with_items:
+      - absent
+      - directory
