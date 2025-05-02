@@ -18,14 +18,14 @@ module ansible.builtin.find -> find_result {
 
   let paths = file_glob_remote(globs, file_type);
 
-  let files = foreach f in paths {
+  let files = foreach f : paths {
     match file_type {
       find_file_type::file => {
         assert exists fs(f, file_system::remote);
         match fs(f, file_system::remote).fs_type {
           file_type::file(_) => {
             // TODO: Add other fields
-            return stat_res { exists: true, path: f };
+            yield stat_res { exists: true, path: f };
           }
           file_type::directory(_) => { assert false; }
           file_type::hard(_) => { assert false; }
@@ -45,6 +45,7 @@ module ansible.builtin.find -> find_result {
         assert false; 
       }
     }
+    yield stat_res {};
   };
 
   return find_result { failed: false, files: files };

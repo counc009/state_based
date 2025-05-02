@@ -1,0 +1,17 @@
+---
+- name: Find and fetch files from remote
+  tasks:
+  - name: Find files matching /tmp/*.txt
+    ansible.builtin.find:
+      paths:
+        - /tmp
+      patterns:
+        - '*.txt'
+    register: found
+
+  - name: Fetch those files
+    ansible.builtin.fetch:
+      src: "{{ item.path }}"
+      dest: /backup/
+      flat: true
+    with_items: "{{ found.files }}"
