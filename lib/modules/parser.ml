@@ -652,6 +652,7 @@ let stmt =
     ; (string "assert" *> whitespace1
       *> keywordStmt "exists" (fun e -> AssertExists e))
     ; keywordStmt "clear"  (fun e -> Clear e)
+    ; keywordStmt "touch"  (fun e -> Touch e)
     ; keywordStmt "assert" (fun e -> Assert e)
     ; keywordStmt "return" (fun e -> Return e)
     ; keywordStmt "yield"  (fun e -> Yield e)

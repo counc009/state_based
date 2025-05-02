@@ -34,6 +34,7 @@ and  stmt = VarDecls     of bool * (string * string list * typ * expr option) li
           | IfThenElse   of expr * stmt list * stmt list
           | Match        of expr * (pattern * stmt list) list
           | Clear        of expr
+          | Touch        of expr
           | Assert       of expr
           | AssertExists of expr
           | Return       of expr

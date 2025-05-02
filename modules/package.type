@@ -1,0 +1,16 @@
+struct package_result { failed: bool }
+
+# The docs say latest MAY be an option, but not including since it's not universal
+enum package_state { present, absent }
+
+module ansible.builtin.package -> package_result {
+  (name: string)
+  (state: package_state)
+
+  match state {
+    package_state::present => { touch package(name); }
+    package_state::absent  => { clear package(name); }
+  }
+
+  return package_result { failed: false };
+}
