@@ -7,3 +7,4 @@ Modules.Target.TargetInterp.interpret prg (Primitive Unit);;
 ```
 
 # TODO List
+- (Later) Handle file modes
