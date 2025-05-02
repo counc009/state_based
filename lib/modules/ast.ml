@@ -6,6 +6,9 @@ type binary = Or | And | Eq | Ne | Lt | Le | Gt | Ge | LShift | RShift
             | Add | Sub | Mul | Div | Mod
             | Concat
 
+(* Patterns are just of the form <enum-name>[::<type>]::<constructor-name>[(<var-names>)] *)
+type pattern = string * typ option * string * string list
+
 type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
           | StringLit of string | PathLit of string | UnitExp
           | ProductExp of expr list
@@ -21,12 +24,10 @@ type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
           | CondExp of expr * expr * expr
           | CondProvidedExp of string * expr * expr
           | CondExistsExp of expr * expr * expr
-
-(* Patterns are just of the form <enum-name>[::<type>]::<constructor-name>[(<var-names>)] *)
-type pattern = string * typ option * string * string list
+          | ForEachExp of string * expr * stmt list
 
 (* For VarDecls, the bool indicates whether the variables are required or not *)
-type stmt = VarDecls     of bool * (string * string list * typ * expr option) list
+and  stmt = VarDecls     of bool * (string * string list * typ * expr option) list
           | ForLoop      of string * expr * stmt list
           | IfProvided   of string * stmt list * stmt list
           | IfExists     of expr * stmt list * stmt list
@@ -36,6 +37,7 @@ type stmt = VarDecls     of bool * (string * string list * typ * expr option) li
           | Assert       of expr
           | AssertExists of expr
           | Return       of expr
+          | Yield        of expr
           | Assign       of expr * expr
           | LetStmt      of string * expr
 
