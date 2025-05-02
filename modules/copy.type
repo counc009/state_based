@@ -10,20 +10,21 @@ function copy(dst : path, src : path, src_loc : file_system,
         return true;
       }
       file_type::directory(files) => {
+        let success = true;
         for f in files {
           assert exists fs(f, src_loc);
           match fs(f, src_loc).fs_type {
             file_type::file(_) => {
               if !copy(cons_path(dst, path_from(src, f)), f, src_loc, group, owner) {
-                return false;
+                success = false;
               }
             }
-            file_type::directory(_) => { return false; }
-            file_type::hard(_) => { return false; }
-            file_type::link(_) => { return false; }
+            file_type::directory(_) => { success = false; }
+            file_type::hard(_) => { success = false; }
+            file_type::link(_) => { success = false; }
           }
         }
-        return true;
+        return success;
       }
       file_type::hard(_) => { return false; }
       file_type::link(_) => { return false; }
@@ -71,6 +72,7 @@ module ansible.builtin.copy -> copy_result {
             }
           }
           file_type::directory(files) => {
+            let result = copy_result { failed: false };
             for f in files {
               assert exists fs(f, loc);
               match fs(f, loc).fs_type {
@@ -80,12 +82,12 @@ module ansible.builtin.copy -> copy_result {
                   fs(f_dst, file_system::remote).owner = owner;
                   fs(f_dst, file_system::remote).group = group;
                 }
-                file_type::directory(_) => { return copy_result { failed: true }; }
-                file_type::hard(_) => { return copy_result { failed: true }; }
-                file_type::link(_) => { return copy_result { failed: true }; }
+                file_type::directory(_) => { result.failed = true; }
+                file_type::hard(_) => { result.failed = true; }
+                file_type::link(_) => { result.failed = true; }
               }
             }
-            return copy_result { failed: false };
+            return result;
           }
           file_type::hard(_) => { return copy_result { failed: true }; }
           file_type::link(_) => { return copy_result { failed: true }; }
