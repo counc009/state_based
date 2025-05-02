@@ -24,8 +24,14 @@ module ansible.builtin.find -> find_result {
         assert exists fs(f, file_system::remote);
         match fs(f, file_system::remote).fs_type {
           file_type::file(_) => {
-            // TODO: Add other fields
-            yield stat_res { exists: true, path: f };
+            yield stat_res {
+              exists: true,
+              gr_name: fs(f, file_system::remote).group,
+              isdir: false,
+              islnk: false,
+              isreg: true,
+              path: f,
+              pw_name: fs(f, file_system::remote).owner };
           }
           file_type::directory(_) => { assert false; }
           file_type::hard(_) => { assert false; }
@@ -33,18 +39,50 @@ module ansible.builtin.find -> find_result {
         }
       }
       find_file_type::directory => {
-        # TODO
-        assert false; 
+        match fs(f, file_system::remote).fs_type {
+          file_type::directory(_) => {
+            yield stat_res {
+              exists: true,
+              gr_name: fs(f, file_system::remote).group,
+              isdir: true,
+              islnk: false,
+              isreg: false,
+              path: f,
+              pw_name: fs(f, file_system::remote).owner };
+          }
+          file_type::file(_) => { assert false; }
+          file_type::hard(_) => { assert false; }
+          file_type::link(_) => { assert false; }
+        }
       }
       find_file_type::any => {
-        # TODO
-        assert false; 
+        // I'm just not determining the type (since it may differ) but this
+        // forces us to leave out certain fields. This is fine for now
+        yield stat_res {
+          exists: true,
+          gr_name: fs(f, file_system::remote).group,
+          path: f,
+          pw_name: fs(f, file_system::remote).owner };
       }
       find_file_type::link => {
-        # TODO
-        assert false; 
+        match fs(f, file_system::remote).fs_type {
+          file_type::link(_) => {
+            yield stat_res {
+              exists: true,
+              gr_name: fs(f, file_system::remote).group,
+              isdir: false,
+              islnk: true,
+              isreg: false,
+              path: f,
+              pw_name: fs(f, file_system::remote).owner };
+          }
+          file_type::file(_) => { assert false; }
+          file_type::directory(_) => { assert false; }
+          file_type::hard(_) => { assert false; }
+        }
       }
     }
+    // Still have to yield something since the "assert false" aren't terminators
     yield stat_res {};
   };
 
