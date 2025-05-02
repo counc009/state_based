@@ -1585,6 +1585,11 @@ and process_stmt (s : Ast.stmt list) env tys locals (ret: return_type)
         (fun q ->
           Result.bind (process_stmt tl env tys locals ret is_mod k)
             (fun after -> Ok (Target.Add (negate_qual q, after))))
+  | Touch e :: tl ->
+      process_expr_as_qual e env tys locals is_mod
+        (fun q ->
+          Result.bind (process_stmt tl env tys locals ret is_mod k)
+            (fun after -> Ok (Target.Add (q, after))))
   | Assert e :: tl ->
       process_expr e env tys locals is_mod
         (fun (e, _) ->
