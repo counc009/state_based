@@ -9,6 +9,8 @@ module ansible.builtin.git -> git_result {
   (remote: string = "origin")
   (version: string = "HEAD")
 
+  assert exists package("git");
+
   if exists fs(dest, file_system::remote) {
     match fs(dest, file_system::remote).fs_type {
       file_type::directory(files) => {

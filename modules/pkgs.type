@@ -1,0 +1,8 @@
+element package(string)
+
+element apt()
+element pip()
+
+enum package_version { specific(string), latest }
+
+attribute version(package_version)
