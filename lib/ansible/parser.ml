@@ -232,6 +232,10 @@ let rec codegen_type_to_ast_typ (t: Modules.Codegen.typ) : Modules.Ast.typ =
   | Placeholder { contents = Some t } -> codegen_type_to_ast_typ t
   | Placeholder { contents = None } -> failwith "Internal Error: unresolved placeholder"
 
+let singleton_list (elemTy: Modules.Ast.typ) (elem: Modules.Ast.expr) =
+  Modules.Ast.EnumExp (Id "list", Some elemTy, "cons",
+    [ elem; Modules.Ast.EnumExp (Id "list", Some elemTy, "nil", []) ])
+
 let process_ansible (file: string) (tys : Modules.Codegen.type_env)
   (env : Modules.Codegen.global_env) : (Modules.Ast.stmt list, string) result =
   let process_string v =
@@ -286,6 +290,9 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
         | Some Int -> Ok (Modules.Ast.IntLit i, Modules.Ast.Int)
         | Some Float -> Ok (Modules.Ast.FloatLit (float_of_int i), Modules.Ast.Float)
         | Some String -> Ok (Modules.Ast.StringLit (string_of_int i), Modules.Ast.String)
+        | Some (List t) ->
+            Result.map (fun (e, t) -> (singleton_list t e, Modules.Ast.List t))
+              (codegen_value v (Some t) play_env)
         | _ -> Error "Incorrect type, found integer"
         end
     | Float f ->
@@ -297,6 +304,9 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
             else Error (Printf.sprintf "Expected integer found float '%f'" f)
         | Some Float -> Ok (Modules.Ast.FloatLit f, Modules.Ast.Float)
         | Some String -> Ok (Modules.Ast.StringLit (string_of_float f), Modules.Ast.String)
+        | Some (List t) ->
+            Result.map (fun (e, t) -> (singleton_list t e, Modules.Ast.List t))
+              (codegen_value v (Some t) play_env)
         | _ -> Error ("Incorrect type, found number")
         end
     | Bool b ->
@@ -304,6 +314,9 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
         | None -> Ok (Modules.Ast.BoolLit b, Modules.Ast.Bool)
         | Some Bool -> Ok (Modules.Ast.BoolLit b, Modules.Ast.Bool)
         | Some String -> Ok (Modules.Ast.StringLit (string_of_bool b), Modules.Ast.String)
+        | Some (List t) ->
+            Result.map (fun (e, t) -> (singleton_list t e, Modules.Ast.List t))
+              (codegen_value v (Some t) play_env)
         | _ -> Error ("Incorrect type, found bool")
         end
     | List vs ->
@@ -395,6 +408,9 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                   | _ -> Error ("Incorrect type, found string-like")
                 in process_for_type typ
             end
+        | Some (List t) ->
+            Result.map (fun (e, t) -> (singleton_list t e, Modules.Ast.List t))
+              (codegen_value v (Some t) play_env)
         | _ -> Error ("Incorrect type, found string-like")
         end
     | Ident nm ->
