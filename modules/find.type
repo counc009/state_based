@@ -2,7 +2,7 @@ struct find_result { failed: bool, files: list stat_res }
 
 enum find_file_type { any, directory, file, link }
 
-uninterpreted file_glob_remote(list string, find_file_type) -> list path
+uninterpreted file_glob(list string, find_file_type, file_system) -> list path
 
 module ansible.builtin.find -> find_result {
   (paths : list path)
@@ -16,7 +16,7 @@ module ansible.builtin.find -> find_result {
     }
   }
 
-  let paths = file_glob_remote(globs, file_type);
+  let paths = file_glob(globs, file_type, file_system::remote);
 
   let files = foreach f : paths {
     match file_type {

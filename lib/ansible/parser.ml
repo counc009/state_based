@@ -602,7 +602,13 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                  add assertions that the files exist and are just files *)
               Result.bind (codegen_value glob (Some (List String)) play_env)
                 (fun (glob, _) ->
-                  let files = Modules.Ast.FuncExp (Id "file_glob", [glob])
+                  let files = Modules.Ast.FuncExp 
+                    (* We use the file_glob uninterpreted function defined in
+                     * the find module *)
+                    (Id "file_glob",
+                      [ glob
+                      ; EnumExp (Id "find_file_type", None, "file", [])
+                      ; EnumExp (Id "file_system", None, "local", []) ])
                   in Result.bind conditioned
                     (fun conditioned ->
                       let item_file =

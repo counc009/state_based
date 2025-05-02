@@ -822,10 +822,6 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                   | "path_from" ->
                       let (arg_ty, res_ty, _) = Target.funcDef PathFrom
                       in Ok (arg_ty, res_ty, TargetAst.PathFrom)
-                  | "file_glob" ->
-                      let arg_ty = Target.Named (List (Primitive String))
-                      in let res_ty = Target.Named (List (Primitive Path))
-                      in Ok (arg_ty, res_ty, Uninterpreted ("file_glob", arg_ty, res_ty))
                   | _ -> Error ("undefined name " ^ nm))
                   (fun (arg_typ, ret_typ, func) ->
                     process (ProductExp args)
