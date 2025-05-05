@@ -1,0 +1,72 @@
+struct pip_result { failed: bool, name: list string, virtualenv: path }
+
+enum pip_state { absent, forcereinstall, latest, present }
+
+element virtual_environment(path)
+attribute python_version(string)
+
+module ansible.builtin.pip -> pip_result {
+  # Technically this is not required since other option appears to be a
+  # requirements file, but not modeling that at the moment
+  (name: list string)
+  (state: pip_state = pip_state::present)
+  [virtualenv: path]
+
+  let res = pip_result { failed: false, name: name };
+
+  if provided virtualenv {
+    # The docs are a little self-contradictory, but it does appear that the
+    # virtualenv program is required to use virtual environments
+    # TODO: Check virtual env didn't already exist
+    res.virtualenv = virtualenv;
+    assert exists package("virtualenv");
+    touch virtual_environment(virtualenv);
+
+    [virtualenv_python: string]
+    if provided virtualenv_python {
+      virtual_environment(virtualenv).python_version = virtualenv_python;
+    }
+
+    match state {
+      pip_state::absent => {
+        for n in name { clear virtual_environment(virtualenv).package(n); }
+      }
+      pip_state::forcereinstall => {
+        for n in name {
+          clear virtual_environment(virtualenv).package(n);
+          touch virtual_environment(virtualenv).package(n).pip();
+        }
+      }
+      pip_state::latest => {
+        for n in name {
+          touch virtual_environment(virtualenv).package(n).pip();
+          virtual_environment(virtualenv).package(n).version = package_version::latest;
+        }
+      }
+      pip_state::present => {
+        # TODO: Check that package doesn't already exist via another managaer?
+        for n in name { touch virtual_environment(virtualenv).package(n).pip(); }
+      }
+    }
+  } else {
+    match state {
+      pip_state::absent => {
+        for n in name { clear package(n); }
+      }
+      pip_state::forcereinstall => {
+        for n in name { clear package(n); touch package(n).pip(); }
+      }
+      pip_state::latest => {
+        for n in name {
+          touch package(n).pip();
+          package(n).version = package_version::latest;
+        }
+      }
+      pip_state::present => {
+        for n in name { touch package(n).pip(); }
+      }
+    }
+  }
+
+  return res;
+}
