@@ -23,3 +23,9 @@
       name: john
       groups: sudoers
       append: yes
+
+  - name: Create wheel group
+    ansible.builtin.group:
+      name: wheel
+      system: true
+      state: present
