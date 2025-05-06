@@ -46,17 +46,17 @@ module ansible.builtin.file -> file_result {
         fs(path, file_system::remote).owner 
           = provided owner ? owner
           : env().is_root  ? fs(path, file_system::remote).owner
-                           : env().user;
-        fs(path, file_system::remote).group 
+                           : env().active_user;
+        fs(path, file_system::remote).owner_group 
           = provided group ? group
-          : env().is_root  ? fs(path, file_system::remote).group
-                           : env().group;
+          : env().is_root  ? fs(path, file_system::remote).owner_group
+                           : env().active_group;
       } else {
         fs(path, file_system::remote).fs_type = file_type::directory(list::<path>::nil());
         fs(path, file_system::remote).owner 
-          = provided owner ? owner : env().user;
-        fs(path, file_system::remote).group 
-          = provided group ? group : env().group;
+          = provided owner ? owner : env().active_user;
+        fs(path, file_system::remote).owner_group 
+          = provided group ? group : env().active_group;
       }
 
       result.path = path;
@@ -66,11 +66,11 @@ module ansible.builtin.file -> file_result {
         fs(path, file_system::remote).owner 
           = provided owner ? owner
           : env().is_root  ? fs(path, file_system::remote).owner
-                           : env().user;
-        fs(path, file_system::remote).group 
+                           : env().active_user;
+        fs(path, file_system::remote).owner_group 
           = provided group ? group
-          : env().is_root  ? fs(path, file_system::remote).group
-                           : env().group;
+          : env().is_root  ? fs(path, file_system::remote).owner_group
+                           : env().active_group;
       }
       result.path = path;
     }
@@ -82,16 +82,16 @@ module ansible.builtin.file -> file_result {
         fs(path, file_system::remote).owner 
           = provided owner ? owner
           : env().is_root  ? fs(path, file_system::remote).owner
-                           : env().user;
-        fs(path, file_system::remote).group 
+                           : env().active_user;
+        fs(path, file_system::remote).owner_group 
           = provided group ? group
-          : env().is_root  ? fs(path, file_system::remote).group
-                           : env().group;
+          : env().is_root  ? fs(path, file_system::remote).owner_group
+                           : env().active_group;
       } else {
         fs(path, file_system::remote).owner 
-          = provided owner ? owner : env().user;
-        fs(path, file_system::remote).group 
-          = provided group ? group : env().group;
+          = provided owner ? owner : env().active_user;
+        fs(path, file_system::remote).owner_group 
+          = provided group ? group : env().active_group;
       }
       fs(path, file_system::remote).fs_type = file_type::hard(src);
 
@@ -104,16 +104,16 @@ module ansible.builtin.file -> file_result {
         fs(path, file_system::remote).owner 
           = provided owner ? owner
           : env().is_root  ? fs(path, file_system::remote).owner
-                           : env().user;
-        fs(path, file_system::remote).group 
+                           : env().active_user;
+        fs(path, file_system::remote).owner_group 
           = provided group ? group
-          : env().is_root  ? fs(path, file_system::remote).group
-                           : env().group;
+          : env().is_root  ? fs(path, file_system::remote).owner_group
+                           : env().active_group;
       } else {
         fs(path, file_system::remote).owner 
-          = provided owner ? owner : env().user;
-        fs(path, file_system::remote).group 
-          = provided group ? group : env().group;
+          = provided owner ? owner : env().active_user;
+        fs(path, file_system::remote).owner_group 
+          = provided group ? group : env().active_group;
       }
       fs(path, file_system::remote).fs_type = file_type::link(src);
 
@@ -124,17 +124,17 @@ module ansible.builtin.file -> file_result {
         fs(path, file_system::remote).owner 
           = provided owner ? owner
           : env().is_root  ? fs(path, file_system::remote).owner
-                           : env().user;
-        fs(path, file_system::remote).group 
+                           : env().active_user;
+        fs(path, file_system::remote).owner_group 
           = provided group ? group
-          : env().is_root  ? fs(path, file_system::remote).group
-                           : env().group;
+          : env().is_root  ? fs(path, file_system::remote).owner_group
+                           : env().active_group;
       } else {
         fs(path, file_system::remote).fs_type = file_type::file("");
         fs(path, file_system::remote).owner 
-          = provided owner ? owner : env().user;
-        fs(path, file_system::remote).group 
-          = provided group ? group : env().group;
+          = provided owner ? owner : env().active_user;
+        fs(path, file_system::remote).owner_group 
+          = provided group ? group : env().active_group;
       }
       result.dest = path;
     }

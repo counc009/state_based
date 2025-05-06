@@ -658,7 +658,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
     in Result.map
       (fun tasks ->
         Modules.Ast.Assign
-          (Field (FuncExp (Id "env", []), "user"),
+          (Field (FuncExp (Id "env", []), "active_user"),
            StringLit play.remote_user)
         :: tasks)
       tasks

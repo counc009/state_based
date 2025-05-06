@@ -48,13 +48,13 @@ module ansible.builtin.get_url -> get_url_result {
       } else {
         fs(dst, file_system::remote).fs_type
           = file_type::file(download_url(url, login));
-        if provided group { fs(dst, file_system::remote).group = group; result.group = group; }
+        if provided group { fs(dst, file_system::remote).owner_group = group; result.group = group; }
         if provided owner { fs(dst, file_system::remote).owner = owner; result.owner = owner; }
       }
     } else {
       fs(dst, file_system::remote).fs_type
         = file_type::file(download_url(url, login));
-      if provided group { fs(dst, file_system::remote).group = group; result.group = group; }
+      if provided group { fs(dst, file_system::remote).owner_group = group; result.group = group; }
       if provided owner { fs(dst, file_system::remote).owner = owner; result.owner = owner; }
     }
   } else {
@@ -67,13 +67,13 @@ module ansible.builtin.get_url -> get_url_result {
       } else {
         fs(dest, file_system::remote).fs_type
           = file_type::file(download_url(url, login));
-        if provided group { fs(dest, file_system::remote).group = group; result.group = group; }
+        if provided group { fs(dest, file_system::remote).owner_group = group; result.group = group; }
         if provided owner { fs(dest, file_system::remote).owner = owner; result.owner = owner; }
       }
     } else {
       fs(dest, file_system::remote).fs_type
         = file_type::file(download_url(url, login));
-      if provided group { fs(dest, file_system::remote).group = group; result.group = group; }
+      if provided group { fs(dest, file_system::remote).owner_group = group; result.group = group; }
       if provided owner { fs(dest, file_system::remote).owner = owner; result.owner = owner; }
     }
   }
