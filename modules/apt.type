@@ -1,0 +1,52 @@
+struct apt_result { failed: bool, cache_updated: bool }
+
+enum apt_state { absent, build-dep, latest, present, fixed }
+
+uninterpreted build_dependencies(string) -> list string
+
+module ansible.builtin.apt -> apt_result {
+  [name aka package, pkg : list string]
+  [state : apt_state = apt_state::present]
+  (update_cache aka update-cache : bool = false)
+
+  let res = apt_result { failed: false, cache_updated: false };
+
+  if update_cache {
+    apt().version = package_version::latest;
+    res.cache_updated = true;
+  }
+
+  if provided name {
+    match state {
+      apt_state::absent => {
+        for n in name {
+          clear package(n);
+        }
+      }
+      apt_state::build-dep => {
+        for n in name {
+          for p in build_dependencies(n) {
+            touch package(p).apt();
+          }
+        }
+      }
+      apt_state::latest => {
+        for n in name {
+          touch package(n).apt();
+          package(n).version = package_version::latest;
+        }
+      }
+      apt_state::present => {
+        for n in name {
+          touch package(n).apt();
+        }
+      }
+      apt_state::fixed => {
+        # TODO
+        assert false;
+      }
+    }
+  }
+
+  return res;
+}

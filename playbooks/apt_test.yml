@@ -1,0 +1,20 @@
+---
+- name: Apt test
+
+  tasks:
+  - name: Install firefox and chromium
+    ansible.builtin.apt:
+      name:
+      - firefox
+      - chromium
+      state: present
+
+  - name: Remove chromium
+    ansible.builtin.apt:
+      name: chromium
+      state: absent
+
+  - name: Install build dependencies of clang
+    ansible.builtin.apt:
+      name: clang
+      state: build-dep
