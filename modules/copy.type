@@ -11,19 +11,23 @@ function copy(dst : path, src : path, src_loc : file_system,
       }
       file_type::directory(files) => {
         let success = true;
-        for f in files {
+        let copied = foreach f : files {
           assert exists fs(f, src_loc);
           match fs(f, src_loc).fs_type {
             file_type::file(_) => {
-              if !copy(cons_path(dst, path_from(src, f)), f, src_loc, group, owner) {
-                success = false;
-              }
+              let f_dst = cons_path(dst, path_from(src, f));
+              if !copy(f_dst, f, src_loc, group, owner) { success = false; }
+              yield f_dst;
             }
             file_type::directory(_) => { success = false; }
             file_type::hard(_) => { success = false; }
             file_type::link(_) => { success = false; }
           }
-        }
+          yield '';
+        };
+        fs(dst, file_system::remote).fs_type = file_type::directory(copied);
+        fs(dst, file_system::remote).owner = owner;
+        fs(dst, file_system::remote).owner_group = group;
         return success;
       }
       file_type::hard(_) => { return false; }
