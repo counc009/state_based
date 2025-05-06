@@ -4,7 +4,7 @@ type typ = Bool | Int | Float | String | Path | Named of string | Unit
 type unary = Not | Neg
 type binary = Or | And | Eq | Ne | Lt | Le | Gt | Ge | LShift | RShift
             | Add | Sub | Mul | Div | Mod
-            | Concat
+            | Concat | Append
 
 (* Patterns are just of the form <enum-name>[::<type>]::<constructor-name>[(<var-names>)] *)
 type pattern = string * typ option * string * string list

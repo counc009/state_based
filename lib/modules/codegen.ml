@@ -999,6 +999,14 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                           if lhs_t = rhs_t
                           then Ok (Target.Primitive Bool, TargetAst.Equal lhs_t)
                           else Error "Incompatible types for equality"
+                      | Append ->
+                          if lhs_t = rhs_t
+                          then
+                            match lhs_t with
+                            | Target.Named (List elem) ->
+                                Ok (lhs_t, TargetAst.Append elem)
+                            | _ -> Error "Expected list types for append"
+                          else Error "Incompatible types for append"
                       | _ -> Error "TODO: support binary ops"
                     in Result.bind op_info
                     (fun (ret_typ, func) ->

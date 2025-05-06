@@ -122,7 +122,7 @@ let path_lit =
             | expr4 '>'  expr4 | expr4 '>=' expr4
             | expr4
     expr4 ::= expr4 '<<' expr5 | expr4 '>>' expr5 | expr5
-    expr5 ::= expr6 '^' expr5 | expr6
+    expr5 ::= expr6 '^' expr5 | expr6 '@' expr5 | expr6
     expr6 ::= expr6 '+' expr7 | expr6 '-' expr7 | expr7
     expr7 ::= expr7 '*' expr8 | expr7 '/' expr8 | expr7 '%' expr8 | expr8
     expr8 ::= '!' expr8 | '-' expr8 | expr9
@@ -226,8 +226,11 @@ let expr (stmts : stmt list Angstrom.t) =
         expr6 >>= fun lhs ->
           whitespace
           *> option lhs
-              (char '^' *> whitespace *> expr5
-                >>| fun rhs -> BinaryExp (lhs, rhs, Concat)))
+              (choice
+              [ (char '^' *> whitespace *> expr5
+                  >>| fun rhs -> BinaryExp (lhs, rhs, Concat))
+              ; (char '@' *> whitespace *> expr5
+                  >>| fun rhs -> BinaryExp (lhs, rhs, Append)) ]))
     in let expr4 =
       let rec expr4' lhs =
         whitespace
@@ -403,8 +406,11 @@ let cond_expr (stmts : stmt list Angstrom.t) =
       expr6 >>= fun lhs ->
         whitespace
         *> option lhs
-            (char '^' *> whitespace *> expr5
-              >>| fun rhs -> BinaryExp (lhs, rhs, Concat)))
+            (choice
+            [ (char '^' *> whitespace *> expr5
+                >>| fun rhs -> BinaryExp (lhs, rhs, Concat))
+            ; (char '@' *> whitespace *> expr5
+                >>| fun rhs -> BinaryExp (lhs, rhs, Append)) ]))
   in let expr4 =
     let rec expr4' lhs =
       whitespace
