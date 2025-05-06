@@ -1,0 +1,24 @@
+---
+- name: For Debian and RedHat, install and start an ssh client and server and generate an ssh key for 'fizbaz' at '~/.ssh/fizbaz_rsa'
+  tasks:
+  - name: Install SSH (Debian)
+    ansible.builtin.package:
+      name:
+        - openssh-client
+        - openssh-server
+    when: ansible_os_family == "Debian"
+  - name: Install SSH (RedHat)
+    ansible.builtin.package:
+      name:
+        - openssh-servier
+        - openssh-clients
+    when: ansible_os_family == "RedHat"
+  - name: Create SSH keys
+    ansible.builtin.user:
+      name: "fizbaz"
+      generate_ssh_key: true
+      ssh_key_file: ".ssh/fizbaz_rsa"
+  - name: Enable SSH server
+    ansible.builtin.service:
+      name: sshd
+      state: started

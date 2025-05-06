@@ -4,12 +4,14 @@ struct package_result { failed: bool }
 enum package_state { present, absent }
 
 module ansible.builtin.package -> package_result {
-  (name: string)
-  (state: package_state)
+  # UGH, the docs say name is a string but MAYBE can be a list of strings
+  # Doing this to make problem 20 work for now but need to figure out better
+  (name: list string)
+  (state: package_state = package_state::present)
 
   match state {
-    package_state::present => { touch package(name); }
-    package_state::absent  => { clear package(name); }
+    package_state::present => { for n in name { touch package(n); } }
+    package_state::absent  => { for n in name { clear package(n); } }
   }
 
   return package_result { failed: false };

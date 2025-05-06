@@ -1,0 +1,25 @@
+---
+- name: Test user creation/deletetion/etc.
+  tasks:
+  - name: Create john user with home directory /john and zsh shell
+    ansible.builtin.user:
+      name: john
+      shell: /usr/bin/zsh
+      home: /john
+
+  - name: Remove john, but not the home directory
+    ansible.builtin.user:
+      name: john
+      state: absent
+
+  - name: Add john back, this time in the admin group
+    ansible.builtin.user:
+      name: john
+      home: /john
+      groups: admin
+
+  - name: And add john to the group sudoers
+    ansible.builtin.user:
+      name: john
+      groups: sudoers
+      append: yes
