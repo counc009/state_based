@@ -6,12 +6,14 @@
       name:
         - openssh-client
         - openssh-server
+      state: present
     when: ansible_os_family == "Debian"
   - name: Install SSH (RedHat)
     ansible.builtin.package:
       name:
         - openssh-servier
         - openssh-clients
+      state: present
     when: ansible_os_family == "RedHat"
   - name: Create SSH keys
     ansible.builtin.user:
