@@ -30,5 +30,5 @@ module ansible.builtin.service -> service_result {
     service(name).start_on_boot = enabled;
   }
 
-  return service_result { failed: true };
+  return service_result { failed: false };
 }

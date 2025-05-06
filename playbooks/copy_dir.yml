@@ -1,0 +1,16 @@
+---
+- name: Copy directory test
+
+  tasks:
+  - name: Fake to ensure the directory doesn't exist
+    ansible.fake.delete:
+      dest: /srv/dir
+  - name: Create empty directory
+    ansible.builtin.file:
+      path: /srv/dir
+      state: directory
+  - name: Copy the directory
+    ansible.builtin.copy:
+      src: /srv/dir
+      dest: /tmp/newdir
+      remote_src: yes

@@ -1,0 +1,239 @@
+enum user_state { absent, present }
+
+enum password_update { always, on_create }
+
+struct user_result { failed: bool, append: bool, create_home: bool, force: bool,
+                     groups: list string, home: path, move_home: bool,
+                     name: string,
+                     password: string, remove: bool, shell: path,
+                     ssh_fingerprint: string, ssh_key_file: path, ssh_public_key: string,
+                     system: bool }
+
+uninterpreted default_ssh_key_bits() -> int
+uninterpreted user_active(string) -> bool
+uninterpreted directory_used(path) -> bool
+
+uninterpreted ssh_private_key(type: string, bits: int, passphrase: option string, comment: string) -> string
+uninterpreted ssh_public_key(type: string, bits: int, passphrase: option string, comment: string) -> string
+uninterpreted ssh_fingerprint(public_key: string) -> string
+
+# Documentation is not entirely clear on this point, but since it specifies
+# that on Linux it uses useradd, usermod, and userdel commands to do user
+# management I believe this MUST be run as root since those require root
+# privilege to make any changes to /etc/passwd (there's an exception I've
+# included for just generating an ssh key).
+# This includes even changes for the current user; on Linux to change your
+# own password you use passwd which is SETUID root and so can modify
+# /etc/passwd but usermod is not SETUID and hence must be run with root
+# privileges
+
+module ansible.builtin.user -> user_result {
+  (name aka user : string)
+  (state: user_state = user_state::present)
+
+  let res = user_result { failed: false, name: name };
+
+  match state {
+    user_state::present => {
+      [home: path]
+      (create_home aka createhome : bool = true)
+      [move_home: bool = false]
+
+      [group: string]
+      (append: bool = false)
+      [groups: list string]
+
+      [password: string]
+      (update_password : password_update = password_update::always)
+
+      [shell: path]
+
+      (system: bool = false)
+
+      (generate_ssh_key: bool = false)
+      (force: bool = false)
+      [ssh_key_bits: int = default_ssh_key_bits()]
+      [ssh_key_comment: string = "ansible-generated on " ^ env().hostname]
+      [ssh_key_file: path = '.ssh/id_rsa']
+      [ssh_key_passphrase: string]
+      [ssh_key_type: string = "rsa"]
+
+      let homedir = '';
+
+      let set_password = false;
+
+      if exists user(name) {
+        res.append = append;
+        res.move_home = move_home;
+
+        if provided group { user(name).primary_group = group; }
+        let primary_group = user(name).primary_group;
+
+        match update_password { password_update::always => { set_password = true; } }
+
+        if provided home {
+          # Changing the home directory requires root privileges
+          if !env().is_root { res.failed = true; return res; }
+
+          homedir = home;
+
+          if move_home {
+            let old_home = user(name).homedir;
+            if exists fs(old_home, file_system::remote) {
+              if !copy(homedir, old_home, file_system::remote, primary_group, name) {
+                res.failed = true;
+                return res;
+              }
+            }
+          }
+
+          user(name).homedir = homedir;
+        }  else {
+          homedir = user(name).homedir;
+        }
+
+        if provided groups {
+          if append {
+            user(name).supplemental_groups = groups @ user(name).supplemental_groups;
+          } else {
+            user(name).supplemental_groups = groups;
+          }
+        }
+      } else {
+        # User doesn't exist, this requires root privilege as discussed above
+        if !env().is_root { res.failed = true; return res; }
+
+        touch user(name);
+
+        # Per useradd documentation the default is disabled, if a password was
+        # specified that's handled below
+        set_password = true;
+        user(name).password = password_set::disabled;
+
+        # Technically the default is specified by a config file (/etc/default/useradd)
+        # but I think 99.99% of the time /home is probably correct
+        homedir = provided home ? home : cons_path('/home', path_of_string(name));
+        user(name).homedir = homedir;
+
+        res.create_home = create_home;
+
+        # Not 100% sure about this, but useradd documentation says the default
+        # behavior if no group name is specified is to create a group with the
+        # same name as the user
+        let primary_group = provided group ? group : name;
+        user(name).primary_group = primary_group;
+
+        if provided groups {
+          user(name).supplemental_groups = groups;
+        } else {
+          user(name).supplemental_groups = list::<string>::nil();
+        }
+
+        user(name).system = system;
+        res.system = system;
+      }
+
+      res.groups = user(name).supplemental_groups;
+      res.home = user(name).homedir;
+
+      if provided password {
+        if set_password {
+          res.password = password;
+
+          if !env().is_root { res.failed = true; return res; }
+
+          if password == "!" {
+            user(name).password = password_set::disabled;
+          } else {
+            user(name).password = password_set::hashed(password);
+          }
+        }
+      }
+
+      if create_home {
+        if exists fs(homedir, file_system::remote) {}
+        else {
+          fs(homedir, file_system::remote).fs_type
+            = file_type::directory(list::<path>::nil);
+          fs(homedir, file_system::remote).owner = name;
+        }
+      }
+
+      if provided shell {
+        user(name).default_shell = shell;
+      }
+      res.shell = user(name).default_shell;
+
+      if generate_ssh_key {
+        let key_path = cons_path(user(name).homedir, ssh_key_file);
+        let pub_key_path = add_ext(key_path, ".pub");
+        let generate_key = force ? true : exists fs(key_path, file_system::remote) ? false : true;
+
+        if generate_key {
+          let key = ssh_private_key(
+            ssh_key_type,
+            ssh_key_bits,
+            provided ssh_key_passphrase
+              ? option::<string>::some(ssh_key_passphrase)
+              : option::<string>::nothing(),
+            ssh_key_comment);
+          fs(key_path, file_system::remote).fs_type = file_type::file(key);
+          fs(key_path, file_system::remote).owner = name;
+          fs(key_path, file_system::remote).owner_group = user(name).primary_group;
+
+          # TODO: Track time or something as randomness source to show link
+          # TODO: This also isn't documented but I think must happen
+          let pub_key = ssh_public_key(
+            ssh_key_type,
+            ssh_key_bits,
+            provided ssh_key_passphrase
+              ? option::<string>::some(ssh_key_passphrase)
+              : option::<string>::nothing(),
+            ssh_key_comment);
+          fs(pub_key_path, file_system::remote).fs_type = file_type::file(pub_key);
+          fs(pub_key_path, file_system::remote).owner = name;
+          fs(pub_key_path, file_system::remote).owner_group = user(name).primary_group;
+
+          res.ssh_fingerprint = ssh_fingerprint(pub_key);
+          res.ssh_key_file = key_path;
+          res.ssh_public_key = pub_key;
+        }
+      }
+    }
+    user_state::absent => {
+      (force: bool = false)
+      (remove: bool = false)
+
+      res.remove = remove;
+
+      if exists user(name) {
+        let delete_user = force ? true : ! user_active(name);
+        res.force = force;
+
+        if delete_user {
+          let home = user(name).homedir;
+          let delete_home = remove ? (force ? true : ! directory_used(home)) : false;
+
+          if delete_home {
+            assert exists fs(home, file_system::remote);
+            match fs(home, file_system::remote).fs_type {
+              file_type::directory(files) => {
+                for p in files { clear fs(p, file_system::remote); }
+              }
+            }
+            clear fs(home, file_system::remote);
+          }
+
+          clear user(name);
+        } else {
+          # It is not documented at all if/how the module fails, but I'm going
+          # to assume that failure of the underlying userdel results in failure
+          # of the module
+          res.failed = true;
+        }
+      }
+    }
+  }
+
+  return res;
+}

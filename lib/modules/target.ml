@@ -19,6 +19,7 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | BoolNeg
                 | Concat
                 | Equal         of 't
+                | Append        of 't (* Type of list elements *)
                 (* Path operations *)
                 | ConsPath
                 | PathOfString
@@ -26,6 +27,7 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | EndsWithDir
                 | BaseName
                 | PathFrom
+                | AddExt
                 (* Name and input and output types *)
                 | Uninterpreted of string * 't * 't
 type ('v, 't) lit = Unit    of unit
@@ -180,6 +182,13 @@ module rec Ast_Target : Ast_Defs
     | ListVal (_, _), Struct (_, _) ->
         failwith "Attempted to compare values that are of different types"
 
+  let rec append_lists et x y : value =
+    match x with
+    | Constructor (_, true, _) -> (* Nil *) y
+    | Constructor (listTy, false, Pair(hd, tl, pairTy)) ->
+        Constructor (listTy, false, Pair (hd, append_lists et tl y, pairTy))
+    | _ -> Function (Append et, Pair (x, y, Product (et, Named (List et))), Named (List et))
+
   let namedTyDef : namedTy -> typ * typ = function
     | List t -> (Primitive Unit, Product (t, Named (List t)))
     | Option t -> (Primitive Unit, t)
@@ -237,6 +246,10 @@ module rec Ast_Target : Ast_Defs
               | Unsure -> Stuck
               end
           | _ -> Stuck)
+    | Append et -> (Product (Named (List et), Named (List et)), Named (List et),
+        fun v -> match v with
+          | Pair (x, y, _) -> Reduced (append_lists et x y)
+          | _ -> Stuck)
     | ConsPath -> (Product (Primitive Path, Primitive Path),
                    Primitive Path,
         fun v -> match v with
@@ -272,6 +285,12 @@ module rec Ast_Target : Ast_Defs
                  let res = String.sub full (String.length base) (String.length full - String.length base)
                  in Reduced (Literal (Path res, Path))
                else Err "The base path in path_from must be the base of the full path"
+          | _ -> Stuck)
+    | AddExt -> (Product (Primitive Path, Primitive String),
+                 Primitive Path,
+        fun v -> match v with
+          | Pair (Literal (Path base, _), Literal (String ext, _), _)
+            -> Reduced (Literal (Path (base ^ ext), Path))
           | _ -> Stuck)
     (* Uninterpreted functions never reduce *)
     | Uninterpreted (_, in_typ, out_typ) ->
@@ -389,12 +408,14 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | BoolNeg                   -> "not"
         | Concat                    -> "concat"
         | Equal _                   -> "equal"
+        | Append _                  -> "append"
         | ConsPath                  -> "cons_path"
         | PathOfString              -> "path_of_string"
         | StringOfPath              -> "string_of_path"
         | EndsWithDir               -> "ends_with_dir"
         | BaseName                  -> "base_name"
         | PathFrom                  -> "path_from"
+        | AddExt                    -> "add_ext"
         | Uninterpreted (nm, _, _)  -> nm
       in string_f ^ "(" ^ string_of_expr e ^ ")"
 
@@ -506,12 +527,14 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | BoolNeg                   -> "not(" ^ value_to_string arg ^ ")"
       | Concat                    -> "concat(" ^ value_to_string arg ^ ")"
       | Equal _                   -> "equal(" ^ value_to_string arg ^ ")"
+      | Append _                  -> "append(" ^ value_to_string arg ^ ")"
       | ConsPath                  -> "cons_path(" ^ value_to_string arg ^ ")"
       | PathOfString              -> "path_of_string(" ^ value_to_string arg ^ ")"
       | StringOfPath              -> "string_of_path(" ^ value_to_string arg ^ ")"
       | EndsWithDir               -> "ends_with_dir(" ^ value_to_string arg ^ ")"
       | BaseName                  -> "base_name(" ^ value_to_string arg ^ ")"
       | PathFrom                  -> "path_from(" ^ value_to_string arg ^ ")"
+      | AddExt                    -> "add_ext(" ^ value_to_string arg ^ ")"
       | Uninterpreted (nm, _, _)  -> nm ^ "(" ^ value_to_string arg ^ ")"
       | _ -> "%%FUNCTION%%(" ^ value_to_string arg ^ ")"
 and string_of_list_val (v : Ast_Target.value) : string =

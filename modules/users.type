@@ -1,0 +1,11 @@
+element user(string)
+element group(string)
+
+enum password_set { hashed(string), plain(string), disabled }
+attribute password(password_set)
+
+attribute homedir(path)
+attribute primary_group(string)
+attribute supplemental_groups(list string)
+attribute default_shell(path)
+attribute system(bool)

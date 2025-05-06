@@ -11,7 +11,7 @@ module ansible.builtin.stat -> stat_result {
                     failed: false,
                     stat: stat_res {
                       exists: true,
-                      gr_name: fs(path, file_system::remote).group,
+                      gr_name: fs(path, file_system::remote).owner_group,
                       isdir: false,
                       islnk: false,
                       isreg: false,

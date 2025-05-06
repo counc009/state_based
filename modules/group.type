@@ -1,0 +1,33 @@
+enum group_state { absent, present }
+
+struct group_result { failed: bool, name: string, state: group_state, system: bool }
+
+uninterpreted group_used(string) -> bool
+
+module ansible.builtin.group -> group_result {
+  (name: string)
+  (state: group_state = group_state::present)
+
+  let res = group_result { failed: false, name: name, state: state };
+
+  match state {
+    group_state::absent => {
+      (force: bool = false)
+      let delete_group = force ? true : !group_used(name);
+
+      if delete_group {
+        clear group(name);
+      }
+    }
+    group_state::present => {
+      (system: bool = false)
+
+      res.system = system;
+
+      if exists group(name) { }
+      else { group(name).system = system; }
+    }
+  }
+
+  return res;
+}

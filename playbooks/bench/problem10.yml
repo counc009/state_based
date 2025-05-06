@@ -1,0 +1,7 @@
+---
+- name: Disable the password for the service user
+  tasks:
+  - name: Disable password for the 'service' user
+    ansible.builtin.user:
+      name: service
+      password: '!'

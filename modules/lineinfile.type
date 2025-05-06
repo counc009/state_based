@@ -142,7 +142,7 @@ module ansible.builtin.lineinfile -> lineinfile_result {
 
     fs(path, file_system::remote).fs_type = file_type::file(result);
     if provided owner { fs(path, file_system::remote).owner = owner; }
-    if provided group { fs(path, file_system::remote).group = group; }
+    if provided group { fs(path, file_system::remote).owner_group = group; }
   } else {
     match state {
       lineinfile_state::absent => {
@@ -165,9 +165,9 @@ module ansible.builtin.lineinfile -> lineinfile_result {
           fs(path, file_system::remote).fs_type = file_type::file(result);
 
           if provided owner { fs(path, file_system::remote).owner = owner; }
-          else { fs(path, file_system::remote).owner = env().user; }
-          if provided group { fs(path, file_system::remote).group = group; }
-          else { fs(path, file_system::remote).group = env().group; }
+          else { fs(path, file_system::remote).owner = env().active_user; }
+          if provided group { fs(path, file_system::remote).owner_group = group; }
+          else { fs(path, file_system::remote).owner_group = env().active_group; }
         }
       }
     }
