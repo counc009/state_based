@@ -23,7 +23,7 @@ function copy(dst : path, src : path, src_loc : file_system,
             file_type::hard(_) => { success = false; }
             file_type::link(_) => { success = false; }
           }
-          yield '';
+          yield 'ERROR'; # Doesn't matter what we yield since failed
         };
         fs(dst, file_system::remote).fs_type = file_type::directory(copied);
         fs(dst, file_system::remote).owner = owner;
