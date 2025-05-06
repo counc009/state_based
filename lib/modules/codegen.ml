@@ -822,6 +822,9 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                   | "path_from" ->
                       let (arg_ty, res_ty, _) = Target.funcDef PathFrom
                       in Ok (arg_ty, res_ty, TargetAst.PathFrom)
+                  | "add_ext" ->
+                      let (arg_ty, res_ty, _) = Target.funcDef AddExt
+                      in Ok (arg_ty, res_ty, TargetAst.AddExt)
                   | _ -> Error ("undefined name " ^ nm))
                   (fun (arg_typ, ret_typ, func) ->
                     process (ProductExp args)
