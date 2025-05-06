@@ -1,14 +1,21 @@
-struct user_result { failed: bool }
-
 enum user_state { absent, present }
 
 enum password_update { always, on_create }
+
+struct user_result { failed: bool, append: bool, create_home: bool, force: bool,
+                     groups: list string, home: path, move_home: bool,
+                     name: string,
+                     password: string, remove: bool, shell: path,
+                     ssh_fingerprint: string, ssh_key_file: path, ssh_public_key: string,
+                     system: bool }
 
 uninterpreted default_ssh_key_bits() -> int
 uninterpreted user_active(string) -> bool
 uninterpreted directory_used(path) -> bool
 
-uninterpreted ssh_key(type: string, bits: int, passphrase: option string, comment: string) -> string
+uninterpreted ssh_private_key(type: string, bits: int, passphrase: option string, comment: string) -> string
+uninterpreted ssh_public_key(type: string, bits: int, passphrase: option string, comment: string) -> string
+uninterpreted ssh_fingerprint(public_key: string) -> string
 
 # Documentation is not entirely clear on this point, but since it specifies
 # that on Linux it uses useradd, usermod, and userdel commands to do user
@@ -21,10 +28,10 @@ uninterpreted ssh_key(type: string, bits: int, passphrase: option string, commen
 # privileges
 
 module ansible.builtin.user -> user_result {
-  let res = user_result { failed: false };
-
   (name aka user : string)
   (state: user_state = user_state::present)
+
+  let res = user_result { failed: false, name: name };
 
   match state {
     user_state::present => {
@@ -56,6 +63,9 @@ module ansible.builtin.user -> user_result {
       let set_password = false;
 
       if exists user(name) {
+        res.append = append;
+        res.move_home = move_home;
+
         if provided group { user(name).primary_group = group; }
         let primary_group = user(name).primary_group;
 
@@ -105,6 +115,8 @@ module ansible.builtin.user -> user_result {
         homedir = provided home ? home : cons_path('/home', path_of_string(name));
         user(name).homedir = homedir;
 
+        res.create_home = create_home;
+
         # Not 100% sure about this, but useradd documentation says the default
         # behavior if no group name is specified is to create a group with the
         # same name as the user
@@ -117,11 +129,17 @@ module ansible.builtin.user -> user_result {
           user(name).supplemental_groups = list::<string>::nil();
         }
 
-        user(name).system_user = system;
+        user(name).system = system;
+        res.system = system;
       }
+
+      res.groups = user(name).supplemental_groups;
+      res.home = user(name).homedir;
 
       if provided password {
         if set_password {
+          res.password = password;
+
           if !env().is_root { res.failed = true; return res; }
 
           if password == "!" {
@@ -144,13 +162,15 @@ module ansible.builtin.user -> user_result {
       if provided shell {
         user(name).default_shell = shell;
       }
+      res.shell = user(name).default_shell;
 
       if generate_ssh_key {
         let key_path = cons_path(user(name).homedir, ssh_key_file);
+        let pub_key_path = add_ext(key_path, ".pub");
         let generate_key = force ? true : exists fs(key_path, file_system::remote) ? false : true;
 
         if generate_key {
-          let key = ssh_key(
+          let key = ssh_private_key(
             ssh_key_type,
             ssh_key_bits,
             provided ssh_key_passphrase
@@ -160,6 +180,23 @@ module ansible.builtin.user -> user_result {
           fs(key_path, file_system::remote).fs_type = file_type::file(key);
           fs(key_path, file_system::remote).owner = name;
           fs(key_path, file_system::remote).owner_group = user(name).primary_group;
+
+          # TODO: Track time or something as randomness source to show link
+          # TODO: This also isn't documented but I think must happen
+          let pub_key = ssh_public_key(
+            ssh_key_type,
+            ssh_key_bits,
+            provided ssh_key_passphrase
+              ? option::<string>::some(ssh_key_passphrase)
+              : option::<string>::nothing(),
+            ssh_key_comment);
+          fs(pub_key_path, file_system::remote).fs_type = file_type::file(pub_key);
+          fs(pub_key_path, file_system::remote).owner = name;
+          fs(pub_key_path, file_system::remote).owner_group = user(name).primary_group;
+
+          res.ssh_fingerprint = ssh_fingerprint(pub_key);
+          res.ssh_key_file = key_path;
+          res.ssh_public_key = pub_key;
         }
       }
     }
@@ -167,8 +204,11 @@ module ansible.builtin.user -> user_result {
       (force: bool = false)
       (remove: bool = false)
 
+      res.remove = remove;
+
       if exists user(name) {
         let delete_user = force ? true : ! user_active(name);
+        res.force = force;
 
         if delete_user {
           let home = user(name).homedir;
