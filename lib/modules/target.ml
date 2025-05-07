@@ -20,6 +20,8 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | Concat
                 | Equal         of 't
                 | Append        of 't (* Type of list elements *)
+                | AddInt
+                | AddFloat
                 (* Path operations *)
                 | ConsPath
                 | PathOfString
@@ -250,6 +252,16 @@ module rec Ast_Target : Ast_Defs
         fun v -> match v with
           | Pair (x, y, _) -> Reduced (append_lists et x y)
           | _ -> Stuck)
+    | AddInt -> (Product (Primitive Int, Primitive Int), Primitive Int,
+        fun v -> match v with
+          | Pair (Literal (Int x, _), Literal (Int y, _), _)
+              -> Reduced (Literal (Int (x + y), Int))
+          | _ -> Stuck)
+    | AddFloat -> (Product (Primitive Float, Primitive Float), Primitive Float,
+        fun v -> match v with
+          | Pair (Literal (Float x, _), Literal (Float y, _), _)
+              -> Reduced (Literal (Float (x +. y), Float))
+          | _ -> Stuck)
     | ConsPath -> (Product (Primitive Path, Primitive Path),
                    Primitive Path,
         fun v -> match v with
@@ -409,6 +421,8 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | Concat                    -> "concat"
         | Equal _                   -> "equal"
         | Append _                  -> "append"
+        | AddInt                    -> "add"
+        | AddFloat                  -> "add"
         | ConsPath                  -> "cons_path"
         | PathOfString              -> "path_of_string"
         | StringOfPath              -> "string_of_path"
@@ -528,6 +542,8 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | Concat                    -> "concat(" ^ value_to_string arg ^ ")"
       | Equal _                   -> "equal(" ^ value_to_string arg ^ ")"
       | Append _                  -> "append(" ^ value_to_string arg ^ ")"
+      | AddInt                    -> "add(" ^ value_to_string arg ^ ")"
+      | AddFloat                  -> "add(" ^ value_to_string arg ^ ")"
       | ConsPath                  -> "cons_path(" ^ value_to_string arg ^ ")"
       | PathOfString              -> "path_of_string(" ^ value_to_string arg ^ ")"
       | StringOfPath              -> "string_of_path(" ^ value_to_string arg ^ ")"

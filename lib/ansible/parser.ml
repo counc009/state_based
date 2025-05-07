@@ -498,6 +498,8 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
               | Ok () -> process_module_args tl res
               | Error msg -> Error msg
         in process_module_args map (new mod_result(nm))
+    | `Null -> (* No arguments *)
+        Result.map_error (String.concat "\n") (new mod_result(nm))#to_mod
     | _ -> Error "Expected module argument to be a mapping with fields"
   in let process_task t =
     match t with

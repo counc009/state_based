@@ -1,0 +1,10 @@
+---
+- name: For Debian, restart the system if it is needed
+  tasks:
+  - name: Check whether /run/reboot-required exists
+    ansible.builtin.stat:
+      path: /run/reboot-required
+    register: st
+  - name: Reboot if required
+    ansible.builtin.reboot:
+    when: st.stat.exists

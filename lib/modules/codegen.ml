@@ -1010,6 +1010,16 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                                 Ok (lhs_t, TargetAst.Append elem)
                             | _ -> Error "Expected list types for append"
                           else Error "Incompatible types for append"
+                      | Add ->
+                          if lhs_t = rhs_t
+                          then
+                            match lhs_t with
+                            | Target.Primitive Int ->
+                                Ok (lhs_t, TargetAst.AddInt)
+                            | Target.Primitive Float ->
+                                Ok (lhs_t, TargetAst.AddFloat)
+                            | _ -> Error "Cannot add non-numeric types"
+                          else Error "Types for add must be same"
                       | _ -> Error "TODO: support binary ops"
                     in Result.bind op_info
                     (fun (ret_typ, func) ->

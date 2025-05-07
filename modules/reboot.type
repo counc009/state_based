@@ -1,0 +1,12 @@
+struct reboot_result { failed: bool, rebooted: bool }
+
+attribute time_counter(int)
+attribute last_reboot(int)
+
+module ansible.builtin.reboot -> reboot_result {
+  let cur_time = env().time_counter;
+  env().last_reboot = cur_time;
+  env().time_counter = cur_time + 1;
+
+  return reboot_result { failed: false, rebooted: true };
+}
