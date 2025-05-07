@@ -54,7 +54,8 @@ type task = {
   ignore_errors: bool;
   condition: value option;
   loop: loop_kind option;
-  module_invoke: mod_use
+  module_invoke: mod_use;
+  become: bool
 }
 
 class task_result =
@@ -65,6 +66,8 @@ class task_result =
     val mutable condition     = (None : value option)
     val mutable loop          = (None : loop_kind option)
     val mutable module_invoke = (None : mod_use option)
+
+    val mutable become        = (None : bool option)
 
     val mutable errors        = ([] : string list)
 
@@ -95,6 +98,11 @@ class task_result =
         Printf.sprintf "Multiple modules specified: %s and %s" c.mod_name m.mod_name
         :: errors
 
+    method add_become b =
+      match become with
+      | None -> become <- Some b
+      | _    -> errors <- "Multiple become fields" :: errors
+
     method to_task =
       if not (List.is_empty errors)
       then Error errors
@@ -107,13 +115,15 @@ class task_result =
                ; ignore_errors = Option.value ignore_errors ~default:false
                ; condition     = condition
                ; loop          = loop
-               ; module_invoke = m }
+               ; module_invoke = m
+               ; become        = Option.value become ~default:false }
   end
 
 type play = {
   name        : string;
   hosts       : string option;
   remote_user : string;
+  is_root     : bool option;
   tasks       : task list
 }
 
@@ -155,6 +165,7 @@ class play_result =
               (* Per https://docs.ansible.com/ansible/latest/inventory_guide/connection_details.html#setting-a-remote-user
                * the default for the user is the name of the local user *)
                ; remote_user  = Option.value remote_user ~default:"#local_user"
+               ; is_root      = Option.map (fun nm -> nm = "root") remote_user
                ; tasks        = t }
   end
 
@@ -513,6 +524,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                 | "name" -> Result.map res#add_name (process_string v)
                 | "register" -> Result.map res#add_register (process_string v)
                 | "ignore_errors" -> Result.map res#add_ignore_errors (process_bool v)
+                | "become" -> Result.map res#add_become (process_bool v)
                 | "when" -> Result.map res#add_when (process_condition v)
                 | "with_items" | "loop"
                   -> Result.map (fun v -> res#add_loop (ItemLoop v)) (process_value v)
@@ -588,9 +600,31 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
       | Some (FileGlob _) -> Hashtbl.add play_env "item" (Concrete Path)
     in Result.bind (codegen_module_invocation t.module_invoke play_env)
       (fun (modul, typ) ->
-        let body = Modules.Ast.LetStmt (t.register, modul)
-                :: if t.ignore_errors then []
-                   else [Assert (UnaryExp (Field (Id t.register, "failed"), Not))]
+        let body = 
+          let module_invoke = Modules.Ast.LetStmt (t.register, modul)
+          in let error_checking =
+            if t.ignore_errors then []
+            else [Modules.Ast.Assert (UnaryExp (Field (Id t.register, "failed"), Not))]
+          in if t.become
+          (* If become was specified, we escalate privilege to root by
+           * 1) recording the current user and is_root property
+           * 2) assert that the current user can escalate
+           * 3) setting the user to "root" and setting is_root to true
+           * 4) after executing the module reset the user and is_root
+           *)
+          then Modules.Ast.LetStmt ("#old_user", Field (FuncExp (Id "env", []), "active_user"))
+            :: LetStmt ("#old_group", Field (FuncExp (Id "env", []), "active_group"))
+            :: LetStmt ("#old_root", Field (FuncExp (Id "env", []), "is_root"))
+            :: Assert (FuncExp (Id "can_escalate", [Id "#old_user"]))
+            :: Assign (Field (FuncExp (Id "env", []), "active_user"), StringLit "root")
+            :: Assign (Field (FuncExp (Id "env", []), "active_group"), StringLit "root")
+            :: Assign (Field (FuncExp (Id "env", []), "is_root"), BoolLit true)
+            :: module_invoke
+            :: Assign (Field (FuncExp (Id "env", []), "active_user"), Id "#old_user")
+            :: Assign (Field (FuncExp (Id "env", []), "active_group"), Id "#old_group")
+            :: Assign (Field (FuncExp (Id "env", []), "is_root"), Id "#old_root")
+            :: error_checking
+          else module_invoke :: error_checking
         in let conditioned =
           match t.condition with
           | None -> Ok body
@@ -646,7 +680,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
         in let () = if Option.is_some t.loop then Hashtbl.remove play_env "item"
         in looped)
   in let codegen_play (play : play) : (Modules.Ast.stmt list, string) result =
-    (* TODO: for now we're ignoring hosts. We should also handle setting is_root *)
+    (* TODO: make use of hosts field? *)
     let rec codegen_tasks ts play_env =
       match ts with
       | [] -> Ok []
@@ -656,13 +690,19 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
           | Error msg -> Error msg
     in let play_env = Hashtbl.create 10
     in let tasks = codegen_tasks play.tasks play_env
-    (* Set the user by env().user = remote_user *)
+    (* Set the user by env().active_user = remote_user
+     * and set is_root based on what we know of it *)
     in Result.map
       (fun tasks ->
         Modules.Ast.Assign
           (Field (FuncExp (Id "env", []), "active_user"),
            StringLit play.remote_user)
-        :: tasks)
+        :: match play.is_root with
+           | None -> tasks
+           | Some is_root ->
+              Modules.Ast.Assign
+                (Field (FuncExp (Id "env", []), "is_root"), BoolLit is_root)
+              :: tasks)
       tasks
   in let process_play play =
     match play with

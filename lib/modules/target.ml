@@ -30,6 +30,7 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | BaseName
                 | PathFrom
                 | AddExt
+                | CanEscalate
                 (* Name and input and output types *)
                 | Uninterpreted of string * 't * 't
 type ('v, 't) lit = Unit    of unit
@@ -304,6 +305,10 @@ module rec Ast_Target : Ast_Defs
           | Pair (Literal (Path base, _), Literal (String ext, _), _)
             -> Reduced (Literal (Path (base ^ ext), Path))
           | _ -> Stuck)
+    | CanEscalate -> (Primitive String, Primitive Bool,
+        fun v -> match v with
+        | Literal (String "root", _) -> Reduced (Literal (Bool true, Bool))
+        | _ -> Stuck)
     (* Uninterpreted functions never reduce *)
     | Uninterpreted (_, in_typ, out_typ) ->
         (in_typ, out_typ, fun _ -> Stuck)
@@ -430,6 +435,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | BaseName                  -> "base_name"
         | PathFrom                  -> "path_from"
         | AddExt                    -> "add_ext"
+        | CanEscalate               -> "can_escalate"
         | Uninterpreted (nm, _, _)  -> nm
       in string_f ^ "(" ^ string_of_expr e ^ ")"
 
@@ -551,6 +557,7 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | BaseName                  -> "base_name(" ^ value_to_string arg ^ ")"
       | PathFrom                  -> "path_from(" ^ value_to_string arg ^ ")"
       | AddExt                    -> "add_ext(" ^ value_to_string arg ^ ")"
+      | CanEscalate               -> "can_esclate(" ^ value_to_string arg ^ ")"
       | Uninterpreted (nm, _, _)  -> nm ^ "(" ^ value_to_string arg ^ ")"
       | _ -> "%%FUNCTION%%(" ^ value_to_string arg ^ ")"
 and string_of_list_val (v : Ast_Target.value) : string =
