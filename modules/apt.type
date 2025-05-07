@@ -5,6 +5,8 @@ enum apt_state { absent, build-dep, latest, present, fixed }
 uninterpreted build_dependencies(string) -> list string
 
 module ansible.builtin.apt -> apt_result {
+  assert env().os_family == "Debian";
+
   [name aka package, pkg : list string]
   [state : apt_state = apt_state::present]
   (update_cache aka update-cache : bool = false)
