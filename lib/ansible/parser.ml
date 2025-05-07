@@ -701,5 +701,13 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
   in let () = close_in ch
   in match Yaml.of_string s with
   | Error (`Msg msg) -> Error msg
-  | Ok contents ->
-      process_yaml contents
+  | Ok contents -> Result.map
+      (fun body ->
+        (* We add the following preamble to setup the environment the way we
+         * want it:
+         * - assert exists env();
+         * - assert env().time_counter = 0; *)
+        Modules.Ast.AssertExists (FuncExp (Id "env", []))
+        :: Assert (BinaryExp (Field (FuncExp (Id "env", []), "time_counter"), IntLit 0, Eq))
+        :: body)
+      (process_yaml contents)
