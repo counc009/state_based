@@ -6,6 +6,9 @@ element service(string)
 attribute start_on_boot(bool)
 attribute running(bool)
 
+attribute started(int)
+attribute loaded(int)
+
 module ansible.builtin.service -> service_result {
   (name: string)
   [state: service_state]
@@ -20,9 +23,30 @@ module ansible.builtin.service -> service_result {
       # TODO: We probably need some way to indicate restarting/reloading of the
       # service. My inclination is some sort of time counter in the environment
       # that we can use to indicate actions like that
-      service_state::reloaded => { service(name).running = true; }
-      service_state::restarted => { service(name).running = true; }
-      service_state::started => { service(name).running = true; }
+      service_state::reloaded => {
+        let time = get_time();
+        if exists service(name) {} else { service(name).running = false; }
+        if !service(name).running {
+          service(name).running = true;
+          service(name).started = time;
+        }
+        service(name).loaded = time;
+      }
+      service_state::restarted => {
+        let time = get_time();
+        service(name).running = true;
+        service(name).started = time;
+        service(name).loaded = time;
+      }
+      service_state::started => {
+        if exists service(name) {} else { service(name).running = false; }
+        if !service(name).running {
+          let time = get_time();
+          service(name).running = true;
+          service(name).started = time;
+          service(name).loaded = time;
+        }
+      }
       service_state::stopped => { service(name).running = false; }
     }
   } else {
