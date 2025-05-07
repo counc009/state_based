@@ -13,8 +13,8 @@ uninterpreted default_ssh_key_bits() -> int
 uninterpreted user_active(string) -> bool
 uninterpreted directory_used(path) -> bool
 
-uninterpreted ssh_private_key(type: string, bits: int, passphrase: option string, comment: string) -> string
-uninterpreted ssh_public_key(type: string, bits: int, passphrase: option string, comment: string) -> string
+uninterpreted ssh_private_key(type: string, bits: int, passphrase: option string, comment: string, time: int) -> string
+uninterpreted ssh_public_key(type: string, bits: int, passphrase: option string, comment: string, time: int) -> string
 uninterpreted ssh_fingerprint(public_key: string) -> string
 
 # Documentation is not entirely clear on this point, but since it specifies
@@ -170,13 +170,15 @@ module ansible.builtin.user -> user_result {
         let generate_key = force ? true : exists fs(key_path, file_system::remote) ? false : true;
 
         if generate_key {
+          let time = get_time();
           let key = ssh_private_key(
             ssh_key_type,
             ssh_key_bits,
             provided ssh_key_passphrase
               ? option::<string>::some(ssh_key_passphrase)
               : option::<string>::nothing(),
-            ssh_key_comment);
+            ssh_key_comment,
+            time);
           fs(key_path, file_system::remote).fs_type = file_type::file(key);
           fs(key_path, file_system::remote).owner = name;
           fs(key_path, file_system::remote).owner_group = user(name).primary_group;
@@ -189,7 +191,8 @@ module ansible.builtin.user -> user_result {
             provided ssh_key_passphrase
               ? option::<string>::some(ssh_key_passphrase)
               : option::<string>::nothing(),
-            ssh_key_comment);
+            ssh_key_comment,
+            time);
           fs(pub_key_path, file_system::remote).fs_type = file_type::file(pub_key);
           fs(pub_key_path, file_system::remote).owner = name;
           fs(pub_key_path, file_system::remote).owner_group = user(name).primary_group;
