@@ -828,6 +828,9 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                   | "can_escalate" ->
                       let (arg_ty, res_ty, _) = Target.funcDef CanEscalate
                       in Ok (arg_ty, res_ty, TargetAst.CanEscalate)
+                  | "to_lower" ->
+                      let (arg_ty, res_ty, _) = Target.funcDef ToLower
+                      in Ok (arg_ty, res_ty, TargetAst.ToLower)
                   | _ -> Error ("undefined name " ^ nm))
                   (fun (arg_typ, ret_typ, func) ->
                     process (ProductExp args)

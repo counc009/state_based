@@ -22,6 +22,7 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | Append        of 't (* Type of list elements *)
                 | AddInt
                 | AddFloat
+                | ToLower
                 (* Path operations *)
                 | ConsPath
                 | PathOfString
@@ -263,6 +264,11 @@ module rec Ast_Target : Ast_Defs
           | Pair (Literal (Float x, _), Literal (Float y, _), _)
               -> Reduced (Literal (Float (x +. y), Float))
           | _ -> Stuck)
+    | ToLower -> (Primitive String, Primitive String,
+        fun v -> match v with
+          | Literal (String s, _) ->
+              Reduced (Literal (String (String.lowercase_ascii s), String))
+          | _ -> Stuck)
     | ConsPath -> (Product (Primitive Path, Primitive Path),
                    Primitive Path,
         fun v -> match v with
@@ -428,6 +434,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | Append _                  -> "append"
         | AddInt                    -> "add"
         | AddFloat                  -> "add"
+        | ToLower                   -> "to_lower"
         | ConsPath                  -> "cons_path"
         | PathOfString              -> "path_of_string"
         | StringOfPath              -> "string_of_path"
@@ -550,6 +557,7 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | Append _                  -> "append(" ^ value_to_string arg ^ ")"
       | AddInt                    -> "add(" ^ value_to_string arg ^ ")"
       | AddFloat                  -> "add(" ^ value_to_string arg ^ ")"
+      | ToLower                   -> "to_lower(" ^ value_to_string arg ^ ")"
       | ConsPath                  -> "cons_path(" ^ value_to_string arg ^ ")"
       | PathOfString              -> "path_of_string(" ^ value_to_string arg ^ ")"
       | StringOfPath              -> "string_of_path(" ^ value_to_string arg ^ ")"

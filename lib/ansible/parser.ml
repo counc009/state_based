@@ -6,7 +6,7 @@
 module Jinterp = Jingoo.Jg_interp
 module Jtypes = Jingoo.Jg_types
 
-type unary  = Not
+type unary  = Not | Lower
 type binary = Concat | Equals | And | Or
 
 type value =
@@ -204,6 +204,8 @@ let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
           (fun rhs -> Ok (Unary (Binary (lhs, Equals, rhs), Not))))
     | DotExpr (ex, field) -> Result.bind (jexpr_to_value ex)
         (fun ex -> Ok (Dot (ex, field)))
+    | ApplyExpr (IdentExpr "lower", [(None, arg)]) ->
+        Result.bind (jexpr_to_value arg) (fun ex -> Ok (Unary (ex, Lower)))
     | _ -> Error "unhandled Jinja expression form"
   in let jstmt_to_value (j: Jtypes.statement) : (value, string) result =
     match j with
@@ -427,6 +429,12 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
     | Ident nm ->
         begin match Hashtbl.find_opt play_env nm, t with
         | Some (Concrete ty), Some t when t = ty -> Ok (Modules.Ast.Id nm, t)
+        | Some (Concrete String), Some Path ->
+            Ok (Modules.Ast.FuncExp (Id "path_of_string", [Modules.Ast.Id nm]),
+                Path)
+        | Some (Concrete Path), Some String ->
+            Ok (Modules.Ast.FuncExp (Id "string_of_path", [Modules.Ast.Id nm]),
+                String)
         | Some (Concrete _), Some _ -> Error "mismatched types"
         | Some (Concrete ty), None -> Ok (Modules.Ast.Id nm, ty)
         | Some (Unknown (_, _)), Some t ->
@@ -445,37 +453,65 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                     Ok (Field (FuncExp (Id "env", []), "os_family"), String)
                 | _ -> Error "mismatched types"
                 end
+            | "ansible_distribution" ->
+                begin match t with
+                | Some String | None ->
+                    (* env().os_distribution *)
+                    Ok (Field (FuncExp (Id "env", []), "os_distribution"), String)
+                | _ -> Error "mismatched types"
+                end
             | _ -> Error ("Unknown variable " ^ nm)
         end
     | Unary (v, op) ->
         begin match op, t with
         | Not, Some Bool | Not, None ->
             Result.bind (codegen_value v (Some Bool) play_env)
-              (fun (v, t) -> Ok (Modules.Ast.UnaryExp (v, Not), t))
+              (fun (v, _) -> Ok (Modules.Ast.UnaryExp (v, Not),
+                                 Modules.Ast.Bool))
         | Not, _ -> Error "Incorrect type for not (productes boolean)"
+        | Lower, Some String | Lower, None ->
+            Result.bind (codegen_value v (Some String) play_env)
+              (fun (v, _) -> Ok (Modules.Ast.FuncExp (Id "to_lower", [v]),
+                                 Modules.Ast.String))
+        | Lower, Some Path ->
+            Result.bind (codegen_value v (Some String) play_env)
+              (fun (v, _) -> Ok (Modules.Ast.FuncExp (Id "path_of_string",
+                [FuncExp (Id "to_lower", [v])]), Modules.Ast.Path))
+        | Lower, _ -> Error "Incorrect type for lower (productes string)"
         end
     | Binary (lhs, op, rhs) ->
         let op_info : (Modules.Ast.typ option
                     * (Modules.Ast.typ -> Modules.Ast.typ option)
                     * Modules.Ast.typ
-                    * Modules.Ast.binary, string) result =
+                    * (Modules.Ast.expr -> Modules.Ast.expr -> Modules.Ast.expr)
+                    , string) result =
           match op, t with
           | Concat, Some String | Concat, None
-              -> Ok (Some String, (fun _ -> Some String), String, Concat)
+              -> Ok (Some String, (fun _ -> Some String), String,
+                     fun l r -> BinaryExp (l, r, Concat))
+          | Concat, Some Path
+              -> Ok (Some String, (fun _ -> Some String), Path,
+                     fun l r -> FuncExp (Id "path_of_string", 
+                                         [BinaryExp (l, r, Concat)]))
           | Concat, _ -> Error "Incorrect type for concat (produces string)"
           | Equals, Some Bool | Equals, None
-              -> Ok (None, (fun t -> Some t), Bool, Eq)
+              -> Ok (None, (fun t -> Some t), Bool,
+                     fun l r -> BinaryExp (l, r, Eq))
           | Equals, _ -> Error "Incorrect type for equals (produces bool)"
-          | And, Some Bool | And, None -> Ok (Some Bool, (fun _ -> Some Bool), Bool, And)
+          | And, Some Bool | And, None
+              -> Ok (Some Bool, (fun _ -> Some Bool), Bool,
+                     fun l r -> BinaryExp (l, r, And))
           | And, _ -> Error "Incorrect type for and (produces bool)"
-          | Or, Some Bool | Or, None -> Ok (Some Bool, (fun _ -> Some Bool), Bool, Or)
+          | Or, Some Bool | Or, None
+              -> Ok (Some Bool, (fun _ -> Some Bool), Bool,
+                     fun l r -> BinaryExp (l, r, Or))
           | Or, _ -> Error "Incorrect type for or (produces bool)"
         in Result.bind op_info
           (fun (lhs_t, rhs_t, ret_typ, op) ->
             Result.bind (codegen_value lhs lhs_t play_env)
               (fun (lhs, lhs_t) ->
                 Result.bind (codegen_value rhs (rhs_t lhs_t) play_env)
-                (fun (rhs, _) -> Ok (Modules.Ast.BinaryExp (lhs, rhs, op), ret_typ))))
+                (fun (rhs, _) -> Ok (op lhs rhs, ret_typ))))
     | Dot (ex, field) ->
         Result.bind (codegen_value ex None play_env)
         (fun (ex, ty) ->
@@ -492,7 +528,10 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                     | Struct (_, fields) ->
                         begin match Modules.Codegen.StringMap.find_opt field fields with
                         | None -> Error (Printf.sprintf "Value has no field '%s'" field)
-                        | Some t -> Ok (Field (ex, field), codegen_type_to_ast_typ t)
+                        | Some t ->
+                            (* TODO: Check type *)
+                            (* TODO: Add String <-> Path coercions *)
+                            Ok (Field (ex, field), codegen_type_to_ast_typ t)
                         end
                     | _ -> Error (Printf.sprintf "Value has no field '%s'" field)
                   in process_for_field typ

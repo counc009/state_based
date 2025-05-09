@@ -1,0 +1,21 @@
+---
+- name: For RedHat and Ubuntu, install postfix, backup its default configuration file, and download the configuration file
+  tasks:
+  - name: Install postfix
+    ansible.builtin.package:
+      name: postfix
+      state: present
+  - name: Backup original main.cf
+    ansible.builtin.copy:
+      src: /etc/postfix/main.cf
+      dest: /etc/postfix/main.bak
+      force: false
+      remote_src: true
+  - name: Download main.cf
+    ansible.builtin.get_url:
+      url: "http://example.com/cfg.{{ ansible_distribution | lower }}"
+      dest: /etc/postfix/main.cf
+      validate_certs: false
+      owner: root
+      group: root
+      force: true
