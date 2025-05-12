@@ -11,10 +11,18 @@ module ansible.builtin.apt -> apt_result {
   [state : apt_state = apt_state::present]
   (update_cache aka update-cache : bool = false)
 
+  [cache_valid_time: int]
+  if provided cache_valid_time { update_cache = true; }
+  let cache_valid_time = provided cache_valid_time ? cache_valid_time : 0;
+
+  # Add these properties for updating the cache, though we don't use them
+  [update_cache_reties: int = 5]
+  [update_cache_retry_max_delay: int = 12]
+
   let res = apt_result { failed: false, cache_updated: false };
 
   if update_cache {
-    apt().version = package_version::latest;
+    apt().cache_version = get_time();
     res.cache_updated = true;
   }
 

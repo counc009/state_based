@@ -1,6 +1,10 @@
 ---
 - name: For Debian and RedHat, install and start an ssh client and server and generate an ssh key for 'fizbaz' at '~/.ssh/fizbaz_rsa'
   tasks:
+  - name: Update apt cache
+    ansible.builtin.apt:
+      update_cache: true
+      cache_valid_time: 86400
   - name: Install SSH (Debian)
     ansible.builtin.package:
       name:

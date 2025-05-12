@@ -6,3 +6,5 @@ element pip()
 enum package_version { specific(string), latest }
 
 attribute version(package_version)
+
+attribute cache_version(int)
