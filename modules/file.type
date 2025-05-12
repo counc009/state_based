@@ -44,6 +44,28 @@ module ansible.builtin.file -> file_result {
     }
     file_state::directory => {
       if exists fs(path, file_system::remote) {
+        match fs(path, file_system::remote).fs_type {
+          file_type::directory(files) => {
+            if recurse {
+              for f in files {
+                assert exists fs(f, file_system::remote);
+                fs(f, file_system::remote).owner
+                  = provided owner ? owner
+                  : env().is_root  ? fs(f, file_system::remote).owner
+                                   : env().active_user;
+                fs(f, file_system::remote).owner_group
+                  = provided group ? group
+                  : env().is_root  ? fs(f, file_system::remote).owner_group
+                                   : env().active_group;
+                fs(f, file_system::remote).mode
+                  = provided mode ? mode : fs(f, file_system::remote).mode;
+              }
+            }
+          }
+          file_type::file(_) => { result.failed = true; return result; }
+          file_type::hard(_) => { result.failed = true; return result; }
+          file_type::link(_) => { result.failed = true; return result; }
+        }
         fs(path, file_system::remote).owner 
           = provided owner ? owner
           : env().is_root  ? fs(path, file_system::remote).owner
