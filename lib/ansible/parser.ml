@@ -124,6 +124,7 @@ type play = {
   hosts       : string option;
   remote_user : string;
   is_root     : bool option;
+  become      : bool;
   tasks       : task list
 }
 
@@ -133,6 +134,8 @@ class play_result =
     val mutable hosts       = (None : string option)
     val mutable remote_user = (None : string option)
     val mutable tasks       = (None : task list option)
+
+    val mutable become      = (None : bool option)
 
     val mutable errors      = ([] : string list)
 
@@ -153,6 +156,11 @@ class play_result =
       | None -> tasks <- Some ts
       | _    -> errors <- "Multiple tasks fields" :: errors
 
+    method add_become b =
+      match become with
+      | None -> become <- Some b
+      | _    -> errors <- "Multiple become fields" :: errors
+
     method to_play =
       if not (List.is_empty errors)
       then Error errors
@@ -166,6 +174,7 @@ class play_result =
                * the default for the user is the name of the local user *)
                ; remote_user  = Option.value remote_user ~default:"#local_user"
                ; is_root      = Option.map (fun nm -> nm = "root") remote_user
+               ; become       = Option.value become ~default:false
                ; tasks        = t }
   end
 
@@ -729,20 +738,33 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
           | Error msg -> Error msg
     in let play_env = Hashtbl.create 10
     in let tasks = codegen_tasks play.tasks play_env
+    in let with_become =
+      (* Handle become as above *)
+      Result.map
+      (fun tasks ->
+        if play.become
+        then Modules.Ast.Assert (FuncExp (Id "can_escalate",
+                                [Field (FuncExp (Id "env", []), "active_user")]))
+          :: Assign (Field (FuncExp (Id "env", []), "active_user"), StringLit "root")
+          :: Assign (Field (FuncExp (Id "env", []), "active_group"), StringLit "root")
+          :: Assign (Field (FuncExp (Id "env", []), "is_root"), BoolLit true)
+          :: tasks
+        else tasks)
+      tasks
     (* Set the user by env().active_user = remote_user
      * and set is_root based on what we know of it *)
     in Result.map
-      (fun tasks ->
+      (fun play_body ->
         Modules.Ast.Assign
           (Field (FuncExp (Id "env", []), "active_user"),
            StringLit play.remote_user)
         :: match play.is_root with
-           | None -> tasks
+           | None -> play_body
            | Some is_root ->
               Modules.Ast.Assign
                 (Field (FuncExp (Id "env", []), "is_root"), BoolLit is_root)
-              :: tasks)
-      tasks
+              :: play_body)
+      with_become
   in let process_play play =
     match play with
     | `O map ->
@@ -756,6 +778,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                 | "hosts"       -> Result.map res#add_hosts (process_string v)
                 | "remote_user" -> Result.map res#add_remote_user (process_string v)
                 | "tasks"       -> Result.map res#add_tasks (process_tasks v)
+                | "become"      -> Result.map res#add_become (process_bool v)
                 | _             -> Error (Printf.sprintf "unrecognized field '%s' in play" field)
               with
               | Ok ()     -> process_play_fields tl res

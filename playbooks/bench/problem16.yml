@@ -1,6 +1,6 @@
 ---
 - name: Install zsh, set it as user's default shell, and ensure its configuration directory exists
-  #become: true
+  become: true
   tasks:
   - name: "needed packages - ensure installed"
     ansible.builtin.package:
