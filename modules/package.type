@@ -1,17 +1,37 @@
 struct package_result { failed: bool }
 
-# The docs say latest MAY be an option, but not including since it's not universal
-enum package_state { present, absent }
+# The docs say latest MAY be an option, depends on underlying package manager
+enum package_state { present, absent, latest }
 
 module ansible.builtin.package -> package_result {
   # UGH, the docs say name is a string but MAYBE can be a list of strings
-  # Doing this to make problem 20 work for now but need to figure out better
   (name: list string)
   (state: package_state)
+
+  # We know that multiple names works on Debian and RedHat, but not sure about
+  # others, if it works on other systems, add them to this expression
+  let allow_list = env().os_family == "Debian" || env().os_family == "RedHat";
+  match name {
+    list::<string>::nil => { assert allow_list; }
+    list::<string>::cons(_, tl) => {
+      match tl {
+        list::<string>::cons(_, _) => { assert allow_list; }
+      }
+    }
+  }
 
   match state {
     package_state::present => { for n in name { touch package(n); } }
     package_state::absent  => { for n in name { clear package(n); } }
+    package_state::latest  => {
+      # We know latest works for Debian-based and RedHat-based systems
+      # It may work for other systems, in which case add them to this assertion
+      assert env().os_family == "Debian" || env().os_family == "RedHat";
+      for n in name {
+        touch package(n);
+        package(n).version = package_version::latest;
+      }
+    }
   }
 
   return package_result { failed: false };

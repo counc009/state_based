@@ -1,10 +1,10 @@
 ---
-- name: For RedHat and Ubuntu, install postfix, backup its default configuration file, and download the configuration file
+- name: For RedHat and Ubuntu, install the latest version of postfix, backup its default configuration file, and download the configuration file
   tasks:
   - name: Install postfix
     ansible.builtin.package:
       name: postfix
-      state: present
+      state: latest
   - name: Backup original main.cf
     ansible.builtin.copy:
       src: /etc/postfix/main.cf

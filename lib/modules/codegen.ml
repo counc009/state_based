@@ -1026,6 +1026,11 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                                 Ok (lhs_t, TargetAst.AddFloat)
                             | _ -> Error "Cannot add non-numeric types"
                           else Error "Types for add must be same"
+                      | Or ->
+                          if lhs_t = Target.Primitive Bool
+                          && rhs_t = Target.Primitive Bool
+                          then Ok (Target.Primitive Bool, TargetAst.BoolOr)
+                          else Error "Incorrect type for boolean or"
                       | _ -> Error "TODO: support binary ops"
                     in Result.bind op_info
                     (fun (ret_typ, func) ->

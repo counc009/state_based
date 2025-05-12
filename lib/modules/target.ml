@@ -17,6 +17,7 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | AddField      of 't StringMap.t * string
                 | ReadField     of 't StringMap.t * string
                 | BoolNeg
+                | BoolOr
                 | Concat
                 | Equal         of 't
                 | Append        of 't (* Type of list elements *)
@@ -235,6 +236,11 @@ module rec Ast_Target : Ast_Defs
         fun v -> match v with Literal (Bool b, _)
                     -> Reduced (Literal (Bool (not b), Bool))
                  | _ -> Stuck)
+    | BoolOr -> (Product (Primitive Bool, Primitive Bool), Primitive Bool,
+        fun v -> match v with
+          | Pair (Literal (Bool x, _), Literal (Bool y, _), _)
+              -> Reduced (Literal (Bool (x || y), Bool))
+          | _ -> Stuck)
     | Concat -> (Product (Primitive String, Primitive String),
                  Primitive String,
         fun v -> match v with
@@ -374,6 +380,14 @@ module rec Ast_Target : Ast_Defs
   let reduceFuncConstraint (f: funct) (v: value) (c: constr) =
     match f, c with
     | BoolNeg, IsBool b -> Reducible [[ IsBool (v, not b) ]]
+    | BoolOr, IsBool b ->
+        begin match v with
+        | Pair (x, y, _) ->
+            if b
+            then Reducible [ [ IsBool (x, true) ]; [ IsBool (y, true) ] ]
+            else Reducible [[ IsBool (x, false); IsBool (y, false) ]]
+        | _ -> Unreducible
+        end
     | Equal _, IsBool true ->
         begin match v with
         | Pair (Unknown (x, _), y, _) -> Reducible [[ IsEqual (x, y) ]]
@@ -429,6 +443,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | AddField (_, field)       -> "add#" ^ field
         | ReadField (_, field)      -> "get#" ^ field
         | BoolNeg                   -> "not"
+        | BoolOr                    -> "or"
         | Concat                    -> "concat"
         | Equal _                   -> "equal"
         | Append _                  -> "append"
@@ -552,6 +567,7 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | Proj (true, _, _)         -> "proj1(" ^ value_to_string arg ^ ")"
       | Proj (false, _, _)        -> "proj2(" ^ value_to_string arg ^ ")"
       | BoolNeg                   -> "not(" ^ value_to_string arg ^ ")"
+      | BoolOr                    -> "or(" ^ value_to_string arg ^ ")"
       | Concat                    -> "concat(" ^ value_to_string arg ^ ")"
       | Equal _                   -> "equal(" ^ value_to_string arg ^ ")"
       | Append _                  -> "append(" ^ value_to_string arg ^ ")"
