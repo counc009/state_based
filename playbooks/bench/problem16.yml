@@ -1,0 +1,19 @@
+---
+- name: Install zsh, set it as user's default shell, and ensure its configuration directory exists
+  #become: true
+  tasks:
+  - name: "needed packages - ensure installed"
+    ansible.builtin.package:
+      name: 'zsh'
+      state: 'present'
+  - name: "zsh as default shell - ensure configured"
+    ansible.builtin.user:
+      name: 'user'
+      shell: '/bin/zsh'
+  - name: ".zshrc.d/ - ensure created"
+    ansible.builtin.file:
+      dest: '/home/user/.zshrc.d'
+      state: 'directory'
+      owner: 'user'
+      group: 'user'
+      mode: '700'

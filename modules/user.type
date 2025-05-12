@@ -50,6 +50,8 @@ module ansible.builtin.user -> user_result {
 
       (system: bool = false)
 
+      [comment: string] # Not using, could add as an attribute if we care
+
       (generate_ssh_key: bool = false)
       (force: bool = false)
       [ssh_key_bits: int = default_ssh_key_bits()]

@@ -362,7 +362,7 @@ let get_enum_info (tys : type_env) (nm : string) (ty_arg : Ast.typ option)
       (* An enum defined in the environment *)
       begin match UniqueMap.find nm tys with
       | Some t -> extract_enum_info t
-      | None -> failwith "undefined type"
+      | None -> failwith ("undefined type " ^ nm)
       end
   | Some t ->
       (* Either a list::<t> or option::<t> *)

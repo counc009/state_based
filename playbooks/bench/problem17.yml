@@ -16,6 +16,7 @@
       url: "http://example.com/cfg.{{ ansible_distribution | lower }}"
       dest: /etc/postfix/main.cf
       validate_certs: false
+      mode: "644"
       owner: root
       group: root
       force: true

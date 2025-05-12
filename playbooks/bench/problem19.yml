@@ -1,0 +1,46 @@
+---
+- name: Enable passwordless sudo for a wheel group and create an ansible user in that group
+  tasks:
+  - name: Install sudo
+    ansible.builtin.package:
+      name: sudo
+      state: present
+  - name: Wheel group
+    ansible.builtin.group:
+      name: wheel
+      system: true
+      state: present
+  - name: Ansible user
+    ansible.builtin.user:
+      name: ansible
+      comment: Ansible User
+      groups:
+        - wheel
+      state: present
+  - name: Create sudoers.d directory
+    ansible.builtin.file:
+      path: "/etc/sudoers.d/"
+      owner: root
+      group: root
+      mode: "750"
+      state: directory
+  - name: Allow group wheel to sudo (1)
+    ansible.builtin.lineinfile:
+      path: "/etc/sudoers.d/wheel"
+      line: "%wheel ALL=(ALL) NOPASSWD:ALL"
+      insertbefore: BOF
+      create: true
+      owner: root
+      group: root
+      mode: "440"
+      state: present
+  - name: Allow group wheel to sudo (2)
+    ansible.builtin.lineinfile:
+      path: "/etc/sudoers"
+      line: "@includedir /etc/sudoers.d"
+      insertafter: BOF
+      create: true
+      owner: root
+      group: root
+      mode: "640"
+      state: present

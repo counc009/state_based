@@ -19,6 +19,7 @@ module ansible.builtin.lineinfile -> lineinfile_result {
   (state : lineinfile_state = lineinfile_state::present)
 
   [group: string] [owner: string]
+  [mode: string]
   [validate: string]
 
   if exists fs(path, file_system::remote) {
@@ -143,6 +144,7 @@ module ansible.builtin.lineinfile -> lineinfile_result {
     fs(path, file_system::remote).fs_type = file_type::file(result);
     if provided owner { fs(path, file_system::remote).owner = owner; }
     if provided group { fs(path, file_system::remote).owner_group = group; }
+    if provided mode { fs(path, file_system::remote).mode = mode; }
   } else {
     match state {
       lineinfile_state::absent => {
@@ -164,10 +166,12 @@ module ansible.builtin.lineinfile -> lineinfile_result {
 
           fs(path, file_system::remote).fs_type = file_type::file(result);
 
-          if provided owner { fs(path, file_system::remote).owner = owner; }
-          else { fs(path, file_system::remote).owner = env().active_user; }
-          if provided group { fs(path, file_system::remote).owner_group = group; }
-          else { fs(path, file_system::remote).owner_group = env().active_group; }
+          fs(path, file_system::remote).owner
+            = provided owner ? owner : env().active_user;
+          fs(path, file_system::remote).owner_group
+            = provided group ? group : env().active_group;
+          fs(path, file_system::remote).mode
+            = provided mode ? mode : mode_of_umask(env().umask);
         }
       }
     }
