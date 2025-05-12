@@ -80,7 +80,9 @@ module ansible.builtin.user -> user_result {
           if move_home {
             let old_home = user(name).homedir;
             if exists fs(old_home, file_system::remote) {
-              if !copy(homedir, old_home, file_system::remote, primary_group, name) {
+              let mode = fs(old_home, file_system::remote).mode;
+              let dir_mode = mode_of_umask(env().umask); # ???
+              if !copy(homedir, old_home, file_system::remote, primary_group, name, mode, dir_mode) {
                 res.failed = true;
                 return res;
               }

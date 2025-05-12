@@ -12,3 +12,6 @@ element fs(path, file_system)
 attribute fs_type(file_type)
 attribute owner(string)
 attribute owner_group(string)
+
+attribute mode(string)
+uninterpreted mode_of_umask(string) -> string

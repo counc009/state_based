@@ -17,6 +17,7 @@ module ansible.builtin.get_url -> get_url_result {
   }
 
   [group: string] [owner: string]
+  [mode: string]
 
   let login = option::<(string, string)>::nothing;
   [url_username aka username: string]
@@ -50,12 +51,16 @@ module ansible.builtin.get_url -> get_url_result {
           = file_type::file(download_url(url, login));
         if provided group { fs(dst, file_system::remote).owner_group = group; result.group = group; }
         if provided owner { fs(dst, file_system::remote).owner = owner; result.owner = owner; }
+        fs(dst, file_system::remote).mode
+          = provided mode ? mode : mode_of_umask(env().umask);
       }
     } else {
       fs(dst, file_system::remote).fs_type
         = file_type::file(download_url(url, login));
       if provided group { fs(dst, file_system::remote).owner_group = group; result.group = group; }
       if provided owner { fs(dst, file_system::remote).owner = owner; result.owner = owner; }
+      fs(dst, file_system::remote).mode
+        = provided mode ? mode : mode_of_umask(env().umask);
     }
   } else {
     result.dest = dest;
@@ -69,12 +74,16 @@ module ansible.builtin.get_url -> get_url_result {
           = file_type::file(download_url(url, login));
         if provided group { fs(dest, file_system::remote).owner_group = group; result.group = group; }
         if provided owner { fs(dest, file_system::remote).owner = owner; result.owner = owner; }
+        fs(dest, file_system::remote).mode
+          = provided mode ? mode : mode_of_umask(env().umask);
       }
     } else {
       fs(dest, file_system::remote).fs_type
         = file_type::file(download_url(url, login));
       if provided group { fs(dest, file_system::remote).owner_group = group; result.group = group; }
       if provided owner { fs(dest, file_system::remote).owner = owner; result.owner = owner; }
+      fs(dest, file_system::remote).mode
+        = provided mode ? mode : mode_of_umask(env().umask);
     }
   }
 
