@@ -1,6 +1,3 @@
 (library
   (name sample)
   (libraries calculus))
-(env
-  (dev
-    (flags (:standard -w -37))))
