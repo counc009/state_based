@@ -1,21 +1,36 @@
-create directory with path=/srv/www
-set environment variable LC_ALL=C
+create directory at /srv/www
+set environment variable LC_ALL to "C"
 copy file from /scratch/file.txt to /home/user/data.txt
-set file permissions of files and directories in path /srv/path to read=all, write=owner, list directory=all
-delete directory with path=/home/mydata/web
+set file permissions of files and directories in path=/srv/path to read=all, write=owner, list directory=all
+delete directory at /home/mydata/web
 create virtual environment with python=3.10 and name=ENV_NAME in /user/home/venv; install numpy in ENV_NAME
-clone github repo name=ansible with branch=stable/2.19 to /ansible
-if os=Debian or os=RedHat then install numpy
-write string "module load gcc" to /home/foo/.bashrc position=end
+clone github repo with name=ansible and branch=stable/2.19 into /ansible
+if os is Debian or os is RedHat then install numpy
+write string "module load gcc" to /home/foo/.bashrc at position=end
 disable password for user=service
 copy files with glob=*.war from controller /backup to remote /tmp
 copy files with glob=*.war from remote /tmp to controller /backup
 move file from /scratch/file.txt to /home/user/data.txt
 create file with path=/etc/file.txt and content="beginning"
-if os=Debian and requires reboot then restart
+if os is Debian and reboot required then restart
 delete files in /home/mydata/web
-install zsh; set default shell for user="user" to zsh; check zsh configuration directory exists
-if os=RedHat or os=Ubuntu then install postfix with version=latest; backup postfix configuration file. if os=Ubuntu then download postfix configuration file from "http://example.com/cfg.ubuntu". if os="RedHat" then download postfix configuration file from "http://example.com/cfg.redhat"
-if os=RedHat then install apache server; check home page file exists; create user with name=webdev
+install zsh; set default shell for user="user" to zsh; ensure zsh configuration directory exists
+if os is RedHat or os is Ubuntu then install postfix with version=latest; backup postfix configuration file. if os is Ubuntu then download postfix configuration file from "http://example.com/cfg.ubuntu". if os is "RedHat" then download postfix configuration file from "http://example.com/cfg.redhat"
+if os is RedHat then install apache server; ensure home page file exists; create user with name=webdev
 enable passwordless sudo for group=wheel; create user with name=ansible in group=wheel
-if os=Debian or os=RedHat then install ssh client and server; start ssh server; create ssh key for user="fizbaz" at "/.ssh/fizbaz_rsa"
+if os is Debian or os is RedHat then install ssh client and server; start ssh server; create ssh key for user="fizbaz" at "/.ssh/fizbaz_rsa"
+
+
+FOLLOW SET:
+"at"
+"equals"
+"exists"
+"for"
+"from"
+"in"
+"into"
+"is"
+"not"
+"required"
+"to"
+"with"
