@@ -1,6 +1,3 @@
 (library
   (name ansible)
   (libraries yaml jingoo modules))
-(env
-  (dev
-    (flags (:standard -w -37))))
