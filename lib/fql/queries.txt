@@ -21,16 +21,18 @@ enable passwordless sudo for group=wheel; create user with name=ansible in group
 if os is Debian or os is RedHat then install ssh client and server; start ssh server; create ssh key for user="fizbaz" at "/.ssh/fizbaz_rsa"
 
 
-FOLLOW SET:
+FOLLOW SET FOR cats:
 "at"
-"equals"
-"exists"
 "for"
 "from"
 "in"
 "into"
+"to"
+"with"
+
+ADDITIONAL FOLLOW SET FOR exprs:
+"equals"
+"exists"
 "is"
 "not"
 "required"
-"to"
-"with"

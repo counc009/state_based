@@ -71,9 +71,11 @@ category: FILE  { }
 
 cond: cond AND cond   { }
     | cond OR cond    { }
-    | expr EQ expr    { }
-    | existential     { }
-    | REQUIRES ???    { }
+    | expr IS expr    { }
+    | category EXISTS { }
+    | category NOT EXISTS { }
+    | category REQUIRED { }
+    | category NOT REQUIRED
     ;
 
 expr: ID      { }
