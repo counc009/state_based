@@ -1,38 +1,21 @@
 create directory at /srv/www
 set environment variable LC_ALL to "C"
-copy file from /scratch/file.txt to /home/user/data.txt
+copy file from "/scratch/file.txt" to "/home/user/data.txt"
 set file permissions of files and directories in path=/srv/path to read=all, write=owner, list directory=all
 delete directory at /home/mydata/web
-create virtual environment with python=3.10 and name=ENV_NAME in /user/home/venv; install numpy in ENV_NAME
-clone github repo with name=ansible and branch=stable/2.19 into /ansible
+create virtual environment with python="3.10" in /user/home/venv; install numpy in virtual environment at /user/home/venv
+clone github repo with name=ansible, branch="stable/2.19" into /ansible
 if os is Debian or os is RedHat then install numpy
-write string "module load gcc" to /home/foo/.bashrc at position=end
+write "module load gcc" to "/home/foo/.bashrc" at position=end
 disable password for user=service
-copy files with glob=*.war from controller /backup to remote /tmp
-copy files with glob=*.war from remote /tmp to controller /backup
-move file from /scratch/file.txt to /home/user/data.txt
-create file with path=/etc/file.txt and content="beginning"
+copy files with glob="*.war" from controller /backup to remote /tmp
+copy files with glob="*.war" from remote /tmp to controller /backup
+move file from "/scratch/file.txt" to "/home/user/data.txt"
+create file with path="/etc/file.txt", content="beginning"
 if os is Debian and reboot required then restart
 delete files in /home/mydata/web
 install zsh; set default shell for user="user" to zsh; ensure zsh configuration directory exists
 if os is RedHat or os is Ubuntu then install postfix with version=latest; backup postfix configuration file. if os is Ubuntu then download postfix configuration file from "http://example.com/cfg.ubuntu". if os is "RedHat" then download postfix configuration file from "http://example.com/cfg.redhat"
-if os is RedHat then install apache server; ensure home page file exists; create user with name=webdev
+if os is RedHat then install apache server; ensure apache server home page exists; create user with name=webdev
 enable passwordless sudo for group=wheel; create user with name=ansible in group=wheel
 if os is Debian or os is RedHat then install ssh client and server; start ssh server; create ssh key for user="fizbaz" at "/.ssh/fizbaz_rsa"
-
-
-FOLLOW SET FOR cats:
-"at"
-"for"
-"from"
-"in"
-"into"
-"to"
-"with"
-
-ADDITIONAL FOLLOW SET FOR exprs:
-"equals"
-"exists"
-"is"
-"not"
-"required"
