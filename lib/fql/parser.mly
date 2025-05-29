@@ -1,3 +1,4 @@
+%token EOF
 %token SEMI DOT COMMA EQ
 %token <string> ID STR
 %token IF THEN ELSE
@@ -13,10 +14,12 @@
 %left OR
 %left AND
 
-%start top
-%type <Ast.top> top
+%start query
+%type <Ast.top> query
 
 %%
+
+query: top EOF { $1 };
 
 top:                              { [] }
    | base                         { [$1] }
@@ -51,7 +54,10 @@ action: BACKUP category    { Backup $2 }
       | WRITE category     { Write $2 }
       ;
 
-args: arg_sep arg_vals  { $2 $1 };
+args:           { [] }
+    | arg args  { $1 @ $2 }
+    ;
+arg: arg_sep arg_vals { $2 $1 };
 arg_sep: AT   { "at" }
        | FOR  { "for" }
        | FROM { "from" }

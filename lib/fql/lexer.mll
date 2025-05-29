@@ -49,4 +49,5 @@ rule token = parse
   | "write"       { WRITE }
 
   | [^' ''\t''\n'';''.'',''=''"']+ as lexeme  { ID lexeme }
-  | '"'[^'"']*'"' as lexeme                   { STR lexeme }
+  | '"'([^'"']* as lexeme)'"'                 { STR lexeme }
+  | eof                                       { EOF }
