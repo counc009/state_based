@@ -1,3 +1,5 @@
 (library
   (name fql)
-  (libraries angstrom modules))
+  (libraries modules))
+(ocamllex lexer)
+(ocamlyacc parser)

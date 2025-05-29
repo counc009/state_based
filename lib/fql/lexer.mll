@@ -5,36 +5,48 @@
 rule token = parse
   | [' ''\t''\n'] { token lexbuf }
 
-  | "clone"       { CLONE }
-  | "copy"        { COPY }
-  | "create"      { CREATE }
-  | "disable"     { DISABLE }
-  | "delete"      { DELETE }
-  | "install"     { INSTALL }
-  | "move"        { MOVE }
-  | "restart"     { RESTART }
-  | "set"         { SET }
-  | "write"       { WRITE }
-
-  | "default"     { DEFAULT }
-  | "directory"   { DIR }
-  | "environment" { ENVIRONMENT }
-  | "file"        { FILE }
-  | "files"       { FILES }
-  | "github"      { GITHUB }
-  | "package"     { PACKAGE }
-  | "password"    { PASSWORD }
-  | "permissions" { PERMISSIONS }
-  | "repository"  { REPO }
-  | "shell"       { SHELL }
-  | "string"      { STRING }
-  | "variable"    { VARIABLE }
-  | "virtual"     { VIRTUAL }
+  | ';'           { SEMI }
+  | '.'           { DOT }
+  | ','           { COMMA }
+  | '='           { EQ }
 
   | "if"          { IF }
   | "then"        { THEN }
   | "otherwise"   { ELSE }
+
   | "and"         { AND }
   | "or"          { OR }
+  | "is"          { IS }
+  | "equals"      { EQUALS }
+  | "exists"      { EXISTS }
+  | "required"    { REQUIRED }
+  | "not"         { NOT }
 
-  | '"'[^'"']*'"' as lexeme  { STR_LIT lexeme }
+  | "at"          { AT }
+  | "for"         { FOR }
+  | "from"        { FROM }
+  | "in"          { IN }
+  | "into"        { INTO }
+  | "to"          { TO }
+  | "with"        { WITH }
+
+  | "backup"      { BACKUP }
+  | "clone"       { CLONE }
+  | "copy"        { COPY }
+  | "create"      { CREATE }
+  | "delete"      { DELETE }
+  | "disable"     { DISABLE }
+  | "download"    { DOWNLOAD }
+  | "enable"      { ENABLE }
+  | "ensure"      { ENSURE }
+  | "install"     { INSTALL }
+  | "move"        { MOVE }
+  | "restart"     { RESTART }
+  | "set"         { SET }
+  | "start"       { START }
+  | "stop"        { STOP }
+  | "uninstall"   { UNINSTALL }
+  | "write"       { WRITE }
+
+  | [^' ''\t''\n'';''.'',''=''"']+ as lexeme  { ID lexeme }
+  | '"'[^'"']*'"' as lexeme                   { STR lexeme }

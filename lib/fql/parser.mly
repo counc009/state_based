@@ -1,94 +1,142 @@
-%token BACKUP CLONE COPY CREATE DELETE DISABLE DOWNLOAD ENABLE ENSURE INSTALL MOVE SET START STOP RESTART UNINSTALL WRITE
-%token DEFAULT DIR ENVIRONMENT FILE FILES GITHUB GROUP PACKAGE PASSWORD PERMISSIONS REPO SHELL STRING SUDO USER VARIABLE VIRTUAL
-%token EXISTS REQUIRES
-%token IF THEN ELSE AND OR
-%token DOT SEMI EQ
+%token SEMI DOT COMMA EQ
+%token <string> ID STR
+%token IF THEN ELSE
+%token AND OR IS EQUALS EXISTS REQUIRED NOT
 
-%token <string> STR_LIT ID
+%token AT FOR FROM IN INTO TO WITH
+
+%token BACKUP CLONE COPY CREATE DELETE DISABLE DOWNLOAD ENABLE ENSURE INSTALL
+%token MOVE RESTART SET START STOP UNINSTALL WRITE
 
 %nonassoc THEN
 %nonassoc ELSE
 %left OR
 %left AND
-%left EQ
 
 %start top
+%type <Ast.top> top
 
 %%
-top:                              { }
-   | base                         { }
-   | base DOT top                 { }
+
+top:                              { [] }
+   | base                         { [$1] }
+   | base DOT top                 { $1 :: $3 }
    ;
 
-base: atom                        { }
-    | atom SEMI base              { }
-    | atom SEMI AND atom          { }
-    | IF cond THEN base           { }
-    | IF cond THEN base ELSE base { }
+base: atom                        { Cons ($1, Nil) }
+    | atom SEMI base              { Cons ($1, $3) }
+    | atom SEMI AND atom          { Cons ($1, Cons ($4, Nil)) }
+    | IF cond THEN base           { If ($2, $4, Nil) }
+    | IF cond THEN base ELSE base { If ($2, $4, $6) }
     ;
 
-(* selector ::= for ??? *)
-atom: action selector? args { }
-    ;
+atom: action args { ($1, $2) };
 
-action: CREATE category    { }
-      | DELETE category    { }
-      | SET category       { }
-      | CLONE category     { }
-      | INSTALL category   { }
-      | UNINSTALL category { }
-      | WRITE category     { }
-      | DISABLE category   { }
-      | COPY category      { }
-      | MOVE category      { }
-      | RESTART            { }
-      | ENSURE cond        { }
-      | BACKUP category    { }
-      | DOWNLOAD category  { }
-      | ENABLE category    { }
-      | START category     { }
-      | STOP category      { }
+action: BACKUP category    { Backup $2 }
+      | CLONE category     { Clone $2 }
+      | COPY category      { Copy $2 }
+      | CREATE category    { Create $2 }
+      | DELETE category    { Delete $2 }
+      | DISABLE category   { Disable $2 }
+      | DOWNLOAD category  { Download $2 }
+      | ENABLE category    { Enable $2 }
+      | ENSURE cond        { Ensure $2 }
+      | INSTALL category   { Install $2 }
+      | MOVE category      { Move $2 }
+      | RESTART            { Restart }
+      | SET category       { Set $2 }
+      | START category     { Start $2 }
+      | STOP category      { Stop $2 }
+      | UNINSTALL category { Uninstall $2 }
+      | WRITE category     { Write $2 }
       ;
 
-(* I'm wondering more and more if category is just a series of words that we
- * later interpret the meaning of *)
-category: FILE  { }
-        | FILES { }
-        | DIR   { }
-        | VIRTUAL ENVIRONMENT { }
-        | ENVIROMENT VARIABLE { }
-        | FILE PERMISSIONS { }
-        | GITHUB REPO { }
-        (* PACKAGE name | PACKAGES names *)
-        | PACKAGE { }
-        | STRING STR_LIT { }
-        | PASSWORD { }
-        | DEFAULT SHELL { }
-        | USER { }
-        | GROUP { }
-        | SUDO { }
+args: arg_sep arg_vals  { $2 $1 };
+arg_sep: AT   { "at" }
+       | FOR  { "for" }
+       | FROM { "from" }
+       | IN   { "in" }
+       | INTO { "into" }
+       | TO   { "to" }
+       | WITH { "with" }
+       ;
+arg_vals: category { fun nm -> [([nm], $1)] }
+        | arg_defs { fun _ -> $1 }
+        ;
+arg_defs: category EQ category                { [($1, $3)] }
+        | category EQ category COMMA arg_defs { ($1, $3) :: $5 }
         ;
 
-cond: cond AND cond   { }
-    | cond OR cond    { }
-    | expr IS expr    { }
-    | category EXISTS { }
-    | category NOT EXISTS { }
-    | category REQUIRED { }
-    | category NOT REQUIRED
+category: cat_id cat { $1 :: $2 };
+cat:            { [] }
+   | cat_id cat { $1 :: $2 }
+   ;
+cat_id: ID        { $1 }
+      | STR       { $1 }
+
+      | AND       { "and" }
+      | BACKUP    { "backup" }
+      | CLONE     { "clone" }
+      | COPY      { "copy" }
+      | CREATE    { "create" }
+      | DELETE    { "delete" }
+      | DISABLE   { "disable" }
+      | DOWNLOAD  { "download" }
+      | ENABLE    { "enable" }
+      | ENSURE    { "ensure" }
+      | EQUALS    { "equals" }
+      | EXISTS    { "exists" }
+      | IF        { "if" }
+      | INSTALL   { "install" }
+      | IS        { "is" }
+      | MOVE      { "move" }
+      | NOT       { "not" }
+      | OR        { "or" }
+      | REQUIRED  { "required" }
+      | RESTART   { "restart" }
+      | SET       { "set" }
+      | START     { "start" }
+      | STOP      { "stop" }
+      | UNINSTALL { "uninstall" }
+      | WRITE     { "write" }
+      ;
+
+cond: cond AND cond         { And ($1, $3) }
+    | cond OR cond          { Or ($1, $3) }
+    | expr IS expr          { Eq ($1, $3) }
+    | expr IS NOT expr      { Not (Eq ($1, $4)) }
+    | expr EQUALS expr      { Eq ($1, $3) }
+    | expr NOT EQUALS expr  { Not (Eq ($1, $4)) }
+    | expr EXISTS           { Exists $1 }
+    | expr NOT EXISTS       { Not (Exists $1) }
+    | expr REQUIRED         { Required $1 }
+    | expr NOT REQUIRED     { Not (Required $1) }
     ;
 
-expr: ID      { }
-    | STR_LIT { }
-    ;
-
-(* THEORY: actually should be
- * existential ::= category EXISTS
- * and that we need to be able to add descriptors before many (all?) categories
- *)
-existential: EXISTS            { }
-           | extid existential { }
-           ;
-(* All non-exists keywords *)
-extid: ???
-     ;
+expr: expr_id exp { $1 :: $2 };
+exp:              { [] }
+   | expr_id exp  { $1 :: $2 }
+   ;
+expr_id: ID         { $1 }
+       | STR        { $1 }
+ 
+       | BACKUP     { "backup" }
+       | CLONE      { "clone" }
+       | COPY       { "copy" }
+       | CREATE     { "create" }
+       | DELETE     { "delete" }
+       | DISABLE    { "disable" }
+       | DOWNLOAD   { "download" }
+       | ELSE       { "else" }
+       | ENABLE     { "enable" }
+       | ENSURE     { "ensure" }
+       | IF         { "if" }
+       | INSTALL    { "install" }
+       | MOVE       { "move" }
+       | RESTART    { "restart" }
+       | SET        { "set" }
+       | START      { "start" }
+       | STOP       { "stop" }
+       | UNINSTALL  { "uninstall" }
+       | WRITE      { "write" }
+       ;
