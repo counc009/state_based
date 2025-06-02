@@ -38,7 +38,6 @@ rule token = parse
   | "disable"     { DISABLE }
   | "download"    { DOWNLOAD }
   | "enable"      { ENABLE }
-  | "ensure"      { ENSURE }
   | "install"     { INSTALL }
   | "move"        { MOVE }
   | "restart"     { RESTART }

@@ -6,8 +6,8 @@
 
 %token AT FOR FROM IN INTO TO WITH
 
-%token BACKUP CLONE COPY CREATE DELETE DISABLE DOWNLOAD ENABLE ENSURE INSTALL
-%token MOVE RESTART SET START STOP UNINSTALL WRITE
+%token BACKUP CLONE COPY CREATE DELETE DISABLE DOWNLOAD ENABLE INSTALL MOVE
+%token RESTART SET START STOP UNINSTALL WRITE
 
 %nonassoc THEN
 %nonassoc ELSE
@@ -43,7 +43,6 @@ action: BACKUP category    { Backup $2 }
       | DISABLE category   { Disable $2 }
       | DOWNLOAD category  { Download $2 }
       | ENABLE category    { Enable $2 }
-      | ENSURE cond        { Ensure $2 }
       | INSTALL category   { Install $2 }
       | MOVE category      { Move $2 }
       | RESTART            { Restart }
@@ -89,7 +88,6 @@ cat_id: ID        { $1 }
       | DISABLE   { "disable" }
       | DOWNLOAD  { "download" }
       | ENABLE    { "enable" }
-      | ENSURE    { "ensure" }
       | EQUALS    { "equals" }
       | EXISTS    { "exists" }
       | IF        { "if" }
@@ -134,7 +132,6 @@ expr_id: ID         { $1 }
        | DISABLE    { "disable" }
        | DOWNLOAD   { "download" }
        | ENABLE     { "enable" }
-       | ENSURE     { "ensure" }
        | IF         { "if" }
        | INSTALL    { "install" }
        | MOVE       { "move" }

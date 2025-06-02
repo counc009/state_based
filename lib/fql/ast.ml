@@ -7,12 +7,13 @@ type cond = And of cond * cond
           | Exists of vals
           | Required of vals
 
-type action = Backup    of vals | Clone  of vals | Copy    of vals
-            | Create    of vals | Delete of vals | Disable of vals
-            | Download  of vals | Enable of vals | Ensure  of cond
-            | Install   of vals | Move   of vals | Restart
-            | Set       of vals | Start  of vals | Stop    of vals
-            | Uninstall of vals | Write  of vals
+(* TODO: Need a way to add a user to a group *)
+type action = Backup   of vals | Clone  of vals | Copy      of vals
+            | Create   of vals | Delete of vals | Disable   of vals
+            | Download of vals | Enable of vals | Install   of vals
+            | Move     of vals | Restart        | Set       of vals
+            | Start    of vals | Stop   of vals | Uninstall of vals
+            | Write    of vals
 
 type args = (string list * string list) list
 type atom = action * args
@@ -37,7 +38,6 @@ let unparse_action = function
   | Disable vs    -> "disable " ^ String.concat " " vs
   | Download vs   -> "download " ^ String.concat " " vs
   | Enable vs     -> "enable " ^ String.concat " " vs
-  | Ensure c      -> "ensure " ^ unparse_cond c
   | Install vs    -> "install " ^ String.concat " " vs
   | Move vs       -> "move " ^ String.concat " " vs
   | Restart       -> "restart"
