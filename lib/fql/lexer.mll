@@ -30,7 +30,6 @@ rule token = parse
   | "to"          { TO }
   | "with"        { WITH }
 
-  | "backup"      { BACKUP }
   | "clone"       { CLONE }
   | "copy"        { COPY }
   | "create"      { CREATE }
@@ -47,6 +46,7 @@ rule token = parse
   | "uninstall"   { UNINSTALL }
   | "write"       { WRITE }
 
-  | [^' ''\t''\n'';''.'',''=''"']+ as lexeme  { ID lexeme }
-  | '"'([^'"']* as lexeme)'"'                 { STR lexeme }
-  | eof                                       { EOF }
+  | '?'([^' ''\t''\n'';''.'',''=''"']+ as lexeme) { UNKNOWN lexeme } 
+  | [^' ''\t''\n'';''.'',''=''"']+ as lexeme      { ID lexeme }
+  | '"'([^'"']* as lexeme)'"'                     { STR lexeme }
+  | eof                                           { EOF }

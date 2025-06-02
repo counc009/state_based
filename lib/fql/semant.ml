@@ -8,7 +8,7 @@
  * knowledge base).
  *)
 
-type path = Remote of string | Controller of string
+type path = Remote of Ast.value | Controller of Ast.value
 
 type ansible_os = Debian | Ubuntu | RedHat
 
@@ -107,14 +107,12 @@ let rec list_last xs =
       let (l, rest) = list_last xs
       in (l, x :: rest)
 
-let flatten xs = String.concat " " xs
-
-let analyze_path (p: string list) : (path, string) result =
+let analyze_path (p: Ast.value list) : (path, string) result =
   match p with
-  | [s] | ["remote"; s] -> Ok (Remote s)
-  | ["controller"; s] -> Ok (Controller s)
+  | [s] | [Str "remote"; s] -> Ok (Remote s)
+  | [Str "controller"; s] -> Ok (Controller s)
   | _ -> Error (Printf.sprintf "unhandled path specifier '%s'" 
-                    (String.concat " " p))
+                    (Ast.unparse_vals p))
 
 let rec analyze_cond (c: Ast.cond) : (condition, string) result =
   match c with
@@ -126,33 +124,33 @@ let rec analyze_cond (c: Ast.cond) : (condition, string) result =
         (fun x -> Result.map (fun y -> Or (x, y)) (analyze_cond y))
   | Not c -> Result.map (fun c -> Not c) (analyze_cond c)
   | Eq (lhs, rhs) ->
-      if lhs = ["os"]
+      if lhs = [Str "os"]
       then match rhs with
-        | ["Debian"] -> Ok (CheckOs Debian)
-        | ["Ubuntu"] -> Ok (CheckOs Ubuntu)
-        | ["RedHat"] -> Ok (CheckOs RedHat)
-        | _ -> Error (Printf.sprintf "Unknown OS '%s'" (String.concat " " rhs))
+        | [Str "Debian"] -> Ok (CheckOs Debian)
+        | [Str "Ubuntu"] -> Ok (CheckOs Ubuntu)
+        | [Str "RedHat"] -> Ok (CheckOs RedHat)
+        | _ -> Error (Printf.sprintf "Unknown OS '%s'" (Ast.unparse_vals rhs))
       else Error (Printf.sprintf "Unhandled equality check between %s and %s"
-                              (String.concat " " lhs) (String.concat " " rhs))
+                              (Ast.unparse_vals lhs) (Ast.unparse_vals rhs))
   | Exists desc ->
       begin match desc with
-      | "file" :: path ->
+      | Str "file" :: path ->
           Result.map (fun p -> FileExists (AtPath p)) (analyze_path path)
-      | "directory" :: path -> 
+      | Str "directory" :: path -> 
           Result.map (fun p -> DirExists (AtPath p)) (analyze_path path)
       | _ ->
           let (last, rest) = list_last desc
-          in let rest = flatten rest
-          in if last = "file" then Ok (FileExists (TextDesc rest))
-          else if last = "directory" then Ok (DirExists (TextDesc rest))
+          in let rest = Ast.unparse_vals rest (* FIXME *)
+          in if last = Str "file" then Ok (FileExists (TextDesc rest))
+          else if last = Str "directory" then Ok (DirExists (TextDesc rest))
           else Error (Printf.sprintf "cannot check existance of: %s"
-                        (String.concat " " desc))
+                        (Ast.unparse_vals desc))
       end
   | Required desc ->
       begin match desc with
-      | "restart" :: [] -> Ok RequiresRestart
+      | Str "restart" :: [] -> Ok RequiresRestart
       | _ -> Error (Printf.sprintf "cannot check requirement of: %s"
-                      (String.concat " " desc))
+                      (Ast.unparse_vals desc))
       end
 
 type file_or_dir = File | Dir
@@ -160,7 +158,7 @@ type file_or_dir = File | Dir
 let analyze_atom (a: Ast.atom) : (act, string) result =
   let (act, args) = a
   in let _args = Hashtbl.of_seq (List.to_seq
-    (List.map (fun (a, v) -> (String.concat " " a, v)) args))
+    (List.map (fun (a, v) -> (a, v)) args))
   in match act with
   | _ -> Error "TODO"
 
