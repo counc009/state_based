@@ -133,7 +133,6 @@ expr_id: ID         { $1 }
        | DELETE     { "delete" }
        | DISABLE    { "disable" }
        | DOWNLOAD   { "download" }
-       | ELSE       { "else" }
        | ENABLE     { "enable" }
        | ENSURE     { "ensure" }
        | IF         { "if" }
