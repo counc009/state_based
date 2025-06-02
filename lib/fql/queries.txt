@@ -11,11 +11,11 @@ disable password for user=service
 copy files with glob="*.war" from controller /backup to remote /tmp
 copy files with glob="*.war" from remote /tmp to controller /backup
 move file from "/scratch/file.txt" to "/home/user/data.txt"
-create file with path="/etc/file.txt", content="beginning"
+create file at "/etc/file.txt" with content="beginning"
 if os is Debian and reboot required then restart
 delete files in /home/mydata/web
 install zsh; set default shell for user="user" to zsh; ensure zsh configuration directory exists
 if os is RedHat or os is Ubuntu then install postfix with version=latest; backup postfix configuration file. if os is Ubuntu then download postfix configuration file from "http://example.com/cfg.ubuntu". if os is "RedHat" then download postfix configuration file from "http://example.com/cfg.redhat"
 if os is RedHat then install apache server; ensure apache server home page exists; create user with name=webdev
 enable passwordless sudo for group=wheel; create user with name=ansible in group=wheel
-if os is Debian or os is RedHat then install ssh client and server; start ssh server; create ssh key for user="fizbaz" at "/.ssh/fizbaz_rsa"
+if os is Debian or os is RedHat then install ssh client and server; start ssh server service; create ssh key for user="fizbaz" at "/.ssh/fizbaz_rsa"

@@ -1,4 +1,4 @@
 let parse_query query =
   let lexbuf = Lexing.from_string query
   in let result = Parser.query Lexer.token lexbuf
-  in print_string (Ast.unparse_query result); print_newline ()
+  in result
