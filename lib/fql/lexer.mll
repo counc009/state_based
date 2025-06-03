@@ -19,7 +19,9 @@ rule token = parse
   | "is"          { IS }
   | "equals"      { EQUALS }
   | "exists"      { EXISTS }
+  | "installed"   { INSTALLED }
   | "required"    { REQUIRED }
+  | "running"     { RUNNING }
   | "not"         { NOT }
 
   | "at"          { AT }

@@ -2,7 +2,7 @@
 %token SEMI DOT COMMA EQ
 %token <string> ID STR UNKNOWN
 %token IF THEN ELSE
-%token AND OR IS EQUALS EXISTS REQUIRED NOT
+%token AND OR IS EQUALS EXISTS INSTALLED REQUIRED RUNNING NOT
 
 %token AT FOR FROM IN INTO TO WITH
 
@@ -15,7 +15,7 @@
 %left AND
 
 %start query
-%type <Ast.top> query
+%type <ParseTree.top> query
 
 %%
 
@@ -56,7 +56,7 @@ args:           { [] }
     | arg args  { $1 @ $2 }
     ;
 arg: arg_sep arg_vals { $2 $1 };
-arg_sep: AT   { Ast.Str "at" }
+arg_sep: AT   { ParseTree.Str "at" }
        | FOR  { Str "for" }
        | FROM { Str "from" }
        | IN   { Str "in" }
@@ -89,6 +89,7 @@ cat_id: ID        { Str $1 }
       | ENABLE    { Str "enable" }
       | EQUALS    { Str "equals" }
       | EXISTS    { Str "exists" }
+      | INSTALLED { Str "installed" }
       | IF        { Str "if" }
       | INSTALL   { Str "install" }
       | IS        { Str "is" }
@@ -97,6 +98,7 @@ cat_id: ID        { Str $1 }
       | OR        { Str "or" }
       | REQUIRED  { Str "required" }
       | RESTART   { Str "restart" }
+      | RUNNING   { Str "running" }
       | SET       { Str "set" }
       | START     { Str "start" }
       | STOP      { Str "stop" }
@@ -112,8 +114,12 @@ cond: cond AND cond         { And ($1, $3) }
     | expr NOT EQUALS expr  { Not (Eq ($1, $4)) }
     | expr EXISTS           { Exists $1 }
     | expr NOT EXISTS       { Not (Exists $1) }
+    | expr INSTALLED        { Installed $1 }
+    | expr NOT INSTALLED    { Not (Installed $1) }
     | expr REQUIRED         { Required $1 }
     | expr NOT REQUIRED     { Not (Required $1) }
+    | expr RUNNING          { Running $1 }
+    | expr NOT RUNNING      { Not (Running $1) }
     ;
 
 expr: expr_id exp { $1 :: $2 };

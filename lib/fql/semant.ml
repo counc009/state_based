@@ -3,178 +3,125 @@
  * info for easy code generation.
  *
  * The goal of this analysis is to normalize the query into a form in which
- * a signle action will always be translated in mostly the same way to the
- * module language (with certain expressions possibly depending on the
- * knowledge base).
+ * a signle action will always be translated (mostly) the same way to the
+ * module language perhaps with some pieces filled by the knowledge base.
  *)
+module Target = Modules.Target.Ast_Target
 
-type path = Remote of Ast.value | Controller of Ast.value
+open Knowledge
 
-type ansible_os = Debian | Ubuntu | RedHat
+let init_context : Knowledge.context = { os = None }
 
-type path_desc = AtPath    of path
-               | TextDesc  of string
-type paths_desc = InPath   of path
-                | Glob     of { base: path; glob: string }
-                | TextDesc of string
+let refine_context_os ctx os =
+  let refine_os ctx os =
+    match ctx with
+    | None -> Some [os]
+    | Some ctx -> if List.mem os ctx then Some [os] else Some []
+  in { os = refine_os ctx.os os }
 
-type perm = { owner: bool; group: bool; other: bool }
-type file_perms = { read: perm option; write: perm option; exec: perm option;
-                    file_list: perm option; setuid: bool option;
-                    setgid: bool option; sticky: bool option }
-type file_desc = { path: path_desc option; owner: string option;
-                   group: string option; perms: file_perms }
+let refine_context_not_os ctx os =
+  let refine_os ctx os =
+    match ctx with
+    | None -> None
+    | Some ctx -> Some (Ast.list_rem ctx os)
+  in { os = refine_os ctx.os os }
 
-type file_pos = Top | Bottom
+module Semant(Knowledge: Knowledge_Base) = struct
+  let analyze_path (p: ParseTree.vals) : (Ast.path, string) result =
+    match p with
+    | [s] | [Str "remote"; s] -> Ok (Remote s)
+    | [Str "controller"; s] -> Ok (Controller s)
+    | _ -> Error (Printf.sprintf "unhandled path specifier '%s'"
+                      (ParseTree.unparse_vals p))
 
-type account_desc = User  of string
-                  | Group of string
+  let rec analyze_conditional (ctx: context) (c: ParseTree.cond)
+    (t: ParseTree.base) (e: ParseTree.base)
+    : (Ast.query, string) result =
+    match c with
+    | And (x, y) -> analyze_conditional ctx x (If (y, t, e)) e
+    | Or (x, y) -> analyze_conditional ctx x t (If (y, t, e))
+    | Not c -> analyze_conditional ctx c e t
+    | Eq (lhs, rhs) ->
+        if lhs = [Str "os"]
+        then let os : (Ast.ansible_os, string) result =
+          match rhs with
+          | [Str "Debian"] -> Ok Debian
+          | [Str "Ubuntu"] -> Ok Ubuntu
+          | [Str "RedHat"] -> Ok RedHat
+          | _ -> Error (Printf.sprintf "Unknown OS: %s"
+                                       (ParseTree.unparse_vals rhs))
+        in Result.bind os (fun os ->
+          Result.bind (analyze_base (refine_context_os ctx os) t) (fun t ->
+            Result.bind (analyze_base (refine_context_not_os ctx os) e)
+              (fun e -> Ok (Ast.Cond (Ast.CheckOs os, t, e)))))
+        else Error (Printf.sprintf "Unhandled equality check between %s and %s"
+                     (ParseTree.unparse_vals lhs) (ParseTree.unparse_vals rhs))
+    | Exists desc ->
+        begin match desc with
+        | Str "file" :: path ->
+            Result.bind (analyze_path path) (fun p ->
+              Result.bind (analyze_base ctx t) (fun t ->
+                Result.bind (analyze_base ctx e) (fun e ->
+                  Ok (Ast.Cond (Ast.FileExists p, t, e)))))
+        | Str "directory" :: path ->
+            Result.bind (analyze_path path) (fun p ->
+              Result.bind (analyze_base ctx t) (fun t ->
+                Result.bind (analyze_base ctx e) (fun e ->
+                  Ok (Ast.Cond (Ast.DirExists p, t, e)))))
+        | _ ->
+            let (last, rest) = Ast.list_last desc
+            in match last with
+            | Str "file" ->
+                Result.bind (Knowledge.fileDef ctx rest None) (fun p ->
+                  Result.bind (analyze_base ctx t) (fun t ->
+                    Result.bind (analyze_base ctx e) (fun e ->
+                      Ok (Ast.Cond (Ast.FileExists p, t, e)))))
+            | Str "directory" ->
+                Result.bind (Knowledge.dirDef ctx rest None) (fun p ->
+                  Result.bind (analyze_base ctx t) (fun t ->
+                    Result.bind (analyze_base ctx e) (fun e ->
+                      Ok (Ast.Cond (Ast.DirExists p, t, e)))))
+            | _ -> Error (Printf.sprintf "cannot check existance of: %s"
+                            (ParseTree.unparse_vals desc))
+        end
+    | Required desc ->
+        Result.bind (Knowledge.requirementDef ctx desc) (fun c ->
+          Result.bind (analyze_base ctx t) (fun t ->
+            Result.bind (analyze_base ctx e) (fun e ->
+              Ok (Ast.Cond (c, t, e)))))
+    | Installed desc ->
+        Result.bind (Knowledge.pkgDef ctx desc None) (fun pkg ->
+          Result.bind (analyze_base ctx t) (fun t ->
+            Result.bind (analyze_base ctx e) (fun e ->
+              Ok (Ast.Cond (PkgInstalled pkg, t, e)))))
+    | Running desc ->
+        Result.bind (Knowledge.serviceDef ctx desc None) (fun nm ->
+          Result.bind (analyze_base ctx t) (fun t ->
+            Result.bind (analyze_base ctx e) (fun e ->
+              Ok (Ast.Cond (ServiceRunning nm, t, e)))))
 
-type condition = CheckOs    of ansible_os
-               | RequiresRestart
-               | FileExists of path_desc
-               | DirExists  of path_desc
-               | And        of condition * condition
-               | Or         of condition * condition
-               | Not        of condition
+  and analyze_atom (_ctx: context) (a: ParseTree.atom)
+    : (Ast.act, string) result =
+    let (act, args) = a
+    in let _args = Ast.make_args args
+    in match act with
+    | _ -> Error "TODO"
 
-type act = CloneRepo        of { repo: string; name: string; dest: file_desc }
+  and analyze_base (ctx: context) (b: ParseTree.base)
+    : (Ast.query, string) result =
+    match b with
+    | Nil -> Ok End
+    | Cons (a, b) ->
+        Result.bind (analyze_atom ctx a) (fun a ->
+          Result.bind (analyze_base ctx b) (fun b ->
+            Ok (Ast.Seq (Atom a, b))))
+    | If (c, t, e) -> analyze_conditional ctx c t e
 
-         | CopyDir          of { src: file_desc; dest: file_desc }
-         | CopyFile         of { src: file_desc; dest: file_desc }
-         | CopyFiles        of { src: paths_desc; dest: file_desc }
-
-         | CreateDir        of { dest: file_desc }
-         | CreateFile       of { dest: file_desc; content: string option }
-         | CreateGroup      of { name: string }
-         | CreateSshKey     of { user: string; loc: path option }
-         | CreateUser       of { name: string; group: string option;
-                                 groups: string list }
-         | CreateVirtualEnv of { version: string; loc: path }
-
-         | DeleteDir        of { loc: path_desc }
-         | DeleteFile       of { loc: path_desc }
-         | DeleteFiles      of { loc: paths_desc }
-         | DeleteGroup      of { name: string }
-         | DeleteUser       of { name: string }
-
-         | DisablePassword  of { user: string }
-         | DisableSudo      of { who: account_desc; passwordless: bool }
-
-         | DownloadFile     of { dest: file_desc; src: string }
-
-         | EnableSudo       of { who: account_desc; passwordless: bool }
-
-         | InstallPkg       of { desc: string; version: string option;
-                                 within: string option; loc: path option }
-
-         | MoveDir          of { src: file_desc; dest: file_desc }
-         | MoveFile         of { src: file_desc; dest: file_desc }
-         | MoveFiles        of { src: paths_desc; dest: file_desc }
-
-         | Restart
-
-         | SetEnvVar        of { name: string; value: string }
-         | SetFilePerms     of { loc: path_desc; perms: file_perms }
-         | SetFilesPerms    of { locs: paths_desc; perms: file_perms }
-         | SetShell         of { user: string; shell: string }
-
-         | StartService     of { name: string }
-
-         | StopService      of { name: string }
-
-         | UninstallPkg     of { desc: string;
-                                 within: string option; loc: path option }
-
-         | WriteFile        of { str: string; dest: file_desc;
-                                 position: file_pos }
-
-type query = End
-           | Atom of act
-           | Seq  of query * query
-           | Cond of condition * query * query
-
-let extract (t: ('a, 'b) Hashtbl.t) (k: 'a) : 'b option =
-  match Hashtbl.find_opt t k with
-  | None -> None
-  | Some v -> Hashtbl.remove t k; Some v
-
-let rec list_last xs =
-  match xs with
-  | [] -> failwith "cannot compute last element of empty list"
-  | [x] -> (x, [])
-  | x :: xs ->
-      let (l, rest) = list_last xs
-      in (l, x :: rest)
-
-let analyze_path (p: Ast.value list) : (path, string) result =
-  match p with
-  | [s] | [Str "remote"; s] -> Ok (Remote s)
-  | [Str "controller"; s] -> Ok (Controller s)
-  | _ -> Error (Printf.sprintf "unhandled path specifier '%s'" 
-                    (Ast.unparse_vals p))
-
-let rec analyze_cond (c: Ast.cond) : (condition, string) result =
-  match c with
-  | And (x, y) ->
-      Result.bind (analyze_cond x) 
-        (fun x -> Result.map (fun y -> And (x, y)) (analyze_cond y))
-  | Or (x, y) ->
-      Result.bind (analyze_cond x) 
-        (fun x -> Result.map (fun y -> Or (x, y)) (analyze_cond y))
-  | Not c -> Result.map (fun c -> Not c) (analyze_cond c)
-  | Eq (lhs, rhs) ->
-      if lhs = [Str "os"]
-      then match rhs with
-        | [Str "Debian"] -> Ok (CheckOs Debian)
-        | [Str "Ubuntu"] -> Ok (CheckOs Ubuntu)
-        | [Str "RedHat"] -> Ok (CheckOs RedHat)
-        | _ -> Error (Printf.sprintf "Unknown OS '%s'" (Ast.unparse_vals rhs))
-      else Error (Printf.sprintf "Unhandled equality check between %s and %s"
-                              (Ast.unparse_vals lhs) (Ast.unparse_vals rhs))
-  | Exists desc ->
-      begin match desc with
-      | Str "file" :: path ->
-          Result.map (fun p -> FileExists (AtPath p)) (analyze_path path)
-      | Str "directory" :: path -> 
-          Result.map (fun p -> DirExists (AtPath p)) (analyze_path path)
-      | _ ->
-          let (last, rest) = list_last desc
-          in let rest = Ast.unparse_vals rest (* FIXME *)
-          in if last = Str "file" then Ok (FileExists (TextDesc rest))
-          else if last = Str "directory" then Ok (DirExists (TextDesc rest))
-          else Error (Printf.sprintf "cannot check existance of: %s"
-                        (Ast.unparse_vals desc))
-      end
-  | Required desc ->
-      begin match desc with
-      | Str "restart" :: [] -> Ok RequiresRestart
-      | _ -> Error (Printf.sprintf "cannot check requirement of: %s"
-                      (Ast.unparse_vals desc))
-      end
-
-type file_or_dir = File | Dir
-
-let analyze_atom (a: Ast.atom) : (act, string) result =
-  let (act, args) = a
-  in let _args = Hashtbl.of_seq (List.to_seq
-    (List.map (fun (a, v) -> (a, v)) args))
-  in match act with
-  | _ -> Error "TODO"
-
-let rec analyze_base (b: Ast.base) (k: query) : (query, string) result =
-  match b with
-  | Nil -> Ok k
-  | Cons (a, b) ->
-      Result.bind (analyze_atom a)
-        (fun a -> Result.map (fun q -> Seq (Atom a, q)) (analyze_base b k))
-  | If (c, t, e) ->
-      Result.bind (analyze_cond c)
-        (fun c -> Result.bind (analyze_base t End)
-          (fun t -> Result.bind (analyze_base e End)
-            (fun e -> Ok (Seq (Cond (c, t, e), k)))))
-
-let rec analyze_top (q: Ast.top) : (query, string) result =
-  match q with
-  | [] -> Ok End
-  | b :: q -> Result.bind (analyze_top q) (analyze_base b)
+  let rec analyze_top (q: ParseTree.top) : (Ast.query, string) result =
+    match q with
+    | [] -> Ok End
+    | b :: q ->
+        Result.bind (analyze_base init_context b) (fun b ->
+          Result.bind (analyze_top q) (fun q ->
+            Ok (Ast.Seq (b, q))))
+end

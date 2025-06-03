@@ -1,68 +1,115 @@
-type value = Str of string | Unknown of string
-type vals = value list
+module Target = Modules.Target.Ast_Target
 
-type cond = And of cond * cond
-          | Or  of cond * cond
-          | Not of cond
-          | Eq  of vals * vals
-          | Exists of vals
-          | Required of vals
+type args = (ParseTree.vals, ParseTree.vals) Hashtbl.t option
 
-(* TODO: Need a way to add a user to a group *)
-type action = Clone  of vals | Copy      of vals | Create   of vals
-            | Delete of vals | Disable   of vals | Download of vals
-            | Enable of vals | Install   of vals | Move     of vals
-            | Restart        | Set       of vals | Start    of vals
-            | Stop   of vals | Uninstall of vals | Write    of vals
+let make_args args = Some (Hashtbl.of_seq (List.to_seq args))
 
-type args = (vals * vals) list
-type atom = action * args
+let extract_arg (t: args) (k: string) : 'a option =
+  match t with
+  | None -> None
+  | Some t ->
+      match Hashtbl.find_opt t [Str k] with
+      | None -> None
+      | Some v -> Hashtbl.remove t [Str k]; Some v
 
-type base = Nil | Cons of atom * base | If of cond * base * base
-type top = base list
+let rec list_last xs =
+  match xs with
+  | [] -> failwith "cannot compute last element of empty list"
+  | [x] -> (x, [])
+  | x :: xs ->
+      let (l, rest) = list_last xs
+      in (l, x :: rest)
 
-let unparse_val = function
-  | Str s -> s
-  | Unknown s -> "?" ^ s
-let unparse_vals vs = String.concat " " (List.map unparse_val vs)
+let rec list_rem xs y =
+  match xs with
+  | [] -> []
+  | x :: xs -> if x = y then xs else x :: list_rem xs y
 
-let rec unparse_cond = function
-  | And (x, y) -> "(" ^ unparse_cond x ^ " and " ^ unparse_cond y ^ ")"
-  | Or  (x, y) -> "(" ^ unparse_cond x ^ " or "  ^ unparse_cond y ^ ")"
-  | Not c      -> "(not " ^ unparse_cond c ^ ")"
-  | Eq (x, y)  -> "(" ^ unparse_vals x ^ " equals " ^ unparse_vals y ^ ")"
-  | Exists x   -> "(" ^ unparse_vals x ^ " exists)"
-  | Required x -> "(" ^ unparse_vals x ^ " required)"
+type path = Remote of ParseTree.value | Controller of ParseTree.value
+type paths = AtPath   of path
+           | InPath   of path
+           | Glob     of { base: path; glob: string }
 
-let unparse_action = function
-  | Clone vs      -> "clone " ^ unparse_vals vs
-  | Copy vs       -> "copy " ^ unparse_vals vs
-  | Create vs     -> "create " ^ unparse_vals vs
-  | Delete vs     -> "delete " ^ unparse_vals vs
-  | Disable vs    -> "disable " ^ unparse_vals vs
-  | Download vs   -> "download " ^ unparse_vals vs
-  | Enable vs     -> "enable " ^ unparse_vals vs
-  | Install vs    -> "install " ^ unparse_vals vs
-  | Move vs       -> "move " ^ unparse_vals vs
-  | Restart       -> "restart"
-  | Set vs        -> "set " ^ unparse_vals vs
-  | Start vs      -> "start " ^ unparse_vals vs
-  | Stop vs       -> "stop " ^ unparse_vals vs
-  | Uninstall vs  -> "uninstall " ^ unparse_vals vs
-  | Write vs      -> "write " ^ unparse_vals vs
+type ansible_os = Debian | Ubuntu | RedHat
 
-let unparse_atom (act, args) = unparse_action act ^ " with "
-  ^ String.concat ", " 
-    (List.map 
-      (fun (lhs, rhs) -> unparse_vals lhs ^ " = " ^ unparse_vals rhs)
-      args)
+type pkg = { name: string; pkg_manager: string }
 
-let rec unparse_base (q: base) =
-  match q with
-  | Nil -> ""
-  | Cons (a, q) -> unparse_atom a ^ "; " ^ unparse_base q
-  | If (c, t, e) -> 
-      "if " ^ unparse_cond c ^ " then " ^ unparse_base t
-                             ^ " else " ^ unparse_base e
+type cond = CheckOs         of ansible_os
+          | FileExists      of path
+          | DirExists       of path
+          | PkgInstalled    of pkg
+          | ServiceRunning  of string
+          | And             of cond * cond
+          | Or              of cond * cond
+          | Not             of cond
 
-let unparse_query (q: top) = String.concat "." (List.map unparse_base q)
+type perm = { owner: bool; group: bool; other: bool }
+type file_perms = { read: perm option; write: perm option; exec: perm option;
+                    file_list: perm option; setuid: bool option;
+                    setgid: bool option; sticky: bool option }
+type file_desc = { path: path; owner: string option;
+                   group: string option; perms: file_perms }
+
+type file_pos = Top | Bottom
+
+type account_desc = User  of string
+                  | Group of string
+
+
+type act = CloneRepo        of { files: Target.expr;
+                                 contents: Target.expr -> Target.expr;
+                                 dest: file_desc }
+
+         | CopyDir          of { src: path; dest: file_desc }
+         | CopyFile         of { src: path; dest: file_desc }
+         | CopyFiles        of { src: paths; dest: file_desc }
+
+         | CreateDir        of { dest: file_desc }
+         | CreateFile       of { dest: file_desc; content: string option }
+         | CreateGroup      of { name: string }
+         | CreateSshKey     of { user: string; loc: path option }
+         | CreateUser       of { name: string; group: string option;
+                                 groups: string list }
+         | CreateVirtualEnv of { version: string; loc: path }
+
+         | DeleteDir        of { loc: path }
+         | DeleteFile       of { loc: path }
+         | DeleteFiles      of { loc: paths }
+         | DeleteGroup      of { name: string }
+         | DeleteUser       of { name: string }
+
+         | DisablePassword  of { user: string }
+         | DisableSudo      of { who: account_desc; passwordless: bool }
+
+         | DownloadFile     of { dest: file_desc; src: string }
+
+         | EnableSudo       of { who: account_desc; passwordless: bool }
+
+         | InstallPkg       of { pkgs: string list; version: string option;
+                                 within: string option; loc: path option }
+
+         | MoveDir          of { src: path; dest: file_desc }
+         | MoveFile         of { src: path; dest: file_desc }
+         | MoveFiles        of { src: paths; dest: file_desc }
+
+         | Restart
+
+         | SetEnvVar        of { name: string; value: string }
+         | SetFilePerms     of { loc: path; perms: file_perms }
+         | SetFilesPerms    of { locs: paths; perms: file_perms }
+         | SetShell         of { user: string; shell: string }
+
+         | StartService     of { name: string }
+
+         | StopService      of { name: string }
+
+         | UninstallPkg     of { pkgs: string list; within: string option;
+                                 loc: path option }
+
+         | WriteFile        of { str: string; dest: file_desc;
+                                 position: file_pos }
+
+type query = End
+           | Atom of act
+           | Seq  of query * query
+           | Cond of cond * query * query
