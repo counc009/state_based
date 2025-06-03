@@ -2,29 +2,6 @@ module Target = Modules.Target.Ast_Target
 
 type args = (ParseTree.vals, ParseTree.vals) Hashtbl.t option
 
-let make_args args = Some (Hashtbl.of_seq (List.to_seq args))
-
-let extract_arg (t: args) (k: string) : 'a option =
-  match t with
-  | None -> None
-  | Some t ->
-      match Hashtbl.find_opt t [Str k] with
-      | None -> None
-      | Some v -> Hashtbl.remove t [Str k]; Some v
-
-let rec list_last xs =
-  match xs with
-  | [] -> failwith "cannot compute last element of empty list"
-  | [x] -> (x, [])
-  | x :: xs ->
-      let (l, rest) = list_last xs
-      in (l, x :: rest)
-
-let rec list_rem xs y =
-  match xs with
-  | [] -> []
-  | x :: xs -> if x = y then xs else x :: list_rem xs y
-
 type path = Remote of ParseTree.value | Controller of ParseTree.value
 type paths = AtPath   of path
            | InPath   of path
@@ -43,12 +20,12 @@ type cond = CheckOs         of ansible_os
           | Or              of cond * cond
           | Not             of cond
 
-type perm = { owner: bool; group: bool; other: bool }
+type perm = { mutable owner: bool; mutable group: bool; mutable other: bool }
 type file_perms = { read: perm option; write: perm option; exec: perm option;
                     file_list: perm option; setuid: bool option;
                     setgid: bool option; sticky: bool option }
-type file_desc = { path: path; owner: string option;
-                   group: string option; perms: file_perms }
+type file_desc = { path: path; owner: ParseTree.value option;
+                   group: ParseTree.value option; perms: file_perms }
 
 type file_pos = Top | Bottom
 
@@ -85,7 +62,7 @@ type act = CloneRepo        of { files: Target.expr;
 
          | EnableSudo       of { who: account_desc; passwordless: bool }
 
-         | InstallPkg       of { pkgs: string list; version: string option;
+         | InstallPkg       of { pkg: pkg; version: string option;
                                  within: string option; loc: path option }
 
          | MoveDir          of { src: path; dest: file_desc }
