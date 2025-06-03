@@ -76,9 +76,20 @@ module Example : Knowledge_Base = struct
     | _ -> Error (Printf.sprintf "Unsupported repository type: %s"
                                  (ParseTree.unparse_vals vs))
 
-  let fileDef _ctx _vs _args = Error "TODO"
-  let filesDef _ctx _vs _args = Error "TODO"
-  let dirDef _ctx _vs _args = Error "TODO"
+  let fileDef _ctx (vs: ParseTree.vals) _args =
+    match vs with
+    | [Str "postfix"; Str "configuration"] -> Ok (Remote (Str "/etc/postfix/main.cf"))
+    | [Str "apache"; Str "server"; Str "home"; Str "page"]
+      -> Ok (Remote (Str "/var/www/html/index.html"))
+    | _ -> Error (Printf.sprintf "Unknown file: %s" (ParseTree.unparse_vals vs))
+  let filesDef _ctx (vs: ParseTree.vals) _args =
+    Error (Printf.sprintf "Unknown files: %s" (ParseTree.unparse_vals vs))
+  let dirDef _ctx (vs: ParseTree.vals) _args =
+    match vs with
+    (* TODO: identify the user and include in the path *)
+    | [Str "zsh"; Str "configuration"] -> Ok (Remote (Str "~/.zshrc.d"))
+    | _ -> Error (Printf.sprintf "Unknown directory: %s" 
+                                 (ParseTree.unparse_vals vs))
 
   let requirementDef _ctx _vs = Error "TODO"
 

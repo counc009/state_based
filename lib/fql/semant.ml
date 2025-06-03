@@ -192,6 +192,77 @@ module Semant(Knowledge: Knowledge_Base) = struct
                                             (args_to_string args)))))
         else Error (Printf.sprintf "Unsure how to clone: %s"
                       (ParseTree.unparse_vals vs))
+    | Copy vs ->
+        let (last, rest) = list_last vs
+        in let rest_consumed = ref false
+        in begin match last with
+        | Str ("file" as ty) | Str ("directory" as ty) ->
+            let (def, codegen) =
+              if ty = "file"
+              then (Knowledge.fileDef,
+                    fun src dst -> Ast.CopyFile { src = src; dest = dst })
+              else (Knowledge.dirDef,
+                    fun src dst -> Ast.CopyDir { src = src; dest = dst })
+            in let src =
+              match extract_arg args "from" with
+              | Some p -> analyze_path p
+              | None -> rest_consumed := true; def ctx rest args
+            in let dst =
+              match extract_arg args "to" with
+              | Some p -> analyze_path p
+              | None -> if !rest_consumed
+                  then Error "For copy, expected at least one of 'to' and 'from'"
+                  else (rest_consumed := true; def ctx rest args)
+            in if not !rest_consumed && not (List.is_empty rest)
+            then Error (Printf.sprintf "Copy description not used: %s"
+                                       (ParseTree.unparse_vals rest))
+            else Result.bind src (fun src ->
+                  Result.bind dst (fun dst ->
+                    Result.bind (extract_file_info args) (fun file_info ->
+                      if args_empty args
+                      then Ok (codegen src
+                                  { path = dst; owner = file_info.owner;
+                                    group = file_info.group;
+                                    perms = file_info.perms })
+                      else 
+                        Error (Printf.sprintf "Unhandled arguments for copy: %s"
+                                              (args_to_string args)))))
+        | Str "files" ->
+            let src =
+              match extract_arg args "from" with
+              | None -> rest_consumed := true; Knowledge.filesDef ctx rest args
+              | Some p -> Result.bind (analyze_path p) (fun p ->
+                  match extract_arg args "glob" with
+                  | None -> Ok (Ast.InPath p)
+                  | Some [Str glob] -> Ok (Glob { base = p; glob = glob })
+                  | Some vs ->
+                      Error (Printf.sprintf
+                            "Expected a single string as file glob, found: %s"
+                            (ParseTree.unparse_vals vs)))
+            in let dst =
+              match extract_arg args "to" with
+              | Some p -> Result.map (fun p -> Ast.InPath p) (analyze_path p)
+              | None -> if !rest_consumed
+                  then Error "For copy, expected at least one of 'to' and 'from'"
+                  else (rest_consumed := true; Knowledge.filesDef ctx rest args)
+            in if not !rest_consumed && not (List.is_empty rest)
+            then Error (Printf.sprintf "Copy description not used: %s"
+                                       (ParseTree.unparse_vals rest))
+            else
+              Result.bind src (fun src ->
+                Result.bind dst (fun dst ->
+                  Result.bind (extract_file_info args) (fun file_info ->
+                    if args_empty args
+                    then Ok (Ast.CopyFiles { src = src;
+                      dest = { paths = dst; owner = file_info.owner;
+                               group = file_info.group;
+                               perms = file_info.perms }})
+                    else
+                      Error (Printf.sprintf "Unhandled arguments for copy: %s"
+                                            (args_to_string args)))))
+        | _ -> Error (Printf.sprintf "Unhandled copy of: %s"
+                                     (ParseTree.unparse_vals vs))
+        end
     | _ -> Error "TODO"
 
   and analyze_base (ctx: context) (b: ParseTree.base)

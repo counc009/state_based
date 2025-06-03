@@ -1,8 +1,7 @@
 module Target = Modules.Target.Ast_Target
 
 type path = Remote of ParseTree.value | Controller of ParseTree.value
-type paths = AtPath   of path
-           | InPath   of path
+type paths = InPath   of path
            | Glob     of { base: path; glob: string }
 
 type ansible_os = Debian | Ubuntu | RedHat
@@ -25,6 +24,9 @@ type file_perms = { read: perm option; write: perm option; exec: perm option;
 type file_desc = { path: path; owner: ParseTree.value option;
                    group: ParseTree.value option; perms: file_perms }
 
+type files_desc = { paths: paths; owner: ParseTree.value option;
+                    group: ParseTree.value option; perms: file_perms }
+
 type file_pos = Top | Bottom
 
 type account_desc = User  of string
@@ -36,7 +38,7 @@ type act = CloneGitRepo     of { repo: string; version: ParseTree.value option;
 
          | CopyDir          of { src: path; dest: file_desc }
          | CopyFile         of { src: path; dest: file_desc }
-         | CopyFiles        of { src: paths; dest: file_desc }
+         | CopyFiles        of { src: paths; dest: files_desc }
 
          | CreateDir        of { dest: file_desc }
          | CreateFile       of { dest: file_desc; content: string option }
