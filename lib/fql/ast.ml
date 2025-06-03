@@ -1,7 +1,5 @@
 module Target = Modules.Target.Ast_Target
 
-type args = (ParseTree.vals, ParseTree.vals) Hashtbl.t option
-
 type path = Remote of ParseTree.value | Controller of ParseTree.value
 type paths = AtPath   of path
            | InPath   of path
@@ -33,8 +31,7 @@ type account_desc = User  of string
                   | Group of string
 
 
-type act = CloneRepo        of { files: Target.expr;
-                                 contents: Target.expr -> Target.expr;
+type act = CloneGitRepo     of { repo: string; version: ParseTree.value option;
                                  dest: file_desc }
 
          | CopyDir          of { src: path; dest: file_desc }

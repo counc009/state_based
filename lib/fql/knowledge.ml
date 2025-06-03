@@ -1,11 +1,11 @@
 open Ast
-module Target = Modules.Target.Ast_Target
+open Utils
 
-type context = { os: ansible_os list option }
+type gitRepoInfo = { repo: string; version: ParseTree.value option }
 
 module type Knowledge_Base = sig
-  type repoInfo = { files: Target.expr; contents: Target.expr -> Target.expr }
-  val repoDef : context -> ParseTree.vals -> args -> (repoInfo, string) result
+  val gitRepoDef : context -> ParseTree.vals -> args
+                                             -> (gitRepoInfo, string) result
 
   val fileDef : context -> ParseTree.vals -> args -> (path, string) result
   val filesDef : context -> ParseTree.vals -> args -> (paths, string) result
@@ -15,4 +15,73 @@ module type Knowledge_Base = sig
 
   val pkgDef : context -> ParseTree.vals -> args -> (Ast.pkg, string) result
   val serviceDef : context -> ParseTree.vals -> args -> (string, string) result
+end
+
+module Example : Knowledge_Base = struct
+  let gitRepoDef _ctx (vs: ParseTree.vals) args =
+    match vs with
+    | [Str ("github" as ty)] | [Str ("git" as ty)] ->
+        let repo =
+          if ty = "github"
+          then match extract_arg args "name" with
+            | None -> Error "For github repository, expected 'name' argument"
+            | Some [Str nm] ->
+                begin match String.split_on_char '/' nm with
+                | [org; repo] ->
+                    Ok (Printf.sprintf "https://github.com/%s/%s.git" org repo)
+                | _ -> Error (Printf.sprintf
+                  "For github repository, expected 'name' of form <org>/<repo>, found: %s"
+                  nm)
+                end
+            | Some vs ->
+                Error (Printf.sprintf
+                  "For github repository, expected single 'name' value, found: %s"
+                  (ParseTree.unparse_vals vs))
+          else match extract_arg args "from" with
+            | None -> Error "For git repository, expected 'from' argument"
+            | Some [Str nm] -> Ok nm
+            | Some vs ->
+                Error (Printf.sprintf
+                  "For git repository, expected single 'from' value, found: %s"
+                  (ParseTree.unparse_vals vs))
+        in let branch =
+          match extract_arg args "branch" with
+          | None -> Ok None
+          | Some [v] -> Ok (Some v)
+          | Some vs ->
+              Error (Printf.sprintf
+                "For %s repository, expected single 'branch' value, found %s"
+                ty (ParseTree.unparse_vals vs))
+        in let tag = 
+          match extract_arg args "tag" with
+          | None -> Ok None
+          | Some [v] -> Ok (Some v)
+          | Some vs ->
+              Error (Printf.sprintf
+                "For %s repository, expected single 'tag' value, found %s"
+                ty (ParseTree.unparse_vals vs))
+        in let version =
+          Result.bind branch (fun branch ->
+            Result.bind tag (fun tag ->
+              match branch, tag with
+              | Some _, Some _ ->
+                  Error (Printf.sprintf
+                    "For %s repository, expected at most one of 'branch' and 'tag'"
+                    ty)
+              | Some v, None | None, Some v -> Ok (Some v)
+              | None, None -> Ok None))
+        in Result.bind repo (fun repo ->
+            Result.bind version (fun version ->
+              Ok { repo = repo; version = version }))
+    | _ -> Error (Printf.sprintf "Unsupported repository type: %s"
+                                 (ParseTree.unparse_vals vs))
+
+  let fileDef _ctx _vs _args = Error "TODO"
+  let filesDef _ctx _vs _args = Error "TODO"
+  let dirDef _ctx _vs _args = Error "TODO"
+
+  let requirementDef _ctx _vs = Error "TODO"
+
+  let pkgDef _ctx _vs _args = Error "TODO"
+  let serviceDef _ctx _vs _args = Error "TODO"
 end

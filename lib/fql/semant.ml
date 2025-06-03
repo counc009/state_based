@@ -9,68 +9,7 @@
 module Target = Modules.Target.Ast_Target
 
 open Knowledge
-
-let make_args args : Ast.args = Some (Hashtbl.of_seq (List.to_seq args))
-
-let extract_arg (t: Ast.args) (k: string) : 'a option =
-  match t with
-  | None -> None
-  | Some t ->
-      match Hashtbl.find_opt t [Str k] with
-      | None -> None
-      | Some v -> Hashtbl.remove t [Str k]; Some v
-
-let extract (t: ('a, 'b) Hashtbl.t option) (k: 'a) : 'b option =
-  match t with
-  | None -> None
-  | Some t ->
-      match Hashtbl.find_opt t k with
-      | None -> None
-      | Some v -> Hashtbl.remove t k; Some v
-
-let args_empty (t: Ast.args) : bool =
-  match t with
-  | None -> true
-  | Some t -> Hashtbl.length t = 0
-
-let args_to_string (t: Ast.args) : string =
-  match t with
-  | None -> ""
-  | Some t ->
-      String.concat ", " (List.map 
-        (fun (x, y) -> Printf.sprintf "%s = %s" (ParseTree.unparse_vals x)
-                                                (ParseTree.unparse_vals y))
-        (List.of_seq (Hashtbl.to_seq t)))
-
-let rec list_last xs =
-  match xs with
-  | [] -> failwith "cannot compute last element of empty list"
-  | [x] -> (x, [])
-  | x :: xs ->
-      let (l, rest) = list_last xs
-      in (l, x :: rest)
-
-let rec list_rem xs y =
-  match xs with
-  | [] -> []
-  | x :: xs -> if x = y then xs else x :: list_rem xs y
-
-
-let init_context : Knowledge.context = { os = None }
-
-let refine_context_os ctx os =
-  let refine_os ctx os =
-    match ctx with
-    | None -> Some [os]
-    | Some ctx -> if List.mem os ctx then Some [os] else Some []
-  in { os = refine_os ctx.os os }
-
-let refine_context_not_os ctx os =
-  let refine_os ctx os =
-    match ctx with
-    | None -> None
-    | Some ctx -> Some (list_rem ctx os)
-  in { os = refine_os ctx.os os }
+open Utils
 
 module Semant(Knowledge: Knowledge_Base) = struct
   let analyze_path (p: ParseTree.vals) : (Ast.path, string) result =
@@ -103,7 +42,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
                                         (ParseTree.unparse_val v))
     in process vs
 
-  let extract_file_perms (args: Ast.args) : (Ast.file_perms, string) result =
+  let extract_file_perms (args: args) : (Ast.file_perms, string) result =
     let read =
       match extract_arg args "read" with
       | None -> Ok None
@@ -143,7 +82,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
                          file_list = file_list; setuid = setuid;
                          setgid = setgid; sticky = sticky })))))))
 
-  let extract_file_info (args: Ast.args) : (file_info, string) result =
+  let extract_file_info (args: args) : (file_info, string) result =
     let owner =
       match extract_arg args "owner" with
       | None -> Ok None
@@ -237,15 +176,15 @@ module Semant(Knowledge: Knowledge_Base) = struct
     | Clone vs ->
         let (last, rest) = list_last vs
         in if last = Str "repository"
-        then Result.bind (Knowledge.repoDef ctx rest args) (fun repo ->
+        then Result.bind (Knowledge.gitRepoDef ctx rest args) (fun repo ->
           match extract_arg args "into" with
           | None -> Error "Clone requires 'into' argument with target directory"
           | Some p -> Result.bind (analyze_path p) (fun p ->
               Result.bind (extract_file_info args) (fun file_info ->
                 if args_empty args
                 then 
-                  Ok (Ast.CloneRepo {
-                      files = repo.files; contents = repo.contents;
+                  Ok (Ast.CloneGitRepo {
+                      repo = repo.repo; version = repo.version;
                       dest = { path = p; owner = file_info.owner;
                                group = file_info.group;
                                perms = file_info.perms }})
