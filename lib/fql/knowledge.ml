@@ -80,8 +80,42 @@ module Example : Knowledge_Base = struct
   let fileDef _ctx (vs: ParseTree.vals) _args =
     match vs with
     | [Str "postfix"; Str "configuration"] -> Ok (Remote (Str "/etc/postfix/main.cf"))
-    | [Str "apache"; Str "server"; Str "home"; Str "page"]
+    | [Str "apache"; Str "server"; Str "html"; Str "home"; Str "page"]
       -> Ok (Remote (Str "/var/www/html/index.html"))
+    | [Str "apache"; Str "server"; Str "php"; Str "home"; Str "page"]
+      -> Ok (Remote (Str "/var/www/html/index.php"))
+    | [Str "bash"; Str "configuration"] ->
+        begin match extract_arg args "user" with
+        | None -> Error "Must specify 'user' for bash configuration file"
+        | Some [Str nm] -> Ok (Remote (Str (Printf.sprintf "/home/%s/.bashrc" nm)))
+        | Some vs -> Error (Printf.sprintf
+            "For bash configuration file, expected single name for 'user', found: %s"
+            (ParseTree.unparse_vals vs))
+        end
+    | [Str "zsh"; Str "configuration"] ->
+        begin match extract_arg args "user" with
+        | None -> Error "Must specify 'user' for zsh configuration file"
+        | Some [Str nm] -> Ok (Remote (Str (Printf.sprintf "/home/%s/.zshrc" nm)))
+        | Some vs -> Error (Printf.sprintf
+            "For zsh configuration file, expected single name for 'user', found: %s"
+            (ParseTree.unparse_vals vs))
+        end
+    | [Str "bashrc"] ->
+        begin match extract_arg args "user" with
+        | None -> Error "Must specify 'user' for bashrc file"
+        | Some [Str nm] -> Ok (Remote (Str (Printf.sprintf "/home/%s/.bashrc" nm)))
+        | Some vs -> Error (Printf.sprintf
+            "For bashrc file, expected single name for 'user', found: %s"
+            (ParseTree.unparse_vals vs))
+        end
+    | [Str "zshrc"] ->
+        begin match extract_arg args "user" with
+        | None -> Error "Must specify 'user' for zshrc file"
+        | Some [Str nm] -> Ok (Remote (Str (Printf.sprintf "/home/%s/.zshrc" nm)))
+        | Some vs -> Error (Printf.sprintf
+            "For zshrc file, expected single name for 'user', found: %s"
+            (ParseTree.unparse_vals vs))
+        end
     | _ -> Error (Printf.sprintf "Unknown file: %s" (ParseTree.unparse_vals vs))
 
   let filesDef _ctx (vs: ParseTree.vals) _args =
