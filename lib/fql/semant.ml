@@ -876,6 +876,12 @@ module Semant(Knowledge: Knowledge_Base) = struct
         | _ -> Error (Printf.sprintf "Unhandled stop of: %s"
                                      (ParseTree.unparse_vals vs))
         end
+    | Uninstall vs ->
+        Result.bind (Knowledge.pkgDef ctx vs args) (fun pkg ->
+          if args_empty args
+          then Ok (Ast.UninstallPkg { pkg = pkg })
+          else Error (Printf.sprintf "Unhandled arguments for install: %s"
+                                     (args_to_string args)))
     | _ -> Error "TODO (S1)"
 
   and analyze_base (ctx: context) (b: ParseTree.base)

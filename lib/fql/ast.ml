@@ -81,8 +81,7 @@ type act = CloneGitRepo     of { repo: string; version: ParseTree.value option;
 
          | StopService      of { name: string }
 
-         | UninstallPkg     of { pkgs: string list; within: string option;
-                                 loc: path option }
+         | UninstallPkg     of { pkg: pkg }
 
          | WriteFile        of { str: string; dest: file_desc;
                                  position: file_pos }
