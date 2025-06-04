@@ -77,7 +77,7 @@ module Example : Knowledge_Base = struct
     | _ -> Error (Printf.sprintf "Unsupported repository type: %s"
                                  (ParseTree.unparse_vals vs))
 
-  let fileDef _ctx (vs: ParseTree.vals) _args =
+  let fileDef _ctx (vs: ParseTree.vals) args =
     match vs with
     | [Str "postfix"; Str "configuration"] -> Ok (Remote (Str "/etc/postfix/main.cf"))
     | [Str "apache"; Str "server"; Str "html"; Str "home"; Str "page"]
