@@ -293,6 +293,107 @@ module Semant(Knowledge: Knowledge_Base) = struct
         | _ -> Error (Printf.sprintf "Unhandled copy of: %s"
                                      (ParseTree.unparse_vals vs))
         end
+    | Create vs ->
+        let (last, rest) = list_last vs
+        in begin match last with
+        | Str "file" ->
+            let path =
+              match extract_arg args "at" with
+              | Some p -> if List.is_empty rest then analyze_path p
+                  else Error (Printf.sprintf
+                        "For create, argument 'at' should not be mixed with file description '%s'"
+                        (ParseTree.unparse_vals rest))
+              | None -> Knowledge.fileDef ctx rest args
+            in let contents =
+              match extract_arg args "content" with
+              | None -> Ok None
+              | Some [Str s] -> Ok (Some s) 
+              | Some vs ->
+                  Error (Printf.sprintf
+                        "Expected a single string as file content, found: %s"
+                        (ParseTree.unparse_vals vs))
+            in Result.bind path (fun path ->
+                Result.bind contents (fun contents ->
+                  Result.bind (extract_file_info args) (fun file_info ->
+                    if args_empty args
+                    then Ok (Ast.CreateFile { 
+                              dest= { path = path; owner = file_info.owner;
+                                      group = file_info.group;
+                                      perms = file_info.perms };
+                              content = contents })
+                    else
+                      Error (Printf.sprintf "Unhandled arguments for create directory: %s"
+                                            (args_to_string args)))))
+        | Str "directory" ->
+            let path =
+              match extract_arg args "at" with
+              | Some p -> if List.is_empty rest then analyze_path p
+                  else Error (Printf.sprintf
+                        "For create, argument 'at' should not be mixed with directory description '%s'"
+                        (ParseTree.unparse_vals rest))
+              | None -> Knowledge.dirDef ctx rest args
+            in Result.bind path (fun path ->
+                Result.bind (extract_file_info args) (fun file_info ->
+                  if args_empty args
+                  then Ok (Ast.CreateDir {
+                            dest = { path = path; owner = file_info.owner;
+                                     group = file_info.group;
+                                     perms = file_info.perms } })
+                  else
+                    Error (Printf.sprintf "Unhandled arguments for create directory: %s"
+                                          (args_to_string args))))
+        | Str "user" ->
+            if not (List.is_empty rest)
+            then Error (Printf.sprintf "Unhandled user description in create: %s"
+                                       (ParseTree.unparse_vals vs))
+            else let name =
+              match extract_arg args "name" with
+              | None -> Error "Argument 'name' is required to create user"
+              | Some [Str s] -> Ok s
+              | Some vs ->
+                  Error (Printf.sprintf
+                          "Expected a single string as user name, found: %s"
+                          (ParseTree.unparse_vals vs))
+            in let group =
+              match extract_arg args "group" with
+              | None -> Ok None
+              | Some [Str s] -> Ok (Some s)
+              | Some vs ->
+                  Error (Printf.sprintf
+                          "Expected a single string as user group, found: %s"
+                          (ParseTree.unparse_vals vs))
+            in Result.bind name (fun name ->
+                Result.bind group (fun group ->
+                  if args_empty args
+                  then Ok (Ast.CreateUser { name = name; group = group;
+                                            groups = None })
+                  else Error (Printf.sprintf
+                          "Unhandled arguments for create user: %s"
+                          (args_to_string args))))
+        | Str "group" ->
+            if not (List.is_empty rest)
+            then Error (Printf.sprintf "Unhandled group description in create: %s"
+                                       (ParseTree.unparse_vals vs))
+            else let name =
+              match extract_arg args "name" with
+              | None -> Error "Argument 'name' is required to create group"
+              | Some [Str s] -> Ok s
+              | Some vs ->
+                  Error (Printf.sprintf
+                          "Expected a single string as group name, found: %s"
+                          (ParseTree.unparse_vals vs))
+            in Result.bind name (fun name ->
+              if args_empty args
+              then Ok (Ast.CreateGroup { name = name })
+              else Error (Printf.sprintf "Unhandled arguments for create group: %s"
+                                         (args_to_string args)))
+(*
+        | Str "environment" -> ???
+        | Str "key" -> ???
+*)
+        | _ -> Error (Printf.sprintf "Unhandled creation of: %s"
+                                     (ParseTree.unparse_vals vs))
+        end
     | _ -> Error "TODO (S1)"
 
   and analyze_base (ctx: context) (b: ParseTree.base)
