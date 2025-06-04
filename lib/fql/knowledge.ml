@@ -167,7 +167,7 @@ module Example : Knowledge_Base = struct
           | Some p -> Ok { name = "numpy"; pkg_manager = Pip (Some p) }
           | None ->
               match ctx.os with
-              | None -> Error "cannot install numpy system-wide without knowing OS"
+              | None -> Error "cannot handle numpy system-wide without knowing OS"
               | Some Debian | Some Ubuntu ->
                   Ok { name = "python3-numpy"; pkg_manager = Apt }
               | Some RedHat -> Ok { name = "numpy"; pkg_manager = Pip None })
@@ -176,13 +176,13 @@ module Example : Knowledge_Base = struct
     | [Str "postfix"] -> Ok { name = "postfix"; pkg_manager = System }
     | [Str "apache"] | [Str "apache"; Str "server"] | [Str "apache server"] ->
         begin match ctx.os with
-        | None -> Error "cannot install apache server without knowing OS"
+        | None -> Error "cannot handle apache server without knowing OS"
         | Some Debian | Some Ubuntu -> Ok { name = "apache2"; pkg_manager = Apt }
         | Some RedHat -> Ok { name = "httpd"; pkg_manager = Dnf }
         end
     | [Str "ssh"; Str "client"] | [Str "ssh client"] ->
         begin match ctx.os with
-        | None -> Error "cannot install ssh client without knowing OS"
+        | None -> Error "cannot handle ssh client without knowing OS"
         | Some Debian | Some Ubuntu -> Ok { name = "ssh-client"; pkg_manager = Apt }
         | Some RedHat -> Ok { name = "ssh-clients"; pkg_manager = Dnf }
         end
@@ -191,5 +191,16 @@ module Example : Knowledge_Base = struct
     | _ -> Error (Printf.sprintf "Unknown package: %s"
                                  (ParseTree.unparse_vals vs))
 
-  let serviceDef _ctx _vs _args = Error "TODO (K3)"
+  let serviceDef ctx (vs: ParseTree.vals) _args =
+    match vs with
+    | [Str "ssh"; Str "server"] | [Str "ssh server"] -> Ok "sshd"
+    | [Str "apache"; Str "server"] | [Str "apache server"] ->
+        begin match ctx.os with
+        | None -> Error "cannot handle apache server service without knowing OS"
+        | Some Debian | Some Ubuntu -> Ok "apache2"
+        | Some RedHat -> Ok "httpd"
+        end
+    | [Str "postfix"] -> Ok "postfix"
+    | _ -> Error (Printf.sprintf "Unknown service: %s"
+                                 (ParseTree.unparse_vals vs))
 end

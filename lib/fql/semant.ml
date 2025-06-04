@@ -852,6 +852,30 @@ module Semant(Knowledge: Knowledge_Base) = struct
         | _ -> Error (Printf.sprintf "Unhandled set of: %s"
                                      (ParseTree.unparse_vals vs))
         end
+    | Start vs ->
+        let (last, rest) = list_last vs
+        in begin match last with
+        | Str "service" ->
+            Result.bind (Knowledge.serviceDef ctx rest args) (fun service ->
+              if args_empty args
+              then Ok (Ast.StartService { name = service })
+              else Error (Printf.sprintf "Unhandled arguments for start: %s"
+                                         (args_to_string args)))
+        | _ -> Error (Printf.sprintf "Unhandled start of: %s"
+                                     (ParseTree.unparse_vals vs))
+        end
+    | Stop vs ->
+        let (last, rest) = list_last vs
+        in begin match last with
+        | Str "service" ->
+            Result.bind (Knowledge.serviceDef ctx rest args) (fun service ->
+              if args_empty args
+              then Ok (Ast.StopService { name = service })
+              else Error (Printf.sprintf "Unhandled arguments for stop: %s"
+                                         (args_to_string args)))
+        | _ -> Error (Printf.sprintf "Unhandled stop of: %s"
+                                     (ParseTree.unparse_vals vs))
+        end
     | _ -> Error "TODO (S1)"
 
   and analyze_base (ctx: context) (b: ParseTree.base)
