@@ -362,14 +362,27 @@ module Semant(Knowledge: Knowledge_Base) = struct
                   Error (Printf.sprintf
                           "Expected a single string as user group, found: %s"
                           (ParseTree.unparse_vals vs))
+            in let groups =
+              match extract_arg args "groups" with
+              | None -> Ok None
+              | Some nms ->
+                  Result.bind 
+                    (map_result
+                      (fun nm -> match nm with ParseTree.Str n -> Ok n 
+                        | _ -> Error (Printf.sprintf 
+                            "Expected group names to be strings, found: %s"
+                            (ParseTree.unparse_val nm)))
+                      nms)
+                    (fun groups -> Ok (Some groups))
             in Result.bind name (fun name ->
                 Result.bind group (fun group ->
-                  if args_empty args
-                  then Ok (Ast.CreateUser { name = name; group = group;
-                                            groups = None })
-                  else Error (Printf.sprintf
-                          "Unhandled arguments for create user: %s"
-                          (args_to_string args))))
+                  Result.bind groups (fun groups ->
+                    if args_empty args
+                    then Ok (Ast.CreateUser { name = name; group = group;
+                                              groups = groups })
+                    else Error (Printf.sprintf
+                            "Unhandled arguments for create user: %s"
+                            (args_to_string args)))))
         | Str "group" ->
             if not (List.is_empty rest)
             then Error (Printf.sprintf "Unhandled group description in create: %s"
@@ -387,10 +400,82 @@ module Semant(Knowledge: Knowledge_Base) = struct
               then Ok (Ast.CreateGroup { name = name })
               else Error (Printf.sprintf "Unhandled arguments for create group: %s"
                                          (args_to_string args)))
-(*
-        | Str "environment" -> ???
-        | Str "key" -> ???
-*)
+        (* TODO: Not certain this shouldn't be part of the knowledge base,
+         * this is assuming "virtual environment" is always a python env but
+         * it could be used for other systems as well *)
+        | Str "environment" ->
+            begin match rest with
+            | [Str "virtual"] ->
+                let path =
+                  match extract_arg args "in" with
+                  | None -> Error "Argument 'in' is required to create virtual environment"
+                  | Some p -> analyze_path p
+                in let version =
+                  match extract_arg args "python" with
+                  | None -> Ok None
+                  | Some [Str s] -> Ok (Some s)
+                  | Some vs ->
+                      Error (Printf.sprintf
+                              "Expected a single string as python version, found: %s"
+                              (ParseTree.unparse_vals vs))
+                in Result.bind path (fun path ->
+                    Result.bind version (fun version ->
+                      if args_empty args
+                      then Ok (Ast.CreateVirtualEnv { version = version; loc = path })
+                      else Error (Printf.sprintf
+                        "Unhandled arguments for create virtual environment: %s"
+                        (args_to_string args))))
+            | _ -> Error (Printf.sprintf
+                            "Unhandled environment type for create: %s"
+                            (ParseTree.unparse_vals rest))
+            end
+        (* TODO: Same as above, maybe other types of keys can be supported by
+         * making this part of the knowledge base *)
+        | Str "key" ->
+            begin match rest with
+            | [Str "ssh"] ->
+                let user =
+                  match extract_arg args "user" with
+                  | None -> Error "Argument 'user' is required to create ssh key"
+                  | Some [Str n] -> Ok n
+                  | Some vs ->
+                      Error (Printf.sprintf
+                        "Expected a single string as user name for ssh key, found: %s"
+                        (ParseTree.unparse_vals vs))
+                in let path_at =
+                  match extract_arg args "at" with
+                  | Some p -> Result.map Option.some (analyze_path p)
+                  | None -> Ok None
+                in let path_name =
+                  match extract_arg args "name" with
+                  | None -> Ok None
+                  | Some [Str n] ->
+                      Result.bind user
+                        (fun user -> 
+                          Ok (Some (Ast.Remote (Str 
+                            (Printf.sprintf "/home/%s/.ssh/%s" user n)))))
+                  | Some vs ->
+                      Error (Printf.sprintf
+                        "Expected a single string as name for ssh key, found: %s"
+                        (ParseTree.unparse_vals vs))
+                in Result.bind user (fun user ->
+                    Result.bind path_at (fun path_at ->
+                      Result.bind path_name (fun path_name ->
+                        if args_empty args
+                        then
+                          match path_at, path_name with
+                          | Some path, None | None, Some path ->
+                              Ok (Ast.CreateSshKey { user = user; loc = path })
+                          | Some _, Some _ | None, None ->
+                              Error "Expected exactly one of 'at' and 'name' arguments to create ssh key"
+                        else
+                          Error (Printf.sprintf
+                            "Unhandled arguments for create ssh key: %s"
+                            (args_to_string args)))))
+            | _ -> Error (Printf.sprintf
+                            "Unhandled key type for create: %s"
+                            (ParseTree.unparse_vals rest))
+            end
         | _ -> Error (Printf.sprintf "Unhandled creation of: %s"
                                      (ParseTree.unparse_vals vs))
         end

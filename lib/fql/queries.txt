@@ -18,4 +18,4 @@ install zsh; set default shell for user="user" to zsh; if zsh configuration dire
 if os is RedHat or os is Ubuntu then install postfix with version=latest; if file ?backup not exists then copy postfix configuration file to ?backup. if os is Ubuntu then download postfix configuration file from "http://example.com/cfg.ubuntu". if os is "RedHat" then download postfix configuration file from "http://example.com/cfg.redhat"
 if os is RedHat then install apache server; create user with name=webdev; if apache server html home page file not exists then create apache server html home page file
 enable passwordless sudo for group=wheel; create user with name=ansible in group=wheel
-if os is Debian or os is RedHat then install ssh client; install ssh server; start ssh server service; create ssh key for user="fizbaz" at "/.ssh/fizbaz_rsa"
+if os is Debian or os is RedHat then install ssh client; install ssh server; start ssh server service; create ssh key for user="fizbaz", name="fizbaz_rsa"

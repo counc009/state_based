@@ -33,6 +33,14 @@ let rec list_rem xs y =
   | [] -> []
   | x :: xs -> if x = y then xs else x :: list_rem xs y
 
+let rec map_result (f: 'a -> ('b, 'e) result) (xs: 'a list)
+  : ('b list, 'e) result =
+  match xs with
+  | [] -> Ok []
+  | x :: xs -> 
+      Result.bind (f x) 
+        (fun y -> Result.bind (map_result f xs) (fun ys -> Ok (y :: ys)))
+
 type context = { os: Ast.ansible_os option }
 
 let init_context : context = { os = None }
