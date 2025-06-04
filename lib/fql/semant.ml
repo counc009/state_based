@@ -38,7 +38,9 @@ module Semant(Knowledge: Knowledge_Base) = struct
       | Str "owner" :: tl -> perms.owner <- true; process tl
       | Str "group" :: tl -> perms.group <- true; process tl
       | Str "other" :: tl -> perms.other <- true; process tl
-      | v :: _ -> Error (Printf.sprintf "Unknown permission for: %s"
+      | Str "all" :: tl -> perms.owner <- true; perms.group <- true;
+                           perms.other <- true; process tl
+      | v :: _ -> Error (Printf.sprintf "Unknown permission: %s"
                                         (ParseTree.unparse_val v))
     in process vs
 
@@ -56,7 +58,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
       | None -> Ok None
       | Some vs -> Result.map Option.some (extract_file_perm vs)
     in let file_list =
-      match extract args [Str "list"; Str "files"] with
+      match extract args [Str "list"; Str "directory"] with
       | None -> Ok None
       | Some vs -> Result.map Option.some (extract_file_perm vs)
     in let setuid =
@@ -788,6 +790,68 @@ module Semant(Knowledge: Knowledge_Base) = struct
     | Reboot -> if args_empty args then Ok Reboot
                 else Error (Printf.sprintf "Unhandled arguments for reboot: %s"
                                            (args_to_string args))
+    | Set vs ->
+        begin match vs with
+        | Str "environment" :: Str "variable" :: Str nm :: []
+        | Str "environment variable" :: Str nm :: [] ->
+            let value =
+              match extract_arg args "to" with
+              | None -> Error "Argument 'to' required for setting environment variable"
+              | Some [v] -> Ok v
+              | Some vs -> Error (Printf.sprintf
+                  "Expected single value for environment variable value, found: %s"
+                  (ParseTree.unparse_vals vs))
+            in Result.bind value (fun value ->
+                if args_empty args
+                then Ok (Ast.SetEnvVar { name = nm; value = value })
+                else Error (Printf.sprintf "Unhandled arguments for set: %s"
+                                           (args_to_string args)))
+        | [Str "file"; Str "permissions"] | [Str "file permissions"] ->
+            begin match extract_arg args "for" with
+            | Some p ->
+                Result.bind (analyze_path p) (fun path ->
+                  Result.bind (extract_file_perms args) (fun perms ->
+                    if args_empty args
+                    then Ok (Ast.SetFilePerms { loc = path; perms = perms })
+                    else Error (Printf.sprintf "Unhandled arguments for set: %s"
+                                               (args_to_string args))))
+            | None ->
+                match extract_arg args "in" with
+                | Some p ->
+                    Result.bind (analyze_path p) (fun path ->
+                      Result.bind (extract_file_perms args) (fun perms ->
+                        if args_empty args
+                        then Ok (Ast.SetFilesPerms { locs = InPath path;
+                                                     perms = perms })
+                        else Error (Printf.sprintf "Unhandled arguments for set: %s"
+                                                   (args_to_string args))))
+                | None ->
+                    Error "Setting file permissions requires 'for' or 'in' argument"
+            end
+        | [Str "default"; Str "shell"] | [Str "default shell"] ->
+            let user =
+              match extract_arg args "user" with
+              | None -> Error "Argument 'user' required to set default shell"
+              | Some [Str nm] -> Ok nm
+              | Some vs -> Error (Printf.sprintf
+                      "Expected single value for 'user' for set shall, found: %s"
+                      (ParseTree.unparse_vals vs))
+            in let shell =
+              match extract_arg args "to" with
+              | None -> Error "Argument 'to' required to set default shell"
+              | Some [Str nm] -> Ok nm
+              | Some vs -> Error (Printf.sprintf
+                      "Expected single value for 'to' for set shall, found: %s"
+                      (ParseTree.unparse_vals vs))
+            in Result.bind user (fun user ->
+                Result.bind shell (fun shell ->
+                  if args_empty args
+                  then Ok (Ast.SetShell { user = user; shell = shell })
+                  else Error (Printf.sprintf "Unhandled arguments for set: %s"
+                                             (args_to_string args))))
+        | _ -> Error (Printf.sprintf "Unhandled set of: %s"
+                                     (ParseTree.unparse_vals vs))
+        end
     | _ -> Error "TODO (S1)"
 
   and analyze_base (ctx: context) (b: ParseTree.base)
