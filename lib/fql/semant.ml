@@ -110,63 +110,93 @@ module Semant(Knowledge: Knowledge_Base) = struct
     | Or (x, y) -> analyze_conditional ctx x t (If (y, t, e))
     | Not c -> analyze_conditional ctx c e t
     | Eq (lhs, rhs) ->
-        if lhs = [Str "os"]
+        if lhs = ([Str "os"], [])
         then let os : (Ast.ansible_os, string) result =
           match rhs with
-          | [Str "Debian"] -> Ok Debian
-          | [Str "Ubuntu"] -> Ok Ubuntu
-          | [Str "RedHat"] -> Ok RedHat
+          | ([Str "Debian"], []) -> Ok Debian
+          | ([Str "Ubuntu"], []) -> Ok Ubuntu
+          | ([Str "RedHat"], []) -> Ok RedHat
           | _ -> Error (Printf.sprintf "Unknown OS: %s"
-                                       (ParseTree.unparse_vals rhs))
+                                       (ParseTree.unparse_expr rhs))
         in Result.bind os (fun os ->
           Result.bind (analyze_base (refine_context_os ctx os) t) (fun t ->
             Result.bind (analyze_base (refine_context_not_os ctx os) e)
               (fun e -> Ok (Ast.Cond (Ast.CheckOs os, t, e)))))
         else Error (Printf.sprintf "Unhandled equality check between %s and %s"
-                     (ParseTree.unparse_vals lhs) (ParseTree.unparse_vals rhs))
+                     (ParseTree.unparse_expr lhs) (ParseTree.unparse_expr rhs))
     | Exists desc ->
         begin match desc with
-        | Str "file" :: path ->
+        | (Str "file" :: path, []) | ([Str "file"], [([Str "at"], path)]) ->
             Result.bind (analyze_path path) (fun p ->
               Result.bind (analyze_base ctx t) (fun t ->
                 Result.bind (analyze_base ctx e) (fun e ->
                   Ok (Ast.Cond (Ast.FileExists p, t, e)))))
-        | Str "directory" :: path ->
+        | (Str "directory" :: path, [])
+        | ([Str "directory"], [([Str "at"], path)]) ->
             Result.bind (analyze_path path) (fun p ->
               Result.bind (analyze_base ctx t) (fun t ->
                 Result.bind (analyze_base ctx e) (fun e ->
                   Ok (Ast.Cond (Ast.DirExists p, t, e)))))
-        | _ ->
-            let (last, rest) = list_last desc
+        | (desc, args) ->
+            let args = make_args args
+            in let (last, rest) = list_last desc
             in match last with
             | Str "file" ->
-                Result.bind (Knowledge.fileDef ctx rest None) (fun p ->
-                  Result.bind (analyze_base ctx t) (fun t ->
-                    Result.bind (analyze_base ctx e) (fun e ->
-                      Ok (Ast.Cond (Ast.FileExists p, t, e)))))
+                Result.bind (Knowledge.fileDef ctx rest args) (fun p ->
+                  if args_empty args
+                  then
+                    Result.bind (analyze_base ctx t) (fun t ->
+                      Result.bind (analyze_base ctx e) (fun e ->
+                        Ok (Ast.Cond (Ast.FileExists p, t, e))))
+                  else
+                    Error (Printf.sprintf "Unhandled arguments in exists: %s"
+                                          (args_to_string args)))
             | Str "directory" ->
-                Result.bind (Knowledge.dirDef ctx rest None) (fun p ->
-                  Result.bind (analyze_base ctx t) (fun t ->
-                    Result.bind (analyze_base ctx e) (fun e ->
-                      Ok (Ast.Cond (Ast.DirExists p, t, e)))))
+                Result.bind (Knowledge.dirDef ctx rest args) (fun p ->
+                  if args_empty args
+                  then
+                    Result.bind (analyze_base ctx t) (fun t ->
+                      Result.bind (analyze_base ctx e) (fun e ->
+                        Ok (Ast.Cond (Ast.DirExists p, t, e))))
+                  else
+                    Error (Printf.sprintf "Unhandled arguments in exists: %s"
+                                          (args_to_string args)))
             | _ -> Error (Printf.sprintf "cannot check existance of: %s"
                             (ParseTree.unparse_vals desc))
         end
-    | Required desc ->
-        Result.bind (Knowledge.requirementDef ctx desc) (fun c ->
-          Result.bind (analyze_base ctx t) (fun t ->
-            Result.bind (analyze_base ctx e) (fun e ->
-              Ok (Ast.Cond (c, t, e)))))
-    | Installed desc ->
-        Result.bind (Knowledge.pkgDef ctx desc None) (fun pkg ->
-          Result.bind (analyze_base ctx t) (fun t ->
-            Result.bind (analyze_base ctx e) (fun e ->
-              Ok (Ast.Cond (PkgInstalled pkg, t, e)))))
-    | Running desc ->
-        Result.bind (Knowledge.serviceDef ctx desc None) (fun nm ->
-          Result.bind (analyze_base ctx t) (fun t ->
-            Result.bind (analyze_base ctx e) (fun e ->
-              Ok (Ast.Cond (ServiceRunning nm, t, e)))))
+    | Required (desc, args) ->
+        let args = make_args args
+        in Result.bind (Knowledge.requirementDef ctx desc args) (fun c ->
+            if args_empty args
+            then
+              Result.bind (analyze_base ctx t) (fun t ->
+                Result.bind (analyze_base ctx e) (fun e ->
+                  Ok (Ast.Cond (c, t, e))))
+            else
+              Error (Printf.sprintf "Unhandled arguments in required: %s"
+                                    (args_to_string args)))
+    | Installed (desc, args) ->
+        let args = make_args args
+        in Result.bind (Knowledge.pkgDef ctx desc args) (fun pkg ->
+          if args_empty args
+          then
+            Result.bind (analyze_base ctx t) (fun t ->
+              Result.bind (analyze_base ctx e) (fun e ->
+                Ok (Ast.Cond (PkgInstalled pkg, t, e))))
+          else
+            Error (Printf.sprintf "Unhandled arguments in installed: %s"
+                                  (args_to_string args)))
+    | Running (desc, args) ->
+        let args = make_args args
+        in Result.bind (Knowledge.serviceDef ctx desc args) (fun nm ->
+          if args_empty args
+          then
+            Result.bind (analyze_base ctx t) (fun t ->
+              Result.bind (analyze_base ctx e) (fun e ->
+                Ok (Ast.Cond (ServiceRunning nm, t, e))))
+          else
+            Error (Printf.sprintf "Unhandled arguments in running: %s"
+                                  (args_to_string args)))
 
   and analyze_atom (ctx: context) (a: ParseTree.atom)
     : (Ast.act, string) result =
@@ -263,7 +293,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
         | _ -> Error (Printf.sprintf "Unhandled copy of: %s"
                                      (ParseTree.unparse_vals vs))
         end
-    | _ -> Error "TODO"
+    | _ -> Error "TODO (S1)"
 
   and analyze_base (ctx: context) (b: ParseTree.base)
     : (Ast.query, string) result =

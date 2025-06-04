@@ -7,7 +7,7 @@
 %token AT FOR FROM IN INTO TO WITH
 
 %token CLONE COPY CREATE DELETE DISABLE DOWNLOAD ENABLE INSTALL MOVE
-%token RESTART SET START STOP UNINSTALL WRITE
+%token REBOOT SET START STOP UNINSTALL WRITE
 
 %nonassoc THEN
 %nonassoc ELSE
@@ -44,7 +44,7 @@ action: CLONE category     { Clone $2 }
       | ENABLE category    { Enable $2 }
       | INSTALL category   { Install $2 }
       | MOVE category      { Move $2 }
-      | RESTART            { Restart }
+      | REBOOT             { Reboot }
       | SET category       { Set $2 }
       | START category     { Start $2 }
       | STOP category      { Stop $2 }
@@ -97,7 +97,7 @@ cat_id: ID        { Str $1 }
       | NOT       { Str "not" }
       | OR        { Str "or" }
       | REQUIRED  { Str "required" }
-      | RESTART   { Str "restart" }
+      | REBOOT    { Str "reboot" }
       | RUNNING   { Str "running" }
       | SET       { Str "set" }
       | START     { Str "start" }
@@ -108,19 +108,33 @@ cat_id: ID        { Str $1 }
 
 cond: cond AND cond         { And ($1, $3) }
     | cond OR cond          { Or ($1, $3) }
-    | expr IS expr          { Eq ($1, $3) }
-    | expr IS NOT expr      { Not (Eq ($1, $4)) }
-    | expr EQUALS expr      { Eq ($1, $3) }
-    | expr NOT EQUALS expr  { Not (Eq ($1, $4)) }
-    | expr EXISTS           { Exists $1 }
-    | expr NOT EXISTS       { Not (Exists $1) }
-    | expr INSTALLED        { Installed $1 }
-    | expr NOT INSTALLED    { Not (Installed $1) }
-    | expr REQUIRED         { Required $1 }
-    | expr NOT REQUIRED     { Not (Required $1) }
-    | expr RUNNING          { Running $1 }
-    | expr NOT RUNNING      { Not (Running $1) }
+    | spec IS spec          { Eq ($1, $3) }
+    | spec IS NOT spec      { Not (Eq ($1, $4)) }
+    | spec EQUALS spec      { Eq ($1, $3) }
+    | spec NOT EQUALS spec  { Not (Eq ($1, $4)) }
+    | spec EXISTS           { Exists $1 }
+    | spec NOT EXISTS       { Not (Exists $1) }
+    | spec INSTALLED        { Installed $1 }
+    | spec NOT INSTALLED    { Not (Installed $1) }
+    | spec REQUIRED         { Required $1 }
+    | spec NOT REQUIRED     { Not (Required $1) }
+    | spec RUNNING          { Running $1 }
+    | spec NOT RUNNING      { Not (Running $1) }
     ;
+
+spec: expr spec_args { ($1, $2) };
+
+spec_args:                    { [] }
+         | spec_arg spec_args { $1 @ $2 }
+         ;
+spec_arg: arg_sep spec_argvs { $2 $1 };
+
+spec_argvs: expr       { fun nm -> [([nm], $1)] }
+          | spec_argds { fun _ -> $1 }
+          ;
+spec_argds: expr EQ expr                  { ($1, $3) :: [] }
+          | expr EQ expr COMMA spec_argds { ($1, $3) :: $5 }
+          ;
 
 expr: expr_id exp { $1 :: $2 };
 exp:              { [] }
@@ -140,7 +154,7 @@ expr_id: ID         { Str $1 }
        | IF         { Str "if" }
        | INSTALL    { Str "install" }
        | MOVE       { Str "move" }
-       | RESTART    { Str "restart" }
+       | REBOOT     { Str "reboot" }
        | SET        { Str "set" }
        | START      { Str "start" }
        | STOP       { Str "stop" }

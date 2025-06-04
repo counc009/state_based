@@ -41,7 +41,7 @@ rule token = parse
   | "enable"      { ENABLE }
   | "install"     { INSTALL }
   | "move"        { MOVE }
-  | "restart"     { RESTART }
+  | "reboot"      { REBOOT }
   | "set"         { SET }
   | "start"       { START }
   | "stop"        { STOP }

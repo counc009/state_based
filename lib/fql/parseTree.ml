@@ -1,23 +1,25 @@
 type value = Str of string | Unknown of string
 type vals = value list
 
+type args = (vals * vals) list
+type expr = vals * args
+
 type cond = And of cond * cond
           | Or  of cond * cond
           | Not of cond
-          | Eq  of vals * vals
-          | Exists of vals
-          | Installed of vals
-          | Required of vals
-          | Running of vals
+          | Eq  of expr * expr
+          | Exists of expr
+          | Installed of expr
+          | Required of expr
+          | Running of expr
 
 (* TODO: Need a way to add a user to a group *)
 type action = Clone  of vals | Copy      of vals | Create   of vals
             | Delete of vals | Disable   of vals | Download of vals
             | Enable of vals | Install   of vals | Move     of vals
-            | Restart        | Set       of vals | Start    of vals
+            | Reboot         | Set       of vals | Start    of vals
             | Stop   of vals | Uninstall of vals | Write    of vals
 
-type args = (vals * vals) list
 type atom = action * args
 
 type base = Nil | Cons of atom * base | If of cond * base * base
@@ -28,15 +30,25 @@ let unparse_val = function
   | Unknown s -> "?" ^ s
 let unparse_vals vs = String.concat " " (List.map unparse_val vs)
 
+let unparse_expr (e : expr) =
+  let (v, args) = e
+  in unparse_vals v 
+   ^ if List.is_empty args then ""
+     else (" with "
+     ^ String.concat ", "
+       (List.map 
+         (fun (lhs, rhs) -> unparse_vals lhs ^ " = " ^ unparse_vals rhs)
+         args))
+
 let rec unparse_cond = function
   | And (x, y)  -> "(" ^ unparse_cond x ^ " and " ^ unparse_cond y ^ ")"
   | Or  (x, y)  -> "(" ^ unparse_cond x ^ " or "  ^ unparse_cond y ^ ")"
   | Not c       -> "(not " ^ unparse_cond c ^ ")"
-  | Eq (x, y)   -> "(" ^ unparse_vals x ^ " equals " ^ unparse_vals y ^ ")"
-  | Exists x    -> "(" ^ unparse_vals x ^ " exists)"
-  | Installed x -> "(" ^ unparse_vals x ^ " installed)"
-  | Required x  -> "(" ^ unparse_vals x ^ " required)"
-  | Running x   -> "(" ^ unparse_vals x ^ " running)"
+  | Eq (x, y)   -> "(" ^ unparse_expr x ^ " equals " ^ unparse_expr y ^ ")"
+  | Exists x    -> "(" ^ unparse_expr x ^ " exists)"
+  | Installed x -> "(" ^ unparse_expr x ^ " installed)"
+  | Required x  -> "(" ^ unparse_expr x ^ " required)"
+  | Running x   -> "(" ^ unparse_expr x ^ " running)"
 
 let unparse_action = function
   | Clone vs      -> "clone " ^ unparse_vals vs
@@ -48,7 +60,7 @@ let unparse_action = function
   | Enable vs     -> "enable " ^ unparse_vals vs
   | Install vs    -> "install " ^ unparse_vals vs
   | Move vs       -> "move " ^ unparse_vals vs
-  | Restart       -> "restart"
+  | Reboot        -> "reboot"
   | Set vs        -> "set " ^ unparse_vals vs
   | Start vs      -> "start " ^ unparse_vals vs
   | Stop vs       -> "stop " ^ unparse_vals vs

@@ -11,7 +11,8 @@ module type Knowledge_Base = sig
   val filesDef : context -> ParseTree.vals -> args -> (paths, string) result
   val dirDef : context -> ParseTree.vals -> args -> (path, string) result
 
-  val requirementDef : context -> ParseTree.vals -> (Ast.cond, string) result
+  val requirementDef : context -> ParseTree.vals -> args
+                                                 -> (Ast.cond, string) result
 
   val pkgDef : context -> ParseTree.vals -> args -> (Ast.pkg, string) result
   val serviceDef : context -> ParseTree.vals -> args -> (string, string) result
@@ -82,17 +83,36 @@ module Example : Knowledge_Base = struct
     | [Str "apache"; Str "server"; Str "home"; Str "page"]
       -> Ok (Remote (Str "/var/www/html/index.html"))
     | _ -> Error (Printf.sprintf "Unknown file: %s" (ParseTree.unparse_vals vs))
+
   let filesDef _ctx (vs: ParseTree.vals) _args =
     Error (Printf.sprintf "Unknown files: %s" (ParseTree.unparse_vals vs))
-  let dirDef _ctx (vs: ParseTree.vals) _args =
+
+  let dirDef _ctx (vs: ParseTree.vals) args =
     match vs with
-    (* TODO: identify the user and include in the path *)
-    | [Str "zsh"; Str "configuration"] -> Ok (Remote (Str "~/.zshrc.d"))
+    | [Str "zsh"; Str "configuration"] ->
+        begin match extract_arg args "user" with
+        | None -> Error "Must specify 'user' for zsh configuration directory"
+        | Some [Str nm] -> Ok (Remote (Str (Printf.sprintf "/home/%s/.zshrc.d" nm)))
+        | Some vs -> Error (Printf.sprintf
+            "For zsh configuration directory, expected single name for 'user', found: %s"
+            (ParseTree.unparse_vals vs))
+        end
     | _ -> Error (Printf.sprintf "Unknown directory: %s" 
                                  (ParseTree.unparse_vals vs))
 
-  let requirementDef _ctx _vs = Error "TODO"
+  let requirementDef (ctx: context) (vs: ParseTree.vals) _args =
+    match vs with
+    | [Str "reboot"] ->
+        begin match ctx.os with
+        | None -> Error "Condition 'reboot required' requires particular OS"
+        | Some Debian | Some Ubuntu ->
+            Ok (FileExists (Remote (Str "/var/run/reboot-required")))
+        | Some RedHat ->
+            Error "Condition 'reboot required' not supported for RedHat"
+        end
+    | _ -> Error (Printf.sprintf "Unknown requirement: %s"
+                                 (ParseTree.unparse_vals vs))
 
-  let pkgDef _ctx _vs _args = Error "TODO"
-  let serviceDef _ctx _vs _args = Error "TODO"
+  let pkgDef _ctx _vs _args = Error "TODO (K2)"
+  let serviceDef _ctx _vs _args = Error "TODO (K3)"
 end

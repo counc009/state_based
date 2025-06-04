@@ -12,9 +12,9 @@ copy files with glob="*.war" from controller /backup to remote /tmp
 copy files with glob="*.war" from remote /tmp to controller /backup
 move file from "/scratch/file.txt" to "/home/user/data.txt"
 create file at "/etc/file.txt" with content="beginning"
-if os is Debian and reboot required then restart
+if os is Debian and reboot required then reboot
 delete files in /home/mydata/web
-install zsh; set default shell for user="user" to zsh; if zsh configuration directory not exists then create zsh configuration directory
+install zsh; set default shell for user="user" to zsh; if zsh configuration directory for user="user" not exists then create zsh configuration directory for user="user"
 if os is RedHat or os is Ubuntu then install postfix with version=latest; if file ?backup not exists then copy postfix configuration file to ?backup. if os is Ubuntu then download postfix configuration file from "http://example.com/cfg.ubuntu". if os is "RedHat" then download postfix configuration file from "http://example.com/cfg.redhat"
 if os is RedHat then install apache server; create user with name=webdev; if apache server home page file not exists then create apache server home page file
 enable passwordless sudo for group=wheel; create user with name=ansible in group=wheel
