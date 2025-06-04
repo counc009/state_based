@@ -4,9 +4,9 @@ copy file from "/scratch/file.txt" to "/home/user/data.txt"
 set file permissions in /srv/path to read=all, write=owner, list directory=all
 delete directory at /home/mydata/web
 create virtual environment with python="3.10" in /user/home/venv; install numpy in virtual environment at /user/home/venv
-clone github repo with name=ansible/ansible, branch="stable/2.19" into /ansible
+clone github repository with name=ansible/ansible, branch="stable/2.19" into /ansible
 if os is Debian or os is RedHat then install numpy
-write "module load gcc" to "/home/foo/.bashrc" at position=end
+write "module load gcc" to bashrc file for user = foo at position=end
 disable password for user=service
 copy files with glob="*.war" from controller /backup to remote /tmp
 copy files with glob="*.war" from remote /tmp to controller /backup

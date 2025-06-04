@@ -839,10 +839,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
             in let shell =
               match extract_arg args "to" with
               | None -> Error "Argument 'to' required to set default shell"
-              | Some [Str nm] -> Ok nm
-              | Some vs -> Error (Printf.sprintf
-                      "Expected single value for 'to' for set shall, found: %s"
-                      (ParseTree.unparse_vals vs))
+              | Some s -> Knowledge.programLoc ctx s args
             in Result.bind user (fun user ->
                 Result.bind shell (fun shell ->
                   if args_empty args

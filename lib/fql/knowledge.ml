@@ -15,6 +15,7 @@ module type Knowledge_Base = sig
                                                  -> (Ast.cond, string) result
 
   val pkgDef : context -> ParseTree.vals -> args -> (Ast.pkg, string) result
+  val programLoc : context -> ParseTree.vals -> args -> (path, string) result
   val serviceDef : context -> ParseTree.vals -> args -> (string, string) result
 end
 
@@ -189,6 +190,15 @@ module Example : Knowledge_Base = struct
     | [Str "ssh"; Str "server"] | [Str "ssh server"] ->
         Ok { name = "ssh-server"; pkg_manager = System }
     | _ -> Error (Printf.sprintf "Unknown package: %s"
+                                 (ParseTree.unparse_vals vs))
+
+  (* TODO: There are other possible paths to these shells, in particular
+   * at least on Debian /bin is a link of /usr/bin *)
+  let programLoc _ctx (vs: ParseTree.vals) _args =
+    match vs with
+    | [Str "zsh"] -> Ok (Ast.Remote (Str "/bin/zsh"))
+    | [Str "bash"] -> Ok (Ast.Remote (Str "/bin/bash"))
+    | _ -> Error (Printf.sprintf "Unknown executable: %s"
                                  (ParseTree.unparse_vals vs))
 
   let serviceDef ctx (vs: ParseTree.vals) _args =
