@@ -68,9 +68,9 @@ type act = CloneGitRepo     of { repo: string; version: ParseTree.value option;
 
          | MoveDir          of { src: path; dest: file_desc }
          | MoveFile         of { src: path; dest: file_desc }
-         | MoveFiles        of { src: paths; dest: file_desc }
+         | MoveFiles        of { src: paths; dest: files_desc }
 
-         | Restart
+         | Reboot
 
          | SetEnvVar        of { name: string; value: string }
          | SetFilePerms     of { loc: path; perms: file_perms }
