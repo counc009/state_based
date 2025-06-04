@@ -30,7 +30,7 @@ type file_desc = { path: path; owner: ParseTree.value option;
 type files_desc = { paths: paths; owner: ParseTree.value option;
                     group: ParseTree.value option; perms: file_perms }
 
-type file_pos = Top | Bottom
+type file_pos = Top | Bottom | Overwrite
 
 type account_desc = User  of string
                   | Group of string
@@ -83,7 +83,7 @@ type act = CloneGitRepo     of { repo: string; version: ParseTree.value option;
 
          | UninstallPkg     of { pkg: pkg }
 
-         | WriteFile        of { str: string; dest: file_desc;
+         | WriteFile        of { str: ParseTree.value; dest: file_desc;
                                  position: file_pos }
 
 type query = End

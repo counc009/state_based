@@ -882,7 +882,43 @@ module Semant(Knowledge: Knowledge_Base) = struct
           then Ok (Ast.UninstallPkg { pkg = pkg })
           else Error (Printf.sprintf "Unhandled arguments for install: %s"
                                      (args_to_string args)))
-    | _ -> Error "TODO (S1)"
+    | Write vs ->
+        begin match vs with
+        | [v] ->
+            let path =
+              (* For the 'to' argument here it may either be a normal path or
+               * a file description, so things are a little complex here *)
+              match extract_arg args "to" with
+              | None -> Error "Argument 'to' required for write"
+              | Some p ->
+                  let (last, rest) = list_last p
+                  in if last = Str "file"
+                  then Knowledge.fileDef ctx rest args
+                  else analyze_path p
+            in let position =
+              match extract_arg args "position" with
+              | None -> Error "Argument 'position' required for write"
+              | Some [Str "end"] | Some [Str "bottom"] -> Ok Ast.Bottom
+              | Some [Str "start"] | Some [Str "top"] -> Ok Ast.Top
+              | Some [Str "overwrite"] -> Ok Ast.Overwrite
+              | Some vs ->
+                  Error (Printf.sprintf "Unknown value for write position: %s"
+                                        (ParseTree.unparse_vals vs))
+            in Result.bind path (fun path ->
+                Result.bind position (fun position ->
+                  Result.bind (extract_file_info args) (fun file_info ->
+                    if args_empty args
+                    then Ok (Ast.WriteFile {
+                              str = v;
+                              dest = { path = path; owner = file_info.owner;
+                                       group = file_info.group;
+                                       perms = file_info.perms };
+                              position = position })
+                    else Error (Printf.sprintf "Unhandled arguments for write: %s"
+                                               (args_to_string args)))))
+        | _ -> Error (Printf.sprintf "Expected a single value to write, found: %s"
+                                     (ParseTree.unparse_vals vs))
+        end
 
   and analyze_base (ctx: context) (b: ParseTree.base)
     : (Ast.query, string) result =
