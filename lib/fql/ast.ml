@@ -6,7 +6,10 @@ type paths = InPath   of path
 
 type ansible_os = Debian | Ubuntu | RedHat
 
-type pkg = { name: string; pkg_manager: string }
+(* For pip we optionally specify a virtual environment to install in *)
+type package_manager = System | Apt | Dnf | Pip of ParseTree.value option
+
+type pkg = { name: string; pkg_manager: package_manager }
 
 type cond = CheckOs         of ansible_os
           | FileExists      of path
@@ -61,8 +64,7 @@ type act = CloneGitRepo     of { repo: string; version: ParseTree.value option;
 
          | EnableSudo       of { who: account_desc; passwordless: bool }
 
-         | InstallPkg       of { pkg: pkg; version: string option;
-                                 within: string option; loc: path option }
+         | InstallPkg       of { pkg: pkg; version: string option }
 
          | MoveDir          of { src: path; dest: file_desc }
          | MoveFile         of { src: path; dest: file_desc }

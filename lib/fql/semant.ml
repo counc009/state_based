@@ -345,7 +345,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
         | Str "user" ->
             if not (List.is_empty rest)
             then Error (Printf.sprintf "Unhandled user description in create: %s"
-                                       (ParseTree.unparse_vals vs))
+                                       (ParseTree.unparse_vals rest))
             else let name =
               match extract_arg args "name" with
               | None -> Error "Argument 'name' is required to create user"
@@ -386,7 +386,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
         | Str "group" ->
             if not (List.is_empty rest)
             then Error (Printf.sprintf "Unhandled group description in create: %s"
-                                       (ParseTree.unparse_vals vs))
+                                       (ParseTree.unparse_vals rest))
             else let name =
               match extract_arg args "name" with
               | None -> Error "Argument 'name' is required to create group"
@@ -479,6 +479,241 @@ module Semant(Knowledge: Knowledge_Base) = struct
         | _ -> Error (Printf.sprintf "Unhandled creation of: %s"
                                      (ParseTree.unparse_vals vs))
         end
+    | Delete vs ->
+        let (last, rest) = list_last vs
+        in begin match last with
+        | Str "file" ->
+            let path =
+              match extract_arg args "at" with
+              | Some p -> analyze_path p
+              | None -> Knowledge.fileDef ctx rest args
+            in Result.bind path (fun path ->
+              if args_empty args
+              then Ok (Ast.DeleteFile { loc = path })
+              else Error (Printf.sprintf
+                            "Unhandled arguments for delete file: %s"
+                            (args_to_string args)))
+        | Str "directory" ->
+            let path =
+              match extract_arg args "at" with
+              | Some p -> analyze_path p
+              | None -> Knowledge.dirDef ctx rest args
+            in Result.bind path (fun path ->
+              if args_empty args
+              then Ok (Ast.DeleteDir { loc = path })
+              else Error (Printf.sprintf
+                            "Unhandled arguments for delete directory: %s"
+                            (args_to_string args)))
+        | Str "files" ->
+            let path =
+              match extract_arg args "in" with
+              | None -> Knowledge.filesDef ctx rest args
+              | Some p -> Result.bind (analyze_path p) (fun p ->
+                  match extract_arg args "glob" with
+                  | None -> Ok (Ast.InPath p)
+                  | Some [Str glob] -> Ok (Glob { base = p; glob = glob })
+                  | Some vs ->
+                      Error (Printf.sprintf
+                            "Expected a single string as file glob, found: %s"
+                            (ParseTree.unparse_vals vs)))
+            in Result.bind path (fun path ->
+              if args_empty args
+              then Ok (Ast.DeleteFiles { loc = path })
+              else Error (Printf.sprintf
+                            "Unhandled arguments for delete files: %s"
+                            (args_to_string args)))
+        | Str "group" ->
+            if not (List.is_empty rest)
+            then Error (Printf.sprintf "Unhandled group description in delete: %s"
+                                       (ParseTree.unparse_vals rest))
+            else let name =
+              match extract_arg args "name" with
+              | None -> Error "Argument 'name' is required to delete group"
+              | Some [Str s] -> Ok s
+              | Some vs ->
+                  Error (Printf.sprintf
+                          "Expected a single string as group name, found: %s"
+                          (ParseTree.unparse_vals vs))
+            in Result.bind name (fun name ->
+              if args_empty args
+              then Ok (Ast.DeleteGroup { name = name })
+              else Error (Printf.sprintf "Unhandled arguments for delete group: %s"
+                                         (args_to_string args)))
+        | Str "user" ->
+            if not (List.is_empty rest)
+            then Error (Printf.sprintf "Unhandled user description in delete: %s"
+                                       (ParseTree.unparse_vals rest))
+            else let name =
+              match extract_arg args "name" with
+              | None -> Error "Argument 'name' is required to delete user"
+              | Some [Str s] -> Ok s
+              | Some vs ->
+                  Error (Printf.sprintf
+                          "Expected a single string as user name, found: %s"
+                          (ParseTree.unparse_vals vs))
+            in Result.bind name (fun name ->
+              if args_empty args
+              then Ok (Ast.DeleteUser { name = name })
+              else Error (Printf.sprintf "Unhandled arguments for delete user: %s"
+                                         (args_to_string args)))
+        | _ -> Error (Printf.sprintf "Unhandled deletion of: %s"
+                                     (ParseTree.unparse_vals vs))
+        end
+    | Disable vs ->
+        let (last, rest) = list_last vs
+        in begin match last with
+        | Str "password" ->
+            if not (List.is_empty rest)
+            then Error (Printf.sprintf
+                    "Unhandled description for disable password: %s"
+                    (ParseTree.unparse_vals rest))
+            else let user =
+              match extract_arg args "user" with
+              | None -> Error "Argument 'user' is required to disable password"
+              | Some [Str s] -> Ok s
+              | Some vs -> Error (Printf.sprintf
+                  "Expected a single string as user name, found: %s"
+                  (ParseTree.unparse_vals vs))
+            in Result.bind user (fun user ->
+              if args_empty args
+              then Ok (Ast.DisablePassword { user = user })
+              else Error (Printf.sprintf
+                            "Unhandled arguments for disable password: %s"
+                            (args_to_string args)))
+        | Str "sudo" ->
+            let passwordless =
+              match rest with
+              | [] -> Ok false
+              | [Str "passwordless"] -> Ok true
+              | _ -> Error (Printf.sprintf
+                            "Unhandled description for disable sudo: %s"
+                            (ParseTree.unparse_vals rest))
+            in let user =
+              match extract_arg args "user" with
+              | None -> Ok None
+              | Some [Str n] -> Ok (Some n)
+              | Some vs -> Error (Printf.sprintf
+                          "Expected a single string as user name, found: %s"
+                          (ParseTree.unparse_vals vs))
+            in let group =
+              match extract_arg args "group" with
+              | None -> Ok None
+              | Some [Str n] -> Ok (Some n)
+              | Some vs -> Error (Printf.sprintf
+                          "Expected a single string as group name, found: %s"
+                          (ParseTree.unparse_vals vs))
+            in Result.bind passwordless (fun pwless ->
+                Result.bind user (fun user ->
+                  Result.bind group (fun group ->
+                    let who =
+                      match user, group with
+                      | Some nm, None -> Ok (Ast.User nm)
+                      | None, Some nm -> Ok (Ast.Group nm)
+                      | None, None | Some _, Some _ ->
+                          Error "Expected exactly one of 'user' and 'group' arguments for disable sudo"
+                    in Result.bind who (fun who ->
+                      if args_empty args
+                      then
+                        Ok (Ast.DisableSudo { who = who; passwordless=pwless })
+                      else
+                        Error (Printf.sprintf
+                                "Unhandled arguments for disable sudo: %s"
+                                (args_to_string args))))))
+        | _ -> Error (Printf.sprintf "Unhandled disabling of: %s"
+                                     (ParseTree.unparse_vals vs))
+        end
+    | Download vs ->
+        let (last, rest) = list_last vs
+        in begin match last with
+        | Str "file" ->
+            let path =
+              match extract_arg args "to" with
+              | None -> Knowledge.fileDef ctx rest args
+              | Some p ->
+                  match rest with
+                  | [] -> analyze_path p
+                  | _ -> Error "For download, only file description or 'to' argument should be provided"
+            in let src =
+              match extract_arg args "from" with
+              | None -> Error "Argument 'from' required for downloading file"
+              | Some [Str url] -> Ok url
+              | Some vs -> Error (Printf.sprintf
+                  "Expected a single string as url to download from, found: %s"
+                  (ParseTree.unparse_vals vs))
+            in Result.bind path (fun path ->
+                Result.bind src (fun src ->
+                  Result.bind (extract_file_info args) (fun file_info ->
+                    if args_empty args
+                    then Ok (Ast.DownloadFile {
+                          dest = { path = path; owner = file_info.owner;
+                                   group = file_info.group;
+                                   perms = file_info.perms };
+                          src = src })
+                    else Error (Printf.sprintf
+                                  "Unhandled arguments for download file: %s"
+                                  (args_to_string args)))))
+        | _ -> Error (Printf.sprintf "Unhandled downloading of: %s"
+                                     (ParseTree.unparse_vals vs))
+        end
+    | Enable vs ->
+        let (last, rest) = list_last vs
+        in begin match last with
+        | Str "sudo" ->
+            let passwordless =
+              match rest with
+              | [] -> Ok false
+              | [Str "passwordless"] -> Ok true
+              | _ -> Error (Printf.sprintf
+                            "Unhandled description for enable sudo: %s"
+                            (ParseTree.unparse_vals rest))
+            in let user =
+              match extract_arg args "user" with
+              | None -> Ok None
+              | Some [Str n] -> Ok (Some n)
+              | Some vs -> Error (Printf.sprintf
+                          "Expected a single string as user name, found: %s"
+                          (ParseTree.unparse_vals vs))
+            in let group =
+              match extract_arg args "group" with
+              | None -> Ok None
+              | Some [Str n] -> Ok (Some n)
+              | Some vs -> Error (Printf.sprintf
+                          "Expected a single string as group name, found: %s"
+                          (ParseTree.unparse_vals vs))
+            in Result.bind passwordless (fun pwless ->
+                Result.bind user (fun user ->
+                  Result.bind group (fun group ->
+                    let who =
+                      match user, group with
+                      | Some nm, None -> Ok (Ast.User nm)
+                      | None, Some nm -> Ok (Ast.Group nm)
+                      | None, None | Some _, Some _ ->
+                          Error "Expected exactly one of 'user' and 'group' arguments for enable sudo"
+                    in Result.bind who (fun who ->
+                      if args_empty args
+                      then
+                        Ok (Ast.EnableSudo { who = who; passwordless=pwless })
+                      else
+                        Error (Printf.sprintf
+                                "Unhandled arguments for enable sudo: %s"
+                                (args_to_string args))))))
+        | _ -> Error (Printf.sprintf "Unhandled enabling of: %s"
+                                     (ParseTree.unparse_vals vs))
+        end
+    | Install vs ->
+        let version =
+          match extract_arg args "version" with
+          | None -> Ok None
+          | Some [Str n] -> Ok (Some n)
+          | Some vs -> Error (Printf.sprintf
+                      "Expected a single string as package version, found: %s"
+                      (ParseTree.unparse_vals vs))
+        in Result.bind version (fun version ->
+            Result.bind (Knowledge.pkgDef ctx vs args) (fun pkg ->
+              if args_empty args
+              then Ok (Ast.InstallPkg { pkg = pkg; version = version })
+              else Error (Printf.sprintf "Unhandled arguments for install: %s"
+                                         (args_to_string args))))
     | _ -> Error "TODO (S1)"
 
   and analyze_base (ctx: context) (b: ParseTree.base)

@@ -147,6 +147,49 @@ module Example : Knowledge_Base = struct
     | _ -> Error (Printf.sprintf "Unknown requirement: %s"
                                  (ParseTree.unparse_vals vs))
 
-  let pkgDef _ctx _vs _args = Error "TODO (K2)"
+  let pkgDef ctx (vs: ParseTree.vals) args =
+    match vs with
+    | [Str "numpy"] ->
+        let virtenv =
+          match extract_arg args "in" with
+          | Some [Str "virtual"; Str "environment"]
+          | Some [Str "virtual environment"] ->
+              begin match extract_arg args "at" with
+              | Some [p] -> Ok (Some p)
+              | None -> Error "To install in virtual environment expected 'at' argument"
+              | Some vs -> Error (Printf.sprintf 
+                  "To install in virtual environment expected single value as path, found: %s"
+                  (ParseTree.unparse_vals vs))
+              end
+          | _ -> Ok None
+        in Result.bind virtenv (fun virtenv ->
+          match virtenv with
+          | Some p -> Ok { name = "numpy"; pkg_manager = Pip (Some p) }
+          | None ->
+              match ctx.os with
+              | None -> Error "cannot install numpy system-wide without knowing OS"
+              | Some Debian | Some Ubuntu ->
+                  Ok { name = "python3-numpy"; pkg_manager = Apt }
+              | Some RedHat -> Ok { name = "numpy"; pkg_manager = Pip None })
+    | [Str "bash"] -> Ok { name = "bash"; pkg_manager = System }
+    | [Str "zsh"] -> Ok { name = "zsh"; pkg_manager = System }
+    | [Str "postfix"] -> Ok { name = "postfix"; pkg_manager = System }
+    | [Str "apache"] | [Str "apache"; Str "server"] | [Str "apache server"] ->
+        begin match ctx.os with
+        | None -> Error "cannot install apache server without knowing OS"
+        | Some Debian | Some Ubuntu -> Ok { name = "apache2"; pkg_manager = Apt }
+        | Some RedHat -> Ok { name = "httpd"; pkg_manager = Dnf }
+        end
+    | [Str "ssh"; Str "client"] | [Str "ssh client"] ->
+        begin match ctx.os with
+        | None -> Error "cannot install ssh client without knowing OS"
+        | Some Debian | Some Ubuntu -> Ok { name = "ssh-client"; pkg_manager = Apt }
+        | Some RedHat -> Ok { name = "ssh-clients"; pkg_manager = Dnf }
+        end
+    | [Str "ssh"; Str "server"] | [Str "ssh server"] ->
+        Ok { name = "ssh-server"; pkg_manager = System }
+    | _ -> Error (Printf.sprintf "Unknown package: %s"
+                                 (ParseTree.unparse_vals vs))
+
   let serviceDef _ctx _vs _args = Error "TODO (K3)"
 end
