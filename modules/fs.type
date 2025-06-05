@@ -31,3 +31,12 @@ function is_dir(p: path, s: file_system) -> bool {
   }
   return false;
 }
+
+function get_dir_contents(p: path, s: file_system) -> list path {
+  assert exists fs(p, s);
+  match fs(p, s).fs_type {
+    file_type::directory(paths) => { return paths; }
+  }
+  assert false;
+  return list::<path>::nil;
+}
