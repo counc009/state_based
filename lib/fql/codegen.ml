@@ -3,34 +3,31 @@ module Target = Modules.Ast
 module StringMap = Map.Make(String)
 type typ = Target.typ
 
-let join_maps x y =
-  let err = ref None
-  in let res =
-    StringMap.merge
-      (fun v x y ->
-        match x, y with
-        | None, None -> None
-        | Some t, None | None, Some t -> Some t
-        | Some x, Some y when x = y -> Some x
-        | _, _ -> err := Some v; None)
-      x y
-  in match !err with
-  | None -> Ok res
-  | Some v -> Error (Printf.sprintf 
-                      "Unknown '%s' required to have different types" v)
+let add_unknown (unknowns : typ StringMap.t) (nm: string) (ty: typ)
+  : (typ StringMap.t, string) result =
+  let err = ref false
+  in let map = StringMap.update nm (fun t ->
+    match t with
+    | None -> Some ty
+    | Some t when t = ty -> Some ty
+    | Some _ -> err := true; t) unknowns
+  in if !err
+  then Error (Printf.sprintf "Unknown '%s' used with different types" nm)
+  else Ok map
 
 (* Returns the unknown map and then the path and system as expressions *)
-let codegen_path (p: Ast.path) : typ StringMap.t * Target.expr * Target.expr =
-  let (map, path, sys) =
+let codegen_path (p: Ast.path) unknowns
+  : (typ StringMap.t * Target.expr * Target.expr, string) result =
+  let sys =
+    match p with Controller _ -> "local" | Remote _ -> "remote"
+  in let path =
     match p with
-    | Controller (Str s) -> (StringMap.empty, Target.PathLit s, "local")
-    | Controller (Unknown v) ->
-        (StringMap.singleton v Target.Path, Id ("?" ^ v), "local")
-    | Remote (Str s) -> (StringMap.empty, Target.PathLit s, "remote")
-    | Remote (Unknown v) ->
-        (StringMap.singleton v Target.Path, Id ("?" ^ v), "remote")
+    | Controller (Str s) | Remote (Str s) -> Ok (unknowns, Target.PathLit s)
+    | Controller (Unknown v) | Remote (Unknown v) ->
+        Result.bind (add_unknown unknowns v Target.Path)
+          (fun map -> Ok (map, Target.Id ("?" ^ v)))
   in let system = Target.EnumExp (Id "file_system", None, sys, [])
-  in (map, path, system)
+  in Result.bind path (fun (map, path) -> Ok (map, path, system))
 
 (* Given path and system expressions, returns an expression for the fs *)
 let fs (p: Target.expr) (s: Target.expr) : Target.expr =
@@ -103,31 +100,33 @@ let codegen_file_perms (fs: Target.expr) (p: Ast.file_perms)
   | Some m -> Target.Assign (Field (fs, "mode"), StringLit m) :: []
 
 (* Given a file description codegen setting the fs-object information *)
-let codegen_file_desc (fs: Target.expr) (p: Ast.file_desc)
+let codegen_file_desc (fs: Target.expr) (p: Ast.file_desc) unknowns
   : (Target.stmt list * typ StringMap.t, string) result =
   let { Ast.path= _; owner; group; perms } = p
   in let res_mode = codegen_file_perms fs perms
-  in let (res_group, map_group) =
+  in let res_group =
     match group with
-    | None -> (res_mode, StringMap.empty)
-    | Some (Str g) ->
-        (Assign (Field (fs, "owner_group"), StringLit g) :: res_mode,
-         StringMap.empty)
+    | None -> Ok (res_mode, unknowns)
+    | Some (Str g) -> Ok (
+          Assign (Field (fs, "owner_group"), StringLit g) :: res_mode,
+          unknowns)
     | Some (Unknown v) ->
-        (Assign (Field (fs, "owner_group"), Id ("?" ^ v)) :: res_mode,
-         StringMap.singleton v Target.String)
-  in match owner with
+        Result.bind (add_unknown unknowns v Target.String) (fun map ->
+          Ok (Target.Assign (Field (fs, "owner_group"), Id ("?" ^ v))
+              :: res_mode, map))
+  in Result.bind res_group (fun (res_group, map_group) ->
+    match owner with
     | None -> Ok (res_group, map_group)
     | Some (Str u) -> Ok (
         Assign (Field (fs, "owner"), StringLit u) :: res_group,
         map_group)
     | Some (Unknown v) ->
-        Result.bind (join_maps map_group (StringMap.singleton v Target.String))
-          (fun map ->
-            Ok (Target.Assign (Field (fs, "owner"), Id ("?" ^ v)) :: res_group,
-                map))
+        Result.bind (add_unknown map_group v Target.String) (fun map ->
+          Ok (Target.Assign (Field (fs, "owner"), Id ("?" ^ v)) :: res_group,
+              map)))
 
-let codegen_condition (c: Ast.cond) thn els : (Target.stmt * typ StringMap.t, string) result =
+let codegen_condition (c: Ast.cond) thn els unknowns
+  : (Target.stmt * typ StringMap.t, string) result =
   match c with
   | CheckOs os ->
       (* Ansible has (at least) two different variables that reflect what OS
@@ -151,7 +150,7 @@ let codegen_condition (c: Ast.cond) thn els : (Target.stmt * typ StringMap.t, st
                 StringLit "Debian",
                 Eq)) :: thn,
             els),
-            StringMap.empty)
+            unknowns)
       | RedHat -> Ok (
           IfThenElse (
             BinaryExp (
@@ -164,7 +163,7 @@ let codegen_condition (c: Ast.cond) thn els : (Target.stmt * typ StringMap.t, st
                 StringLit "RedHat",
                 Eq)) :: thn,
             els),
-            StringMap.empty)
+            unknowns)
       | Ubuntu -> Ok (
           IfThenElse (
             BinaryExp (
@@ -177,7 +176,7 @@ let codegen_condition (c: Ast.cond) thn els : (Target.stmt * typ StringMap.t, st
                 StringLit "Debian",
                 Eq)) :: thn,
             els),
-            StringMap.empty)
+            unknowns)
       | DebianFamily -> Ok (
           IfThenElse (
             BinaryExp (
@@ -186,7 +185,7 @@ let codegen_condition (c: Ast.cond) thn els : (Target.stmt * typ StringMap.t, st
               Eq),
             thn,
             els),
-            StringMap.empty)
+            unknowns)
       | RedHatFamily -> Ok (
           IfThenElse (
             BinaryExp (
@@ -195,73 +194,107 @@ let codegen_condition (c: Ast.cond) thn els : (Target.stmt * typ StringMap.t, st
               Eq),
             thn,
             els),
-            StringMap.empty)
+            unknowns)
       end
   (* For file and directory exists we check the existance of the file-system
    * object and if it exists we assert it is a file/directory since normally
    * people don't check for the presence of a file/directory and expect to find
    * the other, they expect to either find what they expect or nothing *)
   | FileExists p ->
-      let (map, path, system) = codegen_path p
-      in Ok (
-        IfExists (
-          fs path system,
-          Assert (FuncExp (Id "is_file", [path; system])) :: thn,
-          els),
-        map)
+      Result.bind (codegen_path p unknowns) (fun (map, path, system) ->
+        Ok (
+          Target.IfExists (
+            fs path system,
+            Assert (FuncExp (Id "is_file", [path; system])) :: thn,
+            els),
+          map))
   | DirExists p ->
-      let (map, path, system) = codegen_path p
-      in Ok (
-        IfExists (
-          fs path system,
-          Assert (FuncExp (Id "is_dir", [path; system])) :: thn,
-          els),
-        map)
-  | PkgInstalled _pkg -> Error "Checking PkgInstalled not implemented"
-  | ServiceRunning _serv -> Error "Checking ServiceRunning not implemented"
+      Result.bind (codegen_path p unknowns) (fun (map, path, system) ->
+        Ok (
+          Target.IfExists (
+            fs path system,
+            Assert (FuncExp (Id "is_dir", [path; system])) :: thn,
+            els),
+          map))
+  | PkgInstalled { name; pkg_manager } ->
+      let check =
+        match pkg_manager with
+        (* We only care about the package manager if it specifies a virtual
+         * environment since that changes how we check whether it is installed *)
+        | System | Apt | Dnf | Pip None ->
+            Ok ([Target.FuncExp (Id "package", [StringLit name])],
+                unknowns)
+        | Pip (Some (Str path)) ->
+            let virtenv
+              = Target.FuncExp (Id "virtual_environment", [PathLit path])
+            in Ok ([ virtenv;
+                     FuncExp (Field (virtenv, "package"), [StringLit name]) ],
+                   StringMap.empty)
+        | Pip (Some (Unknown v)) ->
+            let virtenv
+              = Target.FuncExp (Id "virtual_environment", [Id v])
+            in Result.bind (add_unknown unknowns v Target.Path) (fun map ->
+              Ok ([ virtenv;
+                    FuncExp (Field (virtenv, "package"), [StringLit name]) ],
+                    map))
+      in Result.bind check (fun (conds, map) ->
+        match conds with
+        | [] -> failwith "Expected at least one condition to check if package is installed"
+        | top :: rest ->
+            Ok (Target.IfExists (top,
+                List.fold_left
+                  (fun thn cond -> [Target.IfExists (cond, thn, els)])
+                  thn
+                  rest,
+                els), map))
+  | ServiceRunning serv ->
+      let service = Target.FuncExp (Id "service", [StringLit serv])
+      in Ok (Target.IfExists (service,
+              [IfThenElse (Field (service, "running"), thn, els)],
+              els), unknowns)
 
-let codegen_act (a: Ast.act)
+let codegen_act (a: Ast.act) unknowns
   : (Target.stmt list * typ StringMap.t, string) result =
   match a with
   | CloneGitRepo _ -> Error "TODO: Handle CloneGitRepo"
   | CopyDir _ -> Error "TODO: Handle CopyDir"
   | CopyFile { src; dest } ->
-      let (src_map, src_path, src_sys) = codegen_path src
-      in let (dst_map, dst_path, dst_sys) = codegen_path dest.path
-      in Result.bind (join_maps src_map dst_map) (fun paths_map ->
-        Result.bind (codegen_file_desc (fs dst_path dst_sys) dest)
-        (fun (desc, desc_map) ->
-          Result.bind (join_maps paths_map desc_map) (fun map ->
-           Ok (Target.AssertExists (fs src_path src_sys)
-            :: Assert (FuncExp (Id "is_file", [src_path; src_sys]))
-            :: Assign (Field (fs dst_path dst_sys, "fs_type"),
-                       Field (fs src_path src_sys, "fs_type"))
-            :: desc, map))))
+      Result.bind (codegen_path src unknowns) 
+        (fun (src_map, src_path, src_sys) ->
+        Result.bind (codegen_path dest.path src_map)
+          (fun (dst_map, dst_path, dst_sys) ->
+            Result.bind (codegen_file_desc (fs dst_path dst_sys) dest dst_map)
+              (fun (desc, map) ->
+                Ok (Target.AssertExists (fs src_path src_sys)
+                :: Assert (FuncExp (Id "is_file", [src_path; src_sys]))
+                :: Assign (Field (fs dst_path dst_sys, "fs_type"),
+                           Field (fs src_path src_sys, "fs_type"))
+                :: desc, map))))
   | CopyFiles _ -> Error "TODO: Handle CopyFiles"
   | CreateDir { dest } ->
-      let (path_map, path, sys) = codegen_path dest.path
-      in Result.bind (codegen_file_desc (fs path sys) dest)
-        (fun (desc, desc_map) ->
-          Result.bind (join_maps path_map desc_map) (fun map ->
-            Ok (Target.Assign (
-                  Field (fs path sys, "fs_type"),
-                  EnumExp (Id "file_type", None, "directory",
-                    [EnumExp (Id "list", Some Path, "nil", [])]))
-             :: desc, map)))
+      Result.bind (codegen_path dest.path unknowns)
+        (fun (path_map, path, sys) ->
+          Result.bind (codegen_file_desc (fs path sys) dest path_map)
+            (fun (desc, map) ->
+              Ok (Target.Assign (
+                    Field (fs path sys, "fs_type"),
+                    EnumExp (Id "file_type", None, "directory",
+                      [EnumExp (Id "list", Some Path, "nil", [])]))
+               :: desc, map)))
   | CreateFile { dest; content } ->
       let content = Option.value ~default:"" content
-      in let (path_map, path, sys) = codegen_path dest.path
-      in Result.bind (codegen_file_desc (fs path sys) dest)
-        (fun (desc, desc_map) ->
-          Result.bind (join_maps path_map desc_map) (fun map ->
-            Ok (Target.Assign (
-                  Field (fs path sys, "fs_type"),
-                  EnumExp (Id "file_type", None, "file",
-                    [StringLit content]))
-             :: desc, map)))
+      in Result.bind (codegen_path dest.path unknowns)
+        (fun (path_map, path, sys) ->
+          Result.bind (codegen_file_desc (fs path sys) dest path_map)
+            (fun (desc, map) ->
+              Ok (Target.Assign (
+                    Field (fs path sys, "fs_type"),
+                    EnumExp (Id "file_type", None, "file",
+                      [StringLit content]))
+               :: desc, map)))
   | CreateGroup { name } ->
       Ok ([Target.Touch (FuncExp (Id "group", [StringLit name]))],
-          StringMap.empty)
+          unknowns)
   | CreateSshKey _ -> Error "TODO: Handle CreateSshKey"
   | CreateUser { name; group; groups } ->
       let user = Target.FuncExp (Id "user", [StringLit name])
@@ -284,59 +317,59 @@ let codegen_act (a: Ast.act)
         | Some group ->
             Target.Assign (Target.Field (user, "group"), StringLit group)
             :: res_groups
-      in Ok (Target.Touch user :: res_group, StringMap.empty)
+      in Ok (Target.Touch user :: res_group, unknowns)
   | CreateVirtualEnv _ -> Error "TODO: Handle CreateVirtualEnv"
   | DeleteDir _ -> Error "TODO: Handle DeleteDir"
   | DeleteFile { loc } ->
-      let (map, path, sys) = codegen_path loc
-      in Ok (Target.Clear (fs path sys) :: [], map)
+      Result.bind (codegen_path loc unknowns)
+        (fun (map, path, sys) -> Ok (Target.Clear (fs path sys) :: [], map))
   | DeleteFiles _ -> Error "TODO: Handle DeleteFiles"
   | DeleteGroup { name } -> Ok (
       Target.Clear (FuncExp (Id "group", [StringLit name])) :: [],
-      StringMap.empty)
+      unknowns)
   | DeleteUser { name } -> Ok (
       Target.Clear (FuncExp (Id "user", [StringLit name])) :: [],
-      StringMap.empty)
+      unknowns)
   | DisablePassword { user } -> Ok (
       Target.Assign (Field (FuncExp (Id "user", [StringLit user]), "password"),
                      EnumExp (Id "password_set", None, "disabled", []))
-      :: [], StringMap.empty)
+      :: [], unknowns)
   | DisableSudo _ -> Error "TODO: Handle DisableSudo"
   | DownloadFile { dest; src } ->
-      let (path_map, path, sys) = codegen_path dest.path
-      in Result.bind (codegen_file_desc (fs path sys) dest)
-        (fun (desc, desc_map) ->
-          Result.bind (join_maps path_map desc_map) (fun map ->
-            Ok (Target.Assign (
-                  Field (fs path sys, "fs_type"),
-                  EnumExp (Id "file_type", None, "file",
-                    [FuncExp (Id "download_url",
-                      [PathLit src;
-                        EnumExp (Id "option",
-                          Some (Product [String; String]), "nothing", [])])]))
-             :: desc, map)))
+      Result.bind (codegen_path dest.path unknowns)
+        (fun (path_map, path, sys) ->
+          Result.bind (codegen_file_desc (fs path sys) dest path_map)
+            (fun (desc, map) ->
+              Ok (Target.Assign (
+                    Field (fs path sys, "fs_type"),
+                    EnumExp (Id "file_type", None, "file",
+                      [FuncExp (Id "download_url",
+                        [PathLit src;
+                          EnumExp (Id "option",
+                            Some (Product [String; String]), "nothing", [])])]))
+               :: desc, map)))
   | EnableSudo _ -> Error "TODO: Handle EnableSudo"
   | InstallPkg _ -> Error "TODO: Handle InstallPkg"
   | MoveDir _ -> Error "TODO: Handle MoveDir"
   | MoveFile { src; dest } ->
-      let (src_map, src_path, src_sys) = codegen_path src
-      in let (dst_map, dst_path, dst_sys) = codegen_path dest.path
-      in Result.bind (join_maps src_map dst_map) (fun paths_map ->
-        Result.bind (codegen_file_desc (fs dst_path dst_sys) dest)
-        (fun (desc, desc_map) ->
-          Result.bind (join_maps paths_map desc_map) (fun map ->
-            Ok (Target.AssertExists (fs src_path src_sys)
-             :: Assert (FuncExp (Id "is_file", [src_path; src_sys]))
-             :: Assign (Field (fs dst_path dst_sys, "fs_type"),
-                        Field (fs src_path src_sys, "fs_type"))
-             :: Clear (fs src_path src_sys)
-             :: desc, map))))
+      Result.bind (codegen_path src unknowns)
+        (fun (src_map, src_path, src_sys) ->
+        Result.bind (codegen_path dest.path src_map)
+          (fun (dst_map, dst_path, dst_sys) ->
+            Result.bind (codegen_file_desc (fs dst_path dst_sys) dest dst_map)
+              (fun (desc, map) ->
+                Ok (Target.AssertExists (fs src_path src_sys)
+                 :: Assert (FuncExp (Id "is_file", [src_path; src_sys]))
+                 :: Assign (Field (fs dst_path dst_sys, "fs_type"),
+                            Field (fs src_path src_sys, "fs_type"))
+                 :: Clear (fs src_path src_sys)
+                 :: desc, map))))
   | MoveFiles _ -> Error "TODO: Handle MoveFiles"
   | Reboot -> Error "TODO: Handle Reboot"
   | SetEnvVar _ -> Error "TODO: Handle SetenvVar"
   | SetFilePerms { loc; perms } ->
-      let (map, path, sys) = codegen_path loc
-      in Ok (codegen_file_perms (fs path sys) perms, map)
+      Result.bind (codegen_path loc unknowns) (fun (map, path, sys) ->
+        Ok (codegen_file_perms (fs path sys) perms, map))
   | SetFilesPerms _ -> Error "TODO: Handle SetFilesPerms"
   | SetShell { user; shell } ->
       let shell =
@@ -344,7 +377,8 @@ let codegen_act (a: Ast.act)
         | Controller _ -> Error "Path to a user's shell must be a remote path"
         | Remote (Str s) -> Ok (StringMap.empty, Target.PathLit s)
         | Remote (Unknown v) ->
-            Ok (StringMap.singleton v Target.Path, Target.Id ("?" ^ v))
+            Result.bind (add_unknown unknowns v Target.Path) (fun map ->
+              Ok (map, Target.Id ("?" ^ v)))
       in let user = Target.FuncExp (Id "user", [StringLit user])
       in Result.bind shell (fun (map, path) -> Ok (
         Target.AssertExists user
@@ -353,33 +387,31 @@ let codegen_act (a: Ast.act)
   | StartService { name } ->
       Ok (Target.Assign (
           Field (FuncExp (Id "service", [StringLit name]), "running"),
-          BoolLit true) :: [], StringMap.empty)
+          BoolLit true) :: [], unknowns)
   | StopService { name } ->
       Ok (Target.Assign (
           Field (FuncExp (Id "service", [StringLit name]), "running"),
-          BoolLit false) :: [], StringMap.empty)
+          BoolLit false) :: [], unknowns)
   | UninstallPkg _ -> Error "TODO: Handle UninstallPkg"
   | WriteFile _ -> Error "TODO: Handle WriteFile"
 
 let codegen_query (q: Ast.query)
   : (Target.stmt list, string) result =
-  let rec codegen (q: Ast.query) =
+  let rec codegen (q: Ast.query) unknowns =
     match q with
-    | End -> Ok ([], StringMap.empty)
-    | Atom act -> codegen_act act
+    | End -> Ok ([], unknowns)
+    | Atom act -> codegen_act act unknowns
     | Seq (fst, snd) ->
-        Result.bind (codegen fst) (fun (fst, fst_map) ->
-          Result.bind (codegen snd) (fun (snd, snd_map) ->
-            Result.bind (join_maps fst_map snd_map) (fun map ->
-              Ok (fst @ snd, map))))
+        Result.bind (codegen fst unknowns) (fun (fst, fst_map) ->
+          Result.bind (codegen snd fst_map) (fun (snd, res_map) ->
+            Ok (fst @ snd, res_map)))
     | Cond (c, thn, els) ->
-        Result.bind (codegen thn) (fun (thn, thn_map) ->
-          Result.bind (codegen els) (fun (els, els_map) ->
-            Result.bind (codegen_condition c thn els) (fun (res, res_map) ->
-              Result.bind (join_maps thn_map els_map) (fun branch_map ->
-                Result.bind (join_maps branch_map res_map) (fun map ->
-                  Ok ([res], map))))))
-  in Result.bind (codegen q) (fun (code, unknowns) ->
+        Result.bind (codegen thn unknowns) (fun (thn, thn_map) ->
+          Result.bind (codegen els thn_map) (fun (els, els_map) ->
+            Result.bind (codegen_condition c thn els els_map) 
+              (fun (res, res_map) ->
+                Ok ([res], res_map))))
+  in Result.bind (codegen q StringMap.empty) (fun (code, unknowns) ->
     let setup =
       Target.AssertExists (FuncExp (Id "env", []))
       :: Assert (BinaryExp (Field (FuncExp (Id "env", []), "time_counter"), IntLit 0, Eq))
