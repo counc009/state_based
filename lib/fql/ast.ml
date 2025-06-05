@@ -1,5 +1,3 @@
-module Target = Modules.Target.Ast_Target
-
 type path = Remote of ParseTree.value | Controller of ParseTree.value
 type paths = InPath   of path
            | Glob     of { base: path; glob: string }

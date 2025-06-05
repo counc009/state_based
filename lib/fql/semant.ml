@@ -6,8 +6,6 @@
  * a signle action will always be translated (mostly) the same way to the
  * module language perhaps with some pieces filled by the knowledge base.
  *)
-module Target = Modules.Target.Ast_Target
-
 open Knowledge
 open Utils
 
