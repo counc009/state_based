@@ -36,11 +36,10 @@ let codegen_path (p: Ast.path) : typ StringMap.t * Target.expr * Target.expr =
 let fs (p: Target.expr) (s: Target.expr) : Target.expr =
   FuncExp (Id "fs", [p; s])
 
-(* Given a file description codegen setting the fs-object information *)
-let codegen_file_desc (fs: Target.expr) (p: Ast.file_desc)
-  : (Target.stmt list * typ StringMap.t, string) result =
-  let { Ast.path= _; owner; group; perms } = p
-  in let { Ast.read; write; exec; file_list; setuid; setgid; sticky } = perms
+(* Given a file permissions object, codegen setting the fs object's mode *)
+let codegen_file_perms (fs: Target.expr) (p: Ast.file_perms)
+  : Target.stmt list =
+  let { Ast.read; write; exec; file_list; setuid; setgid; sticky } = p
   in let mode =
     (* The way we handle modes is to assume that if any permission information
      * is specified the remainder of information is specifically left out. *)
@@ -99,10 +98,15 @@ let codegen_file_desc (fs: Target.expr) (p: Ast.file_desc)
       Option.to_list owner @ Option.to_list group @ Option.to_list other
     in let str = String.concat "," all
     in if str = "" then None else Some str
-  in let res_mode =
-    match mode with
-    | None -> []
-    | Some m -> Target.Assign (Field (fs, "mode"), StringLit m) :: []
+  in match mode with
+  | None -> []
+  | Some m -> Target.Assign (Field (fs, "mode"), StringLit m) :: []
+
+(* Given a file description codegen setting the fs-object information *)
+let codegen_file_desc (fs: Target.expr) (p: Ast.file_desc)
+  : (Target.stmt list * typ StringMap.t, string) result =
+  let { Ast.path= _; owner; group; perms } = p
+  in let res_mode = codegen_file_perms fs perms
   in let (res_group, map_group) =
     match group with
     | None -> (res_mode, StringMap.empty)
@@ -255,7 +259,107 @@ let codegen_act (a: Ast.act)
                   EnumExp (Id "file_type", None, "file",
                     [StringLit content]))
              :: desc, map)))
-  | _ -> Error "TODO"
+  | CreateGroup { name } ->
+      Ok ([Target.Touch (FuncExp (Id "group", [StringLit name]))],
+          StringMap.empty)
+  | CreateSshKey _ -> Error "TODO: Handle CreateSshKey"
+  | CreateUser { name; group; groups } ->
+      let user = Target.FuncExp (Id "user", [StringLit name])
+      in let res_groups =
+        match groups with
+        | None -> []
+        | Some groups ->
+            let groups = List.map (fun s -> Target.StringLit s) groups
+            in let groups =
+              List.fold_left
+                (fun ex g ->
+                  Target.EnumExp (Id "list", Some String, "cons", [g; ex]))
+                (Target.EnumExp (Id "list", Some String, "nil", []))
+                groups
+            in Target.Assign(Target.Field(user, "supplemental_groups"), groups)
+            :: []
+      in let res_group =
+        match group with
+        | None -> res_groups
+        | Some group ->
+            Target.Assign (Target.Field (user, "group"), StringLit group)
+            :: res_groups
+      in Ok (Target.Touch user :: res_group, StringMap.empty)
+  | CreateVirtualEnv _ -> Error "TODO: Handle CreateVirtualEnv"
+  | DeleteDir _ -> Error "TODO: Handle DeleteDir"
+  | DeleteFile { loc } ->
+      let (map, path, sys) = codegen_path loc
+      in Ok (Target.Clear (fs path sys) :: [], map)
+  | DeleteFiles _ -> Error "TODO: Handle DeleteFiles"
+  | DeleteGroup { name } -> Ok (
+      Target.Clear (FuncExp (Id "group", [StringLit name])) :: [],
+      StringMap.empty)
+  | DeleteUser { name } -> Ok (
+      Target.Clear (FuncExp (Id "user", [StringLit name])) :: [],
+      StringMap.empty)
+  | DisablePassword { user } -> Ok (
+      Target.Assign (Field (FuncExp (Id "user", [StringLit user]), "password"),
+                     EnumExp (Id "password_set", None, "disabled", []))
+      :: [], StringMap.empty)
+  | DisableSudo _ -> Error "TODO: Handle DisableSudo"
+  | DownloadFile { dest; src } ->
+      let (path_map, path, sys) = codegen_path dest.path
+      in Result.bind (codegen_file_desc (fs path sys) dest)
+        (fun (desc, desc_map) ->
+          Result.bind (join_maps path_map desc_map) (fun map ->
+            Ok (Target.Assign (
+                  Field (fs path sys, "fs_type"),
+                  EnumExp (Id "file_type", None, "file",
+                    [FuncExp (Id "download_url",
+                      [PathLit src;
+                        EnumExp (Id "option",
+                          Some (Product [String; String]), "nothing", [])])]))
+             :: desc, map)))
+  | EnableSudo _ -> Error "TODO: Handle EnableSudo"
+  | InstallPkg _ -> Error "TODO: Handle InstallPkg"
+  | MoveDir _ -> Error "TODO: Handle MoveDir"
+  | MoveFile { src; dest } ->
+      let (src_map, src_path, src_sys) = codegen_path src
+      in let (dst_map, dst_path, dst_sys) = codegen_path dest.path
+      in Result.bind (join_maps src_map dst_map) (fun paths_map ->
+        Result.bind (codegen_file_desc (fs dst_path dst_sys) dest)
+        (fun (desc, desc_map) ->
+          Result.bind (join_maps paths_map desc_map) (fun map ->
+            Ok (Target.AssertExists (fs src_path src_sys)
+             :: Assert (FuncExp (Id "is_file", [src_path; src_sys]))
+             :: Assign (Field (fs dst_path dst_sys, "fs_type"),
+                        Field (fs src_path src_sys, "fs_type"))
+             :: Clear (fs src_path src_sys)
+             :: desc, map))))
+  | MoveFiles _ -> Error "TODO: Handle MoveFiles"
+  | Reboot -> Error "TODO: Handle Reboot"
+  | SetEnvVar _ -> Error "TODO: Handle SetenvVar"
+  | SetFilePerms { loc; perms } ->
+      let (map, path, sys) = codegen_path loc
+      in Ok (codegen_file_perms (fs path sys) perms, map)
+  | SetFilesPerms _ -> Error "TODO: Handle SetFilesPerms"
+  | SetShell { user; shell } ->
+      let shell =
+        match shell with
+        | Controller _ -> Error "Path to a user's shell must be a remote path"
+        | Remote (Str s) -> Ok (StringMap.empty, Target.PathLit s)
+        | Remote (Unknown v) ->
+            Ok (StringMap.singleton v Target.Path, Target.Id ("?" ^ v))
+      in let user = Target.FuncExp (Id "user", [StringLit user])
+      in Result.bind shell (fun (map, path) -> Ok (
+        Target.AssertExists user
+        :: Assign (Field (user, "default_shell"), path)
+        :: [], map))
+  | StartService { name } ->
+      Ok (Target.Assign (
+          Field (FuncExp (Id "service", [StringLit name]), "running"),
+          BoolLit true) :: [], StringMap.empty)
+  | StopService { name } ->
+      Ok (Target.Assign (
+          Field (FuncExp (Id "service", [StringLit name]), "running"),
+          BoolLit false) :: [], StringMap.empty)
+  | UninstallPkg _ -> Error "TODO: Handle UninstallPkg"
+  | WriteFile _ -> Error "TODO: Handle WriteFile"
 
 let codegen_query (q: Ast.query)
   : (Target.stmt list, string) result =
@@ -276,6 +380,10 @@ let codegen_query (q: Ast.query)
                 Result.bind (join_maps branch_map res_map) (fun map ->
                   Ok ([res], map))))))
   in Result.bind (codegen q) (fun (code, unknowns) ->
-    Ok (StringMap.fold (fun v t c ->
+    let setup =
+      Target.AssertExists (FuncExp (Id "env", []))
+      :: Assert (BinaryExp (Field (FuncExp (Id "env", []), "time_counter"), IntLit 0, Eq))
+      :: code
+    in Ok (StringMap.fold (fun v t c ->
                           Target.LetStmt ("?" ^ v, GenUnknown t) :: c)
-                       unknowns code))
+                       unknowns setup))

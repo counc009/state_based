@@ -14,6 +14,7 @@ type cond = And of cond * cond
           | Running of expr
 
 (* TODO: Need a way to add a user to a group *)
+(* TODO: Need a way to change owner/group of a file *)
 type action = Clone  of vals | Copy      of vals | Create   of vals
             | Delete of vals | Disable   of vals | Download of vals
             | Enable of vals | Install   of vals | Move     of vals
