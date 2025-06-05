@@ -2,7 +2,7 @@ type path = Remote of ParseTree.value | Controller of ParseTree.value
 type paths = InPath   of path
            | Glob     of { base: path; glob: string }
 
-type ansible_os = Debian | Ubuntu | RedHat
+type ansible_os = Debian | Ubuntu | RedHat | DebianFamily | RedHatFamily
 
 (* For pip we optionally specify a virtual environment to install in *)
 type package_manager = System | Apt | Dnf | Pip of ParseTree.value option
@@ -14,9 +14,6 @@ type cond = CheckOs         of ansible_os
           | DirExists       of path
           | PkgInstalled    of pkg
           | ServiceRunning  of string
-          | And             of cond * cond
-          | Or              of cond * cond
-          | Not             of cond
 
 type perm = { mutable owner: bool; mutable group: bool; mutable other: bool }
 type file_perms = { read: perm option; write: perm option; exec: perm option;

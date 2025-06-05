@@ -140,9 +140,9 @@ module Example : Knowledge_Base = struct
     | [Str "reboot"] ->
         begin match ctx.os with
         | None -> Error "Condition 'reboot required' requires particular OS"
-        | Some Debian | Some Ubuntu ->
+        | Some Debian | Some Ubuntu | Some DebianFamily ->
             Ok (FileExists (Remote (Str "/var/run/reboot-required")))
-        | Some RedHat ->
+        | Some RedHat | Some RedHatFamily ->
             Error "Condition 'reboot required' not supported for RedHat"
         end
     | _ -> Error (Printf.sprintf "Unknown requirement: %s"
@@ -169,23 +169,28 @@ module Example : Knowledge_Base = struct
           | None ->
               match ctx.os with
               | None -> Error "cannot handle numpy system-wide without knowing OS"
-              | Some Debian | Some Ubuntu ->
+              | Some Debian | Some Ubuntu | Some DebianFamily ->
                   Ok { name = "python3-numpy"; pkg_manager = Apt }
-              | Some RedHat -> Ok { name = "numpy"; pkg_manager = Pip None })
+              | Some RedHat | Some RedHatFamily ->
+                  Ok { name = "numpy"; pkg_manager = Pip None })
     | [Str "bash"] -> Ok { name = "bash"; pkg_manager = System }
     | [Str "zsh"] -> Ok { name = "zsh"; pkg_manager = System }
     | [Str "postfix"] -> Ok { name = "postfix"; pkg_manager = System }
     | [Str "apache"] | [Str "apache"; Str "server"] | [Str "apache server"] ->
         begin match ctx.os with
         | None -> Error "cannot handle apache server without knowing OS"
-        | Some Debian | Some Ubuntu -> Ok { name = "apache2"; pkg_manager = Apt }
-        | Some RedHat -> Ok { name = "httpd"; pkg_manager = Dnf }
+        | Some Debian | Some Ubuntu | Some DebianFamily ->
+            Ok { name = "apache2"; pkg_manager = Apt }
+        | Some RedHat | Some RedHatFamily ->
+            Ok { name = "httpd"; pkg_manager = Dnf }
         end
     | [Str "ssh"; Str "client"] | [Str "ssh client"] ->
         begin match ctx.os with
         | None -> Error "cannot handle ssh client without knowing OS"
-        | Some Debian | Some Ubuntu -> Ok { name = "ssh-client"; pkg_manager = Apt }
-        | Some RedHat -> Ok { name = "ssh-clients"; pkg_manager = Dnf }
+        | Some Debian | Some Ubuntu | Some DebianFamily ->
+            Ok { name = "ssh-client"; pkg_manager = Apt }
+        | Some RedHat | Some RedHatFamily ->
+            Ok { name = "ssh-clients"; pkg_manager = Dnf }
         end
     | [Str "ssh"; Str "server"] | [Str "ssh server"] ->
         Ok { name = "ssh-server"; pkg_manager = System }
@@ -207,8 +212,8 @@ module Example : Knowledge_Base = struct
     | [Str "apache"; Str "server"] | [Str "apache server"] ->
         begin match ctx.os with
         | None -> Error "cannot handle apache server service without knowing OS"
-        | Some Debian | Some Ubuntu -> Ok "apache2"
-        | Some RedHat -> Ok "httpd"
+        | Some Debian | Some Ubuntu | Some DebianFamily -> Ok "apache2"
+        | Some RedHat | Some RedHatFamily -> Ok "httpd"
         end
     | [Str "postfix"] -> Ok "postfix"
     | _ -> Error (Printf.sprintf "Unknown service: %s"

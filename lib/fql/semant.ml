@@ -116,6 +116,10 @@ module Semant(Knowledge: Knowledge_Base) = struct
           | ([Str "Debian"], []) -> Ok Debian
           | ([Str "Ubuntu"], []) -> Ok Ubuntu
           | ([Str "RedHat"], []) -> Ok RedHat
+          | ([Str "Debian"; Str "based"], [])
+            | ([Str "Debian based"], []) -> Ok DebianFamily
+          | ([Str "RedHat"; Str "based"], [])
+            | ([Str "RedHat based"], []) -> Ok RedHatFamily
           | _ -> Error (Printf.sprintf "Unknown OS: %s"
                                        (ParseTree.unparse_expr rhs))
         in Result.bind os (fun os ->
