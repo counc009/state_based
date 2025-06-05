@@ -229,7 +229,7 @@ let codegen_condition (c: Ast.cond) thn els unknowns
               = Target.FuncExp (Id "virtual_environment", [PathLit path])
             in Ok ([ virtenv;
                      FuncExp (Field (virtenv, "package"), [StringLit name]) ],
-                   StringMap.empty)
+                     unknowns)
         | Pip (Some (Unknown v)) ->
             let virtenv
               = Target.FuncExp (Id "virtual_environment", [Id v])
@@ -375,7 +375,7 @@ let codegen_act (a: Ast.act) unknowns
       let shell =
         match shell with
         | Controller _ -> Error "Path to a user's shell must be a remote path"
-        | Remote (Str s) -> Ok (StringMap.empty, Target.PathLit s)
+        | Remote (Str s) -> Ok (unknowns, Target.PathLit s)
         | Remote (Unknown v) ->
             Result.bind (add_unknown unknowns v Target.Path) (fun map ->
               Ok (map, Target.Id ("?" ^ v)))
