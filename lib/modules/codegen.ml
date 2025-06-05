@@ -670,6 +670,9 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
     | StringLit v -> k (JustExpr (Literal (String v), Primitive String))
     | PathLit v   -> k (JustExpr (Literal (Path v), Primitive Path))
     | UnitExp     -> k (JustExpr (Literal (Unit ()), Primitive Unit))
+    | GenUnknown t ->
+        let ty = target_type (process_type t tys)
+        in k (JustExpr (Function (GenUnknown ty, Literal (Unit ())), ty))
     | ProductExp es ->
         begin match es with
         | [] -> k (JustExpr (Literal (Unit ()), Primitive Unit))

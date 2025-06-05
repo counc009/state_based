@@ -16,6 +16,7 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | EmptyStruct   of 't StringMap.t
                 | AddField      of 't StringMap.t * string
                 | ReadField     of 't StringMap.t * string
+                | GenUnknown    of 't
                 | BoolNeg
                 | BoolOr
                 | Concat
@@ -232,6 +233,8 @@ module rec Ast_Target : Ast_Defs
                                        | None -> Err ("Missing field " ^ f)
                                        end
                                     | _ -> Err "Read field failed to reduce")
+    | GenUnknown t -> (Primitive Unit, t,
+                       fun _ -> Reduced (Unknown (Val (uid ()), t)))
     | BoolNeg -> (Primitive Bool, Primitive Bool,
         fun v -> match v with Literal (Bool b, _)
                     -> Reduced (Literal (Bool (not b), Bool))
@@ -442,6 +445,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | EmptyStruct _             -> "{}"
         | AddField (_, field)       -> "add#" ^ field
         | ReadField (_, field)      -> "get#" ^ field
+        | GenUnknown _              -> "?"
         | BoolNeg                   -> "not"
         | BoolOr                    -> "or"
         | Concat                    -> "concat"
