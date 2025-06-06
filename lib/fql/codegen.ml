@@ -428,10 +428,17 @@ let codegen_act (a: Ast.act) unknowns
             :: res_groups
       in Ok (Target.Touch user :: res_group, unknowns)
   | CreateVirtualEnv _ -> Error "TODO: Handle CreateVirtualEnv"
-  | DeleteDir _ -> Error "TODO: Handle DeleteDir"
+  | DeleteDir { loc } ->
+      Result.bind (codegen_path loc unknowns)
+        (fun (map, path, sys) -> Ok (
+          Target.ForLoop ("f", FuncExp (Id "get_dir_contents", [path; sys]),
+            [Clear (fs (Id "f") sys)])
+          :: Clear (fs path sys) :: [], map))
   | DeleteFile { loc } ->
       Result.bind (codegen_path loc unknowns)
-        (fun (map, path, sys) -> Ok (Target.Clear (fs path sys) :: [], map))
+        (fun (map, path, sys) -> Ok (
+          Target.Assert (FuncExp (Id "is_file", [path; sys]))
+          :: Target.Clear (fs path sys) :: [], map))
   | DeleteFiles _ -> Error "TODO: Handle DeleteFiles"
   | DeleteGroup { name } -> Ok (
       Target.Clear (FuncExp (Id "group", [StringLit name])) :: [],
