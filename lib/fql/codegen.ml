@@ -439,7 +439,11 @@ let codegen_act (a: Ast.act) unknowns
         (fun (map, path, sys) -> Ok (
           Target.Assert (FuncExp (Id "is_file", [path; sys]))
           :: Target.Clear (fs path sys) :: [], map))
-  | DeleteFiles _ -> Error "TODO: Handle DeleteFiles"
+  | DeleteFiles { loc } ->
+      Result.bind (codegen_paths loc unknowns) (fun (map, paths, sys) ->
+        Ok (Target.ForLoop ("f", paths,
+            [ Assert (FuncExp (Id "is_file", [Id "f"; sys]))
+            ; Clear (fs (Id "f") sys) ]) :: [], map))
   | DeleteGroup { name } -> Ok (
       Target.Clear (FuncExp (Id "group", [StringLit name])) :: [],
       unknowns)
