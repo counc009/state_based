@@ -470,7 +470,33 @@ let codegen_act (a: Ast.act) unknowns
                :: desc, map)))
   | EnableSudo _ -> Error "TODO: Handle EnableSudo"
   | InstallPkg _ -> Error "TODO: Handle InstallPkg"
-  | MoveDir _ -> Error "TODO: Handle MoveDir"
+  | MoveDir { src; dest } ->
+      Result.bind (codegen_path src unknowns)
+        (fun (src_map, src_path, src_sys) ->
+        Result.bind (codegen_path dest.path src_map)
+          (fun (dst_map, dst_path, dst_sys) ->
+          Result.bind (codegen_file_desc (fs dst_path dst_sys) dest dst_map)
+            (fun (desc, map) ->
+              Ok (Target.AssertExists (fs src_path src_sys)
+              :: Assert (FuncExp (Id "is_dir", [src_path; src_sys]))
+              :: LetStmt ("files",
+                  ForEachExp (
+                    "file",
+                    FuncExp (Id "get_dir_contents", [src_path; src_sys]),
+                    [ AssertExists (fs (Id "file") src_sys)
+                    ; Assert (FuncExp (Id "is_file", [Id "file"; src_sys]))
+                    ; LetStmt ("res",
+                        FuncExp (Id "cons_path", [dst_path;
+                          FuncExp (Id "path_from", [src_path; Id "file"])]))
+                    ; Assign (Field (fs (Id "res") dst_sys, "fs_type"),
+                              Field (fs (Id "file") src_sys, "fs_type"))
+                    ; Clear (fs (Id "file") src_sys)
+                    ; Yield (Id "res") ]))
+              :: Assign (Field (fs dst_path dst_sys, "fs_type"),
+                         EnumExp (Id "file_type", None, "directory",
+                                  [Id "files"]))
+              :: Clear (fs src_path src_sys)
+              :: desc, map))))
   | MoveFile { src; dest } ->
       Result.bind (codegen_path src unknowns)
         (fun (src_map, src_path, src_sys) ->
