@@ -510,7 +510,24 @@ let codegen_act (a: Ast.act) unknowns
                             Field (fs src_path src_sys, "fs_type"))
                  :: Clear (fs src_path src_sys)
                  :: desc, map))))
-  | MoveFiles _ -> Error "TODO: Handle MoveFiles"
+  | MoveFiles { src; dest } ->
+      Result.bind (codegen_paths src unknowns)
+        (fun (src_map, src_paths, src_sys) ->
+          match dest.paths with Glob _ -> Error "Cannot move into a glob"
+          | InPath dst -> Result.bind (codegen_path dst src_map)
+            (fun (dst_map, dst_path, dst_sys) ->
+              let dst_file =
+                Target.FuncExp (Id "cons_path",
+                  [ dst_path; FuncExp (Id "base_name", [Id "f"]) ])
+              in Result.bind 
+                (codegen_files_desc (fs dst_file dst_sys) dest dst_map)
+                (fun (desc, map) ->
+                  Ok (Target.ForLoop ("f", src_paths,
+                      Assert (FuncExp (Id "is_file", [Id "f"; src_sys]))
+                      :: Assign (Field (fs dst_file dst_sys, "fs_type"),
+                          Field (fs (Id "f") src_sys, "fs_type"))
+                      :: Clear (fs (Id "f") src_sys)
+                      :: desc) :: [], map))))
   | Reboot -> Error "TODO: Handle Reboot"
   | SetEnvVar _ -> Error "TODO: Handle SetenvVar"
   | SetFilePerms { loc; perms } ->
