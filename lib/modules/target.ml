@@ -282,7 +282,9 @@ module rec Ast_Target : Ast_Defs
                    Primitive Path,
         fun v -> match v with
           | Pair (Literal (Path p, _), Literal (Path q, _), _)
-            -> Reduced (Literal (Path (p ^ "/" ^ q), Path))
+            -> if String.ends_with ~suffix:"/" p
+               then Reduced (Literal (Path (p ^ q), Path))
+               else Reduced (Literal (Path (p ^ "/" ^ q), Path))
           | _ -> Stuck)
     | PathOfString -> (Primitive String, Primitive Path,
         fun v -> match v with

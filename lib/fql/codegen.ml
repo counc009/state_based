@@ -29,6 +29,35 @@ let codegen_path (p: Ast.path) unknowns
   in let system = Target.EnumExp (Id "file_system", None, sys, [])
   in Result.bind path (fun (map, path) -> Ok (map, path, system))
 
+let codegen_paths (p: Ast.paths) unknowns =
+  match p with
+  | InPath p ->
+      Result.bind (codegen_path p unknowns) (fun (map, p, sys) ->
+        Ok (map, Target.FuncExp (Id "get_dir_contents", [p; sys]), sys))
+  | Glob { base; glob } ->
+      (* TODO: Really should change how globs work so that it works more
+       * like the no glob case, but that'll require fixing other stuff *)
+      let s = match base with | Controller _ -> "local" | Remote _ -> "remote"
+      in let sys = Target.EnumExp (Id "file_system", None, s, [])
+      in let path =
+        match base with
+        | Controller (Str s) | Remote (Str s)
+            -> Ok (Target.PathLit s, unknowns)
+        | Controller (Unknown v) | Remote (Unknown v)
+            -> Result.bind (add_unknown unknowns v Target.Path)
+                (fun map -> Ok (Target.Id ("?" ^ v), map))
+      in Result.bind path (fun (path, map) ->
+        let glob_expr =
+          Target.FuncExp (Id "string_of_path",
+            [ FuncExp (Id "cons_path", [ path; PathLit glob ]) ])
+        in let globs = Target.EnumExp (Id "list", Some String, "cons",
+                      [ glob_expr
+                      ; EnumExp (Id "list", Some String, "nil", [])])
+        in let paths = Target.FuncExp (Id "file_glob",
+          [globs; EnumExp (Id "find_file_type", None, "file", [])
+          ; sys])
+        in Ok (map, paths, sys))
+
 (* Given path and system expressions, returns an expression for the fs *)
 let fs (p: Target.expr) (s: Target.expr) : Target.expr =
   FuncExp (Id "fs", [p; s])
@@ -100,10 +129,10 @@ let codegen_file_perms (fs: Target.expr) (p: Ast.file_perms)
   | Some m -> Target.Assign (Field (fs, "mode"), StringLit m) :: []
 
 (* Given a file description codegen setting the fs-object information *)
-let codegen_file_desc (fs: Target.expr) (p: Ast.file_desc) unknowns
+let codegen_file_info (fs: Target.expr) (owner : ParseTree.value option)
+  (group : ParseTree.value option) perms unknowns
   : (Target.stmt list * typ StringMap.t, string) result =
-  let { Ast.path= _; owner; group; perms } = p
-  in let res_mode = codegen_file_perms fs perms
+  let res_mode = codegen_file_perms fs perms
   in let res_group =
     match group with
     | None -> Ok (res_mode, unknowns)
@@ -124,6 +153,16 @@ let codegen_file_desc (fs: Target.expr) (p: Ast.file_desc) unknowns
         Result.bind (add_unknown map_group v Target.String) (fun map ->
           Ok (Target.Assign (Field (fs, "owner"), Id ("?" ^ v)) :: res_group,
               map)))
+
+let codegen_file_desc (fs: Target.expr) (p: Ast.file_desc) unknowns
+  : (Target.stmt list * typ StringMap.t, string) result =
+  let { Ast.path = _; owner; group; perms } = p
+  in codegen_file_info fs owner group perms unknowns
+
+let codegen_files_desc (fs: Target.expr) (p: Ast.files_desc) unknowns
+  : (Target.stmt list * typ StringMap.t, string) result =
+  let { Ast.paths = _; owner; group; perms } = p
+  in codegen_file_info fs owner group perms unknowns
 
 let codegen_condition (c: Ast.cond) thn els unknowns
   : (Target.stmt * typ StringMap.t, string) result =
@@ -294,7 +333,23 @@ let codegen_act (a: Ast.act) unknowns
                 :: Assign (Field (fs dst_path dst_sys, "fs_type"),
                            Field (fs src_path src_sys, "fs_type"))
                 :: desc, map))))
-  | CopyFiles _ -> Error "TODO: Handle CopyFiles"
+  | CopyFiles { src; dest } ->
+      Result.bind (codegen_paths src unknowns)
+        (fun (src_map, src_paths, src_sys) ->
+          match dest.paths with Glob _ -> Error "Cannot copy into a glob"
+          | InPath dst -> Result.bind (codegen_path dst src_map)
+            (fun (dst_map, dst_path, dst_sys) ->
+              let dst_file =
+                Target.FuncExp (Id "cons_path",
+                  [ dst_path; FuncExp (Id "base_name", [Id "f"]) ])
+              in Result.bind 
+                (codegen_files_desc (fs dst_file dst_sys) dest dst_map)
+                (fun (desc, map) ->
+                  Ok (Target.ForLoop ("f", src_paths,
+                      Assert (FuncExp (Id "is_file", [Id "f"; src_sys]))
+                      :: Assign (Field (fs dst_file dst_sys, "fs_type"),
+                          Field (fs (Id "f") src_sys, "fs_type"))
+                      :: desc) :: [], map))))
   | CreateDir { dest } ->
       Result.bind (codegen_path dest.path unknowns)
         (fun (path_map, path, sys) ->
