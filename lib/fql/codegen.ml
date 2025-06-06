@@ -295,7 +295,37 @@ let codegen_condition (c: Ast.cond) thn els unknowns
 let codegen_act (a: Ast.act) unknowns
   : (Target.stmt list * typ StringMap.t, string) result =
   match a with
-  | CloneGitRepo _ -> Error "TODO: Handle CloneGitRepo"
+  | CloneGitRepo { repo; version; dest } ->
+      Result.bind (codegen_path dest.path unknowns)
+        (fun (dst_map, dir_path, sys) ->
+          let version =
+            match version with
+            | None -> Ok (Target.StringLit "HEAD", dst_map)
+            | Some (Str s) -> Ok (Target.StringLit s, dst_map)
+            | Some (Unknown v) -> 
+                Result.bind (add_unknown dst_map v Target.String)
+                  (fun map -> Ok (Target.Id ("?" ^ v), map))
+          in Result.bind version (fun (version, v_map) ->
+            let files = Target.FuncExp (Id "git_files",
+              [StringLit repo; version; StringLit "origin"])
+            in Result.bind (codegen_file_desc (fs dir_path sys) dest v_map)
+              (fun (desc, map) ->
+                Ok (Target.Assign (
+                  Field (fs dir_path sys, "fs_type"),
+                  EnumExp (Id "file_type", None, "directory", [
+                    ForEachExp ("f", files,
+                      [ LetStmt ("p", FuncExp (Id "cons_path", [dir_path; Id "f"]))
+                      ; Assign (
+                          Field(fs (Id "p") sys, "fs_type"),
+                          EnumExp (Id "file_type", None, "file", [
+                            FuncExp (Id "git_content",
+                              [StringLit repo; version; StringLit "origin"
+                              ; Id "f"])
+                          ])
+                        )
+                      ; Yield (Id "p")])
+                    ])
+                  ) :: desc, map))))
   | CopyDir { src; dest } ->
       Result.bind (codegen_path src unknowns)
         (fun (src_map, src_path, src_sys) ->
