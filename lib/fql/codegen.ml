@@ -532,8 +532,14 @@ let codegen_act (a: Ast.act) unknowns
   | SetEnvVar _ -> Error "TODO: Handle SetenvVar"
   | SetFilePerms { loc; perms } ->
       Result.bind (codegen_path loc unknowns) (fun (map, path, sys) ->
-        Ok (codegen_file_perms (fs path sys) perms, map))
-  | SetFilesPerms _ -> Error "TODO: Handle SetFilesPerms"
+        Ok (Target.Assert (FuncExp (Id "is_file", [path; sys]))
+        :: codegen_file_perms (fs path sys) perms, map))
+  | SetFilesPerms { locs; perms } ->
+      Result.bind (codegen_paths locs unknowns) (fun (map, paths, sys) ->
+        Ok (Target.ForLoop ("f", paths,
+          Assert (FuncExp (Id "is_file", [Id "f"; sys]))
+          :: codegen_file_perms (fs (Id "f") sys) perms)
+        :: [], map))
   | SetShell { user; shell } ->
       let shell =
         match shell with
