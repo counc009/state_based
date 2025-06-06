@@ -469,7 +469,68 @@ let codegen_act (a: Ast.act) unknowns
                             Some (Product [String; String]), "nothing", [])])]))
                :: desc, map)))
   | EnableSudo _ -> Error "TODO: Handle EnableSudo"
-  | InstallPkg _ -> Error "TODO: Handle InstallPkg"
+  | InstallPkg { pkg = { name; pkg_manager }; version } ->
+      let pkg_info =
+        match pkg_manager with
+        | Apt ->
+            let pkg = Target.FuncExp (Id "package", [StringLit name])
+            in Ok (unknowns,
+                   [Target.Touch (FuncExp (Field (pkg, "apt"), []))],
+                   pkg)
+        | Dnf ->
+            let pkg = Target.FuncExp (Id "package", [StringLit name])
+            in Ok (unknowns,
+                   [Target.Touch (FuncExp (Field (pkg, "dnf"), []))],
+                   pkg)
+        | Pip None ->
+            let pkg = Target.FuncExp (Id "package", [StringLit name])
+            in Ok (unknowns,
+                   [Target.Touch (FuncExp (Field (pkg, "pip"), []))],
+                   pkg)
+        | System ->
+            let pkg = Target.FuncExp (Id "package", [StringLit name])
+            in Ok (unknowns,
+                   [Target.IfThenElse (
+                      BinaryExp (
+                        Field (FuncExp (Id "env", []), "os_family"),
+                        StringLit "Debian",
+                        Eq),
+                      [ Touch (FuncExp (Field (pkg, "apt"), [])) ],
+                      [ Target.IfThenElse (
+                        BinaryExp (
+                          Field (FuncExp (Id "env", []), "os_family"),
+                          StringLit "RedHat",
+                          Eq),
+                        [ Touch (FuncExp (Field (pkg, "dnf"), [])) ],
+                        [ Touch (FuncExp (Field (pkg, "sys"), [])) ])
+                   ])],
+                   pkg)
+        | Pip (Some p) ->
+            let path =
+              match p with Str s -> Ok (unknowns, Target.PathLit s)
+              | Unknown v -> Result.bind (add_unknown unknowns v Target.Path)
+                                         (fun map -> Ok (map, Target.Id v))
+            in Result.bind path (fun (map, path) ->
+              let virtenv =
+                Target.FuncExp (Id "virtual_environment", [path])
+              in let pkg =
+                Target.FuncExp (Field (virtenv, "package"), [StringLit name])
+              in Ok (map,
+                     [ Target.AssertExists virtenv
+                     ; Touch (FuncExp (Field (pkg, "pip"), [])) ],
+                     pkg))
+      in Result.bind pkg_info (fun (map, setup, pkg) ->
+        match version with
+        | None -> Ok (setup, map)
+        | Some "latest" -> Ok (setup
+          @ [Target.Assign (
+              Field (pkg, "version"), 
+              EnumExp (Id "package_version", None, "latest", []))], map)
+        | Some v -> Ok (setup
+          @ [Target.Assign (
+              Field (pkg, "version"),
+              EnumExp (Id "package_version", None, "specific", [StringLit v]))]
+          , map))
   | MoveDir { src; dest } ->
       Result.bind (codegen_path src unknowns)
         (fun (src_map, src_path, src_sys) ->
@@ -561,7 +622,23 @@ let codegen_act (a: Ast.act) unknowns
       Ok (Target.Assign (
           Field (FuncExp (Id "service", [StringLit name]), "running"),
           BoolLit false) :: [], unknowns)
-  | UninstallPkg _ -> Error "TODO: Handle UninstallPkg"
+  | UninstallPkg { pkg = { name; pkg_manager } } ->
+      begin match pkg_manager with
+      | Apt | Dnf | Pip None | System ->
+          Ok (Target.Clear (FuncExp (Id "package", [StringLit name])) :: [],
+              unknowns)
+      | Pip (Some p) ->
+          let path =
+            match p with Str s -> Ok (unknowns, Target.PathLit s)
+            | Unknown v -> Result.bind (add_unknown unknowns v Target.Path)
+                                       (fun map -> Ok (map, Target.Id v))
+          in Result.bind path (fun (map, path) ->
+              let virtenv =
+                Target.FuncExp (Id "virtual_environment", [path])
+              in let pkg =
+                Target.FuncExp (Field (virtenv, "package"), [StringLit name])
+              in Ok (Target.AssertExists virtenv :: Clear pkg :: [], map))
+      end
   | WriteFile _ -> Error "TODO: Handle WriteFile"
 
 let codegen_query (q: Ast.query)
