@@ -753,7 +753,36 @@ let codegen_act (a: Ast.act) unknowns
                 Target.FuncExp (Field (virtenv, "package"), [StringLit name])
               in Ok (Target.AssertExists virtenv :: Clear pkg :: [], map))
       end
-  | WriteFile _ -> Error "TODO: Handle WriteFile"
+  | WriteFile { str; dest; position } ->
+      Result.bind (codegen_path dest.path unknowns)
+      (fun (path_map, path, sys) ->
+        Result.bind (codegen_file_desc (fs path sys) dest path_map)
+        (fun (desc, desc_map) ->
+          let str =
+            match str with
+            | Str s -> Ok (desc_map, Target.StringLit s)
+            | Unknown v -> Result.bind (add_unknown desc_map v Target.String)
+                (fun map -> Ok (map, Target.Id ("?" ^ v)))
+          in Result.bind str (fun (map, str) ->
+            match position with
+            | Overwrite -> Ok (
+              Target.Assign (Field (fs path sys, "fs_type"),
+                EnumExp (Id "file_type", None, "file", [str]))
+              :: desc, map)
+            | Top -> Ok (
+              Target.LetStmt ("c",
+                FuncExp (Id "get_file_content", [path; sys]))
+              :: Target.Assign (Field (fs path sys, "fs_type"),
+                EnumExp (Id "file_type", None, "file",
+                  [BinaryExp (str, Id "c", Concat)]))
+              :: desc, map)
+            | Bottom -> Ok (
+              Target.LetStmt ("c",
+                FuncExp (Id "get_file_content", [path; sys]))
+              :: Target.Assign (Field (fs path sys, "fs_type"),
+                EnumExp (Id "file_type", None, "file",
+                  [BinaryExp (Id "c", str, Concat)]))
+              :: desc, map))))
 
 let codegen_query (q: Ast.query)
   : (Target.stmt list, string) result =
