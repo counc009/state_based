@@ -404,7 +404,30 @@ let codegen_act (a: Ast.act) unknowns
   | CreateGroup { name } ->
       Ok ([Target.Touch (FuncExp (Id "group", [StringLit name]))],
           unknowns)
-  | CreateSshKey _ -> Error "TODO: Handle CreateSshKey"
+  (* TODO: We should add options for key-type and probably other fields *)
+  | CreateSshKey { loc } ->
+      Result.bind (codegen_path loc unknowns) (fun (map, path, sys) ->
+        Ok (Target.LetStmt ("time", GenUnknown Int)
+        :: Target.LetStmt ("comment", GenUnknown String)
+        :: Assign (Field (fs path sys, "fs_type"),
+            EnumExp (Id "file_type", None, "file",
+              [ FuncExp (Id "ssh_private_key",
+                [ StringLit "rsa"
+                ; FuncExp (Id "default_ssh_key_bits", [])
+                ; EnumExp (Id "option", Some String, "nothing", [])
+                ; Id "comment"
+                ; Id "time" ]) ]))
+        :: Assign (
+          Field (fs (FuncExp (Id "add_ext", [path; StringLit ".pub"])) sys, 
+                "fs_type"),
+            EnumExp (Id "file_type", None, "file",
+              [ FuncExp (Id "ssh_public_key",
+                [ StringLit "rsa"
+                ; FuncExp (Id "default_ssh_key_bits", [])
+                ; EnumExp (Id "option", Some String, "nothing", [])
+                ; Id "comment"
+                ; Id "time" ]) ]))
+        :: [], map))
   | CreateUser { name; group; groups } ->
       let user = Target.FuncExp (Id "user", [StringLit name])
       in let res_groups =
@@ -677,6 +700,7 @@ let codegen_query (q: Ast.query)
     let setup =
       Target.AssertExists (FuncExp (Id "env", []))
       :: Assert (BinaryExp (Field (FuncExp (Id "env", []), "time_counter"), IntLit 0, Eq))
+      :: Assert (BinaryExp (Field (FuncExp (Id "env", []), "last_reboot"), IntLit (-1), Eq))
       :: code
     in Ok (StringMap.fold (fun v t c ->
                           Target.LetStmt ("?" ^ v, GenUnknown t) :: c)

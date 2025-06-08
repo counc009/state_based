@@ -41,7 +41,7 @@ type act = CloneGitRepo     of { repo: string; version: ParseTree.value option;
          | CreateDir        of { dest: file_desc }
          | CreateFile       of { dest: file_desc; content: string option }
          | CreateGroup      of { name: string }
-         | CreateSshKey     of { user: string; loc: path }
+         | CreateSshKey     of { loc: path }
          | CreateUser       of { name: string; group: string option;
                                  groups: string list option }
          | CreateVirtualEnv of { version: string option; loc: path }

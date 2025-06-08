@@ -462,20 +462,19 @@ module Semant(Knowledge: Knowledge_Base) = struct
                       Error (Printf.sprintf
                         "Expected a single string as name for ssh key, found: %s"
                         (ParseTree.unparse_vals vs))
-                in Result.bind user (fun user ->
-                    Result.bind path_at (fun path_at ->
-                      Result.bind path_name (fun path_name ->
-                        if args_empty args
-                        then
-                          match path_at, path_name with
-                          | Some path, None | None, Some path ->
-                              Ok (Ast.CreateSshKey { user = user; loc = path })
-                          | Some _, Some _ | None, None ->
-                              Error "Expected exactly one of 'at' and 'name' arguments to create ssh key"
-                        else
-                          Error (Printf.sprintf
-                            "Unhandled arguments for create ssh key: %s"
-                            (args_to_string args)))))
+                in Result.bind path_at (fun path_at ->
+                    Result.bind path_name (fun path_name ->
+                      if args_empty args
+                      then
+                        match path_at, path_name with
+                        | Some path, None | None, Some path ->
+                            Ok (Ast.CreateSshKey { loc = path })
+                        | Some _, Some _ | None, None ->
+                            Error "Expected exactly one of 'at' and 'name' arguments to create ssh key"
+                      else
+                        Error (Printf.sprintf
+                          "Unhandled arguments for create ssh key: %s"
+                          (args_to_string args))))
             | _ -> Error (Printf.sprintf
                             "Unhandled key type for create: %s"
                             (ParseTree.unparse_vals rest))

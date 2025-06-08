@@ -187,8 +187,6 @@ module ansible.builtin.user -> user_result {
           fs(key_path, file_system::remote).owner = name;
           fs(key_path, file_system::remote).owner_group = user(name).primary_group;
 
-          # TODO: Track time or something as randomness source to show link
-          # TODO: This also isn't documented but I think must happen
           let pub_key = ssh_public_key(
             ssh_key_type,
             ssh_key_bits,
