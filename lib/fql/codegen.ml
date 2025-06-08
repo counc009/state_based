@@ -427,7 +427,23 @@ let codegen_act (a: Ast.act) unknowns
             Target.Assign (Target.Field (user, "group"), StringLit group)
             :: res_groups
       in Ok (Target.Touch user :: res_group, unknowns)
-  | CreateVirtualEnv _ -> Error "TODO: Handle CreateVirtualEnv"
+  | CreateVirtualEnv { version; loc } ->
+      let path =
+        match loc with
+        | Controller _ -> Error "Virtual Environment must be on remote machine"
+        | Remote (Str s) -> Ok (unknowns, Target.PathLit s)
+        | Remote (Unknown v) ->
+            Result.bind (add_unknown unknowns v Target.Path) (fun map ->
+              Ok (map, Target.Id ("?" ^ v)))
+      in Result.bind path (fun (map, path) ->
+        let virtenv = Target.FuncExp (Id "virtual_environment", [path])
+        in let set_version =
+          match version with
+          | None -> []
+          | Some s -> 
+              Target.Assign (Field (virtenv, "python_version"), StringLit s)
+              :: []
+        in Ok (Target.Touch virtenv :: set_version, map))
   | DeleteDir { loc } ->
       Result.bind (codegen_path loc unknowns)
         (fun (map, path, sys) -> Ok (
