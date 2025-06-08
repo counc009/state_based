@@ -67,6 +67,8 @@ type act = CloneGitRepo     of { repo: string; version: ParseTree.value option;
 
          | Reboot
 
+         (* TODO: Should support setting an environment variable locally, say
+          * by adding it to a user's .profile *)
          | SetEnvVar        of { name: string; value: ParseTree.value }
          | SetFilePerms     of { loc: path; perms: file_perms }
          | SetFilesPerms    of { locs: paths; perms: file_perms }

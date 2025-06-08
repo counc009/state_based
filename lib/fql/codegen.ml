@@ -704,7 +704,35 @@ let codegen_act (a: Ast.act) unknowns
     :: Assert (BinaryExp (IntLit 0, Id "time", Le))
     :: Assign (Field (FuncExp (Id "env", []), "last_reboot"), Id "time")
     :: [], unknowns)
-  | SetEnvVar _ -> Error "TODO: Handle SetenvVar"
+  (* FIXME: Like with the sudoers file, I think it would be better to assert
+   * about the result *)
+  | SetEnvVar { name; value } ->
+      let value =
+        match value with
+        | Str s -> Ok (unknowns, Target.StringLit s)
+        | Unknown v -> Result.bind (add_unknown unknowns v Target.String)
+            (fun map -> Ok (map, Target.Id ("?" ^ v)))
+      in Result.bind value (fun (map, value) ->
+        let path = Target.PathLit "/etc/environment"
+        in let sys = Target.EnumExp (Id "file_system", None, "remote", [])
+        in let line =
+          Target.BinaryExp (StringLit (name ^ "="), value, Concat)
+        in Ok (
+          Target.LetStmt ("c", FuncExp (Id "get_file_content", [path; sys]))
+          :: Target.IfThenElse (
+            FuncExp (Id "regex_matches",
+              [ StringLit ("^" ^ name); Id "c" ]),
+            [ LetStmt ("r",
+                FuncExp (Id "replace_last",
+                  [ StringLit ("^" ^ name); line; Id "c" ]))
+            ; Assign (Field (fs path sys, "fs_type"),
+                EnumExp (Id "file_type", None, "file", [Id "r"]))
+            ],
+            [ LetStmt ("r", BinaryExp (Id "c", line, Concat))
+            ; Assign (Field (fs path sys, "fs_type"),
+                EnumExp (Id "file_type", None, "file", [Id "r"]))
+            ])
+          :: [], map))
   | SetFilePerms { loc; perms } ->
       Result.bind (codegen_path loc unknowns) (fun (map, path, sys) ->
         Ok (Target.Assert (FuncExp (Id "is_file", [path; sys]))
