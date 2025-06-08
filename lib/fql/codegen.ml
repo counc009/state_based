@@ -35,7 +35,7 @@ let codegen_paths (p: Ast.paths) unknowns =
       Result.bind (codegen_path p unknowns) (fun (map, p, sys) ->
         Ok (map, Target.FuncExp (Id "get_dir_contents", [p; sys]), sys))
   | Glob { base; glob } ->
-      (* TODO: Really should change how globs work so that it works more
+      (* NOTE: Really should change how globs work so that it works more
        * like the no glob case, but that'll require fixing other stuff *)
       let s = match base with | Controller _ -> "local" | Remote _ -> "remote"
       in let sys = Target.EnumExp (Id "file_system", None, s, [])
@@ -404,7 +404,7 @@ let codegen_act (a: Ast.act) unknowns
   | CreateGroup { name } ->
       Ok ([Target.Touch (FuncExp (Id "group", [StringLit name]))],
           unknowns)
-  (* TODO: We should add options for key-type and probably other fields *)
+  (* NOTE: We should add options for key-type and probably other fields *)
   | CreateSshKey { loc } ->
       Result.bind (codegen_path loc unknowns) (fun (map, path, sys) ->
         Ok (Target.LetStmt ("time", GenUnknown Int)
@@ -493,7 +493,46 @@ let codegen_act (a: Ast.act) unknowns
       Target.Assign (Field (FuncExp (Id "user", [StringLit user]), "password"),
                      EnumExp (Id "password_set", None, "disabled", []))
       :: [], unknowns)
-  | DisableSudo _ -> Error "TODO: Handle DisableSudo"
+  (* NOTE: I think it would be better to handle enable and disable of sudo by
+   * setting the sudoers file's contents to a unknown value and then asserting
+   * about it containing certain lines, but that requires interpreted functions
+   * for reasoning about whether lines are contained in a string *)
+  | DisableSudo { who; passwordless } ->
+      let user =
+        match who with
+        | User name -> name
+        | Group name -> "%" ^ name
+      in let path = Target.PathLit "/etc/sudoers"
+      in let sys = Target.EnumExp (Id "file_system", None, "remote", [])
+      in if passwordless
+      then Ok (
+        Target.LetStmt ("c", FuncExp (Id "get_file_content", [path; sys]))
+        :: Target.IfThenElse ( (* FIXME: this regex *)
+              FuncExp (Id "regex_matches",
+                [ StringLit ("^" ^ user ^ ".*NOPASSWD"); Id "c" ]),
+              [ LetStmt ("r",
+                  FuncExp (Id "replace_last", 
+                    [ StringLit ("^" ^ user ^ ".*NOPASSWD")
+                    ; StringLit (user ^ "\t" ^ "ALL=(ALL:ALL) ALL")
+                    ; Id "c" ]))
+              ; Assert (FuncExp (Id "validate_contents",
+                  [ StringLit "/usr/sbin/visudo -cf %s"; Id "r" ]))
+              ; Assign (Field (fs path sys, "fs_type"),
+                  EnumExp (Id "file_type", None, "file", [Id "r"]))
+              ],
+              [])
+        :: [], unknowns)
+      else Ok (
+        Target.LetStmt ("c", FuncExp (Id "get_file_content", [path; sys]))
+        (* "^" ^ user is only valid as the regex as long as user doesn't
+         * contain any regular expression special characters *)
+        :: LetStmt ("r", FuncExp (Id "remove_lines", 
+            [ StringLit ("^" ^ user); Id "c" ]))
+        :: Assert (FuncExp (Id "validate_contents",
+            [ StringLit "/usr/sbin/visudo -cf %s"; Id "r" ]))
+        :: Assign (Field (fs path sys, "fs_type"),
+            EnumExp (Id "file_type", None, "file", [ Id "r" ]))
+        :: [], unknowns)
   | DownloadFile { dest; src } ->
       Result.bind (codegen_path dest.path unknowns)
         (fun (path_map, path, sys) ->
@@ -507,7 +546,39 @@ let codegen_act (a: Ast.act) unknowns
                           EnumExp (Id "option",
                             Some (Product [String; String]), "nothing", [])])]))
                :: desc, map)))
-  | EnableSudo _ -> Error "TODO: Handle EnableSudo"
+  | EnableSudo { who; passwordless } ->
+      let user =
+        match who with
+        | User name -> name
+        | Group name -> "%" ^ name
+      in let line =
+        let spec = "ALL=(ALL:ALL)"
+        in let cmd = if passwordless then "NOPASSWD:ALL" else "ALL"
+        in user ^ "\t" ^ spec ^ " " ^ cmd
+      in let path = Target.PathLit "/etc/sudoers"
+      in let sys = Target.EnumExp (Id "file_system", None, "remote", [])
+      in Ok (Target.LetStmt ("c", FuncExp (Id "get_file_content", [path; sys]))
+         :: Target.IfThenElse (
+              (* FIXME: in regex_matches and replace_last we should use a form
+               * of user that is a regex. As long as the name doesn't contain
+               * special regex characters, this is fine and so probably is
+               * alright for the moment *)
+              FuncExp (Id "regex_matches", [ StringLit ("^" ^ user); Id "c" ]),
+              [ LetStmt ("r",
+                  FuncExp (Id "replace_last", 
+                    [ StringLit ("^" ^ user) ; StringLit line ; Id "c" ]))
+              ; Assert (FuncExp (Id "validate_contents",
+                  [ StringLit "/usr/sbin/visudo -cf %s"; Id "r" ]))
+              ; Assign (Field (fs path sys, "fs_type"),
+                  EnumExp (Id "file_type", None, "file", [Id "r"]))
+              ],
+              [ LetStmt ("r", BinaryExp (Id "c", StringLit line, Concat))
+              ; Assert (FuncExp (Id "validate_contents",
+                  [ StringLit "/usr/sbin/visudo -cf %s"; Id "r" ]))
+              ; Assign (Field (fs path sys, "fs_type"),
+                  EnumExp (Id "file_type", None, "file", [Id "r"]))
+              ])
+         :: [], unknowns)
   | InstallPkg { pkg = { name; pkg_manager }; version } ->
       let pkg_info =
         match pkg_manager with

@@ -24,6 +24,15 @@ function is_file(p: path, s: file_system) -> bool {
   return false;
 }
 
+function get_file_content(p: path, s: file_system) -> string {
+  assert exists fs(p, s);
+  match fs(p, s).fs_type {
+    file_type::file(contents) => { return contents; }
+  }
+  assert false;
+  return "";
+}
+
 function is_dir(p: path, s: file_system) -> bool {
   assert exists fs(p, s);
   match fs(p, s).fs_type {
