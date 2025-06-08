@@ -628,7 +628,11 @@ let codegen_act (a: Ast.act) unknowns
                           Field (fs (Id "f") src_sys, "fs_type"))
                       :: Clear (fs (Id "f") src_sys)
                       :: desc) :: [], map))))
-  | Reboot -> Error "TODO: Handle Reboot"
+  | Reboot -> Ok (
+    Target.LetStmt ("time", GenUnknown Int)
+    :: Assert (BinaryExp (IntLit 0, Id "time", Le))
+    :: Assign (Field (FuncExp (Id "env", []), "last_reboot"), Id "time")
+    :: [], unknowns)
   | SetEnvVar _ -> Error "TODO: Handle SetenvVar"
   | SetFilePerms { loc; perms } ->
       Result.bind (codegen_path loc unknowns) (fun (map, path, sys) ->

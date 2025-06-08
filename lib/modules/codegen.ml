@@ -1034,6 +1034,16 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                           && rhs_t = Target.Primitive Bool
                           then Ok (Target.Primitive Bool, TargetAst.BoolOr)
                           else Error "Incorrect type for boolean or"
+                      | Le ->
+                          if lhs_t = rhs_t
+                          then
+                            match lhs_t with
+                            | Target.Primitive Int ->
+                                Ok (Target.Primitive Bool, TargetAst.LeInt)
+                            | Target.Primitive Float ->
+                                Ok (Target.Primitive Bool, TargetAst.LeFloat)
+                            | _ -> Error "Cannot compare non-numeric types"
+                          else Error "Types for le must be the same"
                       | _ -> Error "TODO: support binary ops"
                     in Result.bind op_info
                     (fun (ret_typ, func) ->

@@ -24,6 +24,8 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | Append        of 't (* Type of list elements *)
                 | AddInt
                 | AddFloat
+                | LeInt
+                | LeFloat
                 | ToLower
                 (* Path operations *)
                 | ConsPath
@@ -273,6 +275,16 @@ module rec Ast_Target : Ast_Defs
           | Pair (Literal (Float x, _), Literal (Float y, _), _)
               -> Reduced (Literal (Float (x +. y), Float))
           | _ -> Stuck)
+    | LeInt -> (Product (Primitive Int, Primitive Int), Primitive Bool,
+        fun v -> match v with
+          | Pair (Literal (Int x, _), Literal (Int y, _), _)
+              -> Reduced (Literal (Bool (x <= y), Bool))
+          | _ -> Stuck)
+    | LeFloat -> (Product (Primitive Float, Primitive Float), Primitive Bool,
+        fun v -> match v with
+          | Pair (Literal (Float x, _), Literal (Float y, _), _)
+              -> Reduced (Literal (Bool (x <= y), Bool))
+          | _ -> Stuck)
     | ToLower -> (Primitive String, Primitive String,
         fun v -> match v with
           | Literal (String s, _) ->
@@ -455,6 +467,8 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | Append _                  -> "append"
         | AddInt                    -> "add"
         | AddFloat                  -> "add"
+        | LeInt                     -> "le"
+        | LeFloat                   -> "le"
         | ToLower                   -> "to_lower"
         | ConsPath                  -> "cons_path"
         | PathOfString              -> "path_of_string"
@@ -579,6 +593,8 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | Append _                  -> "append(" ^ value_to_string arg ^ ")"
       | AddInt                    -> "add(" ^ value_to_string arg ^ ")"
       | AddFloat                  -> "add(" ^ value_to_string arg ^ ")"
+      | LeInt                     -> "le(" ^ value_to_string arg ^ ")"
+      | LeFloat                   -> "le(" ^ value_to_string arg ^ ")"
       | ToLower                   -> "to_lower(" ^ value_to_string arg ^ ")"
       | ConsPath                  -> "cons_path(" ^ value_to_string arg ^ ")"
       | PathOfString              -> "path_of_string(" ^ value_to_string arg ^ ")"
