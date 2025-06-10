@@ -72,14 +72,90 @@ let universal_vars ((p, _): (Interp.prg_type * Ast.value)) : IntSet.t =
  * in that case we may report additional assumptions that are needed or
  * additional actions that were performed
  *)
-type outcome = Incompatible of unit
-             | Compatible   of unit
+(*type outcome = Incompatible of unit
+             | Compatible   of unit*)
 
 type unification = Value of Ast.value | Unknown of int
 type unifier = unification IntMap.t
 
+type state_diff = StateDiff of state_diff Interp.ElementMap.t
+                       * (Ast.value option * state_diff) Interp.AttributeMap.t
+type outcome = unifier * state_diff * state_diff
+
+let is_empty (d: state_diff) : bool =
+  match d with
+  | StateDiff (elems, attrs) -> Interp.ElementMap.is_empty elems
+                             && Interp.AttributeMap.is_empty attrs
+
+let add_attr (a: Ast.attribute) (d: state_diff) (diff: state_diff) =
+  match diff with
+  | StateDiff (elms, ats) ->
+      StateDiff (elms, Interp.AttributeMap.add a (None, d) ats)
+
+let add_elem e (d: state_diff) (diff: state_diff) : state_diff =
+  match diff with
+  | StateDiff (elms, ats) ->
+      StateDiff (Interp.ElementMap.add e d elms, ats)
+
+let empty_diff : state_diff =
+  StateDiff (Interp.ElementMap.empty, Interp.AttributeMap.empty)
+
+let rec state_to_diff (s: Interp.state) : state_diff =
+  match s with
+  | State (elems, attrs) ->
+      StateDiff (
+        Interp.ElementMap.map state_to_diff elems,
+        Interp.AttributeMap.map (fun (v, s) -> (Some v, state_to_diff s)) attrs
+      )
+
+let rec add_state_to_diff (d: state_diff) (s: Interp.state) : state_diff =
+  match d, s with
+  | StateDiff (elems_d, attrs_d), State (elems_s, attrs_s) ->
+      let new_elems =
+        Interp.ElementMap.merge (fun _ state_d state_s ->
+          match state_d, state_s with
+          | None, None -> None
+          | Some d, None -> Some d
+          | None, Some s -> Some (state_to_diff s)
+          | Some d, Some s -> Some (add_state_to_diff d s))
+        elems_d elems_s
+      in let new_attrs =
+        Interp.AttributeMap.merge (fun _ res_d res_s ->
+          match res_d, res_s with
+          | None, None -> None
+          | Some d, None -> Some d
+          | None, Some (v, s) -> Some (Some v, state_to_diff s)
+          | Some (_, d), Some (v, s) -> Some (Some v, add_state_to_diff d s))
+        attrs_d attrs_s
+      in StateDiff (new_elems, new_attrs)
+
+let add_attrs (ats: (Ast.value * Interp.state) Interp.AttributeMap.t)
+              (diff: state_diff) : state_diff =
+  match diff with
+  | StateDiff (elems, attrs) ->
+      let new_attrs = Interp.AttributeMap.merge (fun _ diff attr ->
+        match diff, attr with
+        | None, None -> None
+        | Some d, None -> Some d
+        | None, Some (v, s) -> Some (Some v, state_to_diff s)
+        | Some (_, d), Some (v, s) -> Some (Some v, add_state_to_diff d s))
+        attrs ats
+      in StateDiff (elems, new_attrs)
+
+let add_elems (elms: Interp.state Interp.ElementMap.t) (diff: state_diff) =
+  match diff with
+  | StateDiff (elems, attrs) ->
+      let new_elems = Interp.ElementMap.merge (fun _ diff elem ->
+        match diff, elem with
+        | None, None -> None
+        | Some d, None -> Some d
+        | None, Some s -> Some (state_to_diff s)
+        | Some d, Some s -> Some (add_state_to_diff d s))
+        elems elms
+      in StateDiff (new_elems, attrs)
+
 let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
-  (cand: Interp.prg_type * Ast.value) : outcome option =
+  (cand: Interp.prg_type * Ast.value) : outcome list =
   let (ref, ref_val) = ref
   in let (cand, cand_val) = cand
   in let rec unify_values (rv: Ast.value) (cv: Ast.value) (m : unifier)
@@ -152,22 +228,86 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
                   else Some (IntMap.add i (Value cv) m)
         end
     | _, _ -> None
-  in Option.bind (unify_values ref_val cand_val IntMap.empty) (fun _m ->
-    failwith "TODO: handle the actual state unification")
+  in let rec unify_states (ref: Interp.state) (cand: Interp.state) (m: unifier)
+    : (unifier * state_diff) list =
+    match ref, cand with
+    | State (elems_r, attrs_r), State (elems_c, attrs_c) ->
+        (* Unifying attributes is easy since we just need to find the same
+         * attribute and unify their values and states *)
+        let unified_attrs =
+          Interp.AttributeMap.fold (fun attr (v_r, s_r) res ->
+            List.fold_left (fun res (m, attrs_c, diff) ->
+              match Interp.AttributeMap.find_opt attr attrs_c with
+              | None -> res
+              | Some (v_c, s_c) ->
+                  match unify_values v_r v_c m with
+                  | None -> res
+                  | Some m ->
+                      let new_attrs_c = Interp.AttributeMap.remove attr attrs_c
+                      in List.fold_left (fun res (m, d) ->
+                        if is_empty d then (m, new_attrs_c, diff) :: res
+                        else (m, new_attrs_c, add_attr attr d diff) :: res
+                      ) res (unify_states s_r s_c m)
+            ) [] res
+          ) attrs_r [(m, attrs_c, empty_diff)]
+        (* Unifying elements is much harder since it requires unifying
+         * expressions and there may be multiple ways to unify elements
+         *)
+        in let unified_elems =
+          List.concat_map (fun (m, attrs, diff) ->
+            (* Add any remaining attributes from the candidate to the diff *)
+            let diff = add_attrs attrs diff
+            in Interp.ElementMap.fold (fun elem_r s_r res ->
+              List.fold_left (fun res (m, elems_c, diff) ->
+                Interp.ElementMap.fold (fun elem_c s_c res ->
+                  let (el_r, v_r, b_r) = elem_r
+                  in let (el_c, v_c, b_c) = elem_c
+                  in if el_r <> el_c || b_r <> b_c then res
+                  else match unify_values v_r v_c m with
+                  | None -> res
+                  | Some m ->
+                      let new_elems_c = Interp.ElementMap.remove elem_c elems_c
+                      in List.fold_left (fun res (m, d) ->
+                        if is_empty d then (m, new_elems_c, diff) :: res
+                        else (m, new_elems_c, add_elem elem_c d diff) :: res
+                      ) res (unify_states s_r s_c m)
+                ) elems_c res
+              ) [] res
+            ) elems_r [(m, elems_c, diff)]
+          ) unified_attrs
+        in List.map (fun (m, elems, diff) -> (m, add_elems elems diff))
+                    unified_elems
+  in let unify_prgs (m: unifier) =
+    (* To unify we do the following:
+     * 1) Unify the initial states (collecting additional assumptions the
+     *    candidate makes)
+     * 2) Unify the final states (collecting additional actions performed by
+     *    the candidate)
+     * 3) Unify the boolean and constructor constraints/verify that they are
+     *    consistent with the substitutions
+     *)
+    List.fold_left (fun res (m, assumptions) ->
+      List.fold_left (fun res (m, actions) ->
+        (m, actions, assumptions) :: res
+      ) res (unify_states ref.final cand.final m)
+    ) [] (unify_states ref.init cand.init m)
+  in match unify_values ref_val cand_val IntMap.empty with
+  | None -> []
+  | Some m -> unify_prgs m
 
 let verify (reference: Interp.prg_res list) (candidate: Interp.prg_res list)
-  : outcome =
+  : outcome list list list =
   let verify_candidate (universals: IntSet.t) (ref: Interp.prg_type*Ast.value)
-    (candidate: Interp.prg_res) : outcome option =
+    (candidate: Interp.prg_res) : outcome list =
     match candidate with
-    | Err _ -> None
+    | Err _ -> []
     | Ok candidate -> unify_candidate universals ref candidate
-  in let verify_result (ref: Interp.prg_res) : outcome option =
+  in let verify_result (ref: Interp.prg_res) : outcome list list =
     match ref with
-    | Err _ -> None
+    | Err _ -> []
     | Ok ref ->
         let var_analysis = universal_vars ref
-        in let _cmp = List.map (verify_candidate var_analysis ref) candidate
-        in failwith "TODO"
-  in let _results = List.map verify_result reference
-  in failwith "TODO"
+        in let cmp = List.map (verify_candidate var_analysis ref) candidate
+        in cmp
+  in let results = List.map verify_result reference
+  in results
