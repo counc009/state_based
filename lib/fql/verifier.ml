@@ -324,6 +324,10 @@ let verify (reference: Interp.prg_res list) (candidate: Interp.prg_res list)
     match candidate with
     | Err _ -> []
     | Ok candidate -> unify_candidate universals ref candidate
+    (* TODO: I'd really like to collapse the information in this list, removing
+     * things like attributes assigned to (unconstrained) unknown values and
+     * simplifying so that if we have a case that assumes P and another ~P we
+     * just report no additional assumptions. *)
   in let verify_result (ref: Interp.prg_res) : outcome list option =
     match ref with
     (* for errors in the reference, return None so that we filter them out *)

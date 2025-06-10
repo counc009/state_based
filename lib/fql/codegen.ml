@@ -464,7 +464,8 @@ let codegen_act (a: Ast.act) unknowns
           match version with
           | None -> []
           | Some s -> 
-              Target.Assign (Field (virtenv, "python_version"), StringLit s)
+              Target.Assign (Field (virtenv, "python_version"),
+                             StringLit ("python" ^ s))
               :: []
         in Ok (Target.Touch virtenv :: set_version, map))
   | DeleteDir { loc } ->
