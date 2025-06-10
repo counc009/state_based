@@ -80,7 +80,8 @@ type unifier = unification IntMap.t
 
 type state_diff = StateDiff of state_diff Interp.ElementMap.t
                        * (Ast.value option * state_diff) Interp.AttributeMap.t
-type outcome = unifier * state_diff * state_diff
+type outcome = { m: unifier; constraints: unit; assumptions: state_diff;
+                 actions: state_diff }
 
 let is_empty (d: state_diff) : bool =
   match d with
@@ -279,6 +280,8 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
           ) unified_attrs
         in List.map (fun (m, elems, diff) -> (m, add_elems elems diff))
                     unified_elems
+  in let unify_constraints (m: unifier) : (unifier * unit) option =
+    Some (m, ()) (* FIXME *)
   in let unify_prgs (m: unifier) =
     (* To unify we do the following:
      * 1) Unify the initial states (collecting additional assumptions the
@@ -290,8 +293,11 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
      *)
     List.fold_left (fun res (m, assumptions) ->
       List.fold_left (fun res (m, actions) ->
-        (* TODO: check constraints *)
-        (m, assumptions, actions) :: res
+        match unify_constraints m with
+        | None -> res
+        | Some (m, constrs) -> { m = m; constraints = constrs;
+                                 assumptions = assumptions; actions = actions }
+                               :: res
       ) res (unify_states ref.final cand.final m)
     ) [] (unify_states ref.init cand.init m)
   in match unify_values ref_val cand_val IntMap.empty with
@@ -345,7 +351,8 @@ let state_diff_to_string (d: state_diff) : string =
   in inner "<>" "< " " >" d
 
 let outcome_to_string (o: outcome) : string =
-  let (m, assumptions, actions) = o
+  (* FIXME: Print constraints *)
+  let { m;  constraints = _; assumptions; actions } = o
   in let map =
     String.concat ", "
       (IntMap.fold (fun i v res ->
