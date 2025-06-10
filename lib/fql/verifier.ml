@@ -159,13 +159,18 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
   (cand: Interp.prg_type * Ast.value) : outcome list =
   let (ref, ref_val) = ref
   in let (cand, cand_val) = cand
+  (* unify_values returns None if it cannot unify the values (under the current
+   * unifier m) and returns Some (m', b) if it can unify them by assuming the
+   * unifier m' and b is true if m' = m and false otherwise (i.e., at this
+   * point the unification is unconditional). *)
   in let rec unify_values (rv: Ast.value) (cv: Ast.value) (m : unifier)
-    : unifier option =
+    : (unifier * bool) option =
     match rv, cv with
-    | Literal (r, _), Literal (c, _) when r = c -> Some m
+    | Literal (r, _), Literal (c, _) when r = c -> Some (m, true)
     | Function (f, v, _), Function (g, w, _) when f = g -> unify_values v w m
     | Pair (x, y, _), Pair (a, b, _) ->
-        Option.bind (unify_values x a m) (unify_values y b)
+        Option.bind (unify_values x a m) (fun (m, u1) ->
+          Option.bind (unify_values y b m) (fun (m, u2) -> Some (m, u1 && u2)))
     | Constructor (n, b, v), Constructor (p, c, w) when n = p && b = c ->
         unify_values v w m
     | Struct (_, r), Struct (_, t) ->
@@ -174,15 +179,16 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
          * set of bindings *)
         if Ast.FieldMap.cardinal r <> Ast.FieldMap.cardinal t then None
         else Ast.FieldMap.fold (fun f v m ->
-          Option.bind m (fun m ->
+          Option.bind m (fun (m, u1) ->
             Option.bind (Ast.FieldMap.find_opt f t) (fun w ->
-              unify_values v w m)))
+              Option.bind (unify_values v w m) (fun (m, u2) ->
+                Some (m, u1 && u2)))))
           r
-          (Some m)
+          (Some (m, true))
     | ListVal (_, v), ListVal (_, w) -> unify_values v w m
     | Unknown (Loop i, _), Unknown (Loop j, _) ->
         begin match IntMap.find_opt i m with
-        | Some (Unknown v) -> if v = j then Some m else None
+        | Some (Unknown v) -> if v = j then Some (m, true) else None
         | Some (Value _) -> None
         | None ->
             let loop_ref =
@@ -207,30 +213,33 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
             (* If we didn't find one, that's an error. Fail to unify *)
             | None, _ | _, None -> None
             | Some v, Some w ->
-                Option.bind (unify_values v w m) (fun m ->
-                  Some (IntMap.add i (Unknown j) m))
+                Option.bind (unify_values v w m) (fun (m, _) ->
+                  Some (IntMap.add i (Unknown j) m, false))
         end
     | Unknown (Val i, _), Unknown (Val j, _) ->
         begin match IntMap.find_opt i m with
-        | Some (Unknown v) -> if v = j then Some m else None
+        | Some (Unknown v) -> if v = j then Some (m, true) else None
         | Some (Value _) -> None
         (* Note that we can unify a universal variable to variable since it
          * remains universal. As seen below we can't unify universals to
          * particular values *)
-        | None -> Some (IntMap.add i (Unknown j) m)
+        | None -> Some (IntMap.add i (Unknown j) m, false)
         end
     | Unknown (Val _, _), Unknown (Loop _, _)
       | Unknown (Loop _, _), Unknown (Val _, _) -> None
     | Unknown (Val i, _), _ ->
         begin match IntMap.find_opt i m with
         | Some (Unknown _) -> None
-        | Some (Value v) -> if v = cv then Some m else None
+        | Some (Value v) -> if v = cv then Some (m, true) else None
         | None -> if IntSet.mem i universals then None
-                  else Some (IntMap.add i (Value cv) m)
+                  else Some (IntMap.add i (Value cv) m, false)
         end
     | _, _ -> None
-  in let rec unify_states (ref: Interp.state) (cand: Interp.state) (m: unifier)
-    : (unifier * state_diff) list =
+  (* When we unify states we need to know whether we are unifying an input or
+   * not since the candidate is not required to make all the assumptions the
+   * reference does but must perform all the actions the reference does. *)
+  in let rec unify_states (ref: Interp.state) (cand: Interp.state) 
+    (input: bool) (m: unifier) : (unifier * state_diff) list =
     match ref, cand with
     | State (elems_r, attrs_r), State (elems_c, attrs_c) ->
         (* Unifying attributes is easy since we just need to find the same
@@ -239,16 +248,17 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
           Interp.AttributeMap.fold (fun attr (v_r, s_r) res ->
             List.fold_left (fun res (m, attrs_c, diff) ->
               match Interp.AttributeMap.find_opt attr attrs_c with
-              | None -> res
+              (* A missing attribute is allowed for the input only *)
+              | None -> if input then (m, attrs_c, diff) :: res else res
               | Some (v_c, s_c) ->
                   match unify_values v_r v_c m with
                   | None -> res
-                  | Some m ->
+                  | Some (m, _) ->
                       let new_attrs_c = Interp.AttributeMap.remove attr attrs_c
                       in List.fold_left (fun res (m, d) ->
                         if is_empty d then (m, new_attrs_c, diff) :: res
                         else (m, new_attrs_c, add_attr attr d diff) :: res
-                      ) res (unify_states s_r s_c m)
+                      ) res (unify_states s_r s_c input m)
             ) [] res
           ) attrs_r [(m, attrs_c, empty_diff)]
         (* Unifying elements is much harder since it requires unifying
@@ -260,19 +270,24 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
             let diff = add_attrs attrs diff
             in Interp.ElementMap.fold (fun elem_r s_r res ->
               List.fold_left (fun res (m, elems_c, diff) ->
-                Interp.ElementMap.fold (fun elem_c s_c res ->
-                  let (el_r, v_r, b_r) = elem_r
-                  in let (el_c, v_c, b_c) = elem_c
-                  in if el_r <> el_c || b_r <> b_c then res
-                  else match unify_values v_r v_c m with
-                  | None -> res
-                  | Some m ->
-                      let new_elems_c = Interp.ElementMap.remove elem_c elems_c
-                      in List.fold_left (fun res (m, d) ->
-                        if is_empty d then (m, new_elems_c, diff) :: res
-                        else (m, new_elems_c, add_elem elem_c d diff) :: res
-                      ) res (unify_states s_r s_c m)
-                ) elems_c res
+                let (matched_unconditional, res) =
+                  Interp.ElementMap.fold (fun elem_c s_c (uncond, res) ->
+                    let (el_r, v_r, b_r) = elem_r
+                    in let (el_c, v_c, b_c) = elem_c
+                    in if el_r <> el_c || b_r <> b_c then (uncond, res)
+                    else match unify_values v_r v_c m with
+                    | None -> (uncond, res)
+                    | Some (m, u) ->
+                        let new_elems_c = Interp.ElementMap.remove elem_c elems_c
+                        in (uncond || u,
+                        List.fold_left (fun res (m, d) ->
+                          if is_empty d then (m, new_elems_c, diff) :: res
+                          else (m, new_elems_c, add_elem elem_c d diff) :: res
+                        ) res (unify_states s_r s_c input m))
+                  ) elems_c (false, res)
+                in if input && not matched_unconditional
+                then (m, elems_c, diff) :: res
+                else res
               ) [] res
             ) elems_r [(m, elems_c, diff)]
           ) unified_attrs
@@ -296,11 +311,11 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
         | Some (m, constrs) -> { m = m; constraints = constrs;
                                  assumptions = assumptions; actions = actions }
                                :: res
-      ) res (unify_states ref.final cand.final m)
-    ) [] (unify_states ref.init cand.init m)
+      ) res (unify_states ref.final cand.final false m)
+    ) [] (unify_states ref.init cand.init true m)
   in match unify_values ref_val cand_val IntMap.empty with
   | None -> []
-  | Some m -> unify_prgs m
+  | Some (m, _) -> unify_prgs m
 
 let verify (reference: Interp.prg_res list) (candidate: Interp.prg_res list)
   : outcome list list =
