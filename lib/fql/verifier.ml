@@ -290,7 +290,8 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
      *)
     List.fold_left (fun res (m, assumptions) ->
       List.fold_left (fun res (m, actions) ->
-        (m, actions, assumptions) :: res
+        (* TODO: check constraints *)
+        (m, assumptions, actions) :: res
       ) res (unify_states ref.final cand.final m)
     ) [] (unify_states ref.init cand.init m)
   in match unify_values ref_val cand_val IntMap.empty with
@@ -298,18 +299,64 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
   | Some m -> unify_prgs m
 
 let verify (reference: Interp.prg_res list) (candidate: Interp.prg_res list)
-  : outcome list list list =
+  : outcome list list =
   let verify_candidate (universals: IntSet.t) (ref: Interp.prg_type*Ast.value)
     (candidate: Interp.prg_res) : outcome list =
     match candidate with
     | Err _ -> []
     | Ok candidate -> unify_candidate universals ref candidate
-  in let verify_result (ref: Interp.prg_res) : outcome list list =
+  in let verify_result (ref: Interp.prg_res) : outcome list option =
     match ref with
-    | Err _ -> []
+    (* for errors in the reference, return None so that we filter them out *)
+    | Err _ -> None
     | Ok ref ->
+        (* For each possible outcome in the reference we need to find some
+         * outcome(s) in the candidate that match. Because we just need some
+         * we concat all the results from the individual candidate outcomes *)
         let var_analysis = universal_vars ref
-        in let cmp = List.map (verify_candidate var_analysis ref) candidate
-        in cmp
-  in let results = List.map verify_result reference
+        in Some (List.concat_map (verify_candidate var_analysis ref) candidate)
+        (* NOTE: To really provide good feedback we need to associate the
+         * information on additional assumptions/actions with the assumptions
+         * already made in this reference outcome *)
+  in let results = List.filter_map verify_result reference
   in results
+
+let unification_to_string = function
+  | Value v -> Modules.Target.value_to_string v
+  | Unknown i -> "?" ^ string_of_int i
+
+let state_diff_to_string (d: state_diff) : string =
+  let rec inner if_empty lhs rhs (d: state_diff) =
+    let StateDiff(elems, attrs) = d
+    in Modules.Target.string_of_list if_empty lhs ", " rhs (fun s -> s)
+      (List.map
+        (fun (((elem, _), v, neg), s) ->
+          (if neg then "not " else "")
+          ^ elem ^ "(" ^ Modules.Target.value_to_string v ^ ")"
+          ^ inner "" ": < " " >" s)
+        (Interp.ElementMap.to_list elems)
+      @
+      List.map
+        (fun ((attr, _), (v, s)) ->
+          attr ^ (match v with None -> ""
+                  | Some v -> " = " ^ Modules.Target.value_to_string v)
+          ^ inner "" ": < " " >" s)
+        (Interp.AttributeMap.to_list attrs))
+  in inner "<>" "< " " >" d
+
+let outcome_to_string (o: outcome) : string =
+  let (m, assumptions, actions) = o
+  in let map =
+    String.concat ", "
+      (IntMap.fold (fun i v res ->
+        Printf.sprintf "?%d -> %s" i (unification_to_string v) :: res
+      ) m [])
+  in Printf.sprintf "[ %s ], %s, %s"
+    map (state_diff_to_string assumptions) (state_diff_to_string actions)
+
+let print_verification (v: outcome list list) : unit =
+  List.iter (fun v ->
+    if List.is_empty v then Printf.printf "FAILED TO VERIFY\n"
+    else Printf.printf "Unified with: %s\n"
+      (String.concat " | " (List.map outcome_to_string v))
+  ) v
