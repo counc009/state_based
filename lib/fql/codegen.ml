@@ -85,7 +85,7 @@ let codegen_file_perms (fs: Target.expr) (p: Ast.file_perms)
       in let setuid = Option.fold setuid ~none:""
                                 ~some:(fun p -> if p then "s" else "")
       in let perm = read ^ write ^ exec ^ file_list ^ setuid
-      in if perm = "" then None else Some ("o=" ^ perm)
+      in if perm = "" then None else Some ("u=" ^ perm)
     in let group =
       let read = Option.fold read ~none:""
                                 ~some:(fun (p : Ast.perm) ->
