@@ -30,7 +30,15 @@ module Example : Knowledge_Base = struct
             | Some [Str nm] ->
                 begin match String.split_on_char '/' nm with
                 | [org; repo] ->
-                    Ok (Printf.sprintf "https://github.com/%s/%s.git" org repo)
+                    begin match extract_arg args "via" with
+                    | Some [Str "ssh"] -> Ok (
+                        Printf.sprintf "git@github.com:%s/%s.git" org repo)
+                    | Some [Str "https"] | None -> Ok (
+                        Printf.sprintf "https://github.com/%s/%s.git" org repo)
+                    | Some vs -> Error (Printf.sprintf
+                      "For github repository, expectd 'ssh' or 'https' for 'via' argument, found: %s"
+                      (ParseTree.unparse_vals vs))
+                    end
                 | _ -> Error (Printf.sprintf
                   "For github repository, expected 'name' of form <org>/<repo>, found: %s"
                   nm)
