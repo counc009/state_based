@@ -790,9 +790,10 @@ let codegen_act (a: Ast.act) unknowns
         (fun (desc, desc_map) ->
           let str =
             match str with
-            | Str s -> Ok (desc_map, Target.StringLit s)
+            | Str s -> Ok (desc_map, Target.StringLit (s ^ "\\n"))
             | Unknown v -> Result.bind (add_unknown desc_map v Target.String)
-                (fun map -> Ok (map, Target.Id ("?" ^ v)))
+                (fun map -> Ok (map, 
+                  Target.BinaryExp (Id ("?" ^ v), StringLit "\\n", Concat)))
           in Result.bind str (fun (map, str) ->
             match position with
             | Overwrite -> Ok (

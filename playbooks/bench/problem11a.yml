@@ -4,6 +4,6 @@
   - name: Copy war files from controller
     ansible.builtin.copy:
       src: "{{ item }}"
-      dest: "/backup/"
+      dest: "/tmp/"
     with_fileglob:
-      - "/tmp/*.war"
+      - "/backup/*.war"
