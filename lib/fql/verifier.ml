@@ -185,41 +185,39 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
         | Some (Unknown v) -> if v = j then Some m else None
         | Some (Value _) -> None
         | None ->
-            if IntSet.mem i universals
-            then None (* we can't unify because i is universal *)
-            else (* Track down what we're looping over in both results so that
-                  * we can try to unify them *)
-              let loop_ref =
-                Interp.ValueMap.fold
-                  (fun v l r -> match r with Some r -> Some r
-                    | None -> match l with
-                      | Interp.AllUnknown n | LastKnown (n, _)
-                        -> if n = i then Some v else None
-                      | AllKnown _ -> None)
-                  ref.loops
-                  None
-              in let loop_cand =
-                Interp.ValueMap.fold
-                  (fun v l r -> match r with Some r -> Some r
-                    | None -> match l with
-                      | Interp.AllUnknown n | LastKnown (n, _)
-                        -> if n = j then Some v else None
-                      | AllKnown _ -> None)
-                  cand.loops
-                  None
-              in match loop_ref, loop_cand with
-              (* If we didn't find one, that's an error. Fail to unify *)
-              | None, _ | _, None -> None
-              | Some v, Some w ->
-                  Option.bind (unify_values v w m) (fun m ->
-                    Some (IntMap.add i (Unknown j) m))
+            let loop_ref =
+              Interp.ValueMap.fold
+                (fun v l r -> match r with Some r -> Some r
+                  | None -> match l with
+                    | Interp.AllUnknown n | LastKnown (n, _)
+                      -> if n = i then Some v else None
+                    | AllKnown _ -> None)
+                ref.loops
+                None
+            in let loop_cand =
+              Interp.ValueMap.fold
+                (fun v l r -> match r with Some r -> Some r
+                  | None -> match l with
+                    | Interp.AllUnknown n | LastKnown (n, _)
+                      -> if n = j then Some v else None
+                    | AllKnown _ -> None)
+                cand.loops
+                None
+            in match loop_ref, loop_cand with
+            (* If we didn't find one, that's an error. Fail to unify *)
+            | None, _ | _, None -> None
+            | Some v, Some w ->
+                Option.bind (unify_values v w m) (fun m ->
+                  Some (IntMap.add i (Unknown j) m))
         end
     | Unknown (Val i, _), Unknown (Val j, _) ->
         begin match IntMap.find_opt i m with
         | Some (Unknown v) -> if v = j then Some m else None
         | Some (Value _) -> None
-        | None -> if IntSet.mem i universals then None
-                  else Some (IntMap.add i (Unknown j) m)
+        (* Note that we can unify a universal variable to variable since it
+         * remains universal. As seen below we can't unify universals to
+         * particular values *)
+        | None -> Some (IntMap.add i (Unknown j) m)
         end
     | Unknown (Val _, _), Unknown (Loop _, _)
       | Unknown (Loop _, _), Unknown (Val _, _) -> None
