@@ -728,7 +728,8 @@ let codegen_act (a: Ast.act) unknowns
             ; Assign (Field (fs path sys, "fs_type"),
                 EnumExp (Id "file_type", None, "file", [Id "r"]))
             ],
-            [ LetStmt ("r", BinaryExp (Id "c", line, Concat))
+            [ LetStmt ("r", BinaryExp (Id "c", 
+                BinaryExp (line, StringLit "\\n", Concat), Concat))
             ; Assign (Field (fs path sys, "fs_type"),
                 EnumExp (Id "file_type", None, "file", [Id "r"]))
             ])
