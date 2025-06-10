@@ -1,0 +1,1 @@
+set environment variable LC_ALL to "C"

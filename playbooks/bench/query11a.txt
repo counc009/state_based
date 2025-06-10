@@ -1,0 +1,1 @@
+copy files with glob="*.war" from controller /backup to remote /tmp
