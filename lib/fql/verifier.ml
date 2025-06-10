@@ -165,6 +165,8 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
     | Function (f, v, _), Function (g, w, _) when f = g -> unify_values v w m
     | Pair (x, y, _), Pair (a, b, _) ->
         Option.bind (unify_values x a m) (unify_values y b)
+    | Constructor (n, b, v), Constructor (p, c, w) when n = p && b = c ->
+        unify_values v w m
     | Struct (_, r), Struct (_, t) ->
         (* By checking that they have equal cardinality, and then ensuring that
          * each binding in r is also a binding in s we ensure they have the same
