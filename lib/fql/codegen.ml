@@ -451,7 +451,7 @@ let codegen_act (a: Ast.act) unknowns
         match group with
         | None -> res_groups
         | Some group ->
-            Target.Assign (Target.Field (user, "group"), StringLit group)
+            Target.Assign (Target.Field (user, "primary_group"), StringLit group)
             :: res_groups
       in Ok (Target.Touch user :: res_group, unknowns)
   | CreateVirtualEnv { version; loc } ->
