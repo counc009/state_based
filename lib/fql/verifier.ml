@@ -155,6 +155,37 @@ let add_elems (elms: Interp.state Interp.ElementMap.t) (diff: state_diff) =
         elems elms
       in StateDiff (new_elems, attrs)
 
+let rec evaluate_val (v: Ast.value) (m: unifier) : Ast.value =
+  match v with
+  | Unknown (Loop i, t) ->
+      begin match IntMap.find_opt i m with
+      | None -> v
+      (* This case should not occur *)
+      | Some (Value _) -> failwith "Cannot replace Loop unknown with value"
+      | Some (Unknown j) -> Unknown (Loop j, t)
+      end
+  | Unknown (Val i, t) ->
+      begin match IntMap.find_opt i m with
+      | None -> v
+      | Some (Value w) -> w
+      | Some (Unknown j) -> Unknown (Val j, t)
+      end
+  | Literal (_, _) -> v
+  | Function (f, v, t) ->
+      let new_v = evaluate_val v m
+      in let (_, _, f_def) = Ast.funcDef f
+      in begin match f_def new_v with
+      | Reduced w -> w
+      | Stuck -> Function (f, new_v, t)
+      | Err msg ->
+          (* FIXME *)
+          failwith ("While substituting an unknown a function evaluation failed: " ^ msg)
+      end
+  | Pair (x, y, t) -> Pair (evaluate_val x m, evaluate_val y m, t)
+  | Constructor (n, c, v) -> Constructor (n, c, evaluate_val v m)
+  | Struct (t, r) -> Struct (t, Ast.FieldMap.map (fun v -> evaluate_val v m) r)
+  | ListVal (n, w) -> ListVal (n, evaluate_val w m)
+
 let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
   (cand: Interp.prg_type * Ast.value) : outcome list =
   let (ref, ref_val) = ref
@@ -294,7 +325,23 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
         in List.map (fun (m, elems, diff) -> (m, add_elems elems diff))
                     unified_elems
   in let unify_constraints (m: unifier) : (unifier * unit) option =
-    Some (m, ()) (* FIXME *)
+    (* To check the constraints, we first check that under the unifier m the
+     * constraints don't simplify to a contradiction. Then, we identify if
+     * the candidate has constraints not present in the reference and record
+     * those *)
+    let res_bools =
+      Interp.ValueMap.fold (fun v b res -> Option.bind res (fun (m, bools_c) ->
+        let v = evaluate_val v m
+        in match v with
+        | Literal (Bool c, _) when c <> b -> None
+        (* This constraint has become trivial and so it doesn't have a match in
+         * the candidate *)
+        | Literal (Bool c, _) when c = b -> Some (m, bools_c)
+        (* TODO: This should try to find a matching constraint in bools_c *)
+        | _ -> Some (m, bools_c)
+      )) ref.bools (Some (m, cand.bools))
+    (* TODO: Handle constructor constraints. *)
+    in Option.bind res_bools (fun (m, _) -> Some (m, ()))
   in let unify_prgs (m: unifier) =
     (* To unify we do the following:
      * 1) Unify the initial states (collecting additional assumptions the

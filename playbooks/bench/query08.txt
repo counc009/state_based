@@ -1,1 +1,1 @@
-if os is Debian or os is RedHat then install numpy
+if os is Debian based or os is RedHat based then install numpy
