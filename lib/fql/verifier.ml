@@ -415,6 +415,40 @@ let clean_outcome (o: outcome) : outcome =
   in { m = m; constraints = constraints;
        assumptions = clean_assumptions; actions = clean_actions }
 
+(* TODO: HERE 
+(* NOTE: One thing that we have to figure out is how to track when things
+ * cancel out. My inclination is to define a new state-like type where the
+ * element map ignores the negation and there are three states: positive,
+ * negative, and canceled out; and we have a similar thing for attribute
+ * values (a certain value, a canceled out value [true or false], or any of
+ * some multiple values) *)
+type diffs = { init: state_diff; final: state_diff; constraints: unit }
+
+let empty_diffs : diffs = 
+  { init = empty_diff; final = empty_diff; constraints = () }
+
+let merge_outcomes (outcomes: outcome list) : diffs =
+  (* When we combine initial states, we cancel out contradictory values *)
+  let add_initial (diff: state_diff) (o: state_diff) : state_diff =
+    let StateDiff(d_elems, d_attrs) = diff
+    in let StateDiff(o_elems, o_attrs) = o
+    in let new_elems = Interp.ElementMap.fold (fun elem (_, s) new_elems ->
+      failwith "TODO"
+    ) o_elems d_elems
+    in let new_attrs = Interp.AttributeMap.fold (fun attr (v, s) new_attrs ->
+      failwith "TODO"
+    ) o_attrs d_attrs
+    in StateDiff (new_elems, new_attrs)
+  in let add_final (diff: state_diff) (o: state_diff) : state_diff =
+    failwith "TODO"
+  in let add_constraints (_diff: unit) (_o: unit) : unit = ()
+  in List.fold_left (fun res (o: outcome) -> {
+    init = add_initial res.init o.assumptions;
+    final = add_final res.final o.actions;
+    constraints = add_constraints res.constraints o.constraints
+  }) empty_diffs outcomes
+*)
+
 let verify (reference: Interp.prg_res list) (candidate: Interp.prg_res list)
   : outcome list list =
   let verify_candidate (universals: IntSet.t) (ref: Interp.prg_type*Ast.value)
