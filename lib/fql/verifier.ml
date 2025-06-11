@@ -78,7 +78,9 @@ let universal_vars ((p, _): (Interp.prg_type * Ast.value)) : IntSet.t =
 type unification = Value of Ast.value | Unknown of int
 type unifier = unification IntMap.t
 
-type state_diff = StateDiff of state_diff Interp.ElementMap.t
+(* The bool in the elements records whether this element itself is part of the
+ * diff or only present because of a diff on it *)
+type state_diff = StateDiff of (bool * state_diff) Interp.ElementMap.t
                        * (Ast.value option * state_diff) Interp.AttributeMap.t
 type outcome = { m: unifier; constraints: unit; assumptions: state_diff;
                  actions: state_diff }
@@ -96,7 +98,7 @@ let add_attr (a: Ast.attribute) (d: state_diff) (diff: state_diff) =
 let add_elem e (d: state_diff) (diff: state_diff) : state_diff =
   match diff with
   | StateDiff (elms, ats) ->
-      StateDiff (Interp.ElementMap.add e d elms, ats)
+      StateDiff (Interp.ElementMap.add e (false, d) elms, ats)
 
 let empty_diff : state_diff =
   StateDiff (Interp.ElementMap.empty, Interp.AttributeMap.empty)
@@ -105,7 +107,7 @@ let rec state_to_diff (s: Interp.state) : state_diff =
   match s with
   | State (elems, attrs) ->
       StateDiff (
-        Interp.ElementMap.map state_to_diff elems,
+        Interp.ElementMap.map (fun s -> (true, state_to_diff s)) elems,
         Interp.AttributeMap.map (fun (v, s) -> (Some v, state_to_diff s)) attrs
       )
 
@@ -117,8 +119,8 @@ let rec add_state_to_diff (d: state_diff) (s: Interp.state) : state_diff =
           match state_d, state_s with
           | None, None -> None
           | Some d, None -> Some d
-          | None, Some s -> Some (state_to_diff s)
-          | Some d, Some s -> Some (add_state_to_diff d s))
+          | None, Some s -> Some (true, state_to_diff s)
+          | Some (b, d), Some s -> Some (b, add_state_to_diff d s))
         elems_d elems_s
       in let new_attrs =
         Interp.AttributeMap.merge (fun _ res_d res_s ->
@@ -150,8 +152,8 @@ let add_elems (elms: Interp.state Interp.ElementMap.t) (diff: state_diff) =
         match diff, elem with
         | None, None -> None
         | Some d, None -> Some d
-        | None, Some s -> Some (state_to_diff s)
-        | Some d, Some s -> Some (add_state_to_diff d s))
+        | None, Some s -> Some (true, state_to_diff s)
+        | Some (b, d), Some s -> Some (b, add_state_to_diff d s))
         elems elms
       in StateDiff (new_elems, attrs)
 
@@ -364,13 +366,65 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
   | None -> []
   | Some (m, _) -> unify_prgs m
 
+(* Removes attributes that are just an unknown value from a state diff, this is
+ * useful for cleaning up attributes in the initial states that happen to be
+ * accessed in the ansible but not the query
+ * TODO: Ideally this would probably only remove unconstrained unknowns
+ *)
+let rec clear_unknown_attributes (d: state_diff) : state_diff =
+  let StateDiff (elems, attrs) = d
+  in let clean_elems = Interp.ElementMap.filter_map (fun _ (b, s) ->
+    let new_s = clear_unknown_attributes s
+    in if is_empty new_s && not b then None else Some (b, new_s)
+  ) elems
+  in let clean_attrs = Interp.AttributeMap.filter_map (fun _ (v, s) ->
+    let new_s = clear_unknown_attributes s
+    in match v with
+    | None | Some (Ast.Unknown (Val _, _)) ->
+        if is_empty new_s then None else Some (None, new_s)
+    | Some v -> Some (Some v, new_s)
+  ) attrs
+  in StateDiff (clean_elems, clean_attrs)
+
+(* To clean-up the actions, we remove ANY attribute (not just those with an
+ * unknown value IF the element it's on was contained in the reference). This
+ * means we only report differences that imply some major action was performed.
+ * There are potentially things we could care about that wouldn't show up
+ * because of this (like who should own a particular file) but I think the
+ * differences that matter the most are expressed by elements not attributes *)
+let rec clear_additional_attributes (d: state_diff) : state_diff =
+  let StateDiff (elems, attrs) = d
+  in let clean_elems = Interp.ElementMap.filter_map (fun ((el,_),_,_) (b, s) ->
+    (* We preserve everything on entirely different elements, except we exclude
+     * env() from this because some of the changes are on it are just for
+     * processing the Ansible *)
+    if b && el <> "env" then Some (b, s)
+    else let new_s = clear_additional_attributes s
+    in if is_empty new_s then None else Some (b, new_s)
+  ) elems
+  in let clean_attrs = Interp.AttributeMap.filter_map (fun _ (_, s) ->
+    let new_s = clear_additional_attributes s
+    in if is_empty new_s then None else Some (None, new_s)
+  ) attrs
+  in StateDiff (clean_elems, clean_attrs)
+
+let clean_outcome (o: outcome) : outcome =
+  let { m; constraints; assumptions; actions } = o
+  in let clean_assumptions = clear_unknown_attributes assumptions
+  in let clean_actions = clear_additional_attributes actions
+  in { m = m; constraints = constraints;
+       assumptions = clean_assumptions; actions = clean_actions }
+
 let verify (reference: Interp.prg_res list) (candidate: Interp.prg_res list)
   : outcome list list =
   let verify_candidate (universals: IntSet.t) (ref: Interp.prg_type*Ast.value)
     (candidate: Interp.prg_res) : outcome list =
     match candidate with
     | Err _ -> []
-    | Ok candidate -> unify_candidate universals ref candidate
+    | Ok candidate ->
+        let outcomes = unify_candidate universals ref candidate
+        in let cleaned = List.map clean_outcome outcomes
+        in cleaned
     (* TODO: I'd really like to collapse the information in this list, removing
      * things like attributes assigned to (unconstrained) unknown values and
      * simplifying so that if we have a case that assumes P and another ~P we
@@ -400,7 +454,7 @@ let state_diff_to_string (d: state_diff) : string =
     let StateDiff(elems, attrs) = d
     in Modules.Target.string_of_list if_empty lhs ", " rhs (fun s -> s)
       (List.map
-        (fun (((elem, _), v, neg), s) ->
+        (fun (((elem, _), v, neg), (_, s)) ->
           (if neg then "not " else "")
           ^ elem ^ "(" ^ Modules.Target.value_to_string v ^ ")"
           ^ inner "" ": < " " >" s)
