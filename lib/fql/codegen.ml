@@ -595,7 +595,8 @@ let codegen_act (a: Ast.act) env
               ; Assign (Field (fs path sys, "fs_type"),
                   EnumExp (Id "file_type", None, "file", [Id "r"]))
               ],
-              [ LetStmt ("r", BinaryExp (Id "c", StringLit line, Concat))
+              [ LetStmt ("r",
+                  BinaryExp (Id "c", StringLit (line ^ "\\n"), Concat))
               ; Assert (FuncExp (Id "validate_contents",
                   [ StringLit "/usr/sbin/visudo -cf %s"; Id "r" ]))
               ; Assign (Field (fs path sys, "fs_type"),
