@@ -15,7 +15,7 @@
   - name: Install SSH (RedHat)
     ansible.builtin.package:
       name:
-        - openssh-servier
+        - openssh-server
         - openssh-clients
       state: present
     when: ansible_os_family == "RedHat"
