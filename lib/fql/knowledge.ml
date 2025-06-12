@@ -86,17 +86,20 @@ module Example : Knowledge_Base = struct
     | _ -> Error (Printf.sprintf "Unsupported repository type: %s"
                                  (ParseTree.unparse_vals vs))
 
+  let remote_path (s : string) : Ast.path = Remote (Value (Str s))
+
   let fileDef _ctx (vs: ParseTree.vals) args =
     match vs with
-    | [Str "postfix"; Str "configuration"] -> Ok (Remote (Str "/etc/postfix/main.cf"))
+    | [Str "postfix"; Str "configuration"]
+      -> Ok (remote_path "/etc/postfix/main.cf")
     | [Str "apache"; Str "server"; Str "html"; Str "home"; Str "page"]
-      -> Ok (Remote (Str "/var/www/html/index.html"))
+      -> Ok (remote_path "/var/www/html/index.html")
     | [Str "apache"; Str "server"; Str "php"; Str "home"; Str "page"]
-      -> Ok (Remote (Str "/var/www/html/index.php"))
+      -> Ok (remote_path "/var/www/html/index.php")
     | [Str "bash"; Str "configuration"] ->
         begin match extract_arg args "user" with
         | None -> Error "Must specify 'user' for bash configuration file"
-        | Some [Str nm] -> Ok (Remote (Str (Printf.sprintf "/home/%s/.bashrc" nm)))
+        | Some [Str nm] -> Ok (Remote (InHome (nm, Str ".bashrc")))
         | Some vs -> Error (Printf.sprintf
             "For bash configuration file, expected single name for 'user', found: %s"
             (ParseTree.unparse_vals vs))
@@ -104,7 +107,7 @@ module Example : Knowledge_Base = struct
     | [Str "zsh"; Str "configuration"] ->
         begin match extract_arg args "user" with
         | None -> Error "Must specify 'user' for zsh configuration file"
-        | Some [Str nm] -> Ok (Remote (Str (Printf.sprintf "/home/%s/.zshrc" nm)))
+        | Some [Str nm] -> Ok (Remote (InHome (nm, Str ".zshrc")))
         | Some vs -> Error (Printf.sprintf
             "For zsh configuration file, expected single name for 'user', found: %s"
             (ParseTree.unparse_vals vs))
@@ -112,7 +115,7 @@ module Example : Knowledge_Base = struct
     | [Str "bashrc"] ->
         begin match extract_arg args "user" with
         | None -> Error "Must specify 'user' for bashrc file"
-        | Some [Str nm] -> Ok (Remote (Str (Printf.sprintf "/home/%s/.bashrc" nm)))
+        | Some [Str nm] -> Ok (Remote (InHome (nm, Str ".bashrc")))
         | Some vs -> Error (Printf.sprintf
             "For bashrc file, expected single name for 'user', found: %s"
             (ParseTree.unparse_vals vs))
@@ -120,7 +123,7 @@ module Example : Knowledge_Base = struct
     | [Str "zshrc"] ->
         begin match extract_arg args "user" with
         | None -> Error "Must specify 'user' for zshrc file"
-        | Some [Str nm] -> Ok (Remote (Str (Printf.sprintf "/home/%s/.zshrc" nm)))
+        | Some [Str nm] -> Ok (Remote (InHome (nm, Str ".zshrc")))
         | Some vs -> Error (Printf.sprintf
             "For zshrc file, expected single name for 'user', found: %s"
             (ParseTree.unparse_vals vs))
@@ -135,7 +138,7 @@ module Example : Knowledge_Base = struct
     | [Str "zsh"; Str "configuration"] ->
         begin match extract_arg args "user" with
         | None -> Error "Must specify 'user' for zsh configuration directory"
-        | Some [Str nm] -> Ok (Remote (Str (Printf.sprintf "/home/%s/.zshrc.d" nm)))
+        | Some [Str nm] -> Ok (Remote (InHome (nm, Str ".zshrc.d")))
         | Some vs -> Error (Printf.sprintf
             "For zsh configuration directory, expected single name for 'user', found: %s"
             (ParseTree.unparse_vals vs))
@@ -149,7 +152,7 @@ module Example : Knowledge_Base = struct
         begin match ctx.os with
         | None -> Error "Condition 'reboot required' requires particular OS"
         | Some Debian | Some Ubuntu | Some DebianFamily ->
-            Ok (FileExists (Remote (Str "/var/run/reboot-required")))
+            Ok (FileExists (remote_path "/var/run/reboot-required"))
         | Some RedHat | Some RedHatFamily ->
             Error "Condition 'reboot required' not supported for RedHat"
         end
@@ -196,12 +199,12 @@ module Example : Knowledge_Base = struct
         begin match ctx.os with
         | None -> Error "cannot handle ssh client without knowing OS"
         | Some Debian | Some Ubuntu | Some DebianFamily ->
-            Ok { name = "ssh-client"; pkg_manager = Apt }
+            Ok { name = "openssh-client"; pkg_manager = Apt }
         | Some RedHat | Some RedHatFamily ->
-            Ok { name = "ssh-clients"; pkg_manager = Dnf }
+            Ok { name = "openssh-clients"; pkg_manager = Dnf }
         end
     | [Str "ssh"; Str "server"] | [Str "ssh server"] ->
-        Ok { name = "ssh-server"; pkg_manager = System }
+        Ok { name = "openssh-server"; pkg_manager = System }
     | _ -> Error (Printf.sprintf "Unknown package: %s"
                                  (ParseTree.unparse_vals vs))
 
@@ -209,8 +212,8 @@ module Example : Knowledge_Base = struct
    * at least on Debian /bin is a link of /usr/bin *)
   let programLoc _ctx (vs: ParseTree.vals) _args =
     match vs with
-    | [Str "zsh"] -> Ok (Ast.Remote (Str "/bin/zsh"))
-    | [Str "bash"] -> Ok (Ast.Remote (Str "/bin/bash"))
+    | [Str "zsh"] -> Ok (remote_path "/bin/zsh")
+    | [Str "bash"] -> Ok (remote_path "/bin/bash")
     | _ -> Error (Printf.sprintf "Unknown executable: %s"
                                  (ParseTree.unparse_vals vs))
 
