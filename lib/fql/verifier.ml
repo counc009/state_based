@@ -76,7 +76,60 @@ let universal_vars ((p, _): (Interp.prg_type * Ast.value)) : IntSet.t =
              | Compatible   of unit*)
 
 type unification = Value of Ast.value | Unknown of int
-type unifier = unification IntMap.t
+
+(* The unifier holds the following information that is necessary to properly
+ * handle unifying expressions:
+ * - map: maps an unknown to a value or other unknown it is unified with
+ * - vmap: maps an unknown to the list of unknowns mapped to it, i.e. if
+ *   vmap[i] = xs and j in xs then map[j] = Unknown i
+ * - universals: the set of universal unknowns (i.e. unknowns that can only be
+ *   unified with other unknowns). This is initialized as the unknowns
+ *   appearing as attribute values in the reference's initial state and then
+ *   may expand as unknowns are unified to universal unknowns.
+ *)
+type unifier = { map: unification IntMap.t; vmap: int list IntMap.t;
+                 universals: IntSet.t }
+
+let lmap_find (i: int) (map: 'a list IntMap.t) : 'a list =
+  match IntMap.find_opt i map with
+  | None -> []
+  | Some xs -> xs
+
+let lmap_add (i: int) (x: 'a) (map: 'a list IntMap.t) : 'a list IntMap.t =
+  IntMap.update i 
+    (fun xs -> match xs with None -> Some [x] | Some xs -> Some (x :: xs))
+    map
+
+let lmap_extend (i: int) (xs: 'a list) (map: 'a list IntMap.t)
+  : 'a list IntMap.t =
+  IntMap.update i
+    (fun ys -> match ys with None -> Some xs | Some ys -> Some (xs @ ys))
+    map
+
+let new_unifier (universals: IntSet.t) : unifier =
+  { map = IntMap.empty; vmap = IntMap.empty; universals = universals }
+
+let unifier_find (i: int) (u: unifier) : unification option =
+  IntMap.find_opt i u.map
+
+let unifier_add (i: int) (v: unification) (u: unifier) : unifier =
+  let { map; vmap; universals } = u
+  (* We need to perform 2 updates to map: map i -> v and for any j such that
+   * j -> i we update it so that j -> v (in particular this means we use
+   * vmap[i] and update those variables' bindings to v *)
+  in { map = List.fold_left (fun map j -> IntMap.add j v map)
+                (IntMap.add i v map) (lmap_find i vmap);
+  (* For vmap, if v = Unknown k then we transfer vmap[i] to be part of vmap[k] *)
+       vmap = (match v with Unknown k -> lmap_extend k (lmap_find i vmap) vmap
+                         | Value _ -> vmap);
+  (* For universals, if v = Unknown k and i is universal, then k is now
+   * universal *)
+       universals =
+         if IntSet.mem i universals
+         then match v with Unknown k -> IntSet.add k universals
+                         | Value _ -> universals
+         else universals
+     }
 
 (* The bool in the elements records whether this element itself is part of the
  * diff or only present because of a diff on it *)
@@ -160,14 +213,14 @@ let add_elems (elms: Interp.state Interp.ElementMap.t) (diff: state_diff) =
 let rec evaluate_val (v: Ast.value) (m: unifier) : Ast.value =
   match v with
   | Unknown (Loop i, t) ->
-      begin match IntMap.find_opt i m with
+      begin match unifier_find i m with
       | None -> v
       (* This case should not occur *)
       | Some (Value _) -> failwith "Cannot replace Loop unknown with value"
       | Some (Unknown j) -> Unknown (Loop j, t)
       end
   | Unknown (Val i, t) ->
-      begin match IntMap.find_opt i m with
+      begin match unifier_find i m with
       | None -> v
       | Some (Value w) -> w
       | Some (Unknown j) -> Unknown (Val j, t)
@@ -198,76 +251,100 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
    * point the unification is unconditional). *)
   in let rec unify_values (rv: Ast.value) (cv: Ast.value) (m : unifier)
     : (unifier * bool) option =
-    match rv, cv with
-    | Literal (r, _), Literal (c, _) when r = c -> Some (m, true)
-    | Function (f, v, _), Function (g, w, _) when f = g -> unify_values v w m
-    | Pair (x, y, _), Pair (a, b, _) ->
-        Option.bind (unify_values x a m) (fun (m, u1) ->
-          Option.bind (unify_values y b m) (fun (m, u2) -> Some (m, u1 && u2)))
-    | Constructor (n, b, v), Constructor (p, c, w) when n = p && b = c ->
-        unify_values v w m
-    | Struct (_, r), Struct (_, t) ->
-        (* By checking that they have equal cardinality, and then ensuring that
-         * each binding in r is also a binding in s we ensure they have the same
-         * set of bindings *)
-        if Ast.FieldMap.cardinal r <> Ast.FieldMap.cardinal t then None
-        else Ast.FieldMap.fold (fun f v m ->
-          Option.bind m (fun (m, u1) ->
-            Option.bind (Ast.FieldMap.find_opt f t) (fun w ->
-              Option.bind (unify_values v w m) (fun (m, u2) ->
-                Some (m, u1 && u2)))))
-          r
-          (Some (m, true))
-    | ListVal (_, v), ListVal (_, w) -> unify_values v w m
-    | Unknown (Loop i, _), Unknown (Loop j, _) ->
-        begin match IntMap.find_opt i m with
-        | Some (Unknown v) -> if v = j then Some (m, true) else None
-        | Some (Value _) -> None
-        | None ->
-            let loop_ref =
-              Interp.ValueMap.fold
-                (fun v l r -> match r with Some r -> Some r
-                  | None -> match l with
-                    | Interp.AllUnknown n | LastKnown (n, _)
-                      -> if n = i then Some v else None
-                    | AllKnown _ -> None)
-                ref.loops
-                None
-            in let loop_cand =
-              Interp.ValueMap.fold
-                (fun v l r -> match r with Some r -> Some r
-                  | None -> match l with
-                    | Interp.AllUnknown n | LastKnown (n, _)
-                      -> if n = j then Some v else None
-                    | AllKnown _ -> None)
-                cand.loops
-                None
-            in match loop_ref, loop_cand with
-            (* If we didn't find one, that's an error. Fail to unify *)
-            | None, _ | _, None -> None
-            | Some v, Some w ->
-                Option.bind (unify_values v w m) (fun (m, _) ->
-                  Some (IntMap.add i (Unknown j) m, false))
-        end
-    | Unknown (Val i, _), Unknown (Val j, _) ->
-        begin match IntMap.find_opt i m with
-        | Some (Unknown v) -> if v = j then Some (m, true) else None
-        | Some (Value _) -> None
-        (* Note that we can unify a universal variable to variable since it
-         * remains universal. As seen below we can't unify universals to
-         * particular values *)
-        | None -> Some (IntMap.add i (Unknown j) m, false)
-        end
-    | Unknown (Val _, _), Unknown (Loop _, _)
-      | Unknown (Loop _, _), Unknown (Val _, _) -> None
-    | Unknown (Val i, _), _ ->
-        begin match IntMap.find_opt i m with
-        | Some (Unknown _) -> None
-        | Some (Value v) -> if v = cv then Some (m, true) else None
-        | None -> if IntSet.mem i universals then None
-                  else Some (IntMap.add i (Value cv) m, false)
-        end
-    | _, _ -> None
+    let matched =
+      match rv, cv with
+      | Literal (r, _), Literal (c, _) when r = c -> Some (m, true)
+      | Function (f, v, _), Function (g, w, _) when f = g -> unify_values v w m
+      | Pair (x, y, _), Pair (a, b, _) ->
+          Option.bind (unify_values x a m) (fun (m, u1) ->
+            Option.bind (unify_values y b m) (fun (m, u2) ->
+              Some (m, u1 && u2)))
+      | Constructor (n, b, v), Constructor (p, c, w) when n = p && b = c ->
+          unify_values v w m
+      | Struct (_, r), Struct (_, t) ->
+          (* By checking that they have equal cardinality, and then ensuring
+           * that each binding in r is also a binding in s we ensure they have
+           * the same set of bindings *)
+          if Ast.FieldMap.cardinal r <> Ast.FieldMap.cardinal t then None
+          else Ast.FieldMap.fold (fun f v m ->
+            Option.bind m (fun (m, u1) ->
+              Option.bind (Ast.FieldMap.find_opt f t) (fun w ->
+                Option.bind (unify_values v w m) (fun (m, u2) ->
+                  Some (m, u1 && u2)))))
+            r
+            (Some (m, true))
+      | ListVal (_, v), ListVal (_, w) -> unify_values v w m
+      | Unknown (Loop i, _), Unknown (Loop j, _) ->
+          begin match unifier_find i m with
+          | Some (Unknown v) -> if v = j then Some (m, true) else None
+          | Some (Value _) -> None
+          | None ->
+              let loop_ref =
+                Interp.ValueMap.fold
+                  (fun v l r -> match r with Some r -> Some r
+                    | None -> match l with
+                      | Interp.AllUnknown n | LastKnown (n, _)
+                        -> if n = i then Some v else None
+                      | AllKnown _ -> None)
+                  ref.loops
+                  None
+              in let loop_cand =
+                Interp.ValueMap.fold
+                  (fun v l r -> match r with Some r -> Some r
+                    | None -> match l with
+                      | Interp.AllUnknown n | LastKnown (n, _)
+                        -> if n = j then Some v else None
+                      | AllKnown _ -> None)
+                  cand.loops
+                  None
+              in match loop_ref, loop_cand with
+              (* If we didn't find one, that's an error. Fail to unify *)
+              | None, _ | _, None -> None
+              | Some v, Some w ->
+                  Option.bind (unify_values v w m) (fun (m, _) ->
+                    Some (unifier_add i (Unknown j) m, false))
+          end
+      | Unknown (Val i, _), Unknown (Val j, _) ->
+          begin match unifier_find i m with
+          | Some (Unknown v) -> if v = j then Some (m, true) else None
+          | Some (Value _) -> None
+          (* Note that we can unify a universal variable to variable since it
+           * remains universal. As seen below we can't unify universals to
+           * particular values *)
+          | None -> Some (unifier_add i (Unknown j) m, false)
+          end
+      | Unknown (Val _, _), Unknown (Loop _, _)
+        | Unknown (Loop _, _), Unknown (Val _, _) -> None
+      | Unknown (Val i, _), _ ->
+          begin match unifier_find i m with
+          | Some (Unknown _) -> None (* Handled this case above *)
+          | Some (Value v) ->
+              if evaluate_val v m = evaluate_val cv m
+              then Some (m, true) else None
+          | None -> if IntSet.mem i m.universals then None
+                    else Some (unifier_add i (Value cv) m, false)
+          end
+      (* Variables in the candidate can be constrained to a particular value
+       * for instance the reference may assume a particular value for the OS
+       * while the candidate may just the variable without matching on it.
+       * While technically all variables in the candidate are universal, what
+       * we're tracking through m.universals is the variables that can't be
+       * constrained to a particular value *)
+      | _, Unknown (Val i, _) ->
+          begin match unifier_find i m with
+          | Some (Unknown _) -> None (* Handled this case above *)
+          | Some (Value v) ->
+              if evaluate_val v m = evaluate_val rv m
+              then Some (m, true) else None
+          | None -> if IntSet.mem i m.universals then None
+                    else Some (unifier_add i (Value rv) m, false)
+          end
+      | _, _ -> None
+    in match matched with
+    | Some res -> Some res
+    (* If we failed to unify from above, we can try to unify by evaluation *)
+    | None -> if evaluate_val rv m = evaluate_val cv m then Some (m, true)  
+              else None
   (* When we unify states we need to know whether we are unifying an input or
    * not since the candidate is not required to make all the assumptions the
    * reference does but must perform all the actions the reference does. *)
@@ -362,7 +439,7 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
                                :: res
       ) res (unify_states ref.final cand.final false m)
     ) [] (unify_states ref.init cand.init true m)
-  in match unify_values ref_val cand_val IntMap.empty with
+  in match unify_values ref_val cand_val (new_unifier universals) with
   | None -> []
   | Some (m, _) -> unify_prgs m
 
@@ -483,21 +560,22 @@ let unification_to_string = function
   | Value v -> Modules.Target.value_to_string v
   | Unknown i -> "?" ^ string_of_int i
 
-let state_diff_to_string (d: state_diff) : string =
+let state_diff_to_string (d: state_diff) (m : unifier) : string =
   let rec inner if_empty lhs rhs (d: state_diff) =
     let StateDiff(elems, attrs) = d
     in Modules.Target.string_of_list if_empty lhs ", " rhs (fun s -> s)
       (List.map
         (fun (((elem, _), v, neg), (_, s)) ->
           (if neg then "not " else "")
-          ^ elem ^ "(" ^ Modules.Target.value_to_string v ^ ")"
+          ^ elem ^ "(" ^ Modules.Target.value_to_string (evaluate_val v m) ^ ")"
           ^ inner "" ": < " " >" s)
         (Interp.ElementMap.to_list elems)
       @
       List.map
         (fun ((attr, _), (v, s)) ->
           attr ^ (match v with None -> ""
-                  | Some v -> " = " ^ Modules.Target.value_to_string v)
+                  | Some v -> 
+                    " = " ^ Modules.Target.value_to_string (evaluate_val v m))
           ^ inner "" ": < " " >" s)
         (Interp.AttributeMap.to_list attrs))
   in inner "<>" "< " " >" d
@@ -505,17 +583,12 @@ let state_diff_to_string (d: state_diff) : string =
 let outcome_to_string (o: outcome) : string =
   (* FIXME: Print constraints *)
   let { m;  constraints = _; assumptions; actions } = o
-  in let map =
-    String.concat ", "
-      (IntMap.fold (fun i v res ->
-        Printf.sprintf "?%d -> %s" i (unification_to_string v) :: res
-      ) m [])
-  in Printf.sprintf "[ %s ], %s, %s"
-    map (state_diff_to_string assumptions) (state_diff_to_string actions)
+  in Printf.sprintf "%s, %s"
+    (state_diff_to_string assumptions m) (state_diff_to_string actions m)
 
 let print_verification (v: outcome list list) : unit =
   List.iter (fun v ->
     if List.is_empty v then Printf.printf "FAILED TO VERIFY\n"
-    else Printf.printf "Unified with: %s\n"
+    else Printf.printf "UNIFIED: %s\n"
       (String.concat " | " (List.map outcome_to_string v))
   ) v
