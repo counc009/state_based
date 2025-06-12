@@ -492,42 +492,140 @@ let clean_outcome (o: outcome) : outcome =
   in { m = m; constraints = constraints;
        assumptions = clean_assumptions; actions = clean_actions }
 
-(* TODO: HERE 
-(* NOTE: One thing that we have to figure out is how to track when things
- * cancel out. My inclination is to define a new state-like type where the
- * element map ignores the negation and there are three states: positive,
- * negative, and canceled out; and we have a similar thing for attribute
- * values (a certain value, a canceled out value [true or false], or any of
- * some multiple values) *)
-type diffs = { init: state_diff; final: state_diff; constraints: unit }
+(* To merge multiple state diffs, we use another state-like construct, but this
+ * one is significantly different from the others we have seen so far. Firstly,
+ * for elements we do not store the positive/negative bool as part of the key,
+ * rather we indicate it in the value since a Positive and Negative assumption
+ * can cancel out.
+ * Similarly, for attributes the value can be one of several options:
+ * - No value: this attribute is only recorded because of the state on it
+ * - A specific value
+ * - Any value: this is used for boolean values where we merge cases that
+ *   assume true and false
+ * - Some values: if there are some specific values this can take but not all
+ *)
+module MergedElemMap = struct
+  type 'a t = 'a Interp.ElementMap.t
+  let empty : 'a t = Interp.ElementMap.empty
 
-let empty_diffs : diffs = 
-  { init = empty_diff; final = empty_diff; constraints = () }
+  let is_empty (m : 'a t) = Interp.ElementMap.is_empty m
 
-let merge_outcomes (outcomes: outcome list) : diffs =
-  (* When we combine initial states, we cancel out contradictory values *)
-  let add_initial (diff: state_diff) (o: state_diff) : state_diff =
-    let StateDiff(d_elems, d_attrs) = diff
-    in let StateDiff(o_elems, o_attrs) = o
-    in let new_elems = Interp.ElementMap.fold (fun elem (_, s) new_elems ->
-      failwith "TODO"
-    ) o_elems d_elems
-    in let new_attrs = Interp.AttributeMap.fold (fun attr (v, s) new_attrs ->
-      failwith "TODO"
-    ) o_attrs d_attrs
-    in StateDiff (new_elems, new_attrs)
-  in let add_final (diff: state_diff) (o: state_diff) : state_diff =
-    failwith "TODO"
-  in let add_constraints (_diff: unit) (_o: unit) : unit = ()
+  let add (elem, v) (x : 'a) (m : 'a t)
+    = Interp.ElementMap.add (elem, v, false) x m
+
+  let find_opt (elem, v) (m : 'a t)
+    = Interp.ElementMap.find_opt (elem, v, false) m
+
+  let update (elem, v) f (m : 'a t)
+    = Interp.ElementMap.update (elem, v, false) f m
+
+  let to_list (m: 'a t) = 
+    List.map (fun ((e, v, _), x) -> ((e, v), x)) (Interp.ElementMap.to_list m)
+end
+
+(* Placeholder means this element only exists for the state on it *)
+type merged_elem = Placeholder | Positive | Negative | Canceled
+type merged_attr = Value of Ast.value | AnyValue | SomeValues
+
+type merged_diff = MergedDiff of (merged_elem * merged_diff) MergedElemMap.t
+                         * (merged_attr * merged_diff) Interp.AttributeMap.t
+
+let empty_merged = MergedDiff (MergedElemMap.empty, Interp.AttributeMap.empty)
+
+type merged_outcomes = { init: merged_diff; final: merged_diff;
+                         constraints: unit }
+
+let empty_outcomes : merged_outcomes = {
+  init = empty_merged;
+  final = empty_merged;
+  constraints = ()
+}
+
+let merged_empty (m: merged_diff) : bool =
+  let MergedDiff (elems, attrs) = m
+  in MergedElemMap.is_empty elems && Interp.AttributeMap.is_empty attrs
+
+let rec diff_to_merged (d: state_diff) : merged_diff =
+  let StateDiff (elems, attrs) = d
+  in let new_elems =
+    Interp.ElementMap.fold (fun (elem, v, neg) (keep, s) new_elems ->
+      let new_s = diff_to_merged s
+      in MergedElemMap.add (elem, v)
+        ((if merged_empty new_s && not keep then Canceled
+          else if not keep then Placeholder
+          else if neg then Negative else Positive), new_s)
+        new_elems
+    ) elems MergedElemMap.empty
+  in let new_attrs =
+    Interp.AttributeMap.map (fun (v, s) ->
+      let new_s = diff_to_merged s
+      in match v with
+      | None -> (AnyValue, new_s)
+      | Some v -> (Value v, new_s)
+    ) attrs
+  in MergedDiff (new_elems, new_attrs)
+
+let merge_outcomes (outcomes: outcome list) : merged_outcomes =
+  let rec merge_init (s: merged_diff) (o: state_diff) : merged_diff =
+    let StateDiff (elems_o, attrs_o) = o
+    in let MergedDiff (elems_s, attrs_s) = s
+    in let new_elems =
+      Interp.ElementMap.fold (fun (elem, v, neg) (keep, s) new_elems ->
+        MergedElemMap.update (elem, v) (fun cur ->
+          match cur with
+          | None ->
+              let s = diff_to_merged s
+              (* If the state on this is empty and we don't need to keep it
+               * then mark this element as canceled since it doesn't matter *)
+              in Some ((if merged_empty s && not keep then Canceled
+                        else if not keep then Placeholder
+                        else if neg then Negative else Positive), s)
+          | Some (kind, m) ->
+              let new_s = merge_init m s
+              in match kind, neg with
+              | Positive, true | Negative, false | Canceled, _ 
+                -> Some (Canceled, empty_merged)
+              | Placeholder, _ when not keep -> Some (Placeholder, new_s)
+              | Positive, false | Placeholder, false
+                -> Some (Positive, new_s)
+              | Negative, true | Placeholder, true
+                -> Some (Negative, new_s)
+        ) new_elems
+      ) elems_o elems_s
+    in let new_attrs =
+      Interp.AttributeMap.fold (fun attr (v, s) new_attrs ->
+        Interp.AttributeMap.update attr (fun cur ->
+          match cur with
+          | None ->
+              let s = diff_to_merged s
+              in begin match v with
+              | None -> Some (AnyValue, s)
+              | Some v -> Some (Value v, s)
+              end
+          | Some (mv, m) ->
+              let new_s = merge_init m s
+              in match mv, v with
+              | _, None | AnyValue, _ -> Some (AnyValue, new_s)
+              | SomeValues, _ -> Some (SomeValues, new_s)
+              | Value v, Some w ->
+                  if v = w then Some (Value v, new_s)
+                  else match Ast.asTruth v, Ast.asTruth w with
+                  | Some v, Some w when v <> w -> Some (AnyValue, new_s)
+                  | _, _ -> Some (SomeValues, new_s)
+        ) new_attrs
+      ) attrs_o attrs_s
+    in MergedDiff (new_elems, new_attrs)
+  in let merge_final = merge_init
+  in let merge_constraints () () = ()
   in List.fold_left (fun res (o: outcome) -> {
-    init = add_initial res.init o.assumptions;
-    final = add_final res.final o.actions;
-    constraints = add_constraints res.constraints o.constraints
-  }) empty_diffs outcomes
-*)
+    (* TODO: Merging states should probably make use of the unifier *)
+    init = merge_init res.init o.assumptions;
+    final = merge_final res.final o.actions;
+    constraints = merge_constraints res.constraints o.constraints
+  }) empty_outcomes outcomes
 
 let verify (reference: Interp.prg_res list) (candidate: Interp.prg_res list)
-  : outcome list list =
+  : merged_outcomes option list =
   let verify_candidate (universals: IntSet.t) (ref: Interp.prg_type*Ast.value)
     (candidate: Interp.prg_res) : outcome list =
     match candidate with
@@ -540,7 +638,7 @@ let verify (reference: Interp.prg_res list) (candidate: Interp.prg_res list)
      * things like attributes assigned to (unconstrained) unknown values and
      * simplifying so that if we have a case that assumes P and another ~P we
      * just report no additional assumptions. *)
-  in let verify_result (ref: Interp.prg_res) : outcome list option =
+  in let verify_result (ref: Interp.prg_res) : merged_outcomes option option =
     match ref with
     (* for errors in the reference, return None so that we filter them out *)
     | Err _ -> None
@@ -549,46 +647,56 @@ let verify (reference: Interp.prg_res list) (candidate: Interp.prg_res list)
          * outcome(s) in the candidate that match. Because we just need some
          * we concat all the results from the individual candidate outcomes *)
         let var_analysis = universal_vars ref
-        in Some (List.concat_map (verify_candidate var_analysis ref) candidate)
+        in let outcomes = 
+          List.concat_map (verify_candidate var_analysis ref) candidate
+        in if List.is_empty outcomes
+        then Some None
+        else Some (Some (merge_outcomes outcomes))
         (* NOTE: To really provide good feedback we need to associate the
          * information on additional assumptions/actions with the assumptions
          * already made in this reference outcome *)
   in let results = List.filter_map verify_result reference
   in results
 
-let unification_to_string = function
+let unification_to_string : unification -> string = function
   | Value v -> Modules.Target.value_to_string v
   | Unknown i -> "?" ^ string_of_int i
 
-let state_diff_to_string (d: state_diff) (m : unifier) : string =
-  let rec inner if_empty lhs rhs (d: state_diff) =
-    let StateDiff(elems, attrs) = d
+let diff_to_string (d: merged_diff) : string =
+  let rec inner if_empty lhs rhs (d: merged_diff) =
+    let MergedDiff (elems, attrs) = d
     in Modules.Target.string_of_list if_empty lhs ", " rhs (fun s -> s)
-      (List.map
-        (fun (((elem, _), v, neg), (_, s)) ->
-          (if neg then "not " else "")
-          ^ elem ^ "(" ^ Modules.Target.value_to_string (evaluate_val v m) ^ ")"
-          ^ inner "" ": < " " >" s)
-        (Interp.ElementMap.to_list elems)
+      (List.filter_map
+        (fun (((elem, _), v), (k, s)) ->
+          let inner_text = inner "" ": < " " >" s
+          in let text = 
+            elem ^ "(" ^ Modules.Target.value_to_string v ^ ")" ^ inner_text
+          in match k with Canceled -> None
+          | Placeholder when inner_text = "" -> None
+          | Positive | Placeholder -> Some text
+          | Negative -> Some ("not " ^ text))
+        (MergedElemMap.to_list elems)
       @
-      List.map
+      List.filter_map
         (fun ((attr, _), (v, s)) ->
-          attr ^ (match v with None -> ""
-                  | Some v -> 
-                    " = " ^ Modules.Target.value_to_string (evaluate_val v m))
-          ^ inner "" ": < " " >" s)
+          let text = inner "" ": < " " >" s
+          in match v with
+          | AnyValue when text = "" -> None
+          | AnyValue -> Some (attr ^ text)
+          | SomeValues -> Some (attr ^ " = ??" ^ text)
+          | Value v ->
+              Some (attr ^ " = " ^ Modules.Target.value_to_string v ^ text))
         (Interp.AttributeMap.to_list attrs))
   in inner "<>" "< " " >" d
 
-let outcome_to_string (o: outcome) : string =
+let outcome_to_string (o: merged_outcomes) : string =
   (* FIXME: Print constraints *)
-  let { m;  constraints = _; assumptions; actions } = o
-  in Printf.sprintf "%s, %s"
-    (state_diff_to_string assumptions m) (state_diff_to_string actions m)
+  let { init; final; constraints = _ } = o
+  in Printf.sprintf "%s, %s" (diff_to_string init) (diff_to_string final)
 
-let print_verification (v: outcome list list) : unit =
+let print_verification (v: merged_outcomes option list) : unit =
   List.iter (fun v ->
-    if List.is_empty v then Printf.printf "FAILED TO VERIFY\n"
-    else Printf.printf "UNIFIED: %s\n"
-      (String.concat " | " (List.map outcome_to_string v))
+    match v with
+    | None -> Printf.printf "FAILED TO VERIFY\n"
+    | Some v -> Printf.printf "UNIFIED: %s\n" (outcome_to_string v)
   ) v
