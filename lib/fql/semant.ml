@@ -359,7 +359,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
                           "Expected a single string as user name, found: %s"
                           (ParseTree.unparse_vals vs))
             in let group =
-              match extract_arg args "group" with
+              match extract args [Str "primary"; Str "group"] with
               | None -> Ok None
               | Some [Str s] -> Ok (Some s)
               | Some vs ->
@@ -367,7 +367,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
                           "Expected a single string as user group, found: %s"
                           (ParseTree.unparse_vals vs))
             in let groups =
-              match extract_arg args "groups" with
+              match extract args [Str "supplemental"; Str "groups"] with
               | None -> Ok None
               | Some nms ->
                   Result.bind 
