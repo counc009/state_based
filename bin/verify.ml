@@ -12,7 +12,7 @@ let anon_fun filename =
 let arglist =
   [("--", Arg.Rest_all (fun fs -> module_defs := fs), "Ansible Module Definitions")]
 
-let () =
+let () = Printf.printf "\n";
   Arg.parse arglist anon_fun usage_msg;
   let parsed =
     match Modules.Parser.parse_files !module_defs with
