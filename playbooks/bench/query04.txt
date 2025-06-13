@@ -1,0 +1,1 @@
+set file permissions in /srv/path to read=all, write=owner, list directory=all

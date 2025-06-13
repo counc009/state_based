@@ -1,0 +1,1 @@
+create virtual environment with python="3.10" in /user/home/venv; install numpy in virtual environment at /user/home/venv

@@ -670,6 +670,9 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
     | StringLit v -> k (JustExpr (Literal (String v), Primitive String))
     | PathLit v   -> k (JustExpr (Literal (Path v), Primitive Path))
     | UnitExp     -> k (JustExpr (Literal (Unit ()), Primitive Unit))
+    | GenUnknown t ->
+        let ty = target_type (process_type t tys)
+        in k (JustExpr (Function (GenUnknown ty, Literal (Unit ())), ty))
     | ProductExp es ->
         begin match es with
         | [] -> k (JustExpr (Literal (Unit ()), Primitive Unit))
@@ -1031,6 +1034,16 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                           && rhs_t = Target.Primitive Bool
                           then Ok (Target.Primitive Bool, TargetAst.BoolOr)
                           else Error "Incorrect type for boolean or"
+                      | Le ->
+                          if lhs_t = rhs_t
+                          then
+                            match lhs_t with
+                            | Target.Primitive Int ->
+                                Ok (Target.Primitive Bool, TargetAst.LeInt)
+                            | Target.Primitive Float ->
+                                Ok (Target.Primitive Bool, TargetAst.LeFloat)
+                            | _ -> Error "Cannot compare non-numeric types"
+                          else Error "Types for le must be the same"
                       | _ -> Error "TODO: support binary ops"
                     in Result.bind op_info
                     (fun (ret_typ, func) ->

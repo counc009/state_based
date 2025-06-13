@@ -4,5 +4,5 @@
   - name: Install numpy in virtual environment
     ansible.builtin.pip:
       name: numpy
-      virtualenv: /user/home/env
+      virtualenv: /user/home/venv
       virtualenv_python: python3.10

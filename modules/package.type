@@ -21,14 +21,22 @@ module ansible.builtin.package -> package_result {
   }
 
   match state {
-    package_state::present => { for n in name { touch package(n); } }
+    package_state::present => { 
+      if env().os_family == "Debian" { for n in name { touch package(n).apt(); }}
+      else if env().os_family == "RedHat" { for n in name { touch package(n).dnf(); }}
+      else { for n in name { touch package(n).sys(); }}
+    }
     package_state::absent  => { for n in name { clear package(n); } }
     package_state::latest  => {
       # We know latest works for Debian-based and RedHat-based systems
       # It may work for other systems, in which case add them to this assertion
       assert env().os_family == "Debian" || env().os_family == "RedHat";
+
+      if env().os_family == "Debian" { for n in name { touch package(n).apt(); }}
+      else if env().os_family == "RedHat" { for n in name { touch package(n).dnf(); }}
+      else { for n in name { touch package(n).sys(); }}
+
       for n in name {
-        touch package(n);
         package(n).version = package_version::latest;
       }
     }

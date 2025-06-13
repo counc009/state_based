@@ -17,29 +17,11 @@
       groups:
         - wheel
       state: present
-  - name: Create sudoers.d directory
-    ansible.builtin.file:
-      path: "/etc/sudoers.d/"
-      owner: root
-      group: root
-      mode: "750"
-      state: directory
-  - name: Allow group wheel to sudo (1)
-    ansible.builtin.lineinfile:
-      path: "/etc/sudoers.d/wheel"
-      line: "%wheel ALL=(ALL) NOPASSWD:ALL"
-      insertbefore: BOF
-      create: true
-      owner: root
-      group: root
-      mode: "440"
-      state: present
-  - name: Allow group wheel to sudo (2)
+  - name: Allow group wheel to sudo
     ansible.builtin.lineinfile:
       path: "/etc/sudoers"
-      line: "@includedir /etc/sudoers.d"
-      insertafter: BOF
-      create: true
+      line: "%wheel	ALL=(ALL:ALL) NOPASSWD:ALL"
+      regexp: "^%wheel"
       owner: root
       group: root
       mode: "640"

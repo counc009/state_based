@@ -1,0 +1,5 @@
+(library
+  (name fql)
+  (libraries modules))
+(ocamllex lexer)
+(ocamlyacc parser)

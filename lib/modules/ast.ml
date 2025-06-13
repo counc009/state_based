@@ -11,6 +11,7 @@ type pattern = string * typ option * string * string list
 
 type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
           | StringLit of string | PathLit of string | UnitExp
+          | GenUnknown of typ
           | ProductExp of expr list
           | RecordExp of expr * (string * expr) list
           | FieldSetExp of expr * string * expr

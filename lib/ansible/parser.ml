@@ -808,8 +808,10 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
         (* We add the following preamble to setup the environment the way we
          * want it:
          * - assert exists env();
-         * - assert env().time_counter = 0; *)
+         * - assert env().time_counter = 0;
+         * - assert env().last_reboot = -1; *)
         Modules.Ast.AssertExists (FuncExp (Id "env", []))
         :: Assert (BinaryExp (Field (FuncExp (Id "env", []), "time_counter"), IntLit 0, Eq))
+        :: Assert (BinaryExp (Field (FuncExp (Id "env", []), "last_reboot"), IntLit (-1), Eq))
         :: body)
       (process_yaml contents)

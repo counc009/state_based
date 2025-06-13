@@ -16,11 +16,12 @@ module ansible.builtin.git -> git_result {
       file_type::directory(files) => {
         match files {
           list::<path>::nil => {
-            let files = git_files(repo, version, remote);
+            let files = foreach f : git_files(repo, version, remote) {
+              let p = cons_path(dest, f);
+              fs(p, file_system::remote).fs_type = file_type::file(git_content(repo, version, remote, f));
+              yield p;
+            };
             fs(dest, file_system::remote).fs_type = file_type::directory(files);
-            for p in files {
-              fs(p, file_system::remote).fs_type = file_type::file(git_content(repo, version, remote, p));
-            }
             return git_result { failed: false };
           }
         }
