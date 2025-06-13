@@ -1,0 +1,1 @@
+delete directory at /home/mydata/web

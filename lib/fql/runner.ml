@@ -14,5 +14,4 @@ let interp_query sources query =
     let (types, env) = Modules.Codegen.codegen parsed
     in Result.bind (codegen_query query) (fun prg ->
       let prg = Modules.Codegen.codegen_program prg types env
-      in let res = Modules.Target.TargetInterp.interpret prg (Primitive Unit)
-      in Modules.Target.results_to_string res))
+      in Ok (Modules.Target.TargetInterp.interpret prg (Primitive Unit))))

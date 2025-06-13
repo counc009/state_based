@@ -1,0 +1,1 @@
+if os is Debian or os is RedHat then install ssh client; install ssh server; start ssh server service; create ssh key for user="fizbaz", name="fizbaz_rsa"

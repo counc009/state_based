@@ -1,0 +1,1 @@
+move file from "/scratch/file.txt" to "/home/user/data.txt"

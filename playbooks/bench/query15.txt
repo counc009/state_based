@@ -1,0 +1,1 @@
+delete files in /home/mydata/web

@@ -30,6 +30,7 @@ rule token = parse
   | "in"          { IN }
   | "into"        { INTO }
   | "to"          { TO }
+  | "via"         { VIA }
   | "with"        { WITH }
 
   | "clone"       { CLONE }

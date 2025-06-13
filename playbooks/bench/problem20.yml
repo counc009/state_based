@@ -5,6 +5,7 @@
     ansible.builtin.apt:
       update_cache: true
       cache_valid_time: 86400
+    when: ansible_os_family == "Debian"
   - name: Install SSH (Debian)
     ansible.builtin.package:
       name:
@@ -15,7 +16,7 @@
   - name: Install SSH (RedHat)
     ansible.builtin.package:
       name:
-        - openssh-servier
+        - openssh-server
         - openssh-clients
       state: present
     when: ansible_os_family == "RedHat"

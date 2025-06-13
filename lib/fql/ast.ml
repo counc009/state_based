@@ -1,4 +1,6 @@
-type path = Remote of ParseTree.value | Controller of ParseTree.value
+type dest = Value of ParseTree.value | InHome of string * ParseTree.value
+type path = Remote of dest | Controller of dest
+
 type paths = InPath   of path
            | Glob     of { base: path; glob: string }
 

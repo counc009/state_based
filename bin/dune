@@ -1,4 +1,12 @@
 (executable
  (public_name ansible-interp)
- (name main)
+ (name ansible_interp)
+ (libraries state_based))
+(executable
+ (public_name query-interp)
+ (name query_interp)
+ (libraries state_based))
+(executable
+ (public_name ansible-verify)
+ (name verify)
  (libraries state_based))

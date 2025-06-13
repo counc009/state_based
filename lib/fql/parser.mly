@@ -4,7 +4,7 @@
 %token IF THEN ELSE
 %token AND OR IS EQUALS EXISTS INSTALLED REQUIRED RUNNING NOT
 
-%token AT FOR FROM IN INTO TO WITH
+%token AT FOR FROM IN INTO TO VIA WITH
 
 %token CLONE COPY CREATE DELETE DISABLE DOWNLOAD ENABLE INSTALL MOVE
 %token REBOOT SET START STOP UNINSTALL WRITE
@@ -62,6 +62,7 @@ arg_sep: AT   { ParseTree.Str "at" }
        | IN   { Str "in" }
        | INTO { Str "into" }
        | TO   { Str "to" }
+       | VIA  { Str "via" }
        | WITH { Str "with" }
        ;
 arg_vals: category { fun nm -> [([nm], $1)] }

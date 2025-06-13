@@ -1,0 +1,1 @@
+write "module load gcc" to bashrc file for user = foo at position=end
