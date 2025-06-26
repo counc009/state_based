@@ -384,6 +384,10 @@ let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
                   Interp.ElementMap.fold (fun elem_c s_c (uncond, res) ->
                     let (el_r, v_r, b_r) = elem_r
                     in let (el_c, v_c, b_c) = elem_c
+                    (* TODO: Should we just ignore if the bool is different?
+                     * it seems we should maybe instead track when the pos/neg
+                     * differ and they unify and indicate that as non-unifying?
+                     *)
                     in if el_r <> el_c || b_r <> b_c then (uncond, res)
                     else match unify_values v_r v_c m with
                     | None -> (uncond, res)

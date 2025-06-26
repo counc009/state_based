@@ -1,1 +1,1 @@
-install zsh; set default shell for user="user" to zsh; if zsh configuration directory for user="user" not exists then create zsh configuration directory for user="user"
+install zsh; set default shell for user="dev" to zsh; if zsh configuration file for user="dev" not exists then create zsh configuration file for user="dev"
