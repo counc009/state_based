@@ -407,7 +407,6 @@ let codegen_act (a: Ast.act) env
                       [EnumExp (Id "list", Some Path, "nil", [])]))
                :: desc, map)))
   | CreateFile { dest; content } ->
-      (* FIXME: Maybe this should default to unset/unknown *)
       let content = Option.value ~default:"" content
       in Result.bind (codegen_path dest.path env)
         (fun (path_map, path, sys) ->
