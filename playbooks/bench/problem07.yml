@@ -1,8 +1,8 @@
 ---
-- name: Clone the 'stable/2.19' branch from the ansible/ansible github repo to /ansible
+- name: Clone the 'stable-2.18' branch from the ansible/ansible github repo to /ansible
   tasks:
   - name: Clone git repo
     ansible.builtin.git:
       repo: git@github.com:ansible/ansible.git
       dest: /ansible
-      version: stable/2.19
+      version: stable-2.18
