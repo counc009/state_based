@@ -1,1 +1,1 @@
-clone github repository with name=ansible/ansible, branch="release1.8.4" into /ansible via ssh
+clone github repository with name=ansible/ansible, branch="release1.8.4" into /ansible via https

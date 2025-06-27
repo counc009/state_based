@@ -3,6 +3,6 @@
   tasks:
   - name: Clone git repo
     ansible.builtin.git:
-      repo: git@github.com:ansible/ansible.git
+      repo: https://github.com/ansible/ansible.git
       dest: /ansible
       version: release1.8.4
