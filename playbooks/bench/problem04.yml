@@ -1,8 +1,10 @@
 ---
-- name: Set permissions for files and directories under /srv/path/ so that all users can list and read all files but only the owner can write
+- name: Set permissions under /srv/path
+  hosts: all
+  become: true
   tasks:
-  - name: Make my directory tree readable
-    ansible.builtin.file:
-      path: /srv/path
-      mode: u=rwX,g=rX,o=rX
-      recurse: yes
+    - name: Make directory tree readable
+      ansible.builtin.file:
+        path: /srv/path
+        mode: u=rwX,g=rX,o=rX
+        recurse: yes

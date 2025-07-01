@@ -1,8 +1,10 @@
 ---
-- name: Copy file /scratch/file.txt to /home/user/data.txt
+- name: Copy the file /scratch/file.txt to /home/user/data.txt
+  hosts: all
+  become: true
   tasks:
-  - name: Copy files from /scratch/file.txt to /home/user/data.txt
-    ansible.builtin.copy:
-      remote_src: True
-      src: /scratch/file.txt
-      dest: /home/user/data.txt
+    - name: Copy file
+      ansible.builtin.copy:
+        remote_src: True
+        src: /scratch/file.txt
+        dest: /home/user/data.txt

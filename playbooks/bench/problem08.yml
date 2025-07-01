@@ -1,11 +1,13 @@
 ---
-- name: For Debian and RedHat, install numpy
+- name: Install numpy on Debian and RedHat systems
+  hosts: all
+  become: true
   tasks:
-  - name: Install numpy (Debian)
-    ansible.builtin.apt:
-      name: python3-numpy
-    when: ansible_os_family == "Debian"
-  - name: Install numpy (RedHat)
-    ansible.builtin.pip:
-      name: numpy
-    when: ansible_os_family == "RedHat"
+    - name: Install numpy (Debian)
+      ansible.builtin.apt:
+        name: python3-numpy
+      when: ansible_os_family == "Debian"
+    - name: Install numpy (RedHat)
+      ansible.builtin.pip:
+        name: numpy
+      when: ansible_os_family == "RedHat"

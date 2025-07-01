@@ -698,9 +698,9 @@ let outcome_to_string (o: merged_outcomes) : string =
   let { init; final; constraints = _ } = o
   in Printf.sprintf "%s, %s" (diff_to_string init) (diff_to_string final)
 
-let print_verification (v: merged_outcomes option list) : unit =
-  List.iter (fun v ->
+let print_verification (v: merged_outcomes option list) : bool =
+  List.fold_left (fun success v ->
     match v with
-    | None -> Printf.printf "FAILED TO VERIFY\n"
-    | Some v -> Printf.printf "UNIFIED: %s\n" (outcome_to_string v)
-  ) v
+    | None -> Printf.printf "FAILED TO VERIFY\n"; false
+    | Some v -> Printf.printf "UNIFIED: %s\n" (outcome_to_string v); success
+  ) true v

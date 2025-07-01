@@ -1,19 +1,20 @@
 ---
-- name: Install zsh, set it as dev's default shell, and ensure its configuration file exists
+- name: Install zsh, set it as dev's shell, and ensure its config file exists
+  hosts: all
   become: true
   tasks:
-  - name: "needed packages - ensure installed"
-    ansible.builtin.package:
-      name: 'zsh'
-      state: 'present'
-  - name: "zsh as default shell - ensure configured"
-    ansible.builtin.user:
-      name: 'dev'
-      shell: '/bin/zsh'
-  - name: ".zshrc.d/ - ensure created"
-    ansible.builtin.file:
-      dest: '/home/dev/.zshrc'
-      state: 'touch'
-      owner: 'dev'
-      group: 'dev'
-      mode: '700'
+    - name: Install zsh
+      ansible.builtin.package:
+        name: 'zsh'
+        state: 'present'
+    - name: Set default shell
+      ansible.builtin.user:
+        name: 'dev'
+        shell: '/bin/zsh'
+    - name: Ensure zshrc created
+      ansible.builtin.file:
+        dest: '/home/dev/.zshrc'
+        state: 'touch'
+        owner: 'dev'
+        group: 'dev'
+        mode: '700'

@@ -1,8 +1,10 @@
 ---
-- name: Clone the 'release1.8.4' branch from the ansible/ansible github repo to /ansible
+- name: Clone ansible git repo
+  hosts: all
+  become: true
   tasks:
-  - name: Clone git repo
-    ansible.builtin.git:
-      repo: https://github.com/ansible/ansible.git
-      dest: /ansible
-      version: release1.8.4
+    - name: Clone repo
+      ansible.builtin.git:
+        repo: https://github.com/ansible/ansible.git
+        dest: /ansible
+        version: release1.8.4

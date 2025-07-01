@@ -1,14 +1,16 @@
 ---
-- name: Copy all .war files from /tmp on the remote machine into /backup on the controller
+- name: Copy .war files from remote to controller
+  hosts: debian
+  become: true
   tasks:
-  - name: Find .war files under /tmp of the remote server
-    ansible.builtin.find:
-      paths: /tmp
-      patterns: '*.war'
-    register: found
-  - name: Copy war files from remote server
-    ansible.builtin.fetch:
-      src: "{{ item.path }}"
-      dest: "/backup/"
-      flat: true
-    with_items: "{{ found.files }}"
+    - name: Find .war files under /tmp on the remote server
+      ansible.builtin.find:
+        paths: /tmp
+        patterns: '*.war'
+      register: found
+    - name: Copy war files from remote server
+      ansible.builtin.fetch:
+        src: "{{ item.path }}"
+        dest: "/backup/"
+        flat: true
+      with_items: "{{ found.files }}"

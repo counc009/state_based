@@ -1,7 +1,9 @@
 ---
-- name: Delete the directory /home/mydata/web
+- name: Delete directory /home/mydata/web
+  hosts: all
+  become: true
   tasks:
-  - name: Delete content & directory
-    ansible.builtin.file:
-      state: absent
-      path: /home/mydata/web
+    - name: Delete directory and content
+      ansible.builtin.file:
+        state: absent
+        path: /home/mydata/web

@@ -1,15 +1,17 @@
 ---
-- name: For RedHat, install apache server, ensure the home page exists, and create a webdev user.
+- name: Install apache server, ensure its home page exists, and create a webdev user
+  hosts: redhat
+  become: true
   tasks:
-  - name: Install apache server
-    ansible.builtin.package:
-      name: httpd
-      state: present
-  - name: Ensure home page exists
-    ansible.builtin.file:
-      path: /var/www/html/index.html
-      state: touch
-  - name: Create webdev user
-    ansible.builtin.user:
-      name: webdev
-      state: present
+    - name: Install apache
+      ansible.builtin.package:
+        name: 'httpd'
+        state: 'present'
+    - name: Ensure home page exists
+      ansible.builtin.file:
+        path: /var/www/html/index.html
+        state: touch
+    - name: Create webdev user
+      ansible.builtin.user:
+        name: webdev
+        state: present

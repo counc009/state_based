@@ -40,7 +40,9 @@ let () = Printf.printf "\n";
                                   ; exit 2
   in let ansible_res = match ansible_interp with Ok i -> i
                      | Error msg -> Printf.printf "ERROR in ansible: %s\n" msg
-                                  ; exit 2
+                                  ; exit 3
 
   in let res = Fql.Verifier.verify query_res ansible_res
-  in Fql.Verifier.print_verification res
+  in if Fql.Verifier.print_verification res
+  then exit 0
+  else exit 4

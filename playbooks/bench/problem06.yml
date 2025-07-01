@@ -1,8 +1,10 @@
 ---
-- name: Create a Python 3.10 virtual environment at /user/home/venv and install numpy in it
+- name: Create virtual environment and install numpy
+  hosts: all
+  become: true
   tasks:
-  - name: Install numpy in virtual environment
-    ansible.builtin.pip:
-      name: numpy
-      virtualenv: /user/home/venv
-      virtualenv_python: python3.10
+    - name: Install numpy in virtual environment
+      ansible.builtin.pip:
+        name: numpy
+        virtualenv: /user/home/venv
+        virtualenv_python: python3.10
