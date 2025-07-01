@@ -1,1 +1,1 @@
-create file at "/etc/file.txt" with content="beginning"
+if file "/etc/file.txt" not exists then create file at "/etc/file.txt" with content="beginning"
