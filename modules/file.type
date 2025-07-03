@@ -27,6 +27,9 @@ module ansible.builtin.file -> file_result {
 
   let result = file_result { failed: false };
 
+  if provided group { assert exists group(group); }
+  if provided owner { assert exists user(owner); }
+
   match state {
     file_state::absent => {
       if exists fs(path, file_system::remote) {
