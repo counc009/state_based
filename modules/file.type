@@ -12,7 +12,7 @@ function fs_state(p: path, loc: file_system) -> file_state {
   }
 }
 
-module ansible.builtin.file -> file_result {
+module ansible.builtin.file aka file -> file_result {
   (path aka dest, name: path)
   [group: string] [owner: string]
   [mode: string]

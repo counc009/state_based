@@ -785,11 +785,15 @@ let mod_def =
   *> module_name
   >>= fun nm ->
   whitespace
+  *> option [] (string "aka" *> whitespace
+      *> sep_by1 (whitespace *> char ',' *> whitespace) module_name)
+  >>= fun aliases ->
+  whitespace
   *> optional (string "->" *> whitespace *> typ)
   >>= fun retTy ->
   whitespace
   *> brackets stmts
-  >>| fun body -> Module (nm, retTy, body)
+  >>| fun body -> Module (nm, aliases, retTy, body)
 
 let top_level =
   sep_by whitespace

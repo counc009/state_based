@@ -50,4 +50,5 @@ type topLevel = Enum      of string * (string * typ list option) list
               | Attribute of string * typ
               | Element   of string * typ
               | Function  of string * (string * typ) list * typ option * stmt list
-              | Module    of string list * typ option * stmt list
+              (* Name, aliases, return type, body *)
+              | Module    of string list * string list list * typ option * stmt list

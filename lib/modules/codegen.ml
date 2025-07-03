@@ -1760,7 +1760,7 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
         in UniqueMap.add nm (Function (nm, arg_ty, ret_ty, func_body)) env
         ; (Either.Left (body, List.map fst args, arg_ty), ret_ty, func_body)
         :: create_functions tl types env
-    | Module (nm, ret, body) :: tl ->
+    | Module (nm, alt_names, ret, body) :: tl ->
         let (aliases, ast_types, var_types, struct_def)
           = process_module_for_args body types
         and ret_ty = process_type_option ret types
@@ -1775,6 +1775,7 @@ let codegen (files : Ast.topLevel list list) : type_env * global_env =
             ret_type = (match ret with None -> Product [] | Some t -> t);
             body = mod_body }
         in add_modules nm (Module mod_info) env
+        ; List.iter (fun nm -> add_modules nm (Module mod_info) env) alt_names
         ; (Either.Right (body, struct_def), ret_ty, mod_body)
         :: create_functions tl types env
     | _ :: _ -> failwith "partitioning error"
