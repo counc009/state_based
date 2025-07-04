@@ -1,5 +1,5 @@
-element user(string)
-element group(string)
+element e_user(string)
+element e_group(string)
 
 enum password_set { hashed(string), plain(string), disabled }
 attribute password(password_set)

@@ -4,7 +4,7 @@ struct group_result { failed: bool, name: string, state: group_state, system: bo
 
 uninterpreted group_used(string) -> bool
 
-module ansible.builtin.group -> group_result {
+module ansible.builtin.group aka group -> group_result {
   (name: string)
   (state: group_state = group_state::present)
 
@@ -16,7 +16,7 @@ module ansible.builtin.group -> group_result {
       let delete_group = force ? true : !group_used(name);
 
       if delete_group {
-        clear group(name);
+        clear e_group(name);
       }
     }
     group_state::present => {
@@ -24,8 +24,8 @@ module ansible.builtin.group -> group_result {
 
       res.system = system;
 
-      if exists group(name) { }
-      else { group(name).system = system; }
+      if exists e_group(name) { }
+      else { e_group(name).system = system; }
     }
   }
 

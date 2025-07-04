@@ -30,8 +30,8 @@ module ansible.builtin.file aka file -> file_result {
 
   let result = file_result { failed: false };
 
-  if provided group { assert exists group(group); }
-  if provided owner { assert exists user(owner); }
+  if provided group { assert exists e_group(group); }
+  if provided owner { assert exists e_user(owner); }
 
   match state {
     file_state::absent => {

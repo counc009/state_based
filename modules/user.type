@@ -27,7 +27,7 @@ uninterpreted ssh_fingerprint(public_key: string) -> string
 # /etc/passwd but usermod is not SETUID and hence must be run with root
 # privileges
 
-module ansible.builtin.user -> user_result {
+module ansible.builtin.user aka user -> user_result {
   (name aka user : string)
   (state: user_state = user_state::present)
 
@@ -65,12 +65,12 @@ module ansible.builtin.user -> user_result {
 
       let set_password = false;
 
-      if exists user(name) {
+      if exists e_user(name) {
         res.append = append;
         res.move_home = move_home;
 
-        if provided group { user(name).primary_group = group; }
-        let primary_group = user(name).primary_group;
+        if provided group { e_user(name).primary_group = group; }
+        let primary_group = e_user(name).primary_group;
 
         match update_password { password_update::always => { set_password = true; } }
 
@@ -81,7 +81,7 @@ module ansible.builtin.user -> user_result {
           homedir = home;
 
           if move_home {
-            let old_home = user(name).homedir;
+            let old_home = e_user(name).homedir;
             if exists fs(old_home, file_system::remote) {
               let mode = fs(old_home, file_system::remote).mode;
               let dir_mode = mode_of_umask(env().umask); # ???
@@ -92,33 +92,33 @@ module ansible.builtin.user -> user_result {
             }
           }
 
-          user(name).homedir = homedir;
+          e_user(name).homedir = homedir;
         }  else {
-          homedir = user(name).homedir;
+          homedir = e_user(name).homedir;
         }
 
         if provided groups {
           if append {
-            user(name).supplemental_groups = groups @ user(name).supplemental_groups;
+            e_user(name).supplemental_groups = groups @ e_user(name).supplemental_groups;
           } else {
-            user(name).supplemental_groups = groups;
+            e_user(name).supplemental_groups = groups;
           }
         }
       } else {
         # User doesn't exist, this requires root privilege as discussed above
         if !env().is_root { res.failed = true; return res; }
 
-        touch user(name);
+        touch e_user(name);
 
         # Per useradd documentation the default is disabled, if a password was
         # specified that's handled below
         set_password = true;
-        user(name).password = password_set::disabled;
+        e_user(name).password = password_set::disabled;
 
         # Technically the default is specified by a config file (/etc/default/useradd)
         # but I think 99.99% of the time /home is probably correct
         homedir = provided home ? home : cons_path('/home', path_of_string(name));
-        user(name).homedir = homedir;
+        e_user(name).homedir = homedir;
 
         res.create_home = create_home;
 
@@ -126,20 +126,20 @@ module ansible.builtin.user -> user_result {
         # behavior if no group name is specified is to create a group with the
         # same name as the user
         let primary_group = provided group ? group : name;
-        user(name).primary_group = primary_group;
+        e_user(name).primary_group = primary_group;
 
         if provided groups {
-          user(name).supplemental_groups = groups;
+          e_user(name).supplemental_groups = groups;
         } else {
-          user(name).supplemental_groups = list::<string>::nil();
+          e_user(name).supplemental_groups = list::<string>::nil();
         }
 
-        user(name).system = system;
+        e_user(name).system = system;
         res.system = system;
       }
 
-      res.groups = user(name).supplemental_groups;
-      res.home = user(name).homedir;
+      res.groups = e_user(name).supplemental_groups;
+      res.home = e_user(name).homedir;
 
       if provided password {
         if set_password {
@@ -148,15 +148,15 @@ module ansible.builtin.user -> user_result {
           if !env().is_root { res.failed = true; return res; }
 
           if password == "!" || password == "*" {
-            user(name).password = password_set::disabled;
+            e_user(name).password = password_set::disabled;
           } else {
-            user(name).password = password_set::hashed(password);
+            e_user(name).password = password_set::hashed(password);
           }
         }
       }
       if provided password_lock {
         if password_lock {
-          user(name).password = password_set::disabled;
+          e_user(name).password = password_set::disabled;
         }
       }
 
@@ -170,12 +170,12 @@ module ansible.builtin.user -> user_result {
       }
 
       if provided shell {
-        user(name).default_shell = shell;
+        e_user(name).default_shell = shell;
       }
-      res.shell = user(name).default_shell;
+      res.shell = e_user(name).default_shell;
 
       if generate_ssh_key {
-        let key_path = cons_path(user(name).homedir, ssh_key_file);
+        let key_path = cons_path(e_user(name).homedir, ssh_key_file);
         let pub_key_path = add_ext(key_path, ".pub");
         let generate_key = force ? true : exists fs(key_path, file_system::remote) ? false : true;
 
@@ -191,7 +191,7 @@ module ansible.builtin.user -> user_result {
             time);
           fs(key_path, file_system::remote).fs_type = file_type::file(key);
           fs(key_path, file_system::remote).owner = name;
-          fs(key_path, file_system::remote).owner_group = user(name).primary_group;
+          fs(key_path, file_system::remote).owner_group = e_user(name).primary_group;
 
           let pub_key = ssh_public_key(
             ssh_key_type,
@@ -203,7 +203,7 @@ module ansible.builtin.user -> user_result {
             time);
           fs(pub_key_path, file_system::remote).fs_type = file_type::file(pub_key);
           fs(pub_key_path, file_system::remote).owner = name;
-          fs(pub_key_path, file_system::remote).owner_group = user(name).primary_group;
+          fs(pub_key_path, file_system::remote).owner_group = e_user(name).primary_group;
 
           res.ssh_fingerprint = ssh_fingerprint(pub_key);
           res.ssh_key_file = key_path;
@@ -217,12 +217,12 @@ module ansible.builtin.user -> user_result {
 
       res.remove = remove;
 
-      if exists user(name) {
+      if exists e_user(name) {
         let delete_user = force ? true : ! user_active(name);
         res.force = force;
 
         if delete_user {
-          let home = user(name).homedir;
+          let home = e_user(name).homedir;
           let delete_home = remove ? (force ? true : ! directory_used(home)) : false;
 
           if delete_home {
@@ -235,7 +235,7 @@ module ansible.builtin.user -> user_result {
             clear fs(home, file_system::remote);
           }
 
-          clear user(name);
+          clear e_user(name);
         } else {
           # It is not documented at all if/how the module fails, but I'm going
           # to assume that failure of the underlying userdel results in failure
