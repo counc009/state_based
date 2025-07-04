@@ -4,7 +4,7 @@ enum apt_state { absent, build-dep, latest, present, fixed }
 
 uninterpreted build_dependencies(string) -> list string
 
-module ansible.builtin.apt -> apt_result {
+module ansible.builtin.apt aka apt -> apt_result {
   assert env().os_family == "Debian";
 
   [name aka package, pkg : list string]
@@ -22,7 +22,7 @@ module ansible.builtin.apt -> apt_result {
   let res = apt_result { failed: false, cache_updated: false };
 
   if update_cache {
-    apt().cache_version = get_time();
+    e_apt().cache_version = get_time();
     res.cache_updated = true;
   }
 
@@ -30,25 +30,25 @@ module ansible.builtin.apt -> apt_result {
     match state {
       apt_state::absent => {
         for n in name {
-          clear package(n);
+          clear e_package(n);
         }
       }
       apt_state::build-dep => {
         for n in name {
           for p in build_dependencies(n) {
-            touch package(p).apt();
+            touch e_package(p).e_apt();
           }
         }
       }
       apt_state::latest => {
         for n in name {
-          touch package(n).apt();
-          package(n).version = package_version::latest;
+          touch e_package(n).e_apt();
+          e_package(n).version = package_version::latest;
         }
       }
       apt_state::present => {
         for n in name {
-          touch package(n).apt();
+          touch e_package(n).e_apt();
         }
       }
       apt_state::fixed => {

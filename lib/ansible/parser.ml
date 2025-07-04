@@ -56,6 +56,7 @@ type task = {
   loop: loop_kind option;
   module_invoke: mod_use;
   become: bool;
+  become_user: string;
   notify: string list
 }
 
@@ -70,6 +71,7 @@ class task_result =
 
     val mutable notify        = (None : string list option)
     val mutable become        = (None : bool option)
+    val mutable become_user   = (None : string option)
 
     val mutable errors        = ([] : string list)
 
@@ -109,6 +111,10 @@ class task_result =
       match become with
       | None -> become <- Some b
       | _    -> errors <- "Multiple become fields" :: errors
+    method add_become_user n =
+      match become_user with
+      | None -> become_user <- Some n
+      | _    -> errors <- "Multiple become_user fields" :: errors
 
     method to_task =
       if not (List.is_empty errors)
@@ -124,7 +130,8 @@ class task_result =
                ; loop          = loop
                ; module_invoke = m
                ; notify        = Option.value notify ~default:[]
-               ; become        = Option.value become ~default:false }
+               ; become        = Option.value become ~default:false
+               ; become_user   = Option.value become_user ~default:"root"}
   end
 
 type handler = {
@@ -136,6 +143,7 @@ type handler = {
   loop: loop_kind option;
   module_invoke: mod_use;
   become: bool;
+  become_user: string;
 }
 
 class handler_result =
@@ -149,6 +157,7 @@ class handler_result =
     val mutable condition     = (None : value option)
     val mutable loop          = (None : loop_kind option)
     val mutable become        = (None : bool option)
+    val mutable become_user   = (None : string option)
 
     val mutable errors        = ([] : string list)
 
@@ -186,7 +195,11 @@ class handler_result =
     method add_become b =
       match become with
       | None -> become <- Some b
-      | _    -> errors <- "Multiple become fields" :: errors
+      | _    -> errors <- "Multiple become_user fields" :: errors
+    method add_become_user n =
+      match become_user with
+      | None -> become_user <- Some n
+      | _    -> errors <- "Multiple become_user fields" :: errors
 
     method to_handler =
       if not (List.is_empty errors)
@@ -205,7 +218,8 @@ class handler_result =
                    ; condition     = condition
                    ; loop          = loop
                    ; module_invoke = m
-                   ; become        = Option.value become ~default:false }
+                   ; become        = Option.value become ~default:false
+                   ; become_user   = Option.value become_user ~default:"root" }
   end
 
 type play = {
@@ -214,6 +228,7 @@ type play = {
   remote_user : string;
   is_root     : bool option;
   become      : bool;
+  become_user : string;
   tasks       : task list;
   handlers    : handler list;
 }
@@ -227,6 +242,7 @@ class play_result =
     val mutable handlers    = (None : handler list option)
 
     val mutable become      = (None : bool option)
+    val mutable become_user = (None : string option)
 
     val mutable errors      = ([] : string list)
 
@@ -255,6 +271,10 @@ class play_result =
       match become with
       | None -> become <- Some b
       | _    -> errors <- "Multiple become fields" :: errors
+    method add_become_user n =
+      match become_user with
+      | None -> become_user <- Some n
+      | _    -> errors <- "Multiple become_user fields" :: errors
 
     method to_play =
       if not (List.is_empty errors)
@@ -270,6 +290,7 @@ class play_result =
                ; remote_user  = Option.value remote_user ~default:"#local_user"
                ; is_root      = Option.map (fun nm -> nm = "root") remote_user
                ; become       = Option.value become ~default:false
+               ; become_user  = Option.value become_user ~default:"root"
                ; tasks        = t
                ; handlers     = Option.value handlers ~default:[] }
   end
@@ -697,6 +718,8 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                 | "register" -> Result.map res#add_register (process_string v)
                 | "ignore_errors" -> Result.map res#add_ignore_errors (process_bool v)
                 | "become" -> Result.map res#add_become (process_bool v)
+                | "become_user" -> Result.map res#add_become_user (process_string v)
+                | "become_method" -> Ok () (* TODO *)
                 | "when" -> Result.map res#add_when (process_condition v)
                 | "with_items" | "loop"
                   -> Result.map (fun v -> res#add_loop (ItemLoop v)) (process_value v)
@@ -706,6 +729,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                   -> Result.map res#add_notify (process_string_list v)
                 | "tags" -> Ok () (* TODO: We just ignore tags for now *)
                 | "loop_control" -> Ok () (* TODO: We just ignore loop_control *)
+                | "no_log" -> Ok () (* TODO *)
                 | _ -> Result.map res#add_module (process_module_use field v)
               with
               | Ok () -> process_task_fields tl res
@@ -740,6 +764,8 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                 | "register" -> Result.map res#add_register (process_string v)
                 | "ignore_errors" -> Result.map res#add_ignore_errors (process_bool v)
                 | "become" -> Result.map res#add_become (process_bool v)
+                | "become_user" -> Result.map res#add_become_user (process_string v)
+                | "become_method" -> Ok () (* TODO *)
                 | "when" -> Result.map res#add_when (process_condition v)
                 | "with_items" | "loop"
                   -> Result.map (fun v -> res#add_loop (ItemLoop v)) (process_value v)
@@ -830,10 +856,11 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
           then Modules.Ast.LetStmt ("#old_user", Field (FuncExp (Id "env", []), "active_user"))
             :: LetStmt ("#old_group", Field (FuncExp (Id "env", []), "active_group"))
             :: LetStmt ("#old_root", Field (FuncExp (Id "env", []), "is_root"))
+            (* FIXME: should actually check that can convert to new user *)
             :: Assert (FuncExp (Id "can_escalate", [Id "#old_user"]))
-            :: Assign (Field (FuncExp (Id "env", []), "active_user"), StringLit "root")
-            :: Assign (Field (FuncExp (Id "env", []), "active_group"), StringLit "root")
-            :: Assign (Field (FuncExp (Id "env", []), "is_root"), BoolLit true)
+            :: Assign (Field (FuncExp (Id "env", []), "active_user"), StringLit t.become_user)
+            :: Assign (Field (FuncExp (Id "env", []), "active_group"), StringLit t.become_user)
+            :: Assign (Field (FuncExp (Id "env", []), "is_root"), BoolLit (t.become_user = "root"))
             :: module_invoke
             :: Assign (Field (FuncExp (Id "env", []), "active_user"), Id "#old_user")
             :: Assign (Field (FuncExp (Id "env", []), "active_group"), Id "#old_group")
@@ -911,11 +938,13 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
       Result.map
       (fun tasks ->
         if play.become
-        then Modules.Ast.Assert (FuncExp (Id "can_escalate",
+        then
+            (* TODO: Actually check conversion from current to new user *)
+             Modules.Ast.Assert (FuncExp (Id "can_escalate",
                                 [Field (FuncExp (Id "env", []), "active_user")]))
-          :: Assign (Field (FuncExp (Id "env", []), "active_user"), StringLit "root")
-          :: Assign (Field (FuncExp (Id "env", []), "active_group"), StringLit "root")
-          :: Assign (Field (FuncExp (Id "env", []), "is_root"), BoolLit true)
+          :: Assign (Field (FuncExp (Id "env", []), "active_user"), StringLit play.become_user)
+          :: Assign (Field (FuncExp (Id "env", []), "active_group"), StringLit play.become_user)
+          :: Assign (Field (FuncExp (Id "env", []), "is_root"), BoolLit (play.become_user = "root"))
           :: tasks
         else tasks)
       tasks
@@ -942,13 +971,15 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
           | (field, v) :: tl ->
               match
                 match field with
-                | "name"        -> Result.map res#add_name (process_string v)
-                | "hosts"       -> Result.map res#add_hosts (process_string v)
-                | "remote_user" -> Result.map res#add_remote_user (process_string v)
-                | "tasks"       -> Result.map res#add_tasks (process_tasks v)
-                | "become"      -> Result.map res#add_become (process_bool v)
-                | "handlers"    -> Result.map res#add_handlers (process_handlers v)
-                | _             -> Error (Printf.sprintf "unrecognized field '%s' in play" field)
+                | "name"          -> Result.map res#add_name (process_string v)
+                | "hosts"         -> Result.map res#add_hosts (process_string v)
+                | "remote_user"   -> Result.map res#add_remote_user (process_string v)
+                | "tasks"         -> Result.map res#add_tasks (process_tasks v)
+                | "become"        -> Result.map res#add_become (process_bool v)
+                | "become_user"   -> Result.map res#add_become_user (process_string v)
+                | "become_method" -> Ok () (* TODO *)
+                | "handlers"      -> Result.map res#add_handlers (process_handlers v)
+                | _               -> Error (Printf.sprintf "unrecognized field '%s' in play" field)
               with
               | Ok ()     -> process_play_fields tl res
               | Error msg -> Error msg

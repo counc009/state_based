@@ -33,6 +33,8 @@ module ansible.builtin.user aka user -> user_result {
 
   let res = user_result { failed: false, name: name };
 
+  [expires: float] # TODO: Use
+
   match state {
     user_state::present => {
       [home: path]

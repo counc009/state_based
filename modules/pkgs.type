@@ -1,8 +1,8 @@
-element package(string)
+element e_package(string)
 
-element apt()
-element dnf()
-element pip()
+element e_apt()
+element e_dnf()
+element e_pip()
 element sys() # Used to indicate the system package manager when not known
 
 enum package_version { specific(string), latest }

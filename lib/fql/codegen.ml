@@ -41,7 +41,7 @@ let codegen_path (p: Ast.path) env
     | Controller (Value v) | Remote (Value v) ->
         codegen_value v Target.Path (fun s -> Target.PathLit s) env
     | Controller (InHome (user, v)) | Remote (InHome (user, v)) ->
-        let user_exp = Target.FuncExp (Id "user", [StringLit user])
+        let user_exp = Target.FuncExp (Id "e_user", [StringLit user])
         in Result.bind
           (codegen_value v Target.Path (fun s -> Target.PathLit s) env)
           (fun (env, path) -> Ok (add_user env user,
@@ -273,20 +273,20 @@ let codegen_condition (c: Ast.cond) thn els env
         (* We only care about the package manager if it specifies a virtual
          * environment since that changes how we check whether it is installed *)
         | System | Apt | Dnf | Pip None ->
-            Ok ([Target.FuncExp (Id "package", [StringLit name])],
+            Ok ([Target.FuncExp (Id "e_package", [StringLit name])],
                 env)
         | Pip (Some (Str path)) ->
             let virtenv
               = Target.FuncExp (Id "virtual_environment", [PathLit path])
             in Ok ([ virtenv;
-                     FuncExp (Field (virtenv, "package"), [StringLit name]) ],
+                     FuncExp (Field (virtenv, "e_package"), [StringLit name]) ],
                      env)
         | Pip (Some (Unknown v)) ->
             let virtenv
               = Target.FuncExp (Id "virtual_environment", [Id v])
             in Result.bind (add_unknown env v Target.Path) (fun map ->
               Ok ([ virtenv;
-                    FuncExp (Field (virtenv, "package"), [StringLit name]) ],
+                    FuncExp (Field (virtenv, "e_package"), [StringLit name]) ],
                     map))
       in Result.bind check (fun (conds, map) ->
         match conds with
@@ -418,7 +418,7 @@ let codegen_act (a: Ast.act) env
                       [StringLit content]))
                :: desc, map)))
   | CreateGroup { name } ->
-      Ok ([Target.Touch (FuncExp (Id "group", [StringLit name]))],
+      Ok ([Target.Touch (FuncExp (Id "e_group", [StringLit name]))],
           env)
   (* NOTE: We should add options for key-type and probably other fields *)
   | CreateSshKey { loc } ->
@@ -445,7 +445,7 @@ let codegen_act (a: Ast.act) env
                 ; Id "time" ]) ]))
         :: [], map))
   | CreateUser { name; group; groups } ->
-      let user = Target.FuncExp (Id "user", [StringLit name])
+      let user = Target.FuncExp (Id "e_user", [StringLit name])
       in let res_groups =
         match groups with
         | None -> []
@@ -477,7 +477,7 @@ let codegen_act (a: Ast.act) env
               (codegen_value v Target.Path (fun s -> Target.PathLit s) env)
               (fun (env, path) ->
                 Ok (env, Target.FuncExp (Id "cons_path", [
-                  Field (FuncExp (Id "user", [StringLit user]), "homedir");
+                  Field (FuncExp (Id "e_user", [StringLit user]), "homedir");
                   path
                 ])))
       in Result.bind path (fun (map, path) ->
@@ -507,13 +507,13 @@ let codegen_act (a: Ast.act) env
             [ Assert (FuncExp (Id "is_file", [Id "f"; sys]))
             ; Clear (fs (Id "f") sys) ]) :: [], map))
   | DeleteGroup { name } -> Ok (
-      Target.Clear (FuncExp (Id "group", [StringLit name])) :: [],
+      Target.Clear (FuncExp (Id "e_group", [StringLit name])) :: [],
       env)
   | DeleteUser { name } -> Ok (
-      Target.Clear (FuncExp (Id "user", [StringLit name])) :: [],
+      Target.Clear (FuncExp (Id "e_user", [StringLit name])) :: [],
       env)
   | DisablePassword { user } -> Ok (
-      Target.Assign (Field (FuncExp (Id "user", [StringLit user]), "password"),
+      Target.Assign (Field (FuncExp (Id "e_user", [StringLit user]), "password"),
                      EnumExp (Id "password_set", None, "disabled", []))
       :: [], env)
   (* NOTE: I think it would be better to handle enable and disable of sudo by
@@ -607,35 +607,35 @@ let codegen_act (a: Ast.act) env
       let pkg_info =
         match pkg_manager with
         | Apt ->
-            let pkg = Target.FuncExp (Id "package", [StringLit name])
+            let pkg = Target.FuncExp (Id "e_package", [StringLit name])
             in Ok (env,
-                   [Target.Touch (FuncExp (Field (pkg, "apt"), []))],
+                   [Target.Touch (FuncExp (Field (pkg, "e_apt"), []))],
                    pkg)
         | Dnf ->
-            let pkg = Target.FuncExp (Id "package", [StringLit name])
+            let pkg = Target.FuncExp (Id "e_package", [StringLit name])
             in Ok (env,
-                   [Target.Touch (FuncExp (Field (pkg, "dnf"), []))],
+                   [Target.Touch (FuncExp (Field (pkg, "e_dnf"), []))],
                    pkg)
         | Pip None ->
-            let pkg = Target.FuncExp (Id "package", [StringLit name])
+            let pkg = Target.FuncExp (Id "e_package", [StringLit name])
             in Ok (env,
-                   [Target.Touch (FuncExp (Field (pkg, "pip"), []))],
+                   [Target.Touch (FuncExp (Field (pkg, "e_pip"), []))],
                    pkg)
         | System ->
-            let pkg = Target.FuncExp (Id "package", [StringLit name])
+            let pkg = Target.FuncExp (Id "e_package", [StringLit name])
             in Ok (env,
                    [Target.IfThenElse (
                       BinaryExp (
                         Field (FuncExp (Id "env", []), "os_family"),
                         StringLit "Debian",
                         Eq),
-                      [ Touch (FuncExp (Field (pkg, "apt"), [])) ],
+                      [ Touch (FuncExp (Field (pkg, "e_apt"), [])) ],
                       [ Target.IfThenElse (
                         BinaryExp (
                           Field (FuncExp (Id "env", []), "os_family"),
                           StringLit "RedHat",
                           Eq),
-                        [ Touch (FuncExp (Field (pkg, "dnf"), [])) ],
+                        [ Touch (FuncExp (Field (pkg, "e_dnf"), [])) ],
                         [ Touch (FuncExp (Field (pkg, "sys"), [])) ])
                    ])],
                    pkg)
@@ -648,10 +648,10 @@ let codegen_act (a: Ast.act) env
               let virtenv =
                 Target.FuncExp (Id "virtual_environment", [path])
               in let pkg =
-                Target.FuncExp (Field (virtenv, "package"), [StringLit name])
+                Target.FuncExp (Field (virtenv, "e_package"), [StringLit name])
               in Ok (map,
                      [ Target.AssertExists virtenv
-                     ; Touch (FuncExp (Field (pkg, "pip"), [])) ],
+                     ; Touch (FuncExp (Field (pkg, "e_pip"), [])) ],
                      pkg))
       in Result.bind pkg_info (fun (map, setup, pkg) ->
         match version with
@@ -780,10 +780,10 @@ let codegen_act (a: Ast.act) env
               (codegen_value v Target.Path (fun s -> Target.PathLit s) env)
               (fun (env, path) ->
                 Ok (env, Target.FuncExp (Id "cons_path", [
-                  Field (FuncExp (Id "user", [StringLit user]), "homedir");
+                  Field (FuncExp (Id "e_user", [StringLit user]), "homedir");
                   path
                 ])))
-      in let user = Target.FuncExp (Id "user", [StringLit user])
+      in let user = Target.FuncExp (Id "e_user", [StringLit user])
       in Result.bind shell (fun (map, path) -> Ok (
         Target.AssertExists user
         :: Assign (Field (user, "default_shell"), path)
@@ -799,7 +799,7 @@ let codegen_act (a: Ast.act) env
   | UninstallPkg { pkg = { name; pkg_manager } } ->
       begin match pkg_manager with
       | Apt | Dnf | Pip None | System ->
-          Ok (Target.Clear (FuncExp (Id "package", [StringLit name])) :: [],
+          Ok (Target.Clear (FuncExp (Id "e_package", [StringLit name])) :: [],
               env)
       | Pip (Some p) ->
           let path =
@@ -810,7 +810,7 @@ let codegen_act (a: Ast.act) env
               let virtenv =
                 Target.FuncExp (Id "virtual_environment", [path])
               in let pkg =
-                Target.FuncExp (Field (virtenv, "package"), [StringLit name])
+                Target.FuncExp (Field (virtenv, "e_package"), [StringLit name])
               in Ok (Target.AssertExists virtenv :: Clear pkg :: [], map))
       end
   | WriteFile { str; dest; position } ->
@@ -873,7 +873,7 @@ let codegen_query (q: Ast.query)
      * which causes a bunch of challenges to make verification work. *)
     in let assert_users =
       StringSet.fold (fun user c ->
-        let user_exp = Target.FuncExp (Id "user", [StringLit user])
+        let user_exp = Target.FuncExp (Id "e_user", [StringLit user])
         in Target.IfExists (user_exp,
           [ Assert (BinaryExp (
               Field (user_exp, "homedir"),

@@ -3,7 +3,7 @@ struct package_result { failed: bool }
 # The docs say latest MAY be an option, depends on underlying package manager
 enum package_state { present, absent, latest }
 
-module ansible.builtin.package -> package_result {
+module ansible.builtin.package aka package -> package_result {
   # UGH, the docs say name is a string but MAYBE can be a list of strings
   (name: list string)
   (state: package_state)
@@ -22,22 +22,22 @@ module ansible.builtin.package -> package_result {
 
   match state {
     package_state::present => { 
-      if env().os_family == "Debian" { for n in name { touch package(n).apt(); }}
-      else if env().os_family == "RedHat" { for n in name { touch package(n).dnf(); }}
-      else { for n in name { touch package(n).sys(); }}
+      if env().os_family == "Debian" { for n in name { touch e_package(n).e_apt(); }}
+      else if env().os_family == "RedHat" { for n in name { touch e_package(n).e_dnf(); }}
+      else { for n in name { touch e_package(n).sys(); }}
     }
-    package_state::absent  => { for n in name { clear package(n); } }
+    package_state::absent  => { for n in name { clear e_package(n); } }
     package_state::latest  => {
       # We know latest works for Debian-based and RedHat-based systems
       # It may work for other systems, in which case add them to this assertion
       assert env().os_family == "Debian" || env().os_family == "RedHat";
 
-      if env().os_family == "Debian" { for n in name { touch package(n).apt(); }}
-      else if env().os_family == "RedHat" { for n in name { touch package(n).dnf(); }}
-      else { for n in name { touch package(n).sys(); }}
+      if env().os_family == "Debian" { for n in name { touch e_package(n).e_apt(); }}
+      else if env().os_family == "RedHat" { for n in name { touch e_package(n).e_dnf(); }}
+      else { for n in name { touch e_package(n).sys(); }}
 
       for n in name {
-        package(n).version = package_version::latest;
+        e_package(n).version = package_version::latest;
       }
     }
   }

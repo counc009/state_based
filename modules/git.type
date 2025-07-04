@@ -3,13 +3,26 @@ struct git_result { failed: bool }
 uninterpreted git_files(string, string, string) -> list path
 uninterpreted git_content(string, string, string, path) -> string
 
-module ansible.builtin.git -> git_result {
+module ansible.builtin.git aka git -> git_result {
   (dest: path)
   (repo: string)
   (remote: string = "origin")
   (version: string = "HEAD")
 
-  assert exists package("git");
+  assert exists e_package("git");
+
+  [depth: int] # TODO: Use
+  [force: bool = false] # TODO: Use
+  [update: bool = true] # TODO: Use
+  [recursive: bool = true] # TODO: Use
+  [accept_hostkey: bool = false] # TODO: Use
+
+  [clone: bool = true]
+
+  if !clone {
+    # TODO: Is there something else we're supposed to do?
+    return git_result { failed: false };
+  }
 
   if exists fs(dest, file_system::remote) {
     match fs(dest, file_system::remote).fs_type {

@@ -2,7 +2,7 @@ struct dnf_result { failed: bool }
 
 enum dnf_state { absent, present, installed, removed, latest }
 
-module ansible.builtin.dnf -> dnf_result {
+module ansible.builtin.dnf aka dnf, ansible.builtin.yum, yum -> dnf_result {
   assert env().os_family == "RedHat";
 
   [name aka pkg : list string]
@@ -11,34 +11,34 @@ module ansible.builtin.dnf -> dnf_result {
 
   let res = dnf_result { failed: false };
 
-  if update_cache { dnf().cache_version = get_time(); }
+  if update_cache { e_dnf().cache_version = get_time(); }
 
   if provided name {
     match state {
       dnf_state::absent => {
         for n in name {
-          clear package(n);
+          clear e_package(n);
         }
       }
       dnf_state::removed => {
         for n in name {
-          clear package(n);
+          clear e_package(n);
         }
       }
       dnf_state::latest => {
         for n in name {
-          touch package(n).dnf();
-          package(n).version = package_version::latest;
+          touch e_package(n).e_dnf();
+          e_package(n).version = package_version::latest;
         }
       }
       dnf_state::present => {
         for n in name {
-          touch package(n).dnf();
+          touch e_package(n).e_dnf();
         }
       }
       dnf_state::installed => {
         for n in name {
-          touch package(n).dnf();
+          touch e_package(n).e_dnf();
         }
       }
     }
