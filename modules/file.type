@@ -20,6 +20,8 @@ module ansible.builtin.file aka file -> file_result {
   [state: file_state]
   [recurse: bool = false]
 
+  [setype: string] # TODO: Use this
+
   let state = provided state                       ? state
             : exists fs(path, file_system::remote) ? fs_state(path, file_system::remote)
             : recurse                              ? file_state::directory

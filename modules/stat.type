@@ -1,5 +1,6 @@
-struct stat_res { exists: bool, gr_name: string, isdir: bool, islnk: bool,
-                  isreg: bool, path: path, pw_name: string }
+struct stat_res { exists: bool, gid: string, gr_name: string, isdir: bool,
+                  islnk: bool, isreg: bool, path: path, pw_name: string,
+                  uid: string }
 
 struct stat_result { failed: bool, stat: stat_res }
 
@@ -11,12 +12,16 @@ module ansible.builtin.stat -> stat_result {
                     failed: false,
                     stat: stat_res {
                       exists: true,
+                      # FIXME: Should actully be the group number
+                      gid: fs(path, file_system::remote).owner_group,
                       gr_name: fs(path, file_system::remote).owner_group,
                       isdir: false,
                       islnk: false,
                       isreg: false,
                       path: path,
                       pw_name: fs(path, file_system::remote).owner,
+                      # FIXME: Should actually be the group number
+                      uid: fs(path, file_system::remote).owner,
                     } };
     match fs(path, file_system::remote).fs_type {
       file_type::file(_) => { result.stat.isreg = true; }

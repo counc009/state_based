@@ -4,10 +4,14 @@ enum find_file_type { any, directory, file, link }
 
 uninterpreted file_glob(list string, find_file_type, file_system) -> list path
 
-module ansible.builtin.find -> find_result {
+module ansible.builtin.find aka find -> find_result {
   (paths : list path)
   (file_type : find_file_type = find_file_type::file)
   (patterns: list string = list::<string>::cons("*", list::<string>::nil()))
+
+  # TODO: Actually handle, probably requires substantial overhaul of
+  # representation of directories
+  [recurse: bool = false]
 
   let globs = list::<string>::nil();
   for path in paths {
@@ -26,12 +30,16 @@ module ansible.builtin.find -> find_result {
           file_type::file(_) => {
             yield stat_res {
               exists: true,
+              # TODO: Should be group id number
+              gid: fs(f, file_system::remote).owner_group,
               gr_name: fs(f, file_system::remote).owner_group,
               isdir: false,
               islnk: false,
               isreg: true,
               path: f,
-              pw_name: fs(f, file_system::remote).owner };
+              pw_name: fs(f, file_system::remote).owner,
+              # TODO: Should be user id number
+              uid: fs(f, file_system::remote).owner };
           }
           file_type::directory(_) => { assert false; }
           file_type::hard(_) => { assert false; }
@@ -43,12 +51,16 @@ module ansible.builtin.find -> find_result {
           file_type::directory(_) => {
             yield stat_res {
               exists: true,
+              # TODO: Should be group id number
+              gid: fs(f, file_system::remote).owner_group,
               gr_name: fs(f, file_system::remote).owner_group,
               isdir: true,
               islnk: false,
               isreg: false,
               path: f,
-              pw_name: fs(f, file_system::remote).owner };
+              pw_name: fs(f, file_system::remote).owner,
+              # TODO: Should be user id number
+              uid: fs(f, file_system::remote).owner };
           }
           file_type::file(_) => { assert false; }
           file_type::hard(_) => { assert false; }
@@ -60,21 +72,29 @@ module ansible.builtin.find -> find_result {
         // forces us to leave out certain fields. This is fine for now
         yield stat_res {
           exists: true,
+          # TODO: Should be group id number
+          gid: fs(f, file_system::remote).owner_group,
           gr_name: fs(f, file_system::remote).owner_group,
           path: f,
-          pw_name: fs(f, file_system::remote).owner };
+          pw_name: fs(f, file_system::remote).owner,
+          # TODO: Should be user id number
+          uid: fs(f, file_system::remote).owner };
       }
       find_file_type::link => {
         match fs(f, file_system::remote).fs_type {
           file_type::link(_) => {
             yield stat_res {
               exists: true,
+              # TODO: Should be group id number
+              gid: fs(f, file_system::remote).owner_group,
               gr_name: fs(f, file_system::remote).owner_group,
               isdir: false,
               islnk: true,
               isreg: false,
               path: f,
-              pw_name: fs(f, file_system::remote).owner };
+              pw_name: fs(f, file_system::remote).owner,
+              # TODO: Should be user id number
+              uid: fs(f, file_system::remote).owner };
           }
           file_type::file(_) => { assert false; }
           file_type::directory(_) => { assert false; }
