@@ -55,7 +55,8 @@ type task = {
   condition: value option;
   loop: loop_kind option;
   module_invoke: mod_use;
-  become: bool
+  become: bool;
+  notify: string list
 }
 
 class task_result =
@@ -67,6 +68,7 @@ class task_result =
     val mutable loop          = (None : loop_kind option)
     val mutable module_invoke = (None : mod_use option)
 
+    val mutable notify        = (None : string list option)
     val mutable become        = (None : bool option)
 
     val mutable errors        = ([] : string list)
@@ -98,6 +100,11 @@ class task_result =
         Printf.sprintf "Multiple modules specified: %s and %s" c.mod_name m.mod_name
         :: errors
 
+    method add_notify hs =
+      match notify with
+      | None -> notify <- Some hs
+      | _    -> errors <- "Multiple notify fields" :: errors
+
     method add_become b =
       match become with
       | None -> become <- Some b
@@ -116,7 +123,89 @@ class task_result =
                ; condition     = condition
                ; loop          = loop
                ; module_invoke = m
+               ; notify        = Option.value notify ~default:[]
                ; become        = Option.value become ~default:false }
+  end
+
+type handler = {
+  name: string;
+  listen: string;
+  register: string;
+  ignore_errors: bool;
+  condition: value option;
+  loop: loop_kind option;
+  module_invoke: mod_use;
+  become: bool;
+}
+
+class handler_result =
+  object
+    val mutable name          = (None : string option)
+    val mutable listen        = (None : string option)
+    val mutable register      = (None : string option)
+    val mutable module_invoke = (None : mod_use option)
+
+    val mutable ignore_errors = (None : bool option)
+    val mutable condition     = (None : value option)
+    val mutable loop          = (None : loop_kind option)
+    val mutable become        = (None : bool option)
+
+    val mutable errors        = ([] : string list)
+
+    method add_name nm =
+      match name with
+      | None -> name <- Some nm
+      | _    -> errors <- "Multiple name fields" :: errors
+    method add_listen nm =
+      match listen with
+      | None -> listen <- Some nm
+      | _    -> errors <- "Multiple listen fields" :: errors
+    method add_module m =
+      match module_invoke with
+      | None   -> module_invoke <- Some m
+      | Some c -> errors <-
+        Printf.sprintf "Multiple modules specified: %s and %s" c.mod_name m.mod_name
+        :: errors
+
+    method add_register nm =
+      match register with
+      | None -> register <- Some nm
+      | _    -> errors <- "Multiple register fields" :: errors
+    method add_ignore_errors v =
+      match ignore_errors with
+      | None -> ignore_errors <- Some v
+      | _    -> errors <- "Multiple ignore_errors fields" :: errors
+    method add_when v =
+      match condition with
+      | None -> condition <- Some v
+      | _    -> errors <- "Multiple when fields" :: errors
+    method add_loop l =
+      match loop with
+      | None -> loop <- Some l
+      | _    -> errors <- "Multiple looping fields" :: errors
+    method add_become b =
+      match become with
+      | None -> become <- Some b
+      | _    -> errors <- "Multiple become fields" :: errors
+
+    method to_handler =
+      if not (List.is_empty errors)
+      then Error errors
+      else
+        match module_invoke with
+        | None -> Error ["no module invocation in handler"]
+        | Some m ->
+            match name with
+            | None -> Error ["no name field for handler"]
+            | Some n ->
+                Ok { name          = n
+                   ; listen        = Option.value listen ~default:n
+                   ; register      = Option.value register ~default:""
+                   ; ignore_errors = Option.value ignore_errors ~default:false
+                   ; condition     = condition
+                   ; loop          = loop
+                   ; module_invoke = m
+                   ; become        = Option.value become ~default:false }
   end
 
 type play = {
@@ -125,7 +214,8 @@ type play = {
   remote_user : string;
   is_root     : bool option;
   become      : bool;
-  tasks       : task list
+  tasks       : task list;
+  handlers    : handler list;
 }
 
 class play_result =
@@ -134,6 +224,7 @@ class play_result =
     val mutable hosts       = (None : string option)
     val mutable remote_user = (None : string option)
     val mutable tasks       = (None : task list option)
+    val mutable handlers    = (None : handler list option)
 
     val mutable become      = (None : bool option)
 
@@ -155,6 +246,10 @@ class play_result =
       match tasks with
       | None -> tasks <- Some ts
       | _    -> errors <- "Multiple tasks fields" :: errors
+    method add_handlers hs =
+      match handlers with
+      | None -> handlers <- Some hs
+      | _    -> errors <- "Multiple handlers fields" :: errors
 
     method add_become b =
       match become with
@@ -175,7 +270,8 @@ class play_result =
                ; remote_user  = Option.value remote_user ~default:"#local_user"
                ; is_root      = Option.map (fun nm -> nm = "root") remote_user
                ; become       = Option.value become ~default:false
-               ; tasks        = t }
+               ; tasks        = t
+               ; handlers     = Option.value handlers ~default:[] }
   end
 
 let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
@@ -272,6 +368,17 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
     match v with
     | `Bool b -> Ok b
     | _       -> Error "expected a bool"
+  in let process_string_list v =
+    match v with
+    | `String s -> Ok [s]
+    | `Bool   b -> Ok [string_of_bool b]
+    | `Float  f -> Ok [string_of_float f]
+    | `Null     -> Ok []
+    | `A vs     -> List.fold_right 
+        (fun v res -> Result.bind res (fun res ->
+          Result.bind (process_string v) (fun v -> Ok (v :: res)))
+        ) vs (Ok [])
+    | `O _      -> Error "expected string list, found mapping"
   in let rec process_value v =
     match v with
     | `Null     -> Ok (String "")
@@ -559,7 +666,9 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
         in process_module_args map (new mod_result(nm))
     | `Null -> (* No arguments *)
         Result.map_error (String.concat "\n") (new mod_result(nm))#to_mod
-    | _ -> Error "Expected module argument to be a mapping with fields"
+    | _ -> (* Free form arguments are not yet handled, treat as if there was
+            * nothing there *)
+        Result.map_error (String.concat "\n") (new mod_result(nm))#to_mod
   in let process_task t =
     match t with
     | `O map ->
@@ -578,6 +687,9 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                   -> Result.map (fun v -> res#add_loop (ItemLoop v)) (process_value v)
                 | "with_fileglob"
                   -> Result.map (fun v -> res#add_loop (FileGlob v)) (process_value v)
+                | "notify"
+                  -> Result.map res#add_notify (process_string_list v)
+                | "tags" -> Ok () (* We just ignore tags for now *)
                 | _ -> Result.map res#add_module (process_module_use field v)
               with
               | Ok () -> process_task_fields tl res
@@ -598,6 +710,45 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
               | Error mhd, Error mtl -> Error (mhd ^ "\n" ^ mtl)
         in process seq
     | _      -> Error "expected sequence of tasks"
+  in let process_handler h =
+    match h with
+    | `O map ->
+        let rec process_handler_fields map res =
+          match map with
+          | [] -> Result.map_error (String.concat "\n") res#to_handler
+          | (field, v) :: tl ->
+              match
+                match field with
+                | "name" -> Result.map res#add_name (process_string v)
+                | "listen" -> Result.map res#add_listen (process_string v)
+                | "register" -> Result.map res#add_register (process_string v)
+                | "ignore_errors" -> Result.map res#add_ignore_errors (process_bool v)
+                | "become" -> Result.map res#add_become (process_bool v)
+                | "when" -> Result.map res#add_when (process_condition v)
+                | "with_items" | "loop"
+                  -> Result.map (fun v -> res#add_loop (ItemLoop v)) (process_value v)
+                | "with_fileglob"
+                  -> Result.map (fun v -> res#add_loop (FileGlob v)) (process_value v)
+                | _ -> Result.map res#add_module (process_module_use field v)
+              with
+              | Ok () -> process_handler_fields tl res
+              | Error msg -> Error msg
+        in process_handler_fields map (new handler_result)
+    | _ -> Error "Expected handler to be a mapping with fields"
+  in let process_handlers hs =
+    match hs with
+    | `A seq ->
+        let rec process ts =
+          match ts with
+          | [] -> Ok []
+          | h :: hs ->
+              match process_handler h, process hs with
+              | Ok h, Ok hs           -> Ok (h :: hs)
+              | Ok _, Error msg       -> Error msg
+              | Error msg, Ok _       -> Error msg
+              | Error mhd, Error mtl  -> Error (mhd ^ "\n" ^ mtl)
+        in process seq
+    | _ -> Error "expected sequence of handlers"
   in let codegen_module_invocation m (play_env: play_env) =
     let module_name = String.split_on_char '.' m.mod_name
     in let module_expr =
@@ -729,6 +880,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
         in looped)
   in let codegen_play (play : play) : (Modules.Ast.stmt list, string) result =
     (* TODO: make use of hosts field? *)
+    (* TODO: We are currently ignoring handlers *)
     let rec codegen_tasks ts play_env =
       match ts with
       | [] -> Ok []
@@ -779,6 +931,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                 | "remote_user" -> Result.map res#add_remote_user (process_string v)
                 | "tasks"       -> Result.map res#add_tasks (process_tasks v)
                 | "become"      -> Result.map res#add_become (process_bool v)
+                | "handlers"    -> Result.map res#add_handlers (process_handlers v)
                 | _             -> Error (Printf.sprintf "unrecognized field '%s' in play" field)
               with
               | Ok ()     -> process_play_fields tl res
