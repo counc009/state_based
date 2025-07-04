@@ -16,6 +16,8 @@ attribute owner_group(string)
 attribute mode(string)
 uninterpreted mode_of_umask(string) -> string
 
+uninterpreted backup_name(nm: path, time: int) -> path
+
 function is_file(p: path, s: file_system) -> bool {
   assert exists fs(p, s);
   match fs(p, s).fs_type {

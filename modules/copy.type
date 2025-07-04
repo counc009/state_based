@@ -1,4 +1,4 @@
-function copy(
+function copy_helper(
   dst : path, src : path, src_loc : file_system,
   group: string, owner: string, file_mode: string, dir_mode: string
 ) -> bool {
@@ -19,7 +19,7 @@ function copy(
           let f_dst = cons_path(dst, path_from(src, f));
           match fs(f, src_loc).fs_type {
             file_type::file(_) => {
-              if !copy(f_dst, f, src_loc, group, owner, file_mode, dir_mode) {
+              if !copy_helper(f_dst, f, src_loc, group, owner, file_mode, dir_mode) {
                 success = false;
               }
             }
@@ -45,11 +45,13 @@ function copy(
 
 struct copy_result { failed : bool }
 
-module ansible.builtin.copy -> copy_result {
+module ansible.builtin.copy aka copy -> copy_result {
   (dest: path) (src: path | content: string)
   [group: string] [owner: string]
   [mode: string] [directory_mode: string]
   (force: bool = true)
+
+  [backup: bool = false] # TODO: Actually model this
 
   if provided src {
     [remote_src : bool = false]
@@ -148,7 +150,7 @@ module ansible.builtin.copy -> copy_result {
             : mode_of_umask(env().umask);
           let dir_mode = provided directory_mode ? directory_mode
                                                  : mode_of_umask(env().umask);
-          if copy(dest, src, loc, group, owner, mode, dir_mode) {
+          if copy_helper(dest, src, loc, group, owner, mode, dir_mode) {
             return copy_result { failed: false };
           } else {
             return copy_result { failed: true };

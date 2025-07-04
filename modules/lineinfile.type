@@ -14,7 +14,7 @@ uninterpreted insert_line(loc: insert_loc, regex: string, line: string, body: st
 uninterpreted regex_matches(regex: string, body: string) -> bool
 uninterpreted validate_contents(command: string, content: string) -> bool
 
-module ansible.builtin.lineinfile -> lineinfile_result {
+module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
   (path aka dest, destfile, name : path)
   (state : lineinfile_state = lineinfile_state::present)
 
@@ -22,12 +22,19 @@ module ansible.builtin.lineinfile -> lineinfile_result {
   [mode: string]
   [validate: string]
 
+  [backup: bool = false]
+
   if exists fs(path, file_system::remote) {
     let success = false;
     let content = "";
 
     match fs(path, file_system::remote).fs_type {
       file_type::file(c) => { success = true; content = c; }
+    }
+
+    if backup {
+      fs(backup_name(path, get_time()), file_system::remote).fs_type
+        = file_type::file(content);
     }
 
     if !success {
@@ -146,6 +153,11 @@ module ansible.builtin.lineinfile -> lineinfile_result {
     if provided group { fs(path, file_system::remote).owner_group = group; }
     if provided mode { fs(path, file_system::remote).mode = mode; }
   } else {
+    if backup {
+      fs(backup_name(path, get_time()), file_system::remote).fs_type
+        = file_type::file("");
+    }
+
     match state {
       lineinfile_state::absent => {
         return lineinfile_result { failed: true };

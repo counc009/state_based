@@ -85,7 +85,7 @@ module ansible.builtin.user -> user_result {
             if exists fs(old_home, file_system::remote) {
               let mode = fs(old_home, file_system::remote).mode;
               let dir_mode = mode_of_umask(env().umask); # ???
-              if !copy(homedir, old_home, file_system::remote, primary_group, name, mode, dir_mode) {
+              if !copy_helper(homedir, old_home, file_system::remote, primary_group, name, mode, dir_mode) {
                 res.failed = true;
                 return res;
               }
