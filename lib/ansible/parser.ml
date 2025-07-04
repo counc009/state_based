@@ -704,7 +704,8 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                   -> Result.map (fun v -> res#add_loop (FileGlob v)) (process_value v)
                 | "notify"
                   -> Result.map res#add_notify (process_string_list v)
-                | "tags" -> Ok () (* We just ignore tags for now *)
+                | "tags" -> Ok () (* TODO: We just ignore tags for now *)
+                | "loop_control" -> Ok () (* TODO: We just ignore loop_control *)
                 | _ -> Result.map res#add_module (process_module_use field v)
               with
               | Ok () -> process_task_fields tl res
