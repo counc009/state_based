@@ -576,6 +576,21 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                     Ok (Field (FuncExp (Id "env", []), "os_distribution"), String)
                 | _ -> Error "mismatched types"
                 end
+            | "ansible_user_id" ->
+                begin match t with
+                | Some String | None ->
+                    (* env().active_user *)
+                    Ok (Field (FuncExp (Id "env", []), "active_user"), String)
+                | _ -> Error "mismatched types"
+                end
+            | "ansible_user_gid" ->
+                (* TODO: This seems to actually generate the group id not name *)
+                begin match t with
+                | Some String | None ->
+                    (* env().active_group *)
+                    Ok (Field (FuncExp (Id "env", []), "active_group"), String)
+                | _ -> Error "mismatched types"
+                end
             | _ -> Error ("Unknown variable " ^ nm)
         end
     | Unary (v, op) ->
