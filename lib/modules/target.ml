@@ -19,6 +19,7 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | GenUnknown    of 't
                 | BoolNeg
                 | BoolOr
+                | BoolAnd
                 | Concat
                 | Equal         of 't
                 | Append        of 't (* Type of list elements *)
@@ -246,6 +247,11 @@ module rec Ast_Target : Ast_Defs
           | Pair (Literal (Bool x, _), Literal (Bool y, _), _)
               -> Reduced (Literal (Bool (x || y), Bool))
           | _ -> Stuck)
+    | BoolAnd -> (Product (Primitive Bool, Primitive Bool), Primitive Bool,
+        fun v -> match v with
+          | Pair (Literal (Bool x, _), Literal (Bool y, _), _)
+              -> Reduced (Literal (Bool (x && y), Bool))
+          | _ -> Stuck)
     | Concat -> (Product (Primitive String, Primitive String),
                  Primitive String,
         fun v -> match v with
@@ -405,6 +411,14 @@ module rec Ast_Target : Ast_Defs
             else Reducible [[ IsBool (x, false); IsBool (y, false) ]]
         | _ -> Unreducible
         end
+    | BoolAnd, IsBool b ->
+        begin match v with
+        | Pair (x, y, _) ->
+            if b
+            then Reducible [[ IsBool (x, true); IsBool (y, true) ]]
+            else Reducible [ [ IsBool (x, false) ]; [ IsBool (y, false) ] ]
+        | _ -> Unreducible
+        end
     | Equal _, IsBool true ->
         begin match v with
         | Pair (Unknown (x, _), y, _) -> Reducible [[ IsEqual (x, y) ]]
@@ -462,6 +476,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | GenUnknown _              -> "?"
         | BoolNeg                   -> "not"
         | BoolOr                    -> "or"
+        | BoolAnd                   -> "and"
         | Concat                    -> "concat"
         | Equal _                   -> "equal"
         | Append _                  -> "append"
@@ -588,6 +603,7 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | Proj (false, _, _)        -> "proj2(" ^ value_to_string arg ^ ")"
       | BoolNeg                   -> "not(" ^ value_to_string arg ^ ")"
       | BoolOr                    -> "or(" ^ value_to_string arg ^ ")"
+      | BoolAnd                   -> "and(" ^ value_to_string arg ^ ")"
       | Concat                    -> "concat(" ^ value_to_string arg ^ ")"
       | Equal _                   -> "equal(" ^ value_to_string arg ^ ")"
       | Append _                  -> "append(" ^ value_to_string arg ^ ")"

@@ -1034,6 +1034,11 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                           && rhs_t = Target.Primitive Bool
                           then Ok (Target.Primitive Bool, TargetAst.BoolOr)
                           else Error "Incorrect type for boolean or"
+                      | And ->
+                          if lhs_t = Target.Primitive Bool
+                          && rhs_t = Target.Primitive Bool
+                          then Ok (Target.Primitive Bool, TargetAst.BoolAnd)
+                          else Error "Incorrect type for boolean or"
                       | Le ->
                           if lhs_t = rhs_t
                           then
