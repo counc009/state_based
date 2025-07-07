@@ -7,6 +7,7 @@ uninterpreted group_used(string) -> bool
 module ansible.builtin.group aka group -> group_result {
   (name: string)
   (state: group_state = group_state::present)
+  [gid: int] # TODO: Use
 
   let res = group_result { failed: false, name: name, state: state };
 

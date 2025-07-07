@@ -4,7 +4,7 @@ struct stat_res { exists: bool, gid: string, gr_name: string, isdir: bool,
 
 struct stat_result { failed: bool, stat: stat_res }
 
-module ansible.builtin.stat -> stat_result {
+module ansible.builtin.stat aka stat -> stat_result {
   (path aka dest, name : path)
 
   if exists fs(path, file_system::remote) {

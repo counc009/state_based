@@ -113,10 +113,10 @@ Problem,Model,Response,Result
 02,starcoder,2,Ansible Error Could not find module blockinfile
 02,starcoder,3,Ansible Error Could not find module blockinfile
 02,starcoder,4,Syntax Error
-02,starcoder,5,Ansible Error unrecognized field 'vars' in play
+02,starcoder,5,Ansible Error Could not find module blockinfile
 02,starcoder,6,Ansible Error expected value found mapping
 02,starcoder,7,Verification Failure
-02,starcoder,8,Ansible Error unrecognized field 'vars' in play
+02,starcoder,8,Ansible Error expected value found mapping
 02,starcoder,9,Ansible Error Could not find module blockinfile
 02,starcoder,10,Verification Failure
 03,deepseek,1,Correct
@@ -210,7 +210,7 @@ Problem,Model,Response,Result
 04,granite,9,Verification Failure
 04,granite,10,Verification Failure
 04,llama,1,Verification Failure
-04,llama,2,Ansible Error unrecognized field 'vars' in play
+04,llama,2,Ansible Error expected value found mapping
 04,llama,3,Verification Failure
 04,llama,4,Verification Failure
 04,llama,5,Verification Failure
@@ -226,10 +226,10 @@ Problem,Model,Response,Result
 04,qwen,5,Verification Failure
 04,qwen,6,Ansible Error Invalid value 'recurse' expected one of [absent, directory, file, hard, link, touch]
 04,qwen,7,Ansible Error Unknown variable ansible_user
-04,qwen,8,Ansible Error mismatched types
+04,qwen,8,Ansible Error No argument path of module user
 04,qwen,9,Verification Failure
 04,qwen,10,Verification Failure
-04,starcoder,1,Ansible Error unrecognized field 'vars' in play
+04,starcoder,1,Ansible Error Could not find module ansible.posix.acl
 04,starcoder,2,Verification Failure
 04,starcoder,3,Verification Failure
 04,starcoder,4,Verification Failure
@@ -317,7 +317,7 @@ Problem,Model,Response,Result
 06,gpt,6,Ansible Error Multiple modules specified: ansible.builtin.command and args
 06,gpt,7,Ansible Error Could not find module community.general.virtualenv
 06,gpt,8,Verification Failure
-06,gpt,9,Ansible Error unrecognized field 'vars' in play
+06,gpt,9,Ansible Error Could not find module ansible.builtin.command
 06,gpt,10,Ansible Error Multiple modules specified: ansible.builtin.command and args
 06,granite,1,Ansible Error Could not find module community.general.virtualenv
 06,granite,2,Ansible Error Could not find module ansible.builtin.command
@@ -331,7 +331,7 @@ Problem,Model,Response,Result
 06,granite,10,Ansible Error Multiple modules specified: ansible.builtin.command and args
 06,llama,1,Ansible Error Could not find module community.general.python
 06,llama,2,Ansible Error Could not find module ansible.posix.module
-06,llama,3,Ansible Error unrecognized field 'vars' in play
+06,llama,3,Ansible Error Multiple modules specified: ansible.builtin.python3 and args
 06,llama,4,Syntax Error
 06,llama,5,Syntax Error
 06,llama,6,Ansible Error Multiple modules specified: block and always
@@ -354,7 +354,7 @@ Problem,Model,Response,Result
 06,starcoder,3,Ansible Error Could not find module community.general.pynv
 06,starcoder,4,Verification Failure
 06,starcoder,5,Syntax Error
-06,starcoder,6,Ansible Error unrecognized field 'vars' in play
+06,starcoder,6,Verification Failure
 06,starcoder,7,Ansible Error Multiple modules specified: block and always
 06,starcoder,8,Correct
 06,starcoder,9,Ansible Error Could not find module community.general.pveven_env
@@ -402,12 +402,12 @@ Problem,Model,Response,Result
 07,qwen,1,Ansible Error No argument branch of module ansible.builtin.git
 07,qwen,2,Ansible Error No argument state of module git
 07,qwen,3,Ansible Error No argument branch of module git
-07,qwen,4,Ansible Error No argument accept_hostkey of module git
+07,qwen,4,Correct
 07,qwen,5,Ansible Error Could not find module environment
 07,qwen,6,Ansible Error No argument branch of module git
 07,qwen,7,Ansible Error No argument branch of module git
 07,qwen,8,Ansible Error No argument branch of module git
-07,qwen,9,Ansible Error unrecognized field 'vars' in play
+07,qwen,9,Ansible Error No argument branch of module git
 07,qwen,10,Correct
 07,starcoder,1,Correct
 07,starcoder,2,Correct
@@ -416,7 +416,7 @@ Problem,Model,Response,Result
 07,starcoder,5,Correct
 07,starcoder,6,Verification Failure
 07,starcoder,7,Correct
-07,starcoder,8,Ansible Error unrecognized field 'vars' in play
+07,starcoder,8,Verification Failure
 07,starcoder,9,Correct
 07,starcoder,10,Correct
 08,deepseek,1,Verification Failure
@@ -431,14 +431,14 @@ Problem,Model,Response,Result
 08,deepseek,10,Verification Failure
 08,gpt,1,Verification Failure
 08,gpt,2,Verification Failure
-08,gpt,3,Ansible Error unrecognized field 'vars' in play
+08,gpt,3,Verification Failure
 08,gpt,4,Verification Failure
 08,gpt,5,Verification Failure
 08,gpt,6,Verification Failure
-08,gpt,7,Ansible Error unhandled Jinja expression form
+08,gpt,7,Verification Failure
 08,gpt,8,Verification Failure
 08,gpt,9,Verification Failure
-08,gpt,10,Ansible Error unhandled Jinja expression form
+08,gpt,10,Verification Failure
 08,granite,1,Verification Failure
 08,granite,2,Ansible Error Multiple modules specified: block and rescue
 08,granite,3,Verification Failure
@@ -451,7 +451,7 @@ Problem,Model,Response,Result
 08,granite,10,Verification Failure
 08,llama,1,Verification Failure
 08,llama,2,Verification Failure
-08,llama,3,Ansible Error unhandled Jinja expression form
+08,llama,3,Verification Failure
 08,llama,4,Ansible Error Could not find module pacman
 08,llama,5,Ansible Error Argument name appears multiple times
 08,llama,6,Verification Failure
@@ -463,16 +463,16 @@ Problem,Model,Response,Result
 08,qwen,2,Verification Failure
 08,qwen,3,Ansible Error No argument dist_upgrade of module package
 08,qwen,4,Syntax Error
-08,qwen,5,Ansible Error unrecognized field 'vars' in play
+08,qwen,5,Ansible Error Could not find module debug
 08,qwen,6,Ansible Error Could not find module block
 08,qwen,7,Verification Failure
-08,qwen,8,Ansible Error unrecognized field 'vars' in play
-08,qwen,9,Ansible Error unrecognized field 'vars' in play
+08,qwen,8,Ansible Error jinja parsing error
+08,qwen,9,Verification Failure
 08,qwen,10,Verification Failure
 08,starcoder,1,Verification Failure
 08,starcoder,2,Ansible Error Could not find module raw
 08,starcoder,3,Syntax Error
-08,starcoder,4,Ansible Error unrecognized field 'vars' in play
+08,starcoder,4,Ansible Error Could not find module command
 08,starcoder,5,Verification Failure
 08,starcoder,6,Verification Failure
 08,starcoder,7,Verification Failure
@@ -508,7 +508,7 @@ Problem,Model,Response,Result
 09,granite,7,Correct
 09,granite,8,Correct
 09,granite,9,Correct
-09,granite,10,Ansible Error unrecognized field 'vars' in play
+09,granite,10,Correct
 09,llama,1,Ansible Error Could not find module blockinfile
 09,llama,2,Correct
 09,llama,3,Verification Failure
@@ -527,7 +527,7 @@ Problem,Model,Response,Result
 09,qwen,6,Ansible Error No argument append of module lineinfile
 09,qwen,7,Ansible Error Could not find module template
 09,qwen,8,Correct
-09,qwen,9,Ansible Error unrecognized field 'vars' in play
+09,qwen,9,Ansible Error No argument insert_after of module lineinfile
 09,qwen,10,Correct
 09,starcoder,1,Correct
 09,starcoder,2,Correct
@@ -536,7 +536,7 @@ Problem,Model,Response,Result
 09,starcoder,5,Correct
 09,starcoder,6,Correct
 09,starcoder,7,Correct
-09,starcoder,8,Ansible Error unrecognized field 'vars' in play
+09,starcoder,8,Verification Failure
 09,starcoder,9,Correct
 09,starcoder,10,Correct
 10,deepseek,1,Correct
@@ -569,15 +569,15 @@ Problem,Model,Response,Result
 10,granite,8,Verification Failure
 10,granite,9,Verification Failure
 10,granite,10,Verification Failure
-10,llama,1,Ansible Error unhandled Jinja expression form
+10,llama,1,Verification Failure
 10,llama,2,Syntax Error
 10,llama,3,Syntax Error
 10,llama,4,Ansible Error Invalid value 'never' expected one of [always, on_create]
 10,llama,5,Ansible Error Invalid value 'on_success' expected one of [always, on_create]
 10,llama,6,Verification Failure
-10,llama,7,Ansible Error unrecognized field 'vars' in play
-10,llama,8,Ansible Error unrecognized field 'vars' in play
-10,llama,9,Ansible Error No argument expires of module user
+10,llama,7,Ansible Error Invalid value 'disabled' expected one of [absent, present]
+10,llama,8,Ansible Error unhandled Jinja expression form
+10,llama,9,Correct
 10,llama,10,Ansible Error Incorrect type, found bool
 10,qwen,1,Verification Failure
 10,qwen,2,Ansible Error unhandled Jinja expression form
@@ -636,7 +636,7 @@ Problem,Model,Response,Result
 11a,llama,5,Syntax Error
 11a,llama,6,Ansible Error No argument fileglob of module ansible.builtin.copy
 11a,llama,7,Ansible Error unhandled Jinja expression form
-11a,llama,8,Ansible Error Could not find module fetch
+11a,llama,8,Verification Failure
 11a,llama,9,Verification Failure
 11a,llama,10,Ansible Error No argument flat of module copy
 11a,qwen,1,Ansible Error No argument recursive of module copy
@@ -675,7 +675,7 @@ Problem,Model,Response,Result
 11b,gpt,4,Correct
 11b,gpt,5,Ansible Error Could not find module ansible.builtin.local_action
 11b,gpt,6,Ansible Error Multiple modules specified: delegate_to and file
-11b,gpt,7,Ansible Error Could not find module fetch
+11b,gpt,7,Correct
 11b,gpt,8,Ansible Error Multiple modules specified: delegate_to and file
 11b,gpt,9,Syntax Error
 11b,gpt,10,Ansible Error Multiple modules specified: delegate_to and file
@@ -689,23 +689,23 @@ Problem,Model,Response,Result
 11b,granite,8,Ansible Error No argument flatten of module ansible.builtin.copy
 11b,granite,9,Verification Failure
 11b,granite,10,Verification Failure
-11b,llama,1,Ansible Error Could not find module fetch
-11b,llama,2,Ansible Error Could not find module fetch
+11b,llama,1,Verification Failure
+11b,llama,2,Ansible Error No argument mode of module fetch
 11b,llama,3,Verification Failure
 11b,llama,4,Ansible Error unhandled Jinja expression form
 11b,llama,5,Syntax Error
 11b,llama,6,Ansible Error Multiple looping fields
 11b,llama,7,Syntax Error
-11b,llama,8,Ansible Error Could not find module fetch
+11b,llama,8,Verification Failure
 11b,llama,9,Verification Failure
 11b,llama,10,Verification Failure
 11b,qwen,1,Verification Failure
-11b,qwen,2,Ansible Error No argument path of module find
+11b,qwen,2,Verification Failure
 11b,qwen,3,Verification Failure
 11b,qwen,4,Verification Failure
-11b,qwen,5,Ansible Error unrecognized field 'vars' in play
+11b,qwen,5,Verification Failure
 11b,qwen,6,Verification Failure
-11b,qwen,7,Ansible Error No argument path of module find
+11b,qwen,7,Ansible Error Value has no field 'name'
 11b,qwen,8,Verification Failure
 11b,qwen,9,Verification Failure
 11b,qwen,10,Verification Failure
@@ -757,7 +757,7 @@ Problem,Model,Response,Result
 12,llama,6,Verification Failure
 12,llama,7,Ansible Error unhandled Jinja expression form
 12,llama,8,Verification Failure
-12,llama,9,Ansible Error unrecognized field 'vars' in play
+12,llama,9,Verification Failure
 12,llama,10,Ansible Error Multiple modules specified: copy and delegate_to
 12,qwen,1,Verification Failure
 12,qwen,2,Verification Failure
@@ -785,11 +785,11 @@ Problem,Model,Response,Result
 13,deepseek,4,Ansible Error Could not find module blockinfile
 13,deepseek,5,Verification Failure
 13,deepseek,6,Verification Failure
-13,deepseek,7,ERROR (query)
+13,deepseek,7,Ansible Error jinja parsing error
 13,deepseek,8,Ansible Error expected value found mapping
 13,deepseek,9,Verification Failure
 13,deepseek,10,Ansible Error No argument content of module ansible.builtin.file
-13,gpt,1,Ansible Error Could not find module stat
+13,gpt,1,Correct
 13,gpt,2,Correct
 13,gpt,3,Correct
 13,gpt,4,Correct
@@ -806,7 +806,7 @@ Problem,Model,Response,Result
 13,granite,5,Verification Failure
 13,granite,6,Verification Failure
 13,granite,7,Correct
-13,granite,8,Ansible Error Could not find module stat
+13,granite,8,Ansible Error No argument create of module file
 13,granite,9,Verification Failure
 13,granite,10,Verification Failure
 13,llama,1,Ansible Error unhandled Jinja expression form
@@ -834,70 +834,70 @@ Problem,Model,Response,Result
 13,starcoder,3,Ansible Error No argument content of module file
 13,starcoder,4,Ansible Error No argument content of module ansible.builtin.file
 13,starcoder,5,Correct
-13,starcoder,6,Ansible Error unrecognized field 'vars' in play
+13,starcoder,6,Verification Failure
 13,starcoder,7,Correct
 13,starcoder,8,Ansible Error Could not find module assert
 13,starcoder,9,Correct
 13,starcoder,10,Ansible Error Could not find module ansible.builtin.shell
-14,deepseek,1,Ansible Error Multiple modules specified: ansible.builtin.command and changed_when
-14,deepseek,2,Ansible Error Multiple modules specified: ansible.builtin.command and changed_when
+14,deepseek,1,Ansible Error Multiple modules specified: ansible.builtin.command and failed_when
+14,deepseek,2,Ansible Error Could not find module ansible.builtin.command
 14,deepseek,3,Ansible Error Could not find module ansible.builtin.command
-14,deepseek,4,Ansible Error Multiple modules specified: ansible.builtin.command and changed_when
-14,deepseek,5,Ansible Error No argument upgrade of module apt
+14,deepseek,4,Ansible Error Multiple modules specified: ansible.builtin.command and failed_when
+14,deepseek,5,Verification Failure
 14,deepseek,6,Ansible Error Could not find module ansible.builtin.command
-14,deepseek,7,Ansible Error Multiple modules specified: ansible.builtin.apt and changed_when
+14,deepseek,7,Ansible Error Could not find module ansible.builtin.systemd
 14,deepseek,8,Ansible Error Multiple modules specified: ansible.builtin.command and poll
-14,deepseek,9,Ansible Error Multiple modules specified: ansible.builtin.command and changed_when
+14,deepseek,9,Ansible Error Could not find module ansible.builtin.command
 14,deepseek,10,Ansible Error Multiple modules specified: command and poll
 14,gpt,1,Correct
 14,gpt,2,Correct
-14,gpt,3,Ansible Error Could not find module stat
-14,gpt,4,Ansible Error Could not find module stat
-14,gpt,5,Ansible Error Could not find module stat
+14,gpt,3,Correct
+14,gpt,4,Correct
+14,gpt,5,Correct
 14,gpt,6,Correct
 14,gpt,7,Correct
 14,gpt,8,Correct
-14,gpt,9,Ansible Error Could not find module stat
-14,gpt,10,Ansible Error Could not find module stat
+14,gpt,9,Correct
+14,gpt,10,Correct
 14,granite,1,Verification Failure
 14,granite,2,Ansible Error No argument when of module ansible.builtin.reboot
 14,granite,3,Verification Failure
-14,granite,4,Ansible Error Could not find module service
+14,granite,4,Verification Failure
 14,granite,5,Ansible Error Could not find module ansible.builtin.systemd
 14,granite,6,Verification Failure
-14,granite,7,Ansible Error Could not find module stat
+14,granite,7,Ansible Error Could not find module systemd
 14,granite,8,Ansible Error Could not find module ansible.builtin.systemd
 14,granite,9,Ansible Error Multiple modules specified: command and failed_when
-14,granite,10,Ansible Error Multiple modules specified: ansible.builtin.command and changed_when
+14,granite,10,Ansible Error Could not find module ansible.builtin.command
 14,llama,1,Syntax Error
 14,llama,2,Ansible Error Could not find module uri
 14,llama,3,Ansible Error Could not find module system_info
 14,llama,4,Ansible Error Could not find module debconf.state
-14,llama,5,ERROR (query)
-14,llama,6,Ansible Error Could not find module stat
+14,llama,5,Ansible Error jinja parsing error
+14,llama,6,Correct
 14,llama,7,Ansible Error Could not find module debconf
 14,llama,8,Ansible Error Could not find module assert
-14,llama,9,Ansible Error Could not find module stat
+14,llama,9,Verification Failure
 14,llama,10,Ansible Error Could not find module ansible.builtin package
 14,qwen,1,Ansible Error Could not find module block
 14,qwen,2,Ansible Error Could not find module blockinfile
 14,qwen,3,Syntax Error
-14,qwen,4,Ansible Error Multiple modules specified: command and changed_when
-14,qwen,5,Ansible Error Multiple modules specified: command and changed_when
+14,qwen,4,Ansible Error Could not find module command
+14,qwen,5,Ansible Error Could not find module command
 14,qwen,6,Ansible Error Multiple modules specified: block and delay
-14,qwen,7,Ansible Error unrecognized field 'vars' in play
+14,qwen,7,Ansible Error unhandled Jinja expression form
 14,qwen,8,Ansible Error Could not find module ansible.builtin.systemd
 14,qwen,9,Ansible Error Unknown variable ansible_bios
 14,qwen,10,Ansible Error unhandled Jinja expression form
 14,starcoder,1,Ansible Error Multiple modules specified: command and failed_when
-14,starcoder,2,Ansible Error Multiple modules specified: shell and changed_when
-14,starcoder,3,Ansible Error Could not find module reboot
-14,starcoder,4,Ansible Error unhandled Jinja expression form
-14,starcoder,5,Ansible Error unhandled Jinja expression form
-14,starcoder,6,Ansible Error Could not find module reboot
+14,starcoder,2,Ansible Error Multiple modules specified: shell and args
+14,starcoder,3,Correct
+14,starcoder,4,Ansible Error Could not find module wait_for_connection
+14,starcoder,5,Correct
+14,starcoder,6,Correct
 14,starcoder,7,Ansible Error unhandled Jinja expression form
 14,starcoder,8,Ansible Error Could not find module command
-14,starcoder,9,Ansible Error unrecognized field 'vars' in play
+14,starcoder,9,Ansible Error Multiple modules specified: shell and failed_when
 14,starcoder,10,Ansible Error Could not find module debug
 15,deepseek,1,Correct
 15,deepseek,2,Correct
@@ -950,13 +950,13 @@ Problem,Model,Response,Result
 15,qwen,9,Correct
 15,qwen,10,Correct
 15,starcoder,1,Ansible Error Could not find module ansible.builtin.shell
-15,starcoder,2,Ansible Error No argument force of module ansible.builtin.file
+15,starcoder,2,Verification Failure
 15,starcoder,3,Correct
 15,starcoder,4,Verification Failure
 15,starcoder,5,Correct
 15,starcoder,6,Correct
 15,starcoder,7,Ansible Error no module invocation in task
-15,starcoder,8,Ansible Error Multiple modules specified: ansible.builtin.file and changed_when
+15,starcoder,8,Verification Failure
 15,starcoder,9,Correct
 15,starcoder,10,Ansible Error Argument state appears multiple times
 16,deepseek,1,Correct
@@ -969,11 +969,11 @@ Problem,Model,Response,Result
 16,deepseek,8,Verification Failure
 16,deepseek,9,Verification Failure
 16,deepseek,10,Ansible Error Could not find module ansible.posix.user
-16,gpt,1,Ansible Error unrecognized field 'vars' in play
-16,gpt,2,Ansible Error unrecognized field 'vars' in play
+16,gpt,1,Verification Failure
+16,gpt,2,Verification Failure
 16,gpt,3,Verification Failure
 16,gpt,4,Correct
-16,gpt,5,Ansible Error unrecognized field 'vars' in play
+16,gpt,5,Correct
 16,gpt,6,Verification Failure
 16,gpt,7,Correct
 16,gpt,8,Correct
@@ -1009,47 +1009,47 @@ Problem,Model,Response,Result
 16,qwen,8,Ansible Error Could not find module template
 16,qwen,9,Verification Failure
 16,qwen,10,Correct
-16,starcoder,1,Ansible Error unrecognized field 'vars' in play
+16,starcoder,1,Ansible Error expected value found mapping
 16,starcoder,2,Correct
 16,starcoder,3,Correct
-16,starcoder,4,ERROR (query)
+16,starcoder,4,Ansible Error jinja parsing error
 16,starcoder,5,Verification Failure
 16,starcoder,6,Verification Failure
-16,starcoder,7,Ansible Error unrecognized field 'vars' in play
-16,starcoder,8,Ansible Error unrecognized field 'vars' in play
+16,starcoder,7,Verification Failure
+16,starcoder,8,Verification Failure
 16,starcoder,9,Correct
 16,starcoder,10,Ansible Error Could not find module ansible.builtin.shell
-17,deepseek,1,Ansible Error unrecognized field 'vars' in play
+17,deepseek,1,Ansible Error Could not find module command
 17,deepseek,2,Ansible Error Could not find module ansible.builtin.command
-17,deepseek,3,Ansible Error Could not find module get_url
+17,deepseek,3,Verification Failure
 17,deepseek,4,Ansible Error Could not find module ansible.builtin.command
 17,deepseek,5,Ansible Error Could not find module command
-17,deepseek,6,ERROR (query)
+17,deepseek,6,Ansible Error jinja parsing error
 17,deepseek,7,Ansible Error Could not find module ansible.builtin.command
-17,deepseek,8,ERROR (query)
+17,deepseek,8,Ansible Error jinja parsing error
 17,deepseek,9,Ansible Error Multiple modules specified: package and vars
-17,deepseek,10,Ansible Error Could not find module get_url
-17,gpt,1,Ansible Error unrecognized field 'vars' in play
-17,gpt,2,Ansible Error Could not find module get_url
-17,gpt,3,Ansible Error Could not find module get_url
+17,deepseek,10,Verification Failure
+17,gpt,1,Verification Failure
+17,gpt,2,Verification Failure
+17,gpt,3,Verification Failure
 17,gpt,4,Verification Failure
-17,gpt,5,Ansible Error unhandled Jinja expression form
+17,gpt,5,Verification Failure
 17,gpt,6,Correct
-17,gpt,7,Ansible Error Unknown variable ansible_facts
+17,gpt,7,Verification Failure
 17,gpt,8,Verification Failure
-17,gpt,9,Ansible Error unrecognized field 'vars' in play
-17,gpt,10,Ansible Error unhandled Jinja expression form
-17,granite,1,Ansible Error Could not find module get_url
-17,granite,2,ERROR (query)
+17,gpt,9,Correct
+17,gpt,10,Verification Failure
+17,granite,1,Verification Failure
+17,granite,2,Ansible Error jinja parsing error
 17,granite,3,Ansible Error Could not find module ansible.builtin.command
-17,granite,4,ERROR (query)
+17,granite,4,Ansible Error jinja parsing error
 17,granite,5,Verification Failure
-17,granite,6,ERROR (query)
+17,granite,6,Ansible Error jinja parsing error
 17,granite,7,Ansible Error Could not find module block
 17,granite,8,Ansible Error Could not find module block
-17,granite,9,Ansible Error Could not find module get_url
+17,granite,9,Verification Failure
 17,granite,10,Ansible Error Could not find module command
-17,llama,1,Ansible Error unrecognized field 'vars' in play
+17,llama,1,Ansible Error unhandled Jinja expression form
 17,llama,2,Ansible Error unhandled Jinja expression form
 17,llama,3,Ansible Error Could not find module template
 17,llama,4,Ansible Error unhandled Jinja expression form
@@ -1060,30 +1060,30 @@ Problem,Model,Response,Result
 17,llama,9,Ansible Error unhandled Jinja expression form
 17,llama,10,Ansible Error Could not find module template
 17,qwen,1,Syntax Error
-17,qwen,2,Ansible Error unrecognized field 'vars' in play
-17,qwen,3,Ansible Error unrecognized field 'vars' in play
-17,qwen,4,Ansible Error unrecognized field 'vars' in play
+17,qwen,2,Ansible Error jinja parsing error
+17,qwen,3,Ansible Error expected value found mapping
+17,qwen,4,Ansible Error unhandled Jinja expression form
 17,qwen,5,Ansible Error unhandled Jinja expression form
-17,qwen,6,Ansible Error unrecognized field 'vars' in play
-17,qwen,7,ERROR (query)
-17,qwen,8,Ansible Error unrecognized field 'vars' in play
+17,qwen,6,Ansible Error unhandled Jinja expression form
+17,qwen,7,Ansible Error jinja parsing error
+17,qwen,8,Verification Failure
 17,qwen,9,Ansible Error Could not find module backup
-17,qwen,10,Ansible Error Could not find module get_url
+17,qwen,10,Verification Failure
 17,starcoder,1,Syntax Error
-17,starcoder,2,Ansible Error Could not find module get_url
-17,starcoder,3,Ansible Error unrecognized field 'vars' in play
+17,starcoder,2,Verification Failure
+17,starcoder,3,Ansible Error Could not find module ansible.builtin.shell
 17,starcoder,4,Ansible Error Could not find module uri
 17,starcoder,5,Ansible Error Multiple modules specified: include_role and vars
-17,starcoder,6,Ansible Error unrecognized field 'vars' in play
-17,starcoder,7,Ansible Error unrecognized field 'vars' in play
-17,starcoder,8,Ansible Error unrecognized field 'vars' in play
-17,starcoder,9,Ansible Error unhandled Jinja expression form
+17,starcoder,6,Ansible Error Could not find module command
+17,starcoder,7,Ansible Error unhandled Jinja expression form
+17,starcoder,8,Ansible Error expected value found mapping
+17,starcoder,9,Ansible Error Could not find module block
 17,starcoder,10,Ansible Error Multiple modules specified: yum and apt
-18,deepseek,1,Ansible Error Could not find module service
-18,deepseek,2,Ansible Error Could not find module stat
+18,deepseek,1,Verification Failure
+18,deepseek,2,Verification Failure
 18,deepseek,3,Correct
 18,deepseek,4,Correct
-18,deepseek,5,Ansible Error Multiple modules specified: command and changed_when
+18,deepseek,5,Ansible Error Multiple modules specified: command and failed_when
 18,deepseek,6,Ansible Error Could not find module ansible.builtin.uri
 18,deepseek,7,Correct
 18,deepseek,8,Ansible Error Could not find module ansible.builtin.uri
@@ -1104,15 +1104,15 @@ Problem,Model,Response,Result
 18,granite,3,Verification Failure
 18,granite,4,Verification Failure
 18,granite,5,Correct
-18,granite,6,Ansible Error Could not find module stat
+18,granite,6,Verification Failure
 18,granite,7,Verification Failure
 18,granite,8,Verification Failure
 18,granite,9,Verification Failure
 18,granite,10,Verification Failure
-18,llama,1,Ansible Error unrecognized field 'vars' in play
+18,llama,1,Ansible Error Could not find module ansible.builtin.authorized_key
 18,llama,2,Syntax Error
 18,llama,3,Ansible Error Could not find module ansible.builtin.template
-18,llama,4,Ansible Error unrecognized field 'vars' in play
+18,llama,4,Ansible Error Could not find module ansible.builtin.pkg_manager
 18,llama,5,Verification Failure
 18,llama,6,Verification Failure
 18,llama,7,Ansible Error Could not find module ansible.builtin.template
@@ -1120,28 +1120,28 @@ Problem,Model,Response,Result
 18,llama,9,Ansible Error Could not find module ansible.builtin.template
 18,llama,10,Ansible Error Could not find module ansible.builtin.template
 18,qwen,1,Ansible Error Invalid value 'present' expected one of [absent, directory, file, hard, link, touch]
-18,qwen,2,Ansible Error Could not find module service
-18,qwen,3,Ansible Error unrecognized field 'vars' in play
+18,qwen,2,Ansible Error Could not find module template
+18,qwen,3,Ansible Error Invalid value 'present' expected one of [absent, directory, file, hard, link, touch]
 18,qwen,4,Correct
-18,qwen,5,Ansible Error Could not find module service
+18,qwen,5,Ansible Error No argument content of module file
 18,qwen,6,Ansible Error unhandled Jinja expression form
-18,qwen,7,Ansible Error Could not find module service
-18,qwen,8,Ansible Error Could not find module service
-18,qwen,9,Ansible Error Could not find module service
-18,qwen,10,Ansible Error Could not find module service
+18,qwen,7,Ansible Error Could not find module template
+18,qwen,8,Ansible Error Could not find module template
+18,qwen,9,Correct
+18,qwen,10,Ansible Error Could not find module template
 18,starcoder,1,Ansible Error non-string key is not supported
 18,starcoder,2,Verification Failure
 18,starcoder,3,Ansible Error Could not find module systemd
-18,starcoder,4,Ansible Error unrecognized field 'vars' in play
+18,starcoder,4,Ansible Error Could not find module ansible.builtin.template
 18,starcoder,5,Ansible Error Could not find module systemd
 18,starcoder,6,Ansible Error Invalid value 'installed' expected one of [absent, latest, present]
-18,starcoder,7,Ansible Error Could not find module service
+18,starcoder,7,Correct
 18,starcoder,8,Verification Failure
-18,starcoder,9,Ansible Error unrecognized field 'vars' in play
+18,starcoder,9,Verification Failure
 18,starcoder,10,Ansible Error Could not find module import_role
 19,deepseek,1,Verification Failure
-19,deepseek,2,Ansible Error No argument validate of module ansible.builtin.copy
-19,deepseek,3,Ansible Error No argument validate of module ansible.builtin.copy
+19,deepseek,2,Verification Failure
+19,deepseek,3,Verification Failure
 19,deepseek,4,Verification Failure
 19,deepseek,5,Verification Failure
 19,deepseek,6,Verification Failure
@@ -1153,7 +1153,7 @@ Problem,Model,Response,Result
 19,gpt,2,Verification Failure
 19,gpt,3,Verification Failure
 19,gpt,4,Verification Failure
-19,gpt,5,Ansible Error No argument regex of module lineinfile
+19,gpt,5,Verification Failure
 19,gpt,6,Verification Failure
 19,gpt,7,Verification Failure
 19,gpt,8,Verification Failure
@@ -1171,7 +1171,7 @@ Problem,Model,Response,Result
 19,granite,10,Ansible Error unhandled Jinja expression form
 19,llama,1,Verification Failure
 19,llama,2,Verification Failure
-19,llama,3,Ansible Error unrecognized field 'vars' in play
+19,llama,3,Ansible Error unhandled Jinja expression form
 19,llama,4,Verification Failure
 19,llama,5,Verification Failure
 19,llama,6,Syntax Error
@@ -1190,72 +1190,72 @@ Problem,Model,Response,Result
 19,qwen,9,Verification Failure
 19,qwen,10,Verification Failure
 19,starcoder,1,Syntax Error
-19,starcoder,2,Ansible Error No argument gid of module group
+19,starcoder,2,Verification Failure
 19,starcoder,3,Verification Failure
 19,starcoder,4,Verification Failure
-19,starcoder,5,Ansible Error unrecognized field 'vars' in play
+19,starcoder,5,Ansible Error unhandled Jinja expression form
 19,starcoder,6,Verification Failure
 19,starcoder,7,Verification Failure
 19,starcoder,8,Ansible Error unhandled Jinja expression form
 19,starcoder,9,Verification Failure
 19,starcoder,10,Verification Failure
 20,deepseek,1,Ansible Error Could not find module ansible.posix.authorized_key
-20,deepseek,2,Ansible Error Could not find module service
+20,deepseek,2,Verification Failure
 20,deepseek,3,Ansible Error Multiple modules specified: ansible.builtin.command and args
 20,deepseek,4,Ansible Error Could not find module ansible.builtin.command
-20,deepseek,5,Ansible Error Could not find module ansible.builtin.command
+20,deepseek,5,Syntax Error
 20,deepseek,6,Ansible Error Multiple modules specified: shell and args
 20,deepseek,7,Ansible Error Multiple modules specified: ansible.builtin.user and with_first_found
-20,deepseek,8,Ansible Error Could not find module service
-20,deepseek,9,Ansible Error Could not find module stat
-20,deepseek,10,Ansible Error Could not find module service
-20,gpt,1,Ansible Error Could not find module service
-20,gpt,2,Ansible Error Could not find module service
-20,gpt,3,Ansible Error unrecognized field 'vars' in play
+20,deepseek,8,Verification Failure
+20,deepseek,9,Ansible Error Could not find module shell
+20,deepseek,10,Verification Failure
+20,gpt,1,Ansible Error Could not find module openssh_keypair
+20,gpt,2,Ansible Error Could not find module openssh_keypair
+20,gpt,3,Ansible Error Could not find module ansible.builtin.openssh_keypair
 20,gpt,4,Ansible Error Could not find module ansible.builtin.openssh_keypair
-20,gpt,5,Ansible Error unrecognized field 'vars' in play
-20,gpt,6,Ansible Error unrecognized field 'vars' in play
-20,gpt,7,Ansible Error unhandled Jinja expression form
-20,gpt,8,Ansible Error unrecognized field 'vars' in play
-20,gpt,9,Ansible Error Could not find module service
-20,gpt,10,Ansible Error unrecognized field 'vars' in play
-20,granite,1,ERROR (query)
-20,granite,2,Ansible Error Could not find module service
-20,granite,3,ERROR (query)
-20,granite,4,ERROR (query)
-20,granite,5,ERROR (query)
-20,granite,6,ERROR (query)
-20,granite,7,Ansible Error Could not find module command
+20,gpt,5,Ansible Error Could not find module ansible.builtin.openssh_keypair
+20,gpt,6,Ansible Error Could not find module ansible.builtin.openssh_keypair
+20,gpt,7,Ansible Error Unknown ansible_fact pkg_mgr
+20,gpt,8,Ansible Error Could not find module ansible.builtin.systemd
+20,gpt,9,Ansible Error Could not find module ansible.builtin.openssh_keypair
+20,gpt,10,Ansible Error Could not find module openssh_keypair
+20,granite,1,Ansible Error jinja parsing error
+20,granite,2,Verification Failure
+20,granite,3,Ansible Error jinja parsing error
+20,granite,4,Ansible Error jinja parsing error
+20,granite,5,Ansible Error jinja parsing error
+20,granite,6,Ansible Error jinja parsing error
+20,granite,7,Syntax Error
 20,granite,8,Verification Failure
-20,granite,9,Ansible Error Multiple modules specified: ansible.builtin.command and args
-20,granite,10,ERROR (query)
-20,llama,1,Ansible Error unhandled Jinja expression form
+20,granite,9,Syntax Error
+20,granite,10,Ansible Error jinja parsing error
+20,llama,1,Ansible Error Unknown variable ansible_distribution_major_version
 20,llama,2,Ansible Error Multiple modules specified: file and block
-20,llama,3,Ansible Error Could not find module service
+20,llama,3,Ansible Error Could not find module ssh_keypair
 20,llama,4,Syntax Error
-20,llama,5,Ansible Error unrecognized field 'vars' in play
+20,llama,5,Ansible Error Multiple modules specified: user and delegate_to
 20,llama,6,Verification Failure
 20,llama,7,Ansible Error unhandled Jinja expression form
 20,llama,8,Ansible Error unhandled Jinja expression form
 20,llama,9,Verification Failure
 20,llama,10,Ansible Error Could not find module ssh_keypair
-20,qwen,1,Ansible Error unrecognized field 'vars' in play
-20,qwen,2,Ansible Error unrecognized field 'vars' in play
-20,qwen,3,Ansible Error unrecognized field 'vars' in play
+20,qwen,1,Ansible Error Multiple modules specified: ansible.builtin.command and args
+20,qwen,2,Ansible Error unhandled Jinja expression form
+20,qwen,3,Syntax Error
 20,qwen,4,Ansible Error Multiple modules specified: gather_facts and roles
 20,qwen,5,Ansible Error Multiple modules specified: hosts and vars
-20,qwen,6,Ansible Error unrecognized field 'vars' in play
+20,qwen,6,Ansible Error Could not find module authorized_key
 20,qwen,7,Ansible Error Multiple modules specified: ansible.builtin.shell and args
 20,qwen,8,Ansible Error Multiple modules specified: apt and yum
-20,qwen,9,Ansible Error No argument upgrade of module apt
-20,qwen,10,Ansible Error unrecognized field 'vars' in play
+20,qwen,9,Ansible Error No argument upgrade of module yum
+20,qwen,10,Syntax Error
 20,starcoder,1,Ansible Error Could not find module community.crypto.openssh_keypair
 20,starcoder,2,Ansible Error Could not find module systemd
 20,starcoder,3,Ansible Error Multiple modules specified: community.crypto.openssl_privatekey and delegate_to
-20,starcoder,4,Ansible Error unrecognized field 'vars' in play
+20,starcoder,4,Verification Failure
 20,starcoder,5,Ansible Error unhandled Jinja expression form
 20,starcoder,6,Ansible Error Could not find module ansible.builtin.shell
-20,starcoder,7,Ansible Error unhandled Jinja expression form
+20,starcoder,7,Ansible Error Could not find module block
 20,starcoder,8,Syntax Error
 20,starcoder,9,Ansible Error unhandled Jinja expression form
-20,starcoder,10,Ansible Error unhandled Jinja expression form
+20,starcoder,10,Ansible Error Could not find module systemd

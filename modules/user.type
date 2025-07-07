@@ -107,6 +107,9 @@ module ansible.builtin.user aka user -> user_result {
           }
         }
       } else {
+        # Create group for the user
+        touch e_group(name);
+
         # User doesn't exist, this requires root privilege as discussed above
         if !env().is_root { res.failed = true; return res; }
 
@@ -139,6 +142,11 @@ module ansible.builtin.user aka user -> user_result {
         e_user(name).system = system;
         res.system = system;
       }
+
+      for g in e_user(name).supplemental_groups {
+        assert exists e_group(g);
+      }
+      assert exists e_group(e_user(name).primary_group);
 
       res.groups = e_user(name).supplemental_groups;
       res.home = e_user(name).homedir;

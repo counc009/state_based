@@ -1,6 +1,12 @@
 struct reboot_result { failed: bool, rebooted: bool }
 
-module ansible.builtin.reboot -> reboot_result {
+module ansible.builtin.reboot aka reboot -> reboot_result {
+  [post_reboot_delay: int] # TODO: Use
+  [pre_reboot_delay: int] # TODO: Use
+  [msg: string = "Reboot initiated by Ansible"] # TODO: Use
+  [test_command: string = "whoami"] # TODO: Use
+  [reboot_timeout: int] # TODO: Use
+
   env().last_reboot = get_time();
   return reboot_result { failed: false, rebooted: true };
 }

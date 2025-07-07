@@ -5,7 +5,7 @@ enum find_file_type { any, directory, file, link }
 uninterpreted file_glob(list string, find_file_type, file_system) -> list path
 
 module ansible.builtin.find aka find -> find_result {
-  (paths : list path)
+  (paths aka name, path : list path)
   (file_type : find_file_type = find_file_type::file)
   (patterns: list string = list::<string>::cons("*", list::<string>::nil()))
 

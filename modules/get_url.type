@@ -5,7 +5,7 @@ uninterpreted download_url(path, option (string, string)) -> string
 uninterpreted provided_filename_url(path, option (string, string)) -> option path
 uninterpreted validate_certificate(path) -> bool
 
-module ansible.builtin.get_url -> get_url_result {
+module ansible.builtin.get_url aka get_url -> get_url_result {
   (dest: path) (url: path)
 
   (force: bool = false) (validate_certs: bool = true)

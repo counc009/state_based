@@ -1,6 +1,6 @@
 struct fetch_result { failed: bool }
 
-module ansible.builtin.fetch -> fetch_result {
+module ansible.builtin.fetch aka fetch -> fetch_result {
   (dest: path) (src: path)
   (flat: bool = false)
 

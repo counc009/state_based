@@ -53,6 +53,7 @@ module ansible.builtin.copy aka copy -> copy_result {
 
   [backup: bool = false] # TODO: Actually model this
   [setype: string] # TODO: Actually use this
+  [validate: string] # TODO: Use this
 
   if provided src {
     [remote_src : bool = false]

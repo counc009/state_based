@@ -299,7 +299,7 @@ let codegen_condition (c: Ast.cond) thn els env
                   rest,
                 els), map))
   | ServiceRunning serv ->
-      let service = Target.FuncExp (Id "service", [StringLit serv])
+      let service = Target.FuncExp (Id "e_service", [StringLit serv])
       in Ok (Target.IfExists (service,
               [IfThenElse (Field (service, "running"), thn, els)],
               els), env)
@@ -790,11 +790,11 @@ let codegen_act (a: Ast.act) env
         :: [], map))
   | StartService { name } ->
       Ok (Target.Assign (
-          Field (FuncExp (Id "service", [StringLit name]), "running"),
+          Field (FuncExp (Id "e_service", [StringLit name]), "running"),
           BoolLit true) :: [], env)
   | StopService { name } ->
       Ok (Target.Assign (
-          Field (FuncExp (Id "service", [StringLit name]), "running"),
+          Field (FuncExp (Id "e_service", [StringLit name]), "running"),
           BoolLit false) :: [], env)
   | UninstallPkg { pkg = { name; pkg_manager } } ->
       begin match pkg_manager with

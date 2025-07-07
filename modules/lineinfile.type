@@ -45,7 +45,7 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
 
     match state {
       lineinfile_state::absent => {
-        (search_string: string | regexp: string)
+        (search_string: string | regexp aka regex: string)
         if provided search_string {
           result = remove_lines(regex_of_literal(search_string), content);
         } else {
@@ -53,7 +53,7 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
         }
       }
       lineinfile_state::present => {
-        (line: string)
+        (line aka value: string)
         [create: bool = false]
         [search_string: string | regexp: string]
 

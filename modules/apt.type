@@ -19,6 +19,8 @@ module ansible.builtin.apt aka apt -> apt_result {
   [update_cache_reties: int = 5]
   [update_cache_retry_max_delay: int = 12]
 
+  [upgrade: string] # TODO: Use enum and use value
+
   let res = apt_result { failed: false, cache_updated: false };
 
   if update_cache {

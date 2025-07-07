@@ -2,21 +2,21 @@ struct service_result { failed: bool }
 
 enum service_state { reloaded, restarted, started, stopped }
 
-element service(string)
+element e_service(string)
 attribute start_on_boot(bool)
 attribute running(bool)
 
 attribute started(int)
 attribute loaded(int)
 
-module ansible.builtin.service -> service_result {
+module ansible.builtin.service aka service -> service_result {
   (name: string)
   [state: service_state]
 
   if provided state {
     [enabled: bool]
     if provided enabled {
-      service(name).start_on_boot = enabled;
+      e_service(name).start_on_boot = enabled;
     }
 
     match state {
@@ -25,33 +25,33 @@ module ansible.builtin.service -> service_result {
       # that we can use to indicate actions like that
       service_state::reloaded => {
         let time = get_time();
-        if exists service(name) {} else { service(name).running = false; }
-        if !service(name).running {
-          service(name).running = true;
-          service(name).started = time;
+        if exists e_service(name) {} else { e_service(name).running = false; }
+        if !e_service(name).running {
+          e_service(name).running = true;
+          e_service(name).started = time;
         }
-        service(name).loaded = time;
+        e_service(name).loaded = time;
       }
       service_state::restarted => {
         let time = get_time();
-        service(name).running = true;
-        service(name).started = time;
-        service(name).loaded = time;
+        e_service(name).running = true;
+        e_service(name).started = time;
+        e_service(name).loaded = time;
       }
       service_state::started => {
-        if exists service(name) {} else { service(name).running = false; }
-        if !service(name).running {
+        if exists e_service(name) {} else { e_service(name).running = false; }
+        if !e_service(name).running {
           let time = get_time();
-          service(name).running = true;
-          service(name).started = time;
-          service(name).loaded = time;
+          e_service(name).running = true;
+          e_service(name).started = time;
+          e_service(name).loaded = time;
         }
       }
-      service_state::stopped => { service(name).running = false; }
+      service_state::stopped => { e_service(name).running = false; }
     }
   } else {
     (enabled: bool)
-    service(name).start_on_boot = enabled;
+    e_service(name).start_on_boot = enabled;
   }
 
   return service_result { failed: false };

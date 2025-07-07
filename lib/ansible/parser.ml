@@ -7,18 +7,20 @@ module Jinterp = Jingoo.Jg_interp
 module Jtypes = Jingoo.Jg_types
 
 type unary  = Not | Lower
-type binary = Concat | Equals | And | Or
+type binary = Concat | Equals | And | Or | Leq | Geq
 
 type value =
-  | String of string
-  | Int    of int
-  | Float  of float
-  | Bool   of bool
-  | List   of value list
-  | Ident  of string
-  | Unary  of value * unary
-  | Binary of value * binary * value
-  | Dot    of value * string
+  | String      of string
+  | Int         of int
+  | Float       of float
+  | Bool        of bool
+  | List        of value list
+  | Ident       of string
+  | Unary       of value * unary
+  | Binary      of value * binary * value
+  | Dot         of value * string
+  | VarDefined  of string
+  | Fact        of string
 
 type mod_use = {
   mod_name: string;
@@ -231,6 +233,7 @@ type play = {
   become_user : string;
   tasks       : task list;
   handlers    : handler list;
+  vars        : (string * value) list
 }
 
 class play_result =
@@ -243,6 +246,8 @@ class play_result =
 
     val mutable become      = (None : bool option)
     val mutable become_user = (None : string option)
+
+    val mutable vars        = (None : (string * value) list option)
 
     val mutable errors      = ([] : string list)
 
@@ -276,6 +281,11 @@ class play_result =
       | None -> become_user <- Some n
       | _    -> errors <- "Multiple become_user fields" :: errors
 
+    method add_vars vs =
+      match vars with
+      | None -> vars <- Some vs
+      | _    -> errors <- "Multiple vars fields" :: errors
+
     method to_play =
       if not (List.is_empty errors)
       then Error errors
@@ -292,7 +302,8 @@ class play_result =
                ; become       = Option.value become ~default:false
                ; become_user  = Option.value become_user ~default:"root"
                ; tasks        = t
-               ; handlers     = Option.value handlers ~default:[] }
+               ; handlers     = Option.value handlers ~default:[]
+               ; vars         = Option.value vars ~default:[] }
   end
 
 let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
@@ -328,10 +339,29 @@ let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
     | NotEqOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
         (fun lhs -> Result.bind (jexpr_to_value rhs)
           (fun rhs -> Ok (Unary (Binary (lhs, Equals, rhs), Not))))
+    | GtEqOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
+        (fun lhs -> Result.bind (jexpr_to_value rhs)
+          (fun rhs -> Ok (Binary (lhs, Geq, rhs))))
+    | LtEqOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
+        (fun lhs -> Result.bind (jexpr_to_value rhs)
+          (fun rhs -> Ok (Binary (lhs, Leq, rhs))))
+    | DotExpr (IdentExpr "ansible_facts", nm)
+    | BracketExpr (IdentExpr "ansible_facts", LiteralExpr (Tstr nm)) ->
+        Ok (Fact nm)
     | DotExpr (ex, field) -> Result.bind (jexpr_to_value ex)
         (fun ex -> Ok (Dot (ex, field)))
     | ApplyExpr (IdentExpr "lower", [(None, arg)]) ->
         Result.bind (jexpr_to_value arg) (fun ex -> Ok (Unary (ex, Lower)))
+    | TestOpExpr (ex, IdentExpr "success") ->
+        Result.bind (jexpr_to_value ex) (fun ex -> Ok (Dot (ex, "success")))
+    | TestOpExpr (IdentExpr var, IdentExpr "defined") ->
+        Ok (VarDefined var)
+    | InOpExpr (lhs, ListExpr lst) ->
+        Result.bind (jexpr_to_value lhs) (fun lhs ->
+          List.fold_left (fun res rhs -> Result.bind res (fun res ->
+            Result.bind (jexpr_to_value rhs) (fun rhs ->
+              Ok (Binary (res, Or, Binary (lhs, Equals, rhs)))
+          ))) (Ok (Bool false)) lst)
     | _ -> Error "unhandled Jinja expression form"
   in let jstmt_to_value (j: Jtypes.statement) : (value, string) result =
     match j with
@@ -405,7 +435,9 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
     | `Null     -> Ok (String "")
     | `Bool b   -> Ok (Bool b)
     | `Float f  -> Ok (Float f)
-    | `String s -> jinja_to_value (Jinterp.ast_from_string s)
+    | `String s ->
+        begin try jinja_to_value (Jinterp.ast_from_string s)
+        with _ -> Error "jinja parsing error" end
     | `A vs     ->
         let rec process vs =
           match vs with
@@ -421,7 +453,9 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
     | `Bool b -> Ok (Bool b)
     | `Float f -> Ok (Float f)
     | `String s ->
-        jinja_to_value (Jinterp.ast_from_string (Printf.sprintf "{{ %s }}" s))
+        begin try
+          jinja_to_value (Jinterp.ast_from_string (Printf.sprintf "{{ %s }}" s))
+        with _ -> Error "jinja parsing error" end
     | `A vs ->
         let rec process vs =
           match vs with
@@ -605,14 +639,36 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                 | _ -> Error "mismatched types"
                 end
             | "ansible_user_gid" ->
-                (* TODO: This seems to actually generate the group id not name *)
+                (* TODO: This should actually be the group id not name I think *)
                 begin match t with
                 | Some String | None ->
                     (* env().active_group *)
                     Ok (Field (FuncExp (Id "env", []), "active_group"), String)
+                | Some (List String) ->
+                    Ok (singleton_list String
+                          (Field (FuncExp (Id "env", []), "active_group")),
+                        List String)
                 | _ -> Error "mismatched types"
                 end
             | _ -> Error ("Unknown variable " ^ nm)
+        end
+    | Fact nm ->
+        begin match nm with
+        | "os_family" ->
+            begin match t with
+            | Some String | None ->
+                (* env().os_family *)
+                Ok (Field (FuncExp (Id "env", []), "os_family"), String)
+            | _ -> Error "mismatched types"
+            end
+        | "distribution" ->
+            begin match t with
+            | Some String | None ->
+                (* env().os_distribution *)
+                Ok (Field (FuncExp (Id "env", []), "os_distribution"), String)
+            | _ -> Error "mismatched types"
+            end
+        | _ -> Error ("Unknown ansible_fact " ^ nm)
         end
     | Unary (v, op) ->
         begin match op, t with
@@ -658,6 +714,15 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
               -> Ok (Some Bool, (fun _ -> Some Bool), Bool,
                      fun l r -> BinaryExp (l, r, Or))
           | Or, _ -> Error "Incorrect type for or (produces bool)"
+          (* TODO: Ideally handle float as well *)
+          | Geq, Some Bool | Geq, None
+              -> Ok (Some Int, (fun _ -> Some Int), Bool,
+                     fun l r -> BinaryExp (l, r, Ge))
+          | Geq, _ -> Error "Incorrect type for geq (produces bool)"
+          | Leq, Some Bool | Leq, None
+              -> Ok (Some Int, (fun _ -> Some Int), Bool,
+                     fun l r -> BinaryExp (l, r, Le))
+          | Leq, _ -> Error "Incorrect type for leq (produces bool)"
         in Result.bind op_info
           (fun (lhs_t, rhs_t, ret_typ, op) ->
             Result.bind (codegen_value lhs lhs_t play_env)
@@ -689,6 +754,14 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                   in process_for_field typ
               end
           | _ -> Error (Printf.sprintf "Value has no field '%s'" field))
+    | VarDefined v ->
+        begin match Hashtbl.find_opt play_env v, t with
+        | Some _, Some Bool | Some _, None
+            -> Ok (Modules.Ast.BoolLit true, Modules.Ast.Bool)
+        | None, Some Bool | None, None
+            -> Ok (Modules.Ast.BoolLit false, Modules.Ast.Bool)
+        | _, _ -> Error "Incorrect type for is defined, produces boolean"
+        end
   in let process_module_use nm args =
     match args with
     | `O map ->
@@ -730,6 +803,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                 | "tags" -> Ok () (* TODO: We just ignore tags for now *)
                 | "loop_control" -> Ok () (* TODO: We just ignore loop_control *)
                 | "no_log" -> Ok () (* TODO *)
+                | "changed_when" -> Ok () (* TODO *)
                 | _ -> Result.map res#add_module (process_module_use field v)
               with
               | Ok () -> process_task_fields tl res
@@ -932,11 +1006,23 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
           | Ok t -> Result.map (fun tl -> t @ tl) (codegen_tasks tl play_env)
           | Error msg -> Error msg
     in let play_env = Hashtbl.create 10
+    in let () = List.iter (fun (nm, _) -> 
+        Hashtbl.add play_env nm (Unknown (nm, Modules.Ast.String))
+      ) play.vars
     in let tasks = codegen_tasks play.tasks play_env
+    in let with_vars =
+      List.fold_right (fun (nm, v) res -> Result.bind res (fun res ->
+        let var_typ =
+          match Hashtbl.find play_env nm with
+          | Unknown (_, t) -> t
+          | Concrete t -> t
+        in Result.bind (codegen_value v (Some var_typ) play_env) (fun (v, _) ->
+          Ok (Modules.Ast.LetStmt (nm, v) :: res)
+      ))) play.vars tasks
     in let with_become =
       (* Handle become as above *)
       Result.map
-      (fun tasks ->
+      (fun body ->
         if play.become
         then
             (* TODO: Actually check conversion from current to new user *)
@@ -945,9 +1031,9 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
           :: Assign (Field (FuncExp (Id "env", []), "active_user"), StringLit play.become_user)
           :: Assign (Field (FuncExp (Id "env", []), "active_group"), StringLit play.become_user)
           :: Assign (Field (FuncExp (Id "env", []), "is_root"), BoolLit (play.become_user = "root"))
-          :: tasks
-        else tasks)
-      tasks
+          :: body
+        else body)
+      with_vars
     (* Set the user by env().active_user = remote_user
      * and set is_root based on what we know of it *)
     in Result.map
@@ -979,6 +1065,8 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                 | "become_user"   -> Result.map res#add_become_user (process_string v)
                 | "become_method" -> Ok () (* TODO *)
                 | "handlers"      -> Result.map res#add_handlers (process_handlers v)
+                | "vars"          -> Result.map (fun r -> res#add_vars r.args)
+                                                (process_module_use "UNUSED" v)
                 | _               -> Error (Printf.sprintf "unrecognized field '%s' in play" field)
               with
               | Ok ()     -> process_play_fields tl res

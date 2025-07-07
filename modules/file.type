@@ -22,6 +22,7 @@ module ansible.builtin.file aka file -> file_result {
 
   [setype: string] # TODO: Use this
   [follow: bool = true] # TODO: Use this
+  [force: bool = false] # TODO: Use this (only relevant to links)
 
   let state = provided state                       ? state
             : exists fs(path, file_system::remote) ? fs_state(path, file_system::remote)
