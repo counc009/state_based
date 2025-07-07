@@ -58,6 +58,7 @@ module ansible.builtin.copy aka copy -> copy_result {
   [validate: string] # TODO: Use this
 
   if provided src {
+    let source = src;
     let src = norm_path(src);
     [remote_src : bool = false]
 
@@ -76,7 +77,7 @@ module ansible.builtin.copy aka copy -> copy_result {
         # all contents of the directory (but not the directory itself)
         match fs(src, loc).fs_type {
           file_type::file(content) => {
-            let dest = cons_path(dst, base_name(src));
+            let dest = cons_path(dst, base_name(source));
             let do_copy = force ? true 
                         : exists fs(dest, file_system::remote) ? false : true;
             if do_copy {

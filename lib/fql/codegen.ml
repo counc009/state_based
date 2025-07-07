@@ -383,11 +383,7 @@ let codegen_act (a: Ast.act) env
             (fun (dst_map, dst_path, dst_sys) ->
               let dst_file =
                 Target.FuncExp (Id "cons_path",
-                  (* this cons_path($dst_path, '') just makes sure there's a
-                   * / at the end (which is necessary in Ansible because of
-                   * how copy works *)
-                  [ FuncExp (Id "cons_path", [dst_path; PathLit ""]);
-                    FuncExp (Id "base_name", [Id "f"]) ])
+                  [ dst_path; FuncExp (Id "base_name", [Id "f"]) ])
               in Result.bind 
                 (codegen_files_desc (fs dst_file dst_sys) dest dst_map)
                 (fun (desc, map) ->
@@ -713,8 +709,7 @@ let codegen_act (a: Ast.act) env
             (fun (dst_map, dst_path, dst_sys) ->
               let dst_file =
                 Target.FuncExp (Id "cons_path",
-                  [ FuncExp (Id "cons_path", [dst_path; PathLit ""]);
-                    FuncExp (Id "base_name", [Id "f"]) ])
+                  [ dst_path; FuncExp (Id "base_name", [Id "f"]) ])
               in Result.bind 
                 (codegen_files_desc (fs dst_file dst_sys) dest dst_map)
                 (fun (desc, map) ->

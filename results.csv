@@ -54,7 +54,7 @@ Problem,Model,Response,Result
 01,starcoder,3,Correct
 01,starcoder,4,Correct
 01,starcoder,5,Correct
-01,starcoder,6,Verification Failure
+01,starcoder,6,Correct
 01,starcoder,7,Correct
 01,starcoder,8,Correct
 01,starcoder,9,Correct
@@ -241,64 +241,64 @@ Problem,Model,Response,Result
 04,starcoder,10,Verification Failure
 05,deepseek,1,Correct
 05,deepseek,2,Correct
-05,deepseek,3,Verification Failure
-05,deepseek,4,Verification Failure
-05,deepseek,5,Verification Failure
+05,deepseek,3,Correct
+05,deepseek,4,Correct
+05,deepseek,5,Correct
 05,deepseek,6,Correct
-05,deepseek,7,Verification Failure
+05,deepseek,7,Correct
 05,deepseek,8,Correct
-05,deepseek,9,Verification Failure
-05,deepseek,10,Verification Failure
+05,deepseek,9,Correct
+05,deepseek,10,Correct
 05,gpt,1,Correct
-05,gpt,2,Verification Failure
+05,gpt,2,Correct
 05,gpt,3,Correct
-05,gpt,4,Verification Failure
-05,gpt,5,Verification Failure
-05,gpt,6,Verification Failure
-05,gpt,7,Verification Failure
+05,gpt,4,Correct
+05,gpt,5,Correct
+05,gpt,6,Correct
+05,gpt,7,Correct
 05,gpt,8,Correct
-05,gpt,9,Verification Failure
-05,gpt,10,Verification Failure
-05,granite,1,Verification Failure
-05,granite,2,Verification Failure
-05,granite,3,Verification Failure
-05,granite,4,Verification Failure
-05,granite,5,Verification Failure
-05,granite,6,Verification Failure
-05,granite,7,Verification Failure
-05,granite,8,Verification Failure
-05,granite,9,Verification Failure
-05,granite,10,Verification Failure
+05,gpt,9,Correct
+05,gpt,10,Correct
+05,granite,1,Correct
+05,granite,2,Correct
+05,granite,3,Correct
+05,granite,4,Correct
+05,granite,5,Correct
+05,granite,6,Correct
+05,granite,7,Correct
+05,granite,8,Correct
+05,granite,9,Correct
+05,granite,10,Correct
 05,llama,1,Correct
-05,llama,2,Verification Failure
+05,llama,2,Correct
 05,llama,3,Correct
 05,llama,4,Syntax Error
-05,llama,5,Verification Failure
+05,llama,5,Correct
 05,llama,6,Correct
 05,llama,7,Correct
-05,llama,8,Verification Failure
+05,llama,8,Correct
 05,llama,9,Syntax Error
-05,llama,10,Verification Failure
-05,qwen,1,Verification Failure
-05,qwen,2,Verification Failure
-05,qwen,3,Verification Failure
-05,qwen,4,Verification Failure
-05,qwen,5,Verification Failure
-05,qwen,6,Verification Failure
-05,qwen,7,Verification Failure
-05,qwen,8,Verification Failure
-05,qwen,9,Verification Failure
-05,qwen,10,Verification Failure
-05,starcoder,1,Verification Failure
+05,llama,10,Correct
+05,qwen,1,Correct
+05,qwen,2,Correct
+05,qwen,3,Correct
+05,qwen,4,Correct
+05,qwen,5,Correct
+05,qwen,6,Correct
+05,qwen,7,Correct
+05,qwen,8,Correct
+05,qwen,9,Correct
+05,qwen,10,Correct
+05,starcoder,1,Correct
 05,starcoder,2,Correct
 05,starcoder,3,Correct
-05,starcoder,4,Verification Failure
+05,starcoder,4,Correct
 05,starcoder,5,Correct
-05,starcoder,6,Verification Failure
+05,starcoder,6,Correct
 05,starcoder,7,Syntax Error
-05,starcoder,8,Verification Failure
+05,starcoder,8,Correct
 05,starcoder,9,Correct
-05,starcoder,10,Verification Failure
+05,starcoder,10,Correct
 06,deepseek,1,Ansible Error Could not find module ansible.builtin.command
 06,deepseek,2,Ansible Error Could not find module ansible.builtin.command
 06,deepseek,3,Ansible Error Could not find module ansible.builtin.command
@@ -485,7 +485,7 @@ Problem,Model,Response,Result
 09,deepseek,4,Correct
 09,deepseek,5,Ansible Error Could not find module ansible.builtin.blockinfile
 09,deepseek,6,Correct
-09,deepseek,7,Verification Failure
+09,deepseek,7,Correct
 09,deepseek,8,Correct
 09,deepseek,9,Correct
 09,deepseek,10,Ansible Error No argument append of module ansible.builtin.copy
@@ -609,14 +609,14 @@ Problem,Model,Response,Result
 11a,deepseek,8,Verification Failure
 11a,deepseek,9,Ansible Error unhandled Jinja expression form
 11a,deepseek,10,Ansible Error unhandled Jinja expression form
-11a,gpt,1,Correct
+11a,gpt,1,Verification Failure
 11a,gpt,2,Ansible Error unhandled Jinja expression form
 11a,gpt,3,Verification Failure
 11a,gpt,4,Ansible Error No argument with_fileglob of module ansible.builtin.copy
 11a,gpt,5,Ansible Error Multiple modules specified: copy and delegate_to
-11a,gpt,6,Correct
+11a,gpt,6,Verification Failure
 11a,gpt,7,Verification Failure
-11a,gpt,8,Correct
+11a,gpt,8,Verification Failure
 11a,gpt,9,Ansible Error Multiple modules specified: ansible.builtin.find and delegate_to
 11a,gpt,10,Ansible Error No argument include of module copy
 11a,granite,1,Ansible Error unhandled Jinja expression form
@@ -672,10 +672,10 @@ Problem,Model,Response,Result
 11b,gpt,1,Ansible Error Could not find module ansible.builtin.local_action
 11b,gpt,2,Ansible Error Could not find module local_action
 11b,gpt,3,Ansible Error Multiple modules specified: delegate_to and ansible.builtin.file
-11b,gpt,4,Correct
+11b,gpt,4,Verification Failure
 11b,gpt,5,Ansible Error Could not find module ansible.builtin.local_action
 11b,gpt,6,Ansible Error Multiple modules specified: delegate_to and file
-11b,gpt,7,Correct
+11b,gpt,7,Verification Failure
 11b,gpt,8,Ansible Error Multiple modules specified: delegate_to and file
 11b,gpt,9,Syntax Error
 11b,gpt,10,Ansible Error Multiple modules specified: delegate_to and file
@@ -1014,7 +1014,7 @@ Problem,Model,Response,Result
 16,starcoder,3,Correct
 16,starcoder,4,Ansible Error jinja parsing error
 16,starcoder,5,Verification Failure
-16,starcoder,6,Verification Failure
+16,starcoder,6,Correct
 16,starcoder,7,Verification Failure
 16,starcoder,8,Verification Failure
 16,starcoder,9,Correct

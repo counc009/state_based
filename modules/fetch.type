@@ -4,21 +4,21 @@ module ansible.builtin.fetch aka fetch -> fetch_result {
   (dest: path) (src: path)
   (flat: bool = false)
 
-  let dest = norm_path(dest);
-  let src = norm_path(src);
+  let dst = norm_path(dest);
+  let source = norm_path(src);
 
-  if exists fs(src, file_system::remote) {
-    match fs(src, file_system::remote).fs_type {
+  if exists fs(source, file_system::remote) {
+    match fs(source, file_system::remote).fs_type {
       file_type::file(c) => {
         if !flat {
-          fs(cons_path(dest, cons_path(path_of_string(env().hostname), src)),
+          fs(cons_path(dst, cons_path(path_of_string(env().hostname), source)),
             file_system::local).fs_type = file_type::file(c);
         } else {
           if ends_with_dir(dest) {
-            fs(cons_path(dest, base_name(src)), file_system::local)
+            fs(cons_path(dst, base_name(src)), file_system::local)
               .fs_type = file_type::file(c);
           } else {
-            fs(dest, file_system::local).fs_type = file_type::file(c);
+            fs(dst, file_system::local).fs_type = file_type::file(c);
           }
         }
         return fetch_result { failed: false };
