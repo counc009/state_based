@@ -9,6 +9,8 @@ module ansible.builtin.git aka git -> git_result {
   (remote: string = "origin")
   (version: string = "HEAD")
 
+  let dest = norm_path(dest);
+
   assert exists e_package("git");
 
   [depth: int] # TODO: Use

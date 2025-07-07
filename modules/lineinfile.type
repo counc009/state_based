@@ -18,6 +18,8 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
   (path aka dest, destfile, name : path)
   (state : lineinfile_state = lineinfile_state::present)
 
+  let path = norm_path(path);
+
   [group: string] [owner: string]
   [mode: string]
   [validate: string]

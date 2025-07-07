@@ -17,6 +17,8 @@ module ansible.builtin.file aka file -> file_result {
   [group: string] [owner: string]
   [mode: string]
 
+  let path = norm_path(path);
+
   [state: file_state]
   [recurse: bool = false]
 
@@ -115,6 +117,7 @@ module ansible.builtin.file aka file -> file_result {
     }
     file_state::hard => {
       (src: path)
+      let src = norm_path(src);
       assert exists fs(src, file_system::remote);
 
       if exists fs(path, file_system::remote) {
@@ -144,6 +147,7 @@ module ansible.builtin.file aka file -> file_result {
     }
     file_state::link => {
       (src: path)
+      let src = norm_path(src);
 
       if exists fs(path, file_system::remote) {
         fs(path, file_system::remote).owner 

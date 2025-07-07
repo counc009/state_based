@@ -51,11 +51,14 @@ module ansible.builtin.copy aka copy -> copy_result {
   [mode: string] [directory_mode: string]
   (force: bool = true)
 
+  let dst = norm_path(dest);
+
   [backup: bool = false] # TODO: Actually model this
   [setype: string] # TODO: Actually use this
   [validate: string] # TODO: Use this
 
   if provided src {
+    let src = norm_path(src);
     [remote_src : bool = false]
 
     let loc = remote_src ? file_system::remote : file_system::local;
@@ -73,7 +76,7 @@ module ansible.builtin.copy aka copy -> copy_result {
         # all contents of the directory (but not the directory itself)
         match fs(src, loc).fs_type {
           file_type::file(content) => {
-            let dest = cons_path(dest, base_name(src));
+            let dest = cons_path(dst, base_name(src));
             let do_copy = force ? true 
                         : exists fs(dest, file_system::remote) ? false : true;
             if do_copy {
@@ -96,9 +99,9 @@ module ansible.builtin.copy aka copy -> copy_result {
             let dest_files = list::<path>::nil;
             let dest_mode = provided directory_mode ? directory_mode
                           : mode_of_umask(env().umask);
-            if exists fs(dest, file_system::remote) {
-              dest_mode = fs(dest, file_system::remote).mode;
-              match fs(dest, file_system::remote).fs_type {
+            if exists fs(dst, file_system::remote) {
+              dest_mode = fs(dst, file_system::remote).mode;
+              match fs(dst, file_system::remote).fs_type {
                 file_type::directory(files) => { dest_files = files; }
                 file_type::file(_) => { result.failed = true; return result; }
                 file_type::hard(_) => { result.failed = true; return result; }
@@ -109,7 +112,7 @@ module ansible.builtin.copy aka copy -> copy_result {
             let res_files =
               foreach f : files {
                 assert exists fs(f, loc);
-                let f_dst = cons_path(dest, path_from(src, f));
+                let f_dst = cons_path(dst, path_from(src, f));
 
                 match fs(f, loc).fs_type {
                   file_type::file(c) => {
@@ -130,11 +133,11 @@ module ansible.builtin.copy aka copy -> copy_result {
                 yield f_dst;
               };
 
-            fs(dest, file_system::remote).fs_type
+            fs(dst, file_system::remote).fs_type
               = file_type::directory(res_files @ dest_files);
-            fs(dest, file_system::remote).owner = owner;
-            fs(dest, file_system::remote).owner_group = group;
-            fs(dest, file_system::remote).mode = dest_mode;
+            fs(dst, file_system::remote).owner = owner;
+            fs(dst, file_system::remote).owner_group = group;
+            fs(dst, file_system::remote).mode = dest_mode;
 
             return result;
           }
@@ -143,16 +146,16 @@ module ansible.builtin.copy aka copy -> copy_result {
         }
       } else {
         let do_copy = force ? true
-                    : exists fs(dest, file_system::remote) ? false : true;
+                    : exists fs(dst, file_system::remote) ? false : true;
         if do_copy {
           let mode =
             provided mode ? mode
-            : exists fs(dest, file_system::remote)
-              ? fs(dest, file_system::remote).mode
+            : exists fs(dst, file_system::remote)
+              ? fs(dst, file_system::remote).mode
             : mode_of_umask(env().umask);
           let dir_mode = provided directory_mode ? directory_mode
                                                  : mode_of_umask(env().umask);
-          if copy_helper(dest, src, loc, group, owner, mode, dir_mode) {
+          if copy_helper(dst, src, loc, group, owner, mode, dir_mode) {
             return copy_result { failed: false };
           } else {
             return copy_result { failed: true };
@@ -166,18 +169,18 @@ module ansible.builtin.copy aka copy -> copy_result {
     }
   } else {
     let do_copy = force ? true
-                : exists fs(dest, file_system::remote) ? false : true;
+                : exists fs(dst, file_system::remote) ? false : true;
     if do_copy {
       # NOTE: The docs are unclear whether the group/owner and updated if we
       # don't perform the copy, need to figure that out
       let mode = provided mode ? mode
-               : exists fs(dest, file_system::remote)
-                 ? fs(dest, file_system::remote).mode
+               : exists fs(dst, file_system::remote)
+                 ? fs(dst, file_system::remote).mode
                : mode_of_umask(env().umask);
-      fs(dest, file_system::remote).fs_type = file_type::file(content);
-      fs(dest, file_system::remote).owner_group = provided group ? group : env().active_group;
-      fs(dest, file_system::remote).owner = provided owner ? owner : env().active_user;
-      fs(dest, file_system::remote).mode = mode;
+      fs(dst, file_system::remote).fs_type = file_type::file(content);
+      fs(dst, file_system::remote).owner_group = provided group ? group : env().active_group;
+      fs(dst, file_system::remote).owner = provided owner ? owner : env().active_user;
+      fs(dst, file_system::remote).mode = mode;
     }
 
     return copy_result { failed: false };

@@ -828,6 +828,9 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                   | "add_ext" ->
                       let (arg_ty, res_ty, _) = Target.funcDef AddExt
                       in Ok (arg_ty, res_ty, TargetAst.AddExt)
+                  | "norm_path" ->
+                      let (arg_ty, res_ty, _) = Target.funcDef NormalizePath
+                      in Ok (arg_ty, res_ty, TargetAst.NormalizePath)
                   | "can_escalate" ->
                       let (arg_ty, res_ty, _) = Target.funcDef CanEscalate
                       in Ok (arg_ty, res_ty, TargetAst.CanEscalate)

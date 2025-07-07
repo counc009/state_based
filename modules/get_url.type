@@ -7,6 +7,7 @@ uninterpreted validate_certificate(path) -> bool
 
 module ansible.builtin.get_url aka get_url -> get_url_result {
   (dest: path) (url: path)
+  let dst = norm_path(dest);
 
   (force: bool = false) (validate_certs: bool = true)
 
@@ -39,7 +40,7 @@ module ansible.builtin.get_url aka get_url -> get_url_result {
       option::<path>::nothing => { name = base_name(url); }
     }
     
-    let dst = cons_path(dest, name);
+    let dst = cons_path(dst, name);
     result.dest = dst;
     
     if !force {
@@ -63,26 +64,26 @@ module ansible.builtin.get_url aka get_url -> get_url_result {
         = provided mode ? mode : mode_of_umask(env().umask);
     }
   } else {
-    result.dest = dest;
+    result.dest = dst;
 
     if !force {
-      if exists fs(dest, file_system::remote) {
+      if exists fs(dst, file_system::remote) {
         // File already exists, do nothing
         return result;
       } else {
-        fs(dest, file_system::remote).fs_type
+        fs(dst, file_system::remote).fs_type
           = file_type::file(download_url(url, login));
-        if provided group { fs(dest, file_system::remote).owner_group = group; result.group = group; }
-        if provided owner { fs(dest, file_system::remote).owner = owner; result.owner = owner; }
-        fs(dest, file_system::remote).mode
+        if provided group { fs(dst, file_system::remote).owner_group = group; result.group = group; }
+        if provided owner { fs(dst, file_system::remote).owner = owner; result.owner = owner; }
+        fs(dst, file_system::remote).mode
           = provided mode ? mode : mode_of_umask(env().umask);
       }
     } else {
-      fs(dest, file_system::remote).fs_type
+      fs(dst, file_system::remote).fs_type
         = file_type::file(download_url(url, login));
-      if provided group { fs(dest, file_system::remote).owner_group = group; result.group = group; }
-      if provided owner { fs(dest, file_system::remote).owner = owner; result.owner = owner; }
-      fs(dest, file_system::remote).mode
+      if provided group { fs(dst, file_system::remote).owner_group = group; result.group = group; }
+      if provided owner { fs(dst, file_system::remote).owner = owner; result.owner = owner; }
+      fs(dst, file_system::remote).mode
         = provided mode ? mode : mode_of_umask(env().umask);
     }
   }

@@ -1203,7 +1203,7 @@ Problem,Model,Response,Result
 20,deepseek,2,Verification Failure
 20,deepseek,3,Ansible Error Multiple modules specified: ansible.builtin.command and args
 20,deepseek,4,Ansible Error Could not find module ansible.builtin.command
-20,deepseek,5,Syntax Error
+20,deepseek,5,Ansible Error Could not find module ansible.builtin.command
 20,deepseek,6,Ansible Error Multiple modules specified: shell and args
 20,deepseek,7,Ansible Error Multiple modules specified: ansible.builtin.user and with_first_found
 20,deepseek,8,Verification Failure
@@ -1225,9 +1225,9 @@ Problem,Model,Response,Result
 20,granite,4,Ansible Error jinja parsing error
 20,granite,5,Ansible Error jinja parsing error
 20,granite,6,Ansible Error jinja parsing error
-20,granite,7,Syntax Error
+20,granite,7,Ansible Error Could not find module command
 20,granite,8,Verification Failure
-20,granite,9,Syntax Error
+20,granite,9,Ansible Error Multiple modules specified: ansible.builtin.command and args
 20,granite,10,Ansible Error jinja parsing error
 20,llama,1,Ansible Error Unknown variable ansible_distribution_major_version
 20,llama,2,Ansible Error Multiple modules specified: file and block
@@ -1241,14 +1241,14 @@ Problem,Model,Response,Result
 20,llama,10,Ansible Error Could not find module ssh_keypair
 20,qwen,1,Ansible Error Multiple modules specified: ansible.builtin.command and args
 20,qwen,2,Ansible Error unhandled Jinja expression form
-20,qwen,3,Syntax Error
+20,qwen,3,Ansible Error Multiple modules specified: command and args
 20,qwen,4,Ansible Error Multiple modules specified: gather_facts and roles
 20,qwen,5,Ansible Error Multiple modules specified: hosts and vars
 20,qwen,6,Ansible Error Could not find module authorized_key
 20,qwen,7,Ansible Error Multiple modules specified: ansible.builtin.shell and args
 20,qwen,8,Ansible Error Multiple modules specified: apt and yum
 20,qwen,9,Ansible Error No argument upgrade of module yum
-20,qwen,10,Syntax Error
+20,qwen,10,Ansible Error unhandled Jinja expression form
 20,starcoder,1,Ansible Error Could not find module community.crypto.openssh_keypair
 20,starcoder,2,Ansible Error Could not find module systemd
 20,starcoder,3,Ansible Error Multiple modules specified: community.crypto.openssl_privatekey and delegate_to

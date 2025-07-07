@@ -25,6 +25,8 @@ module ansible.builtin.pip aka pip -> pip_result {
   let res = pip_result { failed: false, name: name };
 
   if provided virtualenv {
+    let virtualenv = norm_path(virtualenv);
+
     # The docs are a little self-contradictory, but it does appear that the
     # virtualenv program is required to use virtual environments
     # TODO: Check virtual env didn't already exist

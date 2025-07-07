@@ -36,6 +36,7 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | BaseName
                 | PathFrom
                 | AddExt
+                | NormalizePath
                 | CanEscalate
                 (* Name and input and output types *)
                 | Uninterpreted of string * 't * 't
@@ -46,6 +47,8 @@ type ('v, 't) lit = Unit    of unit
                   | String  of string
                   | Path    of string
                   | Env     of ('v * 't) StringMap.t
+
+let home_regex = Str.regexp {|^~\([^/]*\)|}
 
 module rec Ast_Target : Ast_Defs
   with type variable  = string
@@ -340,6 +343,21 @@ module rec Ast_Target : Ast_Defs
           | Pair (Literal (Path base, _), Literal (String ext, _), _)
             -> Reduced (Literal (Path (base ^ ext), Path))
           | _ -> Stuck)
+    (* Path normalization removes 1) any / at the end of the path
+     *                            2) ~name becomes /home/name
+     * there are probably other things we could/should add, but these are the
+     * ones I need immediately *)
+    | NormalizePath -> (Primitive Path, Primitive Path,
+        fun v -> match v with
+        | Literal (Path p, _)
+          -> let lastChar = String.sub p (String.length p - 1) 1
+             in let normLast = 
+               if lastChar = "/" then String.sub p 0 (String.length p - 1)
+                                 else p
+             in let normHome
+              = Str.replace_first home_regex {|/home/\1|} normLast
+             in Reduced (Literal (Path normHome, Path))
+        | _ -> Stuck)
     | CanEscalate -> (Primitive String, Primitive Bool,
         fun v -> match v with
         | Literal (String "root", _) -> Reduced (Literal (Bool true, Bool))
@@ -492,6 +510,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | BaseName                  -> "base_name"
         | PathFrom                  -> "path_from"
         | AddExt                    -> "add_ext"
+        | NormalizePath             -> "norm_path"
         | CanEscalate               -> "can_escalate"
         | Uninterpreted (nm, _, _)  -> nm
       in string_f ^ "(" ^ string_of_expr e ^ ")"
@@ -619,6 +638,7 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | BaseName                  -> "base_name(" ^ value_to_string arg ^ ")"
       | PathFrom                  -> "path_from(" ^ value_to_string arg ^ ")"
       | AddExt                    -> "add_ext(" ^ value_to_string arg ^ ")"
+      | NormalizePath             -> "norm_path(" ^ value_to_string arg ^ ")"
       | CanEscalate               -> "can_esclate(" ^ value_to_string arg ^ ")"
       | Uninterpreted (nm, _, _)  -> nm ^ "(" ^ value_to_string arg ^ ")"
       | _ -> "%%FUNCTION%%(" ^ value_to_string arg ^ ")"

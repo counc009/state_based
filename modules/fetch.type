@@ -4,6 +4,9 @@ module ansible.builtin.fetch aka fetch -> fetch_result {
   (dest: path) (src: path)
   (flat: bool = false)
 
+  let dest = norm_path(dest);
+  let src = norm_path(src);
+
   if exists fs(src, file_system::remote) {
     match fs(src, file_system::remote).fs_type {
       file_type::file(c) => {

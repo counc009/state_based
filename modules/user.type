@@ -80,7 +80,7 @@ module ansible.builtin.user aka user -> user_result {
           # Changing the home directory requires root privileges
           if !env().is_root { res.failed = true; return res; }
 
-          homedir = home;
+          homedir = norm_path(home);
 
           if move_home {
             let old_home = e_user(name).homedir;
@@ -180,7 +180,7 @@ module ansible.builtin.user aka user -> user_result {
       }
 
       if provided shell {
-        e_user(name).default_shell = shell;
+        e_user(name).default_shell = norm_path(shell);
       }
       res.shell = e_user(name).default_shell;
 
