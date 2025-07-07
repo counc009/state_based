@@ -498,10 +498,24 @@ let codegen_act (a: Ast.act) env
           Target.Assert (FuncExp (Id "is_file", [path; sys]))
           :: Target.Clear (fs path sys) :: [], map))
   | DeleteFiles { loc } ->
-      Result.bind (codegen_paths loc env) (fun (map, paths, sys) ->
-        Ok (Target.ForLoop ("f", paths,
-            [ Assert (FuncExp (Id "is_file", [Id "f"; sys]))
-            ; Clear (fs (Id "f") sys) ]) :: [], map))
+      begin match loc with
+      | InPath p ->
+          Result.bind (codegen_path p env) (fun (map, p, sys) ->
+            Ok (Target.ForLoop ("f", FuncExp (Id "get_dir_contents", [p; sys]),
+                [ Assert (FuncExp (Id "is_file", [Id "f"; sys]))
+                ; Clear (fs (Id "f") sys) ])
+          (* TODO: To ensure we can't just delete the directory, I have to add
+           * this. Not sure how I feel about it *)
+            :: Assign (Field (fs p sys, "fs_type"),
+                EnumExp (Id "file_type", None, "directory",
+                  [EnumExp (Id "list", Some Path, "nil", [])]))
+            :: [], map))
+      | _ ->
+          Result.bind (codegen_paths loc env) (fun (map, paths, sys) ->
+            Ok (Target.ForLoop ("f", paths,
+                [ Assert (FuncExp (Id "is_file", [Id "f"; sys]))
+                ; Clear (fs (Id "f") sys) ]) :: [], map))
+      end
   | DeleteGroup { name } -> Ok (
       Target.Clear (FuncExp (Id "e_group", [StringLit name])) :: [],
       env)

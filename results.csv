@@ -899,17 +899,17 @@ Problem,Model,Response,Result
 14,starcoder,8,Ansible Error Could not find module command
 14,starcoder,9,Ansible Error Multiple modules specified: shell and failed_when
 14,starcoder,10,Ansible Error Could not find module debug
-15,deepseek,1,Correct
-15,deepseek,2,Correct
-15,deepseek,3,Correct
-15,deepseek,4,Correct
-15,deepseek,5,Correct
-15,deepseek,6,Correct
-15,deepseek,7,Correct
-15,deepseek,8,Correct
-15,deepseek,9,Correct
-15,deepseek,10,Correct
-15,gpt,1,Correct
+15,deepseek,1,Verification Failure
+15,deepseek,2,Verification Failure
+15,deepseek,3,Verification Failure
+15,deepseek,4,Verification Failure
+15,deepseek,5,Verification Failure
+15,deepseek,6,Verification Failure
+15,deepseek,7,Verification Failure
+15,deepseek,8,Verification Failure
+15,deepseek,9,Verification Failure
+15,deepseek,10,Verification Failure
+15,gpt,1,Verification Failure
 15,gpt,2,Verification Failure
 15,gpt,3,Correct
 15,gpt,4,Verification Failure
@@ -919,45 +919,45 @@ Problem,Model,Response,Result
 15,gpt,8,Ansible Error Invalid value 'empty' expected one of [absent, directory, file, hard, link, touch]
 15,gpt,9,Correct
 15,gpt,10,Correct
-15,granite,1,Correct
-15,granite,2,Correct
-15,granite,3,Correct
-15,granite,4,Correct
-15,granite,5,Correct
-15,granite,6,Correct
-15,granite,7,Correct
-15,granite,8,Correct
-15,granite,9,Correct
-15,granite,10,Correct
-15,llama,1,Correct
-15,llama,2,Correct
-15,llama,3,Correct
-15,llama,4,Correct
-15,llama,5,Correct
-15,llama,6,Correct
-15,llama,7,Correct
+15,granite,1,Verification Failure
+15,granite,2,Verification Failure
+15,granite,3,Verification Failure
+15,granite,4,Verification Failure
+15,granite,5,Verification Failure
+15,granite,6,Verification Failure
+15,granite,7,Verification Failure
+15,granite,8,Verification Failure
+15,granite,9,Verification Failure
+15,granite,10,Verification Failure
+15,llama,1,Verification Failure
+15,llama,2,Verification Failure
+15,llama,3,Verification Failure
+15,llama,4,Verification Failure
+15,llama,5,Verification Failure
+15,llama,6,Verification Failure
+15,llama,7,Verification Failure
 15,llama,8,Verification Failure
-15,llama,9,Correct
-15,llama,10,Correct
+15,llama,9,Verification Failure
+15,llama,10,Verification Failure
 15,qwen,1,Verification Failure
 15,qwen,2,Ansible Error No argument recursive of module file
 15,qwen,3,Ansible Error Argument state appears multiple times
 15,qwen,4,Ansible Error Could not find module files
-15,qwen,5,Correct
+15,qwen,5,Verification Failure
 15,qwen,6,Verification Failure
-15,qwen,7,Correct
+15,qwen,7,Verification Failure
 15,qwen,8,Verification Failure
-15,qwen,9,Correct
-15,qwen,10,Correct
+15,qwen,9,Verification Failure
+15,qwen,10,Verification Failure
 15,starcoder,1,Ansible Error Could not find module ansible.builtin.shell
 15,starcoder,2,Verification Failure
-15,starcoder,3,Correct
+15,starcoder,3,Verification Failure
 15,starcoder,4,Verification Failure
-15,starcoder,5,Correct
-15,starcoder,6,Correct
+15,starcoder,5,Verification Failure
+15,starcoder,6,Verification Failure
 15,starcoder,7,Ansible Error no module invocation in task
 15,starcoder,8,Verification Failure
-15,starcoder,9,Correct
+15,starcoder,9,Verification Failure
 15,starcoder,10,Ansible Error Argument state appears multiple times
 16,deepseek,1,Correct
 16,deepseek,2,Verification Failure
