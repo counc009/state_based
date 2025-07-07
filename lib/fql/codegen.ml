@@ -735,16 +735,16 @@ let codegen_act (a: Ast.act) env
       in Result.bind value (fun (map, value) ->
         let path = Target.PathLit "/etc/environment"
         in let sys = Target.EnumExp (Id "file_system", None, "remote", [])
+        in let regex = Target.StringLit ("^" ^ name ^ "=")
         in let line =
           Target.BinaryExp (StringLit (name ^ "="), value, Concat)
         in Ok (
           Target.LetStmt ("c", FuncExp (Id "get_file_content", [path; sys]))
           :: Target.IfThenElse (
-            FuncExp (Id "regex_matches",
-              [ StringLit ("^" ^ name); Id "c" ]),
+            FuncExp (Id "regex_matches", [ regex; Id "c" ]),
             [ LetStmt ("r",
                 FuncExp (Id "replace_last",
-                  [ StringLit ("^" ^ name); line; Id "c" ]))
+                  [ regex; line; Id "c" ]))
             ; Assign (Field (fs path sys, "fs_type"),
                 EnumExp (Id "file_type", None, "file", [Id "r"]))
             ],

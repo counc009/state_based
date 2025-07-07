@@ -22,6 +22,16 @@ module ansible.builtin.file aka file -> file_result {
   [state: file_state]
   [recurse: bool = false]
 
+  if recurse {
+    let okay = false;
+    if provided state {
+      match state {
+        file_state::directory => { okay = true; }
+      }
+    }
+    if !okay { return file_result { failed: true }; }
+  }
+
   [setype: string] # TODO: Use this
   [follow: bool = true] # TODO: Use this
   [force: bool = false] # TODO: Use this (only relevant to links)
