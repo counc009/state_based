@@ -287,7 +287,11 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           begin match ValueMap.find_opt v s.bools with
           | Some c when b = c -> Some [(s, env)]
           | Some _ -> Some [] (* b <> c, no way to satisfy this constraint *)
-          | None -> None
+          | None ->
+              match asTruth v with
+              | Some c when b = c -> Some [(s, env)]
+              | Some _ -> Some []
+              | None -> None
           end
       | IsConstructor (which, (id, _)) ->
           match ValueMap.find_opt v s.constrs with

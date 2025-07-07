@@ -5,9 +5,17 @@ module StringSet = Set.Make(String)
 
 type typ = Target.typ
 
-type env = { unknowns: typ StringMap.t; users: StringSet.t }
+type env = {
+  unknowns: typ StringMap.t;
+  users: StringSet.t;
+  os: StringSet.t option
+}
 
-let env_empty : env = { unknowns = StringMap.empty; users = StringSet.empty }
+let env_empty : env = {
+  unknowns = StringMap.empty;
+  users = StringSet.empty;
+  os = None;
+}
 
 let add_unknown (env : env) (nm: string) (ty: typ)
   : (env, string) result =
@@ -19,10 +27,15 @@ let add_unknown (env : env) (nm: string) (ty: typ)
     | Some _ -> err := true; t) env.unknowns
   in if !err
   then Error (Printf.sprintf "Unknown '%s' used with different types" nm)
-  else Ok { unknowns = map; users = env.users }
+  else Ok { unknowns = map; users = env.users; os = env.os }
 
 let add_user (env: env) (nm: string) : env =
-  { unknowns = env.unknowns; users = StringSet.add nm env.users }
+  { unknowns = env.unknowns; users = StringSet.add nm env.users; os = env.os }
+
+let add_os (env: env) (nm: string) : env =
+  { unknowns = env.unknowns; users = env.users;
+    os = match env.os with None -> Some (StringSet.singleton nm)
+         | Some cur -> Some (StringSet.add nm cur) }
 
 let codegen_value (v: ParseTree.value) (ty: typ)
   (from_str: string -> Target.expr) env : (env * Target.expr, string) result =
@@ -201,7 +214,7 @@ let codegen_condition (c: Ast.cond) thn els env
                 StringLit "Debian",
                 Eq)) :: thn,
             els),
-            env)
+            add_os env "Debian")
       | RedHat -> Ok (
           IfThenElse (
             BinaryExp (
@@ -214,7 +227,7 @@ let codegen_condition (c: Ast.cond) thn els env
                 StringLit "RedHat",
                 Eq)) :: thn,
             els),
-            env)
+            add_os env "RedHat")
       | Ubuntu -> Ok (
           IfThenElse (
             BinaryExp (
@@ -227,7 +240,7 @@ let codegen_condition (c: Ast.cond) thn els env
                 StringLit "Debian",
                 Eq)) :: thn,
             els),
-            env)
+            add_os env "Debian")
       | DebianFamily -> Ok (
           IfThenElse (
             BinaryExp (
@@ -236,7 +249,7 @@ let codegen_condition (c: Ast.cond) thn els env
               Eq),
             thn,
             els),
-            env)
+            add_os env "Debian")
       | RedHatFamily -> Ok (
           IfThenElse (
             BinaryExp (
@@ -245,7 +258,7 @@ let codegen_condition (c: Ast.cond) thn els env
               Eq),
             thn,
             els),
-            env)
+            add_os env "RedHat")
       end
   (* For file and directory exists we check the existance of the file-system
    * object and if it exists we assert it is a file/directory since normally
@@ -875,15 +888,20 @@ let codegen_query (q: Ast.query)
       Target.AssertExists (FuncExp (Id "env", []))
       :: Assert (BinaryExp (Field (FuncExp (Id "env", []), "time_counter"), IntLit 0, Eq))
       :: Assert (BinaryExp (Field (FuncExp (Id "env", []), "last_reboot"), IntLit (-1), Eq))
-      (* TODO: Not sure this is ideal, but it at least makes sure we don't accept Deb-only
-       * solutions *)
-      (* assert (env().os_family == "Debian" || env().os_family == "RedHat") *)
-      :: Assert (BinaryExp (
-          BinaryExp (Field (FuncExp (Id "env", []), "os_family"), 
-                     StringLit "Debian", Eq),
-          BinaryExp (Field (FuncExp (Id "env", []), "os_family"), 
-                     StringLit "RedHat", Eq),
-          Or))
+      (* TODO: Not sure this is ideal, but it at least makes sure we don't accept
+       * solutions that are expected to work on multiple operating systems *)
+      :: begin let os_families =
+        match env.os with
+        | None -> ["Debian"; "RedHat"]
+        | Some os -> StringSet.elements os
+      in Assert (List.fold_left (fun cond os ->
+          Target.BinaryExp (
+            BinaryExp (Field (FuncExp (Id "env", []), "os_family"), 
+                       StringLit os, Eq),
+            cond,
+            Or)
+        ) (BoolLit false) os_families)
+      end
       :: code
     (* TODO: For the moment we're assuming that if a user already exists their
      * home directory is located at /home/NAME. Not sure this is ideal but a

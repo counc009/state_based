@@ -1081,20 +1081,20 @@ Problem,Model,Response,Result
 17,starcoder,10,Ansible Error Multiple modules specified: yum and apt
 18,deepseek,1,Verification Failure
 18,deepseek,2,Verification Failure
-18,deepseek,3,Verification Failure
-18,deepseek,4,Verification Failure
+18,deepseek,3,Correct
+18,deepseek,4,Correct
 18,deepseek,5,Ansible Error Multiple modules specified: command and failed_when
 18,deepseek,6,Ansible Error Could not find module ansible.builtin.uri
-18,deepseek,7,Verification Failure
+18,deepseek,7,Correct
 18,deepseek,8,Ansible Error Could not find module ansible.builtin.uri
 18,deepseek,9,Verification Failure
-18,deepseek,10,Verification Failure
+18,deepseek,10,Correct
 18,gpt,1,Syntax Error
 18,gpt,2,Verification Failure
 18,gpt,3,Verification Failure
 18,gpt,4,Verification Failure
 18,gpt,5,Verification Failure
-18,gpt,6,Verification Failure
+18,gpt,6,Correct
 18,gpt,7,Verification Failure
 18,gpt,8,Verification Failure
 18,gpt,9,Verification Failure
@@ -1103,7 +1103,7 @@ Problem,Model,Response,Result
 18,granite,2,Verification Failure
 18,granite,3,Verification Failure
 18,granite,4,Verification Failure
-18,granite,5,Verification Failure
+18,granite,5,Correct
 18,granite,6,Verification Failure
 18,granite,7,Verification Failure
 18,granite,8,Verification Failure
@@ -1127,7 +1127,7 @@ Problem,Model,Response,Result
 18,qwen,6,Ansible Error unhandled Jinja expression form
 18,qwen,7,Ansible Error Could not find module template
 18,qwen,8,Ansible Error Could not find module template
-18,qwen,9,Verification Failure
+18,qwen,9,Correct
 18,qwen,10,Ansible Error Could not find module template
 18,starcoder,1,Ansible Error non-string key is not supported
 18,starcoder,2,Verification Failure
@@ -1135,7 +1135,7 @@ Problem,Model,Response,Result
 18,starcoder,4,Ansible Error Could not find module ansible.builtin.template
 18,starcoder,5,Ansible Error Could not find module systemd
 18,starcoder,6,Ansible Error Invalid value 'installed' expected one of [absent, latest, present]
-18,starcoder,7,Verification Failure
+18,starcoder,7,Correct
 18,starcoder,8,Verification Failure
 18,starcoder,9,Verification Failure
 18,starcoder,10,Ansible Error Could not find module import_role
