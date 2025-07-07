@@ -861,6 +861,15 @@ let codegen_query (q: Ast.query)
       Target.AssertExists (FuncExp (Id "env", []))
       :: Assert (BinaryExp (Field (FuncExp (Id "env", []), "time_counter"), IntLit 0, Eq))
       :: Assert (BinaryExp (Field (FuncExp (Id "env", []), "last_reboot"), IntLit (-1), Eq))
+      (* TODO: Not sure this is ideal, but it at least makes sure we don't accept Deb-only
+       * solutions *)
+      (* assert (env().os_family == "Debian" || env().os_family == "RedHat") *)
+      :: Assert (BinaryExp (
+          BinaryExp (Field (FuncExp (Id "env", []), "os_family"), 
+                     StringLit "Debian", Eq),
+          BinaryExp (Field (FuncExp (Id "env", []), "os_family"), 
+                     StringLit "RedHat", Eq),
+          Or))
       :: code
     (* TODO: For the moment we're assuming that if a user already exists their
      * home directory is located at /home/NAME. Not sure this is ideal but a
