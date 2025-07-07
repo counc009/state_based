@@ -157,7 +157,10 @@ module ansible.builtin.user aka user -> user_result {
 
           if !env().is_root { res.failed = true; return res; }
 
-          if password == "!" || password == "*" {
+          # This isn't really documented in Ansible, but in Linux any password
+          # beginning with either of these characters should suffice
+          let first = substring(password, 0, 1);
+          if first == "!" || first == "*" {
             e_user(name).password = password_set::disabled;
           } else {
             e_user(name).password = password_set::hashed(password);

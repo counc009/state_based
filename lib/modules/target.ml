@@ -28,6 +28,7 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | LeInt
                 | LeFloat
                 | ToLower
+                | Substring
                 (* Path operations *)
                 | ConsPath
                 | PathOfString
@@ -299,6 +300,18 @@ module rec Ast_Target : Ast_Defs
           | Literal (String s, _) ->
               Reduced (Literal (String (String.lowercase_ascii s), String))
           | _ -> Stuck)
+    | Substring -> (Product (Primitive String,
+                      Product (Primitive Int, Primitive Int)),
+                    Primitive String,
+        fun v -> match v with
+        | Pair (Literal (String s, _),
+            Pair (Literal (Int i, _), Literal (Int j, _), _), _) ->
+              begin try
+                Reduced (Literal (String (String.sub s i j), String))
+              with Invalid_argument _ ->
+                Reduced (Literal (String "", String))
+              end
+        | _ -> Stuck)
     | ConsPath -> (Product (Primitive Path, Primitive Path),
                    Primitive Path,
         fun v -> match v with
@@ -503,6 +516,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | LeInt                     -> "le"
         | LeFloat                   -> "le"
         | ToLower                   -> "to_lower"
+        | Substring                 -> "substring"
         | ConsPath                  -> "cons_path"
         | PathOfString              -> "path_of_string"
         | StringOfPath              -> "string_of_path"
@@ -631,6 +645,7 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | LeInt                     -> "le(" ^ value_to_string arg ^ ")"
       | LeFloat                   -> "le(" ^ value_to_string arg ^ ")"
       | ToLower                   -> "to_lower(" ^ value_to_string arg ^ ")"
+      | Substring                 -> "substring(" ^ value_to_string arg ^ ")"
       | ConsPath                  -> "cons_path(" ^ value_to_string arg ^ ")"
       | PathOfString              -> "path_of_string(" ^ value_to_string arg ^ ")"
       | StringOfPath              -> "string_of_path(" ^ value_to_string arg ^ ")"
