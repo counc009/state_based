@@ -11,7 +11,25 @@ let () =
         ; exit 1
     | Ok parsed -> parsed
   in let (types, env) = Modules.Codegen.codegen parsed
-  in let prg =
+  in let interpret_prg p =
+    let prg = Modules.Codegen.codegen_program p types env
+    in Modules.Target.TargetInterp.interpret prg (Primitive Unit)
+
+  in let query_prg =
+    Modules.Parser.parse_stmts_string {|
+      assert exists env();
+      fql();
+    |}
+  in let fun_prg =
+    Modules.Parser.parse_stmts_string {|
+      assert exists env();
+      assert env().time_counter == 0;
+      fd(0).kind = fd::stdin;
+      fd(1).kind = fd::stdout;
+      fd(2).kind = fd::stderr;
+      fun_one();
+    |}
+  in let normal_prg =
     Modules.Parser.parse_stmts_string {|
       assert exists env();
       assert env().time_counter == 0;
@@ -20,11 +38,29 @@ let () =
       fd(2).kind = fd::stderr;
       normal_one();
     |}
-  in let prg = Modules.Codegen.codegen_program prg types env
-  in let res = Modules.Target.TargetInterp.interpret prg (Primitive Unit)
-  in match Modules.Target.results_to_string res with
-  | Error msg ->
-      Printf.printf "ERROR: While interpreting fun one, all branches failed\n%s\n" msg
-      ; exit 3
-  | Ok res ->
-      Printf.printf "SUCCESS: Possible behaviours\n%s\n" res
+  in let cat_prg =
+    Modules.Parser.parse_stmts_string {|
+      assert exists env();
+      assert env().time_counter == 0;
+      fd(0).kind = fd::stdin;
+      fd(1).kind = fd::stdout;
+      fd(2).kind = fd::stderr;
+      cat_one();
+    |}
+
+  in let query_res = interpret_prg query_prg
+  in let fun_res = interpret_prg fun_prg
+  in let normal_res = interpret_prg normal_prg
+  in let cat_res = interpret_prg cat_prg
+
+  in let res_fun = Fql.Verifier.verify query_res fun_res
+  in let res_normal = Fql.Verifier.verify query_res normal_res
+  in let res_cat = Fql.Verifier.verify query_res cat_res
+
+  in Printf.printf "Fun Script Result\n"
+   ; let _ = Fql.Verifier.print_verification res_fun
+  in Printf.printf "\n\nNormal Script Result\n"
+   ; let _ = Fql.Verifier.print_verification res_normal
+  in Printf.printf "\n\nCat Script Result\n"
+   ; let _ = Fql.Verifier.print_verification res_cat
+  in ()
