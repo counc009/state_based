@@ -1,0 +1,4 @@
+uninterpreted gzipped(string) -> string
+
+module gzip -> int {
+}

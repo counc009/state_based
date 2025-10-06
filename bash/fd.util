@@ -1,0 +1,11 @@
+enum fd {
+  file(path),
+  pipe(int),
+  stdin,
+  stdout,
+  stderr,
+}
+
+element fd(int)
+attribute kind(fd)
+attribute offset(int) // Probably matters for both read and write (it does in C)

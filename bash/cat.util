@@ -1,0 +1,24 @@
+module cat -> int {
+  (files: list path = list::<string>::nil)
+
+  let error = false;
+
+  if files == list::<string>::nil {
+    write(1, read(0));
+  } else {
+    for f in files {
+      if f = '-' {
+        write(1, read(0));
+      } else {
+        if exists fs(file) {
+          write(1, fs(file).contents);
+        } else {
+          error = true;
+          // Technically write to stderr
+        }
+      }
+    }
+  }
+
+  return error ? 1 : 0;
+}
