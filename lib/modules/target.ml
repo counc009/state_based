@@ -29,6 +29,7 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | LeFloat
                 | ToLower
                 | Substring
+                | StringOfInt
                 (* Path operations *)
                 | ConsPath
                 | PathOfString
@@ -261,6 +262,8 @@ module rec Ast_Target : Ast_Defs
         fun v -> match v with
           | Pair (Literal (String p, _), Literal (String q, _), _)
             -> Reduced (Literal (String (p ^ q), String))
+          | Pair (Literal (String "", _), q, _) -> Reduced q
+          | Pair (p, Literal (String "", _), _) -> Reduced p
           | _ -> Stuck)
     | Equal t -> (Product (t, t), Primitive Bool,
         fun v -> match v with
@@ -312,6 +315,11 @@ module rec Ast_Target : Ast_Defs
                 Reduced (Literal (String "", String))
               end
         | _ -> Stuck)
+    | StringOfInt -> (Primitive Int, Primitive String,
+        fun v -> match v with
+          | Literal (Int x, _) ->
+              Reduced (Literal (String (string_of_int x), String))
+          | _ -> Stuck)
     | ConsPath -> (Product (Primitive Path, Primitive Path),
                    Primitive Path,
         fun v -> match v with
@@ -517,6 +525,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | LeFloat                   -> "le"
         | ToLower                   -> "to_lower"
         | Substring                 -> "substring"
+        | StringOfInt               -> "string_of_int"
         | ConsPath                  -> "cons_path"
         | PathOfString              -> "path_of_string"
         | StringOfPath              -> "string_of_path"
@@ -646,6 +655,7 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | LeFloat                   -> "le(" ^ value_to_string arg ^ ")"
       | ToLower                   -> "to_lower(" ^ value_to_string arg ^ ")"
       | Substring                 -> "substring(" ^ value_to_string arg ^ ")"
+      | StringOfInt               -> "string_of_int(" ^ value_to_string arg ^ ")"
       | ConsPath                  -> "cons_path(" ^ value_to_string arg ^ ")"
       | PathOfString              -> "path_of_string(" ^ value_to_string arg ^ ")"
       | StringOfPath              -> "string_of_path(" ^ value_to_string arg ^ ")"

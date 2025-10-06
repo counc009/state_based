@@ -1,17 +1,17 @@
 module cat -> int {
-  (files: list path = list::<string>::nil)
+  (files: list path = list::<path>::nil)
 
   let error = false;
 
-  if files == list::<string>::nil {
+  if files == list::<path>::nil {
     write(1, read(0));
   } else {
     for f in files {
-      if f = '-' {
+      if f == '-' {
         write(1, read(0));
       } else {
-        if exists fs(file) {
-          write(1, fs(file).contents);
+        if exists fs(f) {
+          write(1, fs(f).contents);
         } else {
           error = true;
           // Technically write to stderr

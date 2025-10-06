@@ -10,7 +10,7 @@ module wc -> int {
 
   let contents = "";
   if provided file {
-    if file = '-' {
+    if file == '-' {
       contents = read(0);
     } else {
       if exists fs(file) {
@@ -24,15 +24,15 @@ module wc -> int {
   }
 
   if lines {
-    write(1, string_of_int(count_lines(string)));
+    write(1, string_of_int(count_lines(contents)));
     write(1, " ");
   }
   if words {
-    write(1, string_of_int(count_words(string)));
+    write(1, string_of_int(count_words(contents)));
     write(1, " ");
   }
   if bytes {
-    write(1, string_of_int(count_bytes(string)));
+    write(1, string_of_int(count_bytes(contents)));
     write(1, " ");
   }
 

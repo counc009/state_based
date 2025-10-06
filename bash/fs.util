@@ -1,2 +1,37 @@
 element fs(path)
+element pipe(int)
 attribute contents(string)
+
+function open(p: path) -> int {
+  let n = get_time() + 3; // just need something as our file descriptor
+
+  if exists fs(p) { } else { fs(p).contents = ""; }
+
+  fd(n).kind = fd::file(p);
+
+  return n;
+}
+
+function close(n: int) {
+  clear fd(n);
+}
+
+function new_pipe() -> int {
+  let p = get_time();
+  pipe(p).contents = "";
+  return p;
+}
+
+function delete_pipe(p: int) { clear pipe(p); }
+
+uninterpreted tmpname(int) -> path
+
+function tmp_file() -> path {
+  let t = get_time();
+  let p = tmpname(t);
+
+  fs(p).contents = "";
+  return p;
+}
+
+function delete_file(p: path) { clear fs(p); }

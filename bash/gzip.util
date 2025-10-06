@@ -1,4 +1,31 @@
 uninterpreted gzipped(string) -> string
 
 module gzip -> int {
+  [file : path]
+  [keep : bool = false]
+
+  if provided file {
+    if file == '-' {
+      let contents = read(0);
+      write(1, gzipped(contents));
+    } else {
+      if exists fs(file) {
+        let contents = fs(file).contents;
+      
+        // Properly handle file already existing
+        let out = open(add_ext(file, ".gz"));
+        write(out, gzipped(contents));
+        close(out);
+
+        if !keep { clear fs(file); }
+      } else {
+        return 1;
+      }
+    }
+  } else {
+    let contents = read(0);
+    write(1, gzipped(contents));
+  }
+
+  return 0;
 }

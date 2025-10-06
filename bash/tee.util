@@ -1,5 +1,5 @@
 module tee -> int {
-  (files: list path = list::<string>::nil)
+  (files: list path = list::<path>::nil)
 
   let s = read(0);
 
@@ -8,6 +8,8 @@ module tee -> int {
     write(fd, s);
     close(fd);
   }
+
+  write(1, s);
 
   return 0;
 }

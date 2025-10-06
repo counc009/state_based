@@ -9,7 +9,7 @@ tee >(wc -l >&2) < bigfile | gzip > bigfile.gz
 
 ## The normal one
 ```bash
-wc -l bigfile >&2
+wc -l < bigfile >&2
 gzip -k bigfile
 ```
 
