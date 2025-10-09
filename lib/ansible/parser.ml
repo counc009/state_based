@@ -1067,6 +1067,8 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                 | "handlers"      -> Result.map res#add_handlers (process_handlers v)
                 | "vars"          -> Result.map (fun r -> res#add_vars r.args)
                                                 (process_module_use "UNUSED" v)
+                | "gather_facts"  -> Ok () (* TODO *)
+                | "connection"    -> Ok () (* TODO *)
                 | _               -> Error (Printf.sprintf "unrecognized field '%s' in play" field)
               with
               | Ok ()     -> process_play_fields tl res
