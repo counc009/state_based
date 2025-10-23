@@ -398,6 +398,8 @@ let rec codegen_type_to_ast_typ (t: Modules.Codegen.typ) : Modules.Ast.typ =
   | List t -> List (codegen_type_to_ast_typ t)
   | Product ts -> Product (List.map codegen_type_to_ast_typ ts)
   | Struct (nm, _) | Enum (nm, _) -> Named nm
+  | AnonStruct fs ->
+      AnonymousRecord (Modules.Target.StringMap.map codegen_type_to_ast_typ fs)
   | Placeholder { contents = Some t } -> codegen_type_to_ast_typ t
   | Placeholder { contents = None } -> failwith "Internal Error: unresolved placeholder"
 
