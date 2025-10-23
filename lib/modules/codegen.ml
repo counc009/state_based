@@ -846,6 +846,21 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                   | "string_of_path" ->
                       let (arg_ty, res_ty, _) = Target.funcDef StringOfPath
                       in Ok (arg_ty, res_ty, TargetAst.StringOfPath)
+                  | "string_of_int" ->
+                      let (arg_ty, res_ty, _) = Target.funcDef StringOfInt
+                      in Ok (arg_ty, res_ty, TargetAst.StringOfInt)
+                  | "string_of_float" ->
+                      let (arg_ty, res_ty, _) = Target.funcDef StringOfFloat
+                      in Ok (arg_ty, res_ty, TargetAst.StringOfFloat)
+                  | "string_of_bool" ->
+                      let (arg_ty, res_ty, _) = Target.funcDef StringOfBool
+                      in Ok (arg_ty, res_ty, TargetAst.StringOfBool)
+                  | "int_of_float" ->
+                      let (arg_ty, res_ty, _) = Target.funcDef IntOfFloat
+                      in Ok (arg_ty, res_ty, TargetAst.IntOfFloat)
+                  | "float_of_int" ->
+                      let (arg_ty, res_ty, _) = Target.funcDef FloatOfInt
+                      in Ok (arg_ty, res_ty, TargetAst.FloatOfInt)
                   | "ends_with_dir" ->
                       let (arg_ty, res_ty, _) = Target.funcDef EndsWithDir
                       in Ok (arg_ty, res_ty, TargetAst.EndsWithDir)

@@ -29,10 +29,16 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | LeFloat
                 | ToLower
                 | Substring
-                (* Path operations *)
-                | ConsPath
+                (* Conversion Operations *)
                 | PathOfString
                 | StringOfPath
+                | StringOfInt
+                | StringOfFloat
+                | StringOfBool
+                | IntOfFloat
+                | FloatOfInt
+                (* Path operations *)
+                | ConsPath
                 | EndsWithDir
                 | BaseName
                 | PathFrom
@@ -312,14 +318,6 @@ module rec Ast_Target : Ast_Defs
                 Reduced (Literal (String "", String))
               end
         | _ -> Stuck)
-    | ConsPath -> (Product (Primitive Path, Primitive Path),
-                   Primitive Path,
-        fun v -> match v with
-          | Pair (Literal (Path p, _), Literal (Path q, _), _)
-            -> if String.ends_with ~suffix:"/" p
-               then Reduced (Literal (Path (p ^ q), Path))
-               else Reduced (Literal (Path (p ^ "/" ^ q), Path))
-          | _ -> Stuck)
     | PathOfString -> (Primitive String, Primitive Path,
         fun v -> match v with
           | Literal (String s, _) -> Reduced (Literal (Path s, Path))
@@ -327,6 +325,37 @@ module rec Ast_Target : Ast_Defs
     | StringOfPath -> (Primitive Path, Primitive String,
         fun v -> match v with
           | Literal (Path s, _) -> Reduced (Literal (String s, String))
+          | _ -> Stuck)
+    | StringOfInt -> (Primitive Int, Primitive String,
+        fun v -> match v with
+          | Literal (Int i, _) -> Reduced (Literal (String (string_of_int i), String))
+          | _ -> Stuck)
+    | StringOfFloat -> (Primitive Float, Primitive String,
+        fun v -> match v with
+          | Literal (Float f, _) -> Reduced (Literal (String (string_of_float f), String))
+          | _ -> Stuck)
+    | StringOfBool -> (Primitive Bool, Primitive String,
+        fun v -> match v with
+          | Literal (Bool b, _) -> Reduced (Literal (String (string_of_bool b), String))
+          | _ -> Stuck)
+    | IntOfFloat -> (Primitive Float, Primitive Int,
+        fun v -> match v with
+          | Literal (Float f, _) ->
+              if Float.is_integer f
+              then Reduced (Literal (Int (Float.to_int f), Int))
+              else Err "Cannot convert non-integer float to int"
+          | _ -> Stuck)
+    | FloatOfInt -> (Primitive Int, Primitive Float,
+        fun v -> match v with
+          | Literal (Int i, _) -> Reduced (Literal (Float (float_of_int i), Float))
+          | _ -> Stuck)
+    | ConsPath -> (Product (Primitive Path, Primitive Path),
+                   Primitive Path,
+        fun v -> match v with
+          | Pair (Literal (Path p, _), Literal (Path q, _), _)
+            -> if String.ends_with ~suffix:"/" p
+               then Reduced (Literal (Path (p ^ q), Path))
+               else Reduced (Literal (Path (p ^ "/" ^ q), Path))
           | _ -> Stuck)
     | EndsWithDir -> (Primitive Path, Primitive Bool,
         fun v -> match v with
@@ -517,9 +546,14 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | LeFloat                   -> "le"
         | ToLower                   -> "to_lower"
         | Substring                 -> "substring"
-        | ConsPath                  -> "cons_path"
         | PathOfString              -> "path_of_string"
         | StringOfPath              -> "string_of_path"
+        | StringOfInt               -> "string_of_int"
+        | StringOfFloat             -> "string_of_float"
+        | StringOfBool              -> "string_of_bool"
+        | IntOfFloat                -> "int_of_float"
+        | FloatOfInt                -> "float_of_int"
+        | ConsPath                  -> "cons_path"
         | EndsWithDir               -> "ends_with_dir"
         | BaseName                  -> "base_name"
         | PathFrom                  -> "path_from"
@@ -646,9 +680,14 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | LeFloat                   -> "le(" ^ value_to_string arg ^ ")"
       | ToLower                   -> "to_lower(" ^ value_to_string arg ^ ")"
       | Substring                 -> "substring(" ^ value_to_string arg ^ ")"
-      | ConsPath                  -> "cons_path(" ^ value_to_string arg ^ ")"
       | PathOfString              -> "path_of_string(" ^ value_to_string arg ^ ")"
       | StringOfPath              -> "string_of_path(" ^ value_to_string arg ^ ")"
+      | StringOfInt               -> "string_of_int(" ^ value_to_string arg ^ ")"
+      | StringOfFloat             -> "string_of_float(" ^ value_to_string arg ^ ")"
+      | StringOfBool              -> "string_of_bool(" ^ value_to_string arg ^ ")"
+      | IntOfFloat                -> "int_of_float(" ^ value_to_string arg ^ ")"
+      | FloatOfInt                -> "float_of_int(" ^ value_to_string arg ^ ")"
+      | ConsPath                  -> "cons_path(" ^ value_to_string arg ^ ")"
       | EndsWithDir               -> "ends_with_dir(" ^ value_to_string arg ^ ")"
       | BaseName                  -> "base_name(" ^ value_to_string arg ^ ")"
       | PathFrom                  -> "path_from(" ^ value_to_string arg ^ ")"
