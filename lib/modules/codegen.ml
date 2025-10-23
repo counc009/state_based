@@ -1103,6 +1103,36 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                                 Ok (Target.Primitive Bool, TargetAst.LeFloat)
                             | _ -> Error "Cannot compare non-numeric types"
                           else Error "Types for le must be the same"
+                      | Lt ->
+                          if lhs_t = rhs_t
+                          then
+                            match lhs_t with
+                            | Target.Primitive Int ->
+                                Ok (Target.Primitive Bool, TargetAst.LtInt)
+                            | Target.Primitive Float ->
+                                Ok (Target.Primitive Bool, TargetAst.LtFloat)
+                            | _ -> Error "Cannot compare non-numeric types"
+                          else Error "Types for lt must be the same"
+                      | Ge ->
+                          if lhs_t = rhs_t
+                          then
+                            match lhs_t with
+                            | Target.Primitive Int ->
+                                Ok (Target.Primitive Bool, TargetAst.GeInt)
+                            | Target.Primitive Float ->
+                                Ok (Target.Primitive Bool, TargetAst.GeFloat)
+                            | _ -> Error "Cannot compare non-numeric types"
+                          else Error "Types for ge must be the same"
+                      | Gt ->
+                          if lhs_t = rhs_t
+                          then
+                            match lhs_t with
+                            | Target.Primitive Int ->
+                                Ok (Target.Primitive Bool, TargetAst.GtInt)
+                            | Target.Primitive Float ->
+                                Ok (Target.Primitive Bool, TargetAst.GtFloat)
+                            | _ -> Error "Cannot compare non-numeric types"
+                          else Error "Types for gt must be the same"
                       | _ -> Error "TODO: support binary ops"
                     in Result.bind op_info
                     (fun (ret_typ, func) ->

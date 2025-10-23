@@ -27,6 +27,12 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | AddFloat
                 | LeInt
                 | LeFloat
+                | LtInt
+                | LtFloat
+                | GeInt
+                | GeFloat
+                | GtInt
+                | GtFloat
                 | ToLower
                 | Substring
                 (* Conversion Operations *)
@@ -302,6 +308,36 @@ module rec Ast_Target : Ast_Defs
           | Pair (Literal (Float x, _), Literal (Float y, _), _)
               -> Reduced (Literal (Bool (x <= y), Bool))
           | _ -> Stuck)
+    | LtInt -> (Product (Primitive Int, Primitive Int), Primitive Bool,
+        fun v -> match v with
+          | Pair (Literal (Int x, _), Literal (Int y, _), _)
+              -> Reduced (Literal (Bool (x < y), Bool))
+          | _ -> Stuck)
+    | LtFloat -> (Product (Primitive Float, Primitive Float), Primitive Bool,
+        fun v -> match v with
+          | Pair (Literal (Float x, _), Literal (Float y, _), _)
+              -> Reduced (Literal (Bool (x < y), Bool))
+          | _ -> Stuck)
+    | GeInt -> (Product (Primitive Int, Primitive Int), Primitive Bool,
+        fun v -> match v with
+          | Pair (Literal (Int x, _), Literal (Int y, _), _)
+              -> Reduced (Literal (Bool (x >= y), Bool))
+          | _ -> Stuck)
+    | GeFloat -> (Product (Primitive Float, Primitive Float), Primitive Bool,
+        fun v -> match v with
+          | Pair (Literal (Float x, _), Literal (Float y, _), _)
+              -> Reduced (Literal (Bool (x >= y), Bool))
+          | _ -> Stuck)
+    | GtInt -> (Product (Primitive Int, Primitive Int), Primitive Bool,
+        fun v -> match v with
+          | Pair (Literal (Int x, _), Literal (Int y, _), _)
+              -> Reduced (Literal (Bool (x > y), Bool))
+          | _ -> Stuck)
+    | GtFloat -> (Product (Primitive Float, Primitive Float), Primitive Bool,
+        fun v -> match v with
+          | Pair (Literal (Float x, _), Literal (Float y, _), _)
+              -> Reduced (Literal (Bool (x > y), Bool))
+          | _ -> Stuck)
     | ToLower -> (Primitive String, Primitive String,
         fun v -> match v with
           | Literal (String s, _) ->
@@ -553,6 +589,12 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | AddFloat                  -> "add"
         | LeInt                     -> "le"
         | LeFloat                   -> "le"
+        | LtInt                     -> "lt"
+        | LtFloat                   -> "lt"
+        | GeInt                     -> "ge"
+        | GeFloat                   -> "ge"
+        | GtInt                     -> "gt"
+        | GtFloat                   -> "gt"
         | ToLower                   -> "to_lower"
         | Substring                 -> "substring"
         | PathOfString              -> "path_of_string"
@@ -688,6 +730,12 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | AddFloat                  -> "add(" ^ value_to_string arg ^ ")"
       | LeInt                     -> "le(" ^ value_to_string arg ^ ")"
       | LeFloat                   -> "le(" ^ value_to_string arg ^ ")"
+      | LtInt                     -> "lt(" ^ value_to_string arg ^ ")"
+      | LtFloat                   -> "lt(" ^ value_to_string arg ^ ")"
+      | GeInt                     -> "ge(" ^ value_to_string arg ^ ")"
+      | GeFloat                   -> "ge(" ^ value_to_string arg ^ ")"
+      | GtInt                     -> "gt(" ^ value_to_string arg ^ ")"
+      | GtFloat                   -> "gt(" ^ value_to_string arg ^ ")"
       | ToLower                   -> "to_lower(" ^ value_to_string arg ^ ")"
       | Substring                 -> "substring(" ^ value_to_string arg ^ ")"
       | PathOfString              -> "path_of_string(" ^ value_to_string arg ^ ")"

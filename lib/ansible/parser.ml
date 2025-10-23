@@ -7,7 +7,7 @@ module Jinterp = Jingoo.Jg_interp
 module Jtypes = Jingoo.Jg_types
 
 type unary  = Not | Lower | Bool
-type binary = Concat | Equals | And | Or | Leq | Geq
+type binary = Concat | Equals | And | Or | Leq | Lt | Geq | Gt
 
 type value =
   | String      of string
@@ -267,7 +267,7 @@ class play_result =
       | _    -> errors <- "Multiple remote_user fields" :: errors
     method add_pre_tasks ts =
       match pre_tasks with
-      | None -> tasks <- Some ts
+      | None -> pre_tasks <- Some ts
       | _    -> errors <- "Multiple pre_tasks fields" :: errors
     method add_tasks ts =
       match tasks with
@@ -343,9 +343,15 @@ let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
     | NotEqOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
         (fun lhs -> Result.bind (jexpr_to_value rhs)
           (fun rhs -> Ok (Unary (Binary (lhs, Equals, rhs), Not))))
+    | GtOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
+        (fun lhs -> Result.bind (jexpr_to_value rhs)
+          (fun rhs -> Ok (Binary (lhs, Gt, rhs))))
     | GtEqOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
         (fun lhs -> Result.bind (jexpr_to_value rhs)
           (fun rhs -> Ok (Binary (lhs, Geq, rhs))))
+    | LtOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
+        (fun lhs -> Result.bind (jexpr_to_value rhs)
+          (fun rhs -> Ok (Binary (lhs, Lt, rhs))))
     | LtEqOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
         (fun lhs -> Result.bind (jexpr_to_value rhs)
           (fun rhs -> Ok (Binary (lhs, Leq, rhs))))
@@ -369,6 +375,7 @@ let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
               Ok (Binary (res, Or, Binary (lhs, Equals, rhs)))
           ))) (Ok (Bool false)) lst)
     | BracketExpr (_, _) -> Error "unhandled Jinja expression form [BracketExpr]"
+    | ApplyExpr (ApplyExpr (IdentExpr nm, _), _) -> Error (Printf.sprintf "unhandled Jinja expression form [ApplyExpr'-%s]" nm)
     | ApplyExpr (IdentExpr nm, _) -> Error (Printf.sprintf "unhandled Jinja expression form [ApplyExpr-%s]" nm)
     | ApplyExpr (_, _) -> Error "unhandled Jinja expression form [ApplyExpr]"
     | TestOpExpr (_, _) -> Error "unhandled Jinja expression form [TestOpExpr]"
@@ -380,8 +387,6 @@ let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
     | PowerOpExpr (_, _) -> Error "unhandled Jinja expression form [PowerOpExpr]"
     | DivOpExpr (_, _) -> Error "unhandled Jinja expression form [DivOpExpr]"
     | ModOpExpr (_, _) -> Error "unhandled Jinja expression form [ModOpExpr]"
-    | LtOpExpr (_, _) -> Error "unhandled Jinja expression form [LtOpExpr]"
-    | GtOpExpr (_, _) -> Error "unhandled Jinja expression form [GtOpExpr]"
     | ListExpr _ -> Error "unhandled Jinja expression form [ListExpr]"
     | SetExpr _ -> Error "unhandled Jinja expression form [SetExpr]"
     | ObjExpr _ -> Error "unhandled Jinja expression form [ObjExpr]"
@@ -819,10 +824,18 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                      fun l r -> BinaryExp (l, r, Or))
           | Or, _ -> Error "Incorrect type for or (produces bool)"
           (* TODO: Ideally handle float as well *)
+          | Gt, Some Bool | Gt, None
+              -> Ok (Some Int, (fun _ -> Some Int), Bool,
+                     fun l r -> BinaryExp (l, r, Gt))
+          | Gt, _ -> Error "Incorrect type for gt (produces bool)"
           | Geq, Some Bool | Geq, None
               -> Ok (Some Int, (fun _ -> Some Int), Bool,
                      fun l r -> BinaryExp (l, r, Ge))
           | Geq, _ -> Error "Incorrect type for geq (produces bool)"
+          | Lt, Some Bool | Lt, None
+              -> Ok (Some Int, (fun _ -> Some Int), Bool,
+                     fun l r -> BinaryExp (l, r, Lt))
+          | Lt, _ -> Error "Incorrect type for lt (produces bool)"
           | Leq, Some Bool | Leq, None
               -> Ok (Some Int, (fun _ -> Some Int), Bool,
                      fun l r -> BinaryExp (l, r, Le))
