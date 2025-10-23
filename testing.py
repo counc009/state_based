@@ -19,7 +19,7 @@ modules = glob.glob('modules/*')
 
 data = pd.read_csv('prompts.csv')
 
-for row in tqdm(data['original']):
+for row in tqdm(data['playbook']):
   with open('ansible.yml', 'w') as f:
     f.write(row)
   res = subprocess.run(
