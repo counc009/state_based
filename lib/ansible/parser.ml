@@ -823,6 +823,14 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                     | _ -> Error (Printf.sprintf "Value has no field '%s'" field)
                   in process_for_field typ
               end
+          | AnonymousRecord fields ->
+              begin match Modules.Codegen.StringMap.find_opt field fields with
+              | None -> Error (Printf.sprintf "Value has no field '%s'" field)
+              | Some t ->
+                  (* TODO: Check type *)
+                  (* TODO: Add String <-> Path coercions *)
+                  Ok (Field (ex, field), t)
+              end
           | _ -> Error (Printf.sprintf "Value has no field '%s'" field))
     | VarDefined v ->
         begin match Hashtbl.find_opt play_env v, t with
