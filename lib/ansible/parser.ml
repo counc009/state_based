@@ -6,7 +6,7 @@
 module Jinterp = Jingoo.Jg_interp
 module Jtypes = Jingoo.Jg_types
 
-type unary  = Not | Lower
+type unary  = Not | Lower | Bool
 type binary = Concat | Equals | And | Or | Leq | Geq
 
 type value =
@@ -242,6 +242,7 @@ class play_result =
     val mutable name        = (None : string option)
     val mutable hosts       = (None : string option)
     val mutable remote_user = (None : string option)
+    val mutable pre_tasks   = (None : task list option)
     val mutable tasks       = (None : task list option)
     val mutable handlers    = (None : handler list option)
 
@@ -264,6 +265,10 @@ class play_result =
       match remote_user with
       | None -> remote_user <- Some n
       | _    -> errors <- "Multiple remote_user fields" :: errors
+    method add_pre_tasks ts =
+      match pre_tasks with
+      | None -> tasks <- Some ts
+      | _    -> errors <- "Multiple pre_tasks fields" :: errors
     method add_tasks ts =
       match tasks with
       | None -> tasks <- Some ts
@@ -291,20 +296,18 @@ class play_result =
       if not (List.is_empty errors)
       then Error errors
       else
-        match tasks with
-        | None -> Error ["no tasks in play"]
-        | Some t ->
-            Ok { name         = Option.value name ~default:""
-               ; hosts        = hosts
-              (* Per https://docs.ansible.com/ansible/latest/inventory_guide/connection_details.html#setting-a-remote-user
-               * the default for the user is the name of the local user *)
-               ; remote_user  = Option.value remote_user ~default:"#local_user"
-               ; is_root      = Option.map (fun nm -> nm = "root") remote_user
-               ; become       = Option.value become ~default:false
-               ; become_user  = Option.value become_user ~default:"root"
-               ; tasks        = t
-               ; handlers     = Option.value handlers ~default:[]
-               ; vars         = Option.value vars ~default:[] }
+        Ok { name         = Option.value name ~default:""
+           ; hosts        = hosts
+          (* Per https://docs.ansible.com/ansible/latest/inventory_guide/connection_details.html#setting-a-remote-user
+           * the default for the user is the name of the local user *)
+           ; remote_user  = Option.value remote_user ~default:"#local_user"
+           ; is_root      = Option.map (fun nm -> nm = "root") remote_user
+           ; become       = Option.value become ~default:false
+           ; become_user  = Option.value become_user ~default:"root"
+           ; tasks        = (Option.value pre_tasks ~default:[])
+                          @ (Option.value tasks ~default:[])
+           ; handlers     = Option.value handlers ~default:[]
+           ; vars         = Option.value vars ~default:[] }
   end
 
 let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
@@ -353,6 +356,8 @@ let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
         (fun ex -> Ok (Dot (ex, field)))
     | ApplyExpr (IdentExpr "lower", [(None, arg)]) ->
         Result.bind (jexpr_to_value arg) (fun ex -> Ok (Unary (ex, Lower)))
+    | ApplyExpr (IdentExpr "bool", [(None, arg)]) ->
+        Result.bind (jexpr_to_value arg) (fun ex -> Ok (Unary (ex, Bool)))
     | TestOpExpr (ex, IdentExpr "success") ->
         Result.bind (jexpr_to_value ex) (fun ex -> Ok (Dot (ex, "success")))
     | TestOpExpr (IdentExpr var, IdentExpr "defined") ->
@@ -363,7 +368,26 @@ let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
             Result.bind (jexpr_to_value rhs) (fun rhs ->
               Ok (Binary (res, Or, Binary (lhs, Equals, rhs)))
           ))) (Ok (Bool false)) lst)
-    | _ -> Error "unhandled Jinja expression form"
+    | BracketExpr (_, _) -> Error "unhandled Jinja expression form [BracketExpr]"
+    | ApplyExpr (IdentExpr nm, _) -> Error (Printf.sprintf "unhandled Jinja expression form [ApplyExpr-%s]" nm)
+    | ApplyExpr (_, _) -> Error "unhandled Jinja expression form [ApplyExpr]"
+    | TestOpExpr (_, _) -> Error "unhandled Jinja expression form [TestOpExpr]"
+    | InOpExpr (_, _) -> Error "unhandled Jinja expression form [InOpExpr]"
+    | NegativeOpExpr _ -> Error "unhandled Jinja expression form [NegativeOpExpr]"
+    | PlusOpExpr (_, _) -> Error "unhandled Jinja expression form [PlusOpExpr]"
+    | MinusOpExpr (_, _) -> Error "unhandled Jinja expression form [MinusOpExpr]"
+    | TimesOpExpr (_, _) -> Error "unhandled Jinja expression form [TimesOpExpr]"
+    | PowerOpExpr (_, _) -> Error "unhandled Jinja expression form [PowerOpExpr]"
+    | DivOpExpr (_, _) -> Error "unhandled Jinja expression form [DivOpExpr]"
+    | ModOpExpr (_, _) -> Error "unhandled Jinja expression form [ModOpExpr]"
+    | LtOpExpr (_, _) -> Error "unhandled Jinja expression form [LtOpExpr]"
+    | GtOpExpr (_, _) -> Error "unhandled Jinja expression form [GtOpExpr]"
+    | ListExpr _ -> Error "unhandled Jinja expression form [ListExpr]"
+    | SetExpr _ -> Error "unhandled Jinja expression form [SetExpr]"
+    | ObjExpr _ -> Error "unhandled Jinja expression form [ObjExpr]"
+    | FunctionExpression (_, _) -> Error "unhandled Jinja expression form [FunctionExpression]"
+    | TernaryOpExpr (_, _, _) -> Error "unhandled Jinja expression form [TernaryOpExpr]"
+    (*| _ -> Error "unhandled Jinja expression form"*)
   in let jstmt_to_value (j: Jtypes.statement) : (value, string) result =
     match j with
     | TextStatement s -> Ok (String s)
@@ -756,6 +780,16 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
               (fun (v, _) -> Ok (Modules.Ast.FuncExp (Id "path_of_string",
                 [FuncExp (Id "to_lower", [v])]), Modules.Ast.Path))
         | Lower, _ -> Error "Incorrect type for lower (productes string)"
+        | Bool, Some Bool | Bool, None ->
+            Result.bind (codegen_value v None play_env)
+              (fun (v, t) ->
+                match t with
+                | Bool -> Ok (v, t)
+                | String ->
+                    Ok (Modules.Ast.FuncExp (Id "bool_of_string", [v]),
+                        Modules.Ast.Bool)
+                | _ -> Error "Cannot convert type to bool")
+        | Bool, _ -> Error "Incorrect type for bool (produces boolean)"
         end
     | Binary (lhs, op, rhs) ->
         let op_info : (Modules.Ast.typ option
@@ -1140,6 +1174,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                 | "name"          -> Result.map res#add_name (process_string v)
                 | "hosts"         -> Result.map res#add_hosts (process_string v)
                 | "remote_user"   -> Result.map res#add_remote_user (process_string v)
+                | "pre_tasks"     -> Result.map res#add_pre_tasks (process_tasks v)
                 | "tasks"         -> Result.map res#add_tasks (process_tasks v)
                 | "become"        -> Result.map res#add_become (process_bool v)
                 | "become_user"   -> Result.map res#add_become_user (process_string v)

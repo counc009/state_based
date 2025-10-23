@@ -28,8 +28,10 @@ for row in tqdm(data['playbook']):
 
   out = res.stdout
   if b'ERROR' in res.stdout:
-    for error in out.splitlines()[2:]:
-      log_error(error)
+    errs = out.splitlines()[2:]
+    if len(errs) == 1:
+      for error in errs:
+        log_error(error)
   else:
     success += 1
 

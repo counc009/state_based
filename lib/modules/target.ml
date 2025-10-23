@@ -37,6 +37,7 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | StringOfBool
                 | IntOfFloat
                 | FloatOfInt
+                | BoolOfString
                 (* Path operations *)
                 | ConsPath
                 | EndsWithDir
@@ -349,6 +350,14 @@ module rec Ast_Target : Ast_Defs
         fun v -> match v with
           | Literal (Int i, _) -> Reduced (Literal (Float (float_of_int i), Float))
           | _ -> Stuck)
+    | BoolOfString -> (Primitive String, Primitive Bool,
+        fun v -> match v with
+          | Literal (String s, _) ->
+              begin match bool_of_string_opt s with
+              | Some b -> Reduced (Literal (Bool b, Bool))
+              | None -> Err "Cannot convert to boolean"
+              end
+          | _ -> Stuck)
     | ConsPath -> (Product (Primitive Path, Primitive Path),
                    Primitive Path,
         fun v -> match v with
@@ -553,6 +562,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | StringOfBool              -> "string_of_bool"
         | IntOfFloat                -> "int_of_float"
         | FloatOfInt                -> "float_of_int"
+        | BoolOfString              -> "bool_of_string"
         | ConsPath                  -> "cons_path"
         | EndsWithDir               -> "ends_with_dir"
         | BaseName                  -> "base_name"
@@ -687,6 +697,7 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | StringOfBool              -> "string_of_bool(" ^ value_to_string arg ^ ")"
       | IntOfFloat                -> "int_of_float(" ^ value_to_string arg ^ ")"
       | FloatOfInt                -> "float_of_int(" ^ value_to_string arg ^ ")"
+      | BoolOfString              -> "bool_of_string(" ^ value_to_string arg ^ ")"
       | ConsPath                  -> "cons_path(" ^ value_to_string arg ^ ")"
       | EndsWithDir               -> "ends_with_dir(" ^ value_to_string arg ^ ")"
       | BaseName                  -> "base_name(" ^ value_to_string arg ^ ")"
