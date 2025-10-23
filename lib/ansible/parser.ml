@@ -290,10 +290,9 @@ class play_result =
       if not (List.is_empty errors)
       then Error errors
       else
-        (*
         match tasks with
         | None -> Error ["no tasks in play"]
-        | Some t ->*)
+        | Some t ->
             Ok { name         = Option.value name ~default:""
                ; hosts        = hosts
               (* Per https://docs.ansible.com/ansible/latest/inventory_guide/connection_details.html#setting-a-remote-user
@@ -302,7 +301,7 @@ class play_result =
                ; is_root      = Option.map (fun nm -> nm = "root") remote_user
                ; become       = Option.value become ~default:false
                ; become_user  = Option.value become_user ~default:"root"
-               ; tasks        = Option.value tasks ~default:[] (* FINE ONCE WE HANDLE TASKS *)
+               ; tasks        = t
                ; handlers     = Option.value handlers ~default:[]
                ; vars         = Option.value vars ~default:[] }
   end
@@ -1070,9 +1069,6 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                                                 (process_module_use "UNUSED" v)
                 | "gather_facts"  -> Ok () (* TODO *)
                 | "connection"    -> Ok () (* TODO *)
-                (* TODO - FIX *)
-                | "pre_tasks"     -> Result.map res#add_tasks (process_tasks v)
-                | "roles"         -> Ok () (* TODO *)
                 | _               -> Error (Printf.sprintf "unrecognized field '%s' in play" field)
               with
               | Ok ()     -> process_play_fields tl res
