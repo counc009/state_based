@@ -21,6 +21,7 @@ type value =
   | Dot         of value * string
   | VarDefined  of string
   | Fact        of string
+  | Record      of (string * value) list
 
 type mod_use = {
   mod_name: string;
@@ -448,7 +449,14 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
               Result.bind (process_value hd)
                 (fun h -> Result.map (fun tl -> h :: tl) (process tl))
         in Result.map (fun vs -> List vs) (process vs)
-    | `O _      -> Error "expected value found mapping"
+    | `O fs     ->
+        let rec process fs =
+          match fs with
+          | [] -> Ok []
+          | (f, v) :: tl ->
+              Result.bind (process_value v)
+                (fun v -> Result.map (fun tl -> (f, v) :: tl) (process tl))
+        in Result.map (fun fs -> Record fs) (process fs)
   in let rec process_condition v =
     match v with
     | `Null -> Ok (Bool true)
@@ -560,6 +568,66 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                 vals
         | _ -> Error ("Incorrect type, found list")
         end
+    | Record vs ->
+        (* If we aren't given a type, process each field and create an anonymous
+         * record from the given field types. Otherwise, match fields *)
+        let ty_info
+          : ((string option * Modules.Ast.typ Modules.Target.StringMap.t) option,
+             string) result =
+          match t with
+          | None -> Ok None
+          | Some (Named nm) ->
+              begin match Modules.Codegen.UniqueMap.find nm tys with
+              | None -> Error "Internal Error: type undefined"
+              | Some typ ->
+                  let rec process_for_type (typ: Modules.Codegen.typ) =
+                    match typ with
+                    | Placeholder { contents = Some typ } -> process_for_type typ
+                    | Placeholder { contents = None } -> Error ("Internal Error: unknown placeholder")
+                    | Struct (snm, fs) ->
+                        Ok (Some (Some snm,
+                          Modules.Target.StringMap.map codegen_type_to_ast_typ fs))
+                    | AnonStruct fs ->
+                        Ok (Some (None,
+                          Modules.Target.StringMap.map codegen_type_to_ast_typ fs))
+                    | _ -> Error ("Incorrect type, found record")
+                  in process_for_type typ
+              end
+          | Some (AnonymousRecord fs) -> Ok (Some (None, fs))
+          | _ -> Error ("Incorrect type, found struct")
+        in Result.bind ty_info (fun rec_info ->
+          match rec_info with
+          | None -> 
+              let vals =
+                List.fold_left (fun acc (f, v) ->
+                  Result.bind acc (fun (res, tys) ->
+                    Result.bind (codegen_value v None play_env) (fun (v, t) ->
+                      Ok ((f, v) :: res, Modules.Target.StringMap.add f t tys))))
+                (Ok ([], Modules.Target.StringMap.empty))
+                vs
+              in Result.bind vals
+                  (fun (vals, tys) ->
+                    Ok (Modules.Ast.AnonRecordExp (tys, vals),
+                        Modules.Ast.AnonymousRecord tys))
+          | Some (nm, fields) ->
+              let vals =
+                List.fold_left (fun acc (f, v) ->
+                  Result.bind acc (fun res ->
+                    match Modules.Target.StringMap.find_opt f fields with
+                    | None -> Error ("No such field " ^ f ^ " expected")
+                    | Some t ->
+                        Result.bind (codegen_value v (Some t) play_env)
+                          (fun (v, _) -> Ok ((f, v) :: res))))
+                (Ok [])
+                vs
+              in Result.bind vals (fun vals ->
+                match nm with
+                | None ->
+                    Ok (Modules.Ast.AnonRecordExp (fields, vals),
+                        Modules.Ast.AnonymousRecord fields)
+                | Some nm ->
+                    Ok (Modules.Ast.RecordExp (Id nm, vals),
+                        Modules.Ast.Named nm)))
     | String s ->
         (* Strings in YAML can actually represent many things in our type-system,
          * specifically strings, paths, and enum values *)
@@ -1008,7 +1076,9 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
           | Ok t -> Result.map (fun tl -> t @ tl) (codegen_tasks tl play_env)
           | Error msg -> Error msg
     in let play_env = Hashtbl.create 10
-    in let () = List.iter (fun (nm, _) -> 
+    (* FIXME: Doesn't handle struct types correctly, will attempt to codegen
+     * them as String type *)
+    in let () = List.iter (fun (nm, _) ->
         Hashtbl.add play_env nm (Unknown (nm, Modules.Ast.String))
       ) play.vars
     in let tasks = codegen_tasks play.tasks play_env
