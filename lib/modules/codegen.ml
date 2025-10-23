@@ -42,7 +42,6 @@ type typ = Bool | Int | Float | String | Path | Unit
          | Product     of typ list
          (* Store the name of the struct along with the info on its fields *)
          | Struct      of string * typ StringMap.t
-         | AnonStruct  of typ StringMap.t
          (* Store the name of the enum along with the info on its constructors *)
          | Enum        of string * (int * typ list) StringMap.t
          | Placeholder of typ placeholder
@@ -109,8 +108,6 @@ let rec process_type (t : Ast.typ) env : typ =
   | Product ts -> Product (List.map (fun t -> process_type t env) ts)
   | List t -> List (process_type t env)
   | Option t -> Option (process_type t env)
-  | AnonymousRecord fields
-      -> AnonStruct (StringMap.map (fun t -> process_type t env) fields)
   | Named nm ->
       match UniqueMap.find nm env with
       | Some t -> t
@@ -184,8 +181,6 @@ let rec create_type (t : Ast.typ) env : typ =
   | Product ts -> Product (List.map (fun t -> create_type t env) ts)
   | List t -> List (create_type t env)
   | Option t -> Option (create_type t env)
-  | AnonymousRecord fields
-      -> AnonStruct (StringMap.map (fun t -> process_type t env) fields)
   | Named nm ->
       match UniqueMap.find nm env with
       | Some t -> t
@@ -277,7 +272,7 @@ let rec target_type (t : typ) : Target.typ =
   | Option t -> Named (Option (target_type t))
   | List t -> Named (List (target_type t))
   | Product ts -> construct_prod ts
-  | Struct (_, fs) | AnonStruct fs -> Struct (StringMap.map target_type fs)
+  | Struct (_, fs) -> Struct (StringMap.map target_type fs)
   | Enum (nm, cs) -> construct_cases nm cs
   | Placeholder t ->
       match !t with
@@ -723,31 +718,6 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                 in filled_struct init_struct)
         | _ -> Error "expected struct name"
         end
-    | AnonRecordExp (fs, fields) ->
-        let target_struct
-          = StringMap.map (fun t -> target_type (process_type t tys)) fs
-        in let init_struct : Target.expr
-          = Function (EmptyStruct target_struct, Literal (Unit ()))
-        in let filled_struct : Target.expr -> (Target.stmt, string) result
-          = List.fold_left
-            (fun (k : Target.expr -> (Target.stmt, string) result)
-                 (field, expr) record ->
-              if not (StringMap.mem field fs)
-              then Error ("unexpected field " ^ field)
-              else
-                process expr
-                  (fun field_expr ->
-                    Result.bind (as_expr field_expr)
-                    (fun (e, t) ->
-                      if t <> StringMap.find field target_struct
-                      then Error ("incorect type for field " ^ field)
-                      else
-                        k (Function
-                            (AddField (target_struct, field),
-                             Pair (record, e))))))
-            (fun e -> k (JustExpr (e, Struct target_struct)))
-            fields
-        in filled_struct init_struct
     | FieldSetExp (record, field, expr) ->
         process record
           (fun r ->
