@@ -1,0 +1,65 @@
+element globals()
+attribute buttonState(bool)
+attribute ledState(bool)
+
+element input(int)
+element output(int)
+
+element pin(int)
+attribute pinValue(bool)
+
+element env()
+attribute time(int)
+
+function get_time() -> int {
+  env().time = env().time + 1;
+  return env().time;
+}
+
+function digitalRead(p: int) -> bool {
+  assert exists input(env().time).pin(p);
+  return input(env().time).pin(p).pinValue;
+}
+
+function digitalWrite(p: int, v: bool) {
+  touch output(env().time).pin(p);
+  output(env().time).pin(p).pinValue = v;
+}
+
+function program() {
+  assert exists env();
+  assert exists globals();
+
+  let time = get_time();
+  assert exists input(time);
+  touch output(time);
+  // In theory we might want to copy outputs from the previous time
+
+  let oldState = globals().buttonState;
+  globals().buttonState = digitalRead(2);
+
+  if !oldState && globals().buttonState {
+    globals().ledState = ! globals().ledState;
+    digitalWrite(8, globals().ledState);
+  }
+}
+
+function query() {
+  assert exists env();
+  let pre_time = env().time;
+  let exec_time = pre_time + 1;
+
+  assert exists input(pre_time);
+  assert exists input(exec_time);
+
+  assert exists input(pre_time).pin(2);
+  assert exists input(exec_time).pin(2);
+
+  assert exists output(pre_time);
+  assert exists output(pre_time).pin(8);
+  touch output(exec_time);
+
+  if !input(pre_time).pin(2).pinValue && input(exec_time).pin(2).pinValue {
+    output(exec_time).pin(8).pinValue = ! output(pre_time).pin(8).pinValue;
+  }
+}

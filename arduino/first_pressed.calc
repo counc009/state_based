@@ -1,0 +1,43 @@
+element globals()
+
+element input(int)
+element output(int)
+
+element pin(int)
+attribute pinValue(bool)
+
+element env()
+attribute time(int)
+
+function get_time() -> int {
+  env().time = env().time + 1;
+  return env().time;
+}
+
+function digitalRead(p: int) -> bool {
+  assert exists input(env().time).pin(p);
+  return input(env().time).pin(p).pinValue;
+}
+
+function digitalWrite(p: int, v: bool) {
+  touch output(env().time).pin(p);
+  output(env().time).pin(p).pinValue = v;
+}
+
+function program() {
+  assert exists env();
+  assert exists globals();
+
+  // We run the loop twice, first time to update globals and second time to
+  // see what happens
+  for i in list::<int>::cons(0, list::<int>::cons(1, list::<int>::nil)) {
+    let time = get_time();
+    assert exists input(time);
+    touch output(time);
+    // In theory we might want to copy outputs from the previous time
+
+    if digitalRead(2) {
+      digitalWrite(8, true);
+    }
+  }
+}

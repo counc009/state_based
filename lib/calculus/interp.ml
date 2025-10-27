@@ -580,9 +580,8 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                 in (State (els_true, ats), State (els_false, ats))
             end
       in match helper e s.final with
-      | Err msg -> Err msg
       | Ok (Some b) -> Ok (Left b)
-      | Ok None ->
+      | Err _ | Ok None ->
           match helper e s.init with
           | Err msg -> Err msg
           | Ok (Some b) -> Ok (Left b)
