@@ -1,0 +1,15 @@
+module tee -> int {
+  (files: list path = list::<path>::nil)
+
+  let s = read(0);
+
+  for f in files {
+    let fd = open(f);
+    write(fd, s);
+    close(fd);
+  }
+
+  write(1, s);
+
+  return 0;
+}

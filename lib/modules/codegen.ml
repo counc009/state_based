@@ -840,6 +840,9 @@ let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
                   | "substring" ->
                       let (arg_ty, res_ty, _) = Target.funcDef Substring
                       in Ok (arg_ty, res_ty, TargetAst.Substring)
+                  | "string_of_int" ->
+                      let (arg_ty, res_ty, _) = Target.funcDef StringOfInt
+                      in Ok (arg_ty, res_ty, TargetAst.StringOfInt)
                   | _ -> Error ("undefined name " ^ nm))
                   (fun (arg_typ, ret_typ, func) ->
                     process (ProductExp args)

@@ -10,3 +10,12 @@
  (public_name ansible-verify)
  (name verify)
  (libraries state_based))
+
+(executable
+ (public_name bash)
+ (name bash)
+ (libraries state_based))
+(executable
+  (public_name arduino)
+  (name arduino)
+  (libraries state_based))

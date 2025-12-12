@@ -1,0 +1,12 @@
+# Query is something like:
+#   print number of lines in file 'bigfile' to stderr;
+#   gzip 'bigfile' to 'bigfile.gz'
+function fql() {
+  assert exists fs('bigfile');
+  env().stderr = ((env().stderr
+               ^ string_of_int(count_lines(fs('bigfile').contents)))
+               ^ " ") ^ "\n";
+
+  assert exists fs('bigfile');
+  fs('bigfile.gz').contents = gzipped(fs('bigfile').contents);
+}

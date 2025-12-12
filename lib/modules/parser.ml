@@ -648,6 +648,10 @@ let stmt =
       <* char ';'
       >>| fun rhs -> Assign (lhs, rhs)
 
+    in let exprStmt =
+      expr stmts <* whitespace <* char ';'
+        >>| fun exp -> LetStmt ("_", exp)
+
     in choice
     [ (parens (mod_args stmts) >>| fun args -> VarDecls (true, args))
     ; (square (mod_args stmts) >>| fun args -> VarDecls (false, args))
@@ -663,10 +667,11 @@ let stmt =
     ; keywordStmt "return" (fun e -> Return e)
     ; keywordStmt "yield"  (fun e -> Yield e)
     ; assignStmt
+    ; exprStmt
     ]
   )
 
-let stmts = whitespace *> sep_by whitespace stmt
+let stmts = whitespace *> sep_by whitespace stmt <* whitespace
 
 (* ptype parsed an already parens type, hence we handle commas *)
 let ptype =
@@ -807,7 +812,7 @@ let top_level =
       ; func_def
       ; mod_def
       ])
-let file_parser = top_level <* whitespace
+let file_parser = whitespace *> top_level <* whitespace
 
 let comments_regex = Str.regexp {|\(#\|//\).*|}
 

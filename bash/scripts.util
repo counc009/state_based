@@ -1,0 +1,61 @@
+function fun_one() {
+  let pipe = new_pipe();
+  let file = tmp_file();
+
+  fd(0).kind = fd::file('bigfile');
+  fd(1).kind = fd::pipe(pipe);
+  tee {{ files: list::<path>::cons(file, list::<path>::nil) }};
+
+  fd(0).kind = fd::file(file);
+  fd(1).kind = fd(2).kind;
+  wc {{ lines: true }};
+
+  delete_file(file);
+
+  fs('bigfile.gz').contents = ""; // Not quite accurate but close enough
+
+  fd(0).kind = fd::pipe(pipe);
+  fd(1).kind = fd::file('bigfile.gz');
+  gzip {{ }};
+
+  delete_pipe(pipe);
+}
+
+function normal_one() {
+  let old_stdin = fd(0).kind;
+  let old_stdout = fd(1).kind;
+
+  fd(0).kind = fd::file('bigfile');
+  fd(1).kind = fd(2).kind;
+  wc {{ lines: true }};
+
+  fd(0).kind = old_stdin;
+  fd(1).kind = old_stdout;
+  gzip {{ file: 'bigfile', keep: true }};
+}
+
+function cat_one() {
+  let pipe1 = new_pipe();
+
+  fd(1).kind = fd::pipe(pipe1);
+  cat {{ files: list::<path>::cons('bigfile', list::<path>::nil) }};
+
+  fs('bigfile.gz').contents = ""; // Not quite accurate but close enough
+
+  fd(0).kind = fd::pipe(pipe1);
+  fd(1).kind = fd::file('bigfile.gz');
+  gzip {{ }};
+
+  delete_pipe(pipe1);
+
+  let pipe2 = new_pipe();
+
+  fd(1).kind = fd::pipe(pipe2);
+  cat {{ files: list::<path>::cons('bigfile', list::<path>::nil) }};
+
+  fd(0).kind = fd::pipe(pipe2);
+  fd(1).kind = fd(2).kind;
+  wc {{ lines: true }};
+
+  delete_pipe(pipe2);
+}

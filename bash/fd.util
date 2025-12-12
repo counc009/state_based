@@ -1,0 +1,52 @@
+enum fd {
+  file(path),
+  pipe(int),
+  stdin,
+  stdout,
+  stderr,
+}
+
+element fd(int)
+attribute kind(fd)
+
+// NOTE: In a full implementation we'd need to track the offset a file
+// descriptor has into its underlying medium
+
+function write(n: int, s: string) {
+  assert exists fd(n);
+  match fd(n).kind {
+    fd::file(p) => {
+      assert exists fs(p);
+      fs(p).contents = fs(p).contents ^ s;
+    }
+    fd::pipe(p) => {
+      assert exists pipe(p);
+      pipe(p).contents = pipe(p).contents ^ s;
+    }
+    fd::stdout => {
+      env().stdout = env().stdout ^ s;
+    }
+    fd::stderr => {
+      env().stderr = env().stderr ^ s;
+    }
+  }
+}
+
+function read(n: int) -> string {
+  assert exists fd(n);
+  match fd(n).kind {
+    fd::file(p) => {
+      assert exists fs(p);
+      return fs(p).contents;
+    }
+    fd::pipe(p) => {
+      assert exists pipe(p);
+      return pipe(p).contents;
+    }
+    fd::stdin => {
+      return env().stdin;
+    }
+  }
+
+  return "";
+}
