@@ -326,7 +326,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
                                       perms = file_info.perms };
                               content = contents })
                     else
-                      Error (Printf.sprintf "Unhandled arguments for create directory: %s"
+                      Error (Printf.sprintf "Unhandled arguments for file directory: %s"
                                             (args_to_string args)))))
         | Str "directory" ->
             let path =
