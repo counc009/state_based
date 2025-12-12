@@ -1,0 +1,14 @@
+---
+- name: Install and start apache server
+  hosts: all
+  become: true
+  tasks:
+    - name: Install apache
+      ansible.builtin.package:
+        name:
+          - "{{ ansible_os_family == 'Debian' ? 'apache2' : 'httpd' }}"
+        state: present
+    - name: Start apache service
+      ansible.builtin.service:
+        name: "{{ ansible_os_family == 'Debian' ? 'apache2' : 'httpd' }}"
+        state: started

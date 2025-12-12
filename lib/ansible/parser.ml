@@ -21,6 +21,7 @@ type value =
   | Dot         of value * string
   | VarDefined  of string
   | Fact        of string
+  | Ternary     of value * value * value
 
 type mod_use = {
   mod_name: string;
@@ -362,6 +363,11 @@ let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
             Result.bind (jexpr_to_value rhs) (fun rhs ->
               Ok (Binary (res, Or, Binary (lhs, Equals, rhs)))
           ))) (Ok (Bool false)) lst)
+    | TernaryOpExpr (cond, thn, els) ->
+        Result.bind (jexpr_to_value cond) (fun cond ->
+          Result.bind (jexpr_to_value thn) (fun thn ->
+            Result.bind (jexpr_to_value els) (fun els ->
+              Ok (Ternary (cond, thn, els)))))
     | _ -> Error "unhandled Jinja expression form"
   in let jstmt_to_value (j: Jtypes.statement) : (value, string) result =
     match j with
@@ -762,6 +768,11 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
             -> Ok (Modules.Ast.BoolLit false, Modules.Ast.Bool)
         | _, _ -> Error "Incorrect type for is defined, produces boolean"
         end
+    | Ternary (cond, thn, els) ->
+        Result.bind (codegen_value cond (Some Bool) play_env) (fun (cond, _) ->
+          Result.bind (codegen_value thn None play_env) (fun (thn, thn_t) ->
+            Result.bind (codegen_value els (Some thn_t) play_env) (fun (els, _) ->
+              Ok (Modules.Ast.CondExp (cond, thn, els), thn_t))))
   in let process_module_use nm args =
     match args with
     | `O map ->
