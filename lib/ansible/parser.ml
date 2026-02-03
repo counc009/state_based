@@ -51,13 +51,17 @@ type loop_kind =
   | ItemLoop of value
   | FileGlob of value
 
+type 't task_body =
+  | Module of mod_use
+  | Block  of 't list
+
 type task = {
   name: string;
   register: string;
   ignore_errors: bool;
   condition: value option;
   loop: loop_kind option;
-  module_invoke: mod_use;
+  body: task task_body; (* either a module invocation of a list of tasks *)
   become: bool;
   become_user: string;
   notify: string list
@@ -70,7 +74,7 @@ class task_result =
     val mutable ignore_errors = (None : bool option)
     val mutable condition     = (None : value option)
     val mutable loop          = (None : loop_kind option)
-    val mutable module_invoke = (None : mod_use option)
+    val mutable body          = (None : task task_body option)
 
     val mutable notify        = (None : string list option)
     val mutable become        = (None : bool option)
@@ -99,10 +103,22 @@ class task_result =
       | None -> loop <- Some l
       | _    -> errors <- "Multiple looping fields" :: errors
     method add_module m =
-      match module_invoke with
-      | None   -> module_invoke <- Some m
-      | Some c -> errors <-
+      match body with
+      | None -> body <- Some (Module m)
+      | Some (Module c) -> errors <-
         Printf.sprintf "Multiple modules specified: %s and %s" c.mod_name m.mod_name
+        :: errors
+      | Some (Block _) -> errors <-
+        Printf.sprintf "Task contains both block and module %s" m.mod_name
+        :: errors
+    method add_block ts =
+      match body with
+      | None -> body <- Some (Block ts)
+      | Some (Module c) -> errors <-
+        Printf.sprintf "Task contains both block and module %s" c.mod_name
+        :: errors
+      | Some (Block _) -> errors <-
+        Printf.sprintf "Task contains multiple blocks"
         :: errors
 
     method add_notify hs =
@@ -123,15 +139,15 @@ class task_result =
       if not (List.is_empty errors)
       then Error errors
       else
-        match module_invoke with
-        | None -> Error ["no module invocation in task"]
-        | Some m ->
+        match body with
+        | None -> Error ["no task body"]
+        | Some b ->
             Ok { name          = Option.value name ~default:""
                ; register      = Option.value register ~default:"_"
                ; ignore_errors = Option.value ignore_errors ~default:false
                ; condition     = condition
                ; loop          = loop
-               ; module_invoke = m
+               ; body          = b
                ; notify        = Option.value notify ~default:[]
                ; become        = Option.value become ~default:false
                ; become_user   = Option.value become_user ~default:"root"}
@@ -789,7 +805,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
     | _ -> (* Free form arguments are not yet handled, treat as if there was
             * nothing there *)
         Result.map_error (String.concat "\n") (new mod_result(nm))#to_mod
-  in let process_task t =
+  in let rec process_task t =
     match t with
     | `O map ->
         let rec process_task_fields map res =
@@ -815,13 +831,15 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
                 | "loop_control" -> Ok () (* TODO: We just ignore loop_control *)
                 | "no_log" -> Ok () (* TODO *)
                 | "changed_when" -> Ok () (* TODO *)
+                | "block" ->
+                    Result.map res#add_block (process_tasks v)
                 | _ -> Result.map res#add_module (process_module_use field v)
               with
               | Ok () -> process_task_fields tl res
               | Error msg -> Error msg
         in process_task_fields map (new task_result)
     | _      -> Error "Expected task to be a mapping with fields"
-  in let process_tasks ts =
+  and process_tasks ts =
     match ts with
     | `A seq ->
         let rec process ts =
