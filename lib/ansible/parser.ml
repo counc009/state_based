@@ -51,17 +51,16 @@ type loop_kind =
   | ItemLoop of value
   | FileGlob of value
 
-type 't task_body =
+type task_body =
   | Module of mod_use
-  | Block  of 't list
-
-type task = {
+  | Block  of task list
+and task = {
   name: string;
   register: string;
   ignore_errors: bool;
   condition: value option;
   loop: loop_kind option;
-  body: task task_body; (* either a module invocation of a list of tasks *)
+  body: task_body;
   become: bool;
   become_user: string;
   notify: string list
@@ -74,7 +73,7 @@ class task_result =
     val mutable ignore_errors = (None : bool option)
     val mutable condition     = (None : value option)
     val mutable loop          = (None : loop_kind option)
-    val mutable body          = (None : task task_body option)
+    val mutable body          = (None : task_body option)
 
     val mutable notify        = (None : string list option)
     val mutable become        = (None : bool option)
@@ -928,6 +927,10 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
         in Result.map
           (fun args -> (Modules.Ast.ModuleExp (module_expr, args), res_type))
           module_args
+  in let codegen_task_body (b : task_body) (play_env : play_env) =
+    match b with
+    | Module m -> codegen_module_invocation m play_env
+    | Block _b -> failwith "TODO: HANDLE BLOCKS"
   in let codegen_task (t : task) (play_env: play_env)
     : (Modules.Ast.stmt list, string) result =
     let () =
@@ -942,7 +945,7 @@ let process_ansible (file: string) (tys : Modules.Codegen.type_env)
           | _ -> Hashtbl.add play_env "item" (Unknown ("item", String))
           end
       | Some (FileGlob _) -> Hashtbl.add play_env "item" (Concrete Path)
-    in Result.bind (codegen_module_invocation t.module_invoke play_env)
+    in Result.bind (codegen_task_body t.body play_env)
       (fun (modul, typ) ->
         let body = 
           let module_invoke = Modules.Ast.LetStmt (t.register, modul)
