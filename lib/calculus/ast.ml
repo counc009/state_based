@@ -87,7 +87,11 @@ module type Ast_Defs = sig
                         * expr * variable (* list and element var *)
                         * stmt (* body: returns a value and the environment *)
                         * stmt (* after *)
-            | Fail     of string
+            | TryCatch of stmt (* body of try *)
+                        * variable * stmt (* exception name and handler *)
+                        * stmt (* finally body *)
+                        * stmt (* after *)
+            | Raise    of expr
             | Return   of expr
 
   type env = (value * typ) VariableMap.t
