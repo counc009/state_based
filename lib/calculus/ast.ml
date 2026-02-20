@@ -34,11 +34,6 @@ module type Ast_Defs = sig
             | Literal   of literal
             | Variable  of variable
             | Pair      of expr * expr
-            (* Special expression, really intended for use as the return value
-             * of a loop
-             * Used to thread the environment from the loop body back into the
-             * interpreter *)
-            | Env
 
   type value = Unknown      of id * typ
              | Literal      of literal * primTy
@@ -71,13 +66,11 @@ module type Ast_Defs = sig
             | OnAttribute of attribute * elem
             | OnElement   of element * expr * elem
 
-  (* All statements, other than branches and terminators, take an additional
-   * statement which is the "next" statement. This avoids having a Seq
-   * constructor which would be somewhat annoying to implement *)
-  type stmt = Action   of variable * action * expr * stmt
-            | Assign   of variable * expr * stmt
-            | Add      of qual * stmt
-            | Get      of variable * attr * stmt
+  type stmt = Seq      of stmt * stmt
+            | Action   of variable * action * expr
+            | Assign   of variable * expr
+            | Add      of qual
+            | Get      of variable * attr
             | Contains of elem * stmt * stmt
             | Cond     of expr * stmt * stmt
             | Match    of expr * variable (* value in constructor *)
@@ -85,16 +78,13 @@ module type Ast_Defs = sig
             | ForEach  of variable (* variable for result of for-each *)
                         * typ (* element type of the result *)
                         * expr * variable (* list and element var *)
-                        * stmt (* body: returns a value and the environment *)
-                        * stmt (* after *)
+                        * stmt (* body *)
             | TryCatch of stmt (* body of try *)
                         * variable * stmt (* exception name and handler *)
                         * stmt (* finally body *)
-                        * stmt (* after *)
             | Raise    of expr
             | Return   of expr
-
-  type env = (value * typ) VariableMap.t
+            | Yield    of expr (* yield for a foreach statement *)
 
   (* Definitions for the parameterized components *)
   val namedTyDef : namedTy -> typ * typ
@@ -125,13 +115,6 @@ module type Ast_Defs = sig
    *)
   val isUnit : typ -> bool
   val listType : typ -> namedTy
-
-  (* Used to handle the special "Env" expression:
-   * - The envType is a primitive (the type of the Env expression)
-   * - The envLit is a literal constructed from an environment *)
-  val envType : typ
-  val envToVal : env -> value
-  val envFromVal : value -> env
 
   (* Many times constraints on function values can be simplified in some manner,
    * for instance (not v) = true is equivalent to v = false which is simpler
