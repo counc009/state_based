@@ -6,6 +6,16 @@ type id = Ast.id
 module Interp(Ast : Ast.Ast_Defs) = struct
   open Ast
 
+  let type_of_val (v : value) : typ =
+    match v with
+    | Unknown (_, t) -> t
+    | Literal (_, p) -> Primitive p
+    | Function (_, _, t) -> t
+    | Pair (_, _, t) -> t
+    | Constructor (n, _, _) -> Named n
+    | Struct (s, _) -> Struct s
+    | ListVal (n, _) -> Named n
+
   type env = (value * typ) VariableMap.t
 
   let rec eval_expr (e : expr) (env : env) : (value * typ, string) result =
@@ -36,6 +46,21 @@ module Interp(Ast : Ast.Ast_Defs) = struct
         | Error m, Ok _ -> Error m
         | Ok _, Error n -> Error n
         end
+
+
+  let construct_equals v w : (value, string) result =
+    let tv = type_of_val v
+    in let tw = type_of_val w
+    in if tv <> tw
+      then Error "Type error, cannot equate values of different types"
+      else
+        let equals = equality_func tv
+        in let (_, retTy, _) = funcDef equals
+        in Ok (
+        Function (
+          equals,
+          Pair (v, w, Product (tv, tw)),
+          retTy))
 
   let fieldMap_map_result (f : 'a -> ('b, 'e) result) (m : 'a FieldMap.t)
     : ('b FieldMap.t, 'e) result
@@ -112,7 +137,18 @@ module Interp(Ast : Ast.Ast_Defs) = struct
   let rec add_qual
       ((q, v, qs) : (element * bool, attribute) Either.t * value * state)
       (State (els, ats) : state) : state =
-    match q with
+    let add_quals (State (els, ats) : state) (ps : state) =
+      let rec helper els ats state =
+        match els with
+        | ((el, v, neg), qs) :: tl
+          -> helper tl ats (add_qual (Left (el, neg), v, qs) state)
+        | [] ->
+            match ats with
+            | (at, (v, qs)) :: tl
+              -> helper [] tl (add_qual (Right at, v, qs) state)
+            | [] -> state
+      in helper (ElementMap.bindings els) (AttributeMap.bindings ats) ps
+    in match q with
     | Left (elem, neg) ->
         let removed = ElementMap.remove (elem, v, not neg) els
         in let added = ElementMap.update (elem, v, neg)
@@ -130,17 +166,38 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                         | Some (_, ps) -> Some (v, add_quals qs ps))
                       ats
         in State (els, added)
-  and add_quals (State (els, ats) : state) (ps : state) =
-    let rec helper els ats state =
-      match els with
-      | ((el, v, neg), qs) :: tl
-        -> helper tl ats (add_qual (Left (el, neg), v, qs) state)
-      | [] ->
-          match ats with
-          | (at, (v, qs)) :: tl
-            -> helper [] tl (add_qual (Right at, v, qs) state)
-          | [] -> state
-    in helper (ElementMap.bindings els) (AttributeMap.bindings ats) ps
+
+  let rec eval_qual (q : qual) (env : env)
+    : ((element * bool, attribute) Either.t * value * state, string) result =
+    let rec eval_quals (qs : qual list) (env : env) : (state, string) result =
+      match qs with
+      | [] -> Ok empty_state
+      | q :: qs ->
+          Result.bind (eval_qual q env) (fun qres ->
+            Result.bind (eval_quals qs env) (fun state ->
+              Ok (add_qual qres state)))
+    in match q with
+    | Attribute (_, e, qs) | Element (_, e, qs) ->
+        let bq = match q with Attribute (at, _, _) -> Either.Right at
+                            | Element   (el, _, _) -> Either.Left (el, false)
+                            | _ -> failwith "Match error"
+        in Result.bind (eval_expr e env) (fun (v, _) ->
+          Result.bind (eval_quals qs env) (fun state ->
+            Ok (bq, v, state)))
+    | NotElement (el, e) ->
+        Result.bind (eval_expr e env) (fun (v, _) ->
+          Ok (Either.Left (el, true), v, empty_state))
+
+  (* A type representing attempting to find some value in a structure where we
+   * may or may not find it or may be able to create the value and if so we need
+   * to return additional information *)
+  type ('a, 'b) find = NotLocated
+                     | Located of 'a
+                     | Created of 'a * 'b
+
+  let get_attribute (_a : attr) (_s : interp_state) (_env : env)
+    : (value * interp_state, string) result =
+      failwith "TODO"
 
   let rec substitute_unknown (u : id) (v : value) (s : interp_state) (env : env)
     (k : interp_state -> env -> (interp_res, string) result)
@@ -268,7 +325,18 @@ module Interp(Ast : Ast.Ast_Defs) = struct
             bools = s.bools;
             constrs = ValueMap.add v (which, c) s.constrs }
           in k new_state env
-      | IsEqual _w -> failwith "TODO"
+      | IsEqual w ->
+          (* TODO: Ideally we would track a congruence closure data structure
+           * (i.e., an e-graph) but that's very complicated as we'd need a
+           * pure or persistent e-graph implementation *)
+          Result.bind (construct_equals v w) (fun equality_vw ->
+            Result.bind (construct_equals w v) (fun equality_wv ->
+              let new_state = {
+                init = s.init; final = s.final; loops = s.loops;
+                bools = ValueMap.add equality_vw true
+                          (ValueMap.add equality_wv true s.bools);
+                constrs = s.constrs }
+              in k new_state env))
 
     in let checkValue =
       match c with
@@ -298,35 +366,55 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           if v = w
           then Some (k s env)
           else
-            match v, w with
-            | Unknown (id, _), _ ->
-                Some (substitute_unknown id w s env k merge)
-            | _, Unknown (id, _) ->
-                Some (substitute_unknown id v s env k merge)
-            (* TODO: Is it fair to assume literals must be syntactically equal? *)
-            | Literal (_, _), Literal (_, _) ->
-                Some (Error "Incompatible constraints")
-            | Pair (a, b, _), Pair (x, y, _) ->
-                Some (addConstraint a (IsEqual x) s env
-                  (fun s env ->
-                    addConstraint b (IsEqual y) s env k merge)
-                  merge)
-            | Constructor (_, a, b), Constructor (_, x, y) ->
-                if a = x
-                then
-                  Some (addConstraint b (IsEqual y) s env k merge)
-                else Some (Error "Incompatiable constraints")
-            | Struct (_, _x), Struct (_, _y) ->
-                failwith "TODO"
-            | ListVal (_, _x), ListVal (_, _y) ->
-                failwith "TODO"
-            | Constructor (_, _, _), ListVal (_, _) -> failwith "???"
-            | ListVal (_, _), Constructor (_, _, _) -> failwith "???"
-            (* Try to simplify function stuff below *)
-            | Function (_, _, _), _ -> None
-            | _, Function (_, _, _) ->
-                Some (addConstraint w (IsEqual v) s env k merge)
-            | _, _ -> Some (Error "Incompatible constraints")
+            match construct_equals v w with
+            | Error msg -> Some (Error msg)
+            | Ok equality_check ->
+              match ValueMap.find_opt equality_check s.bools with
+              | Some true -> Some (k s env)
+              | Some false -> Some (Error "Incompatible constraints")
+              | None ->
+                match v, w with
+                | Unknown (id, _), _ ->
+                    Some (substitute_unknown id w s env k merge)
+                | _, Unknown (id, _) ->
+                    Some (substitute_unknown id v s env k merge)
+                (* TODO: Is it fair to assume literals must be syntactically equal? *)
+                | Literal (_, _), Literal (_, _) ->
+                    Some (Error "Incompatible constraints")
+                | Pair (a, b, _), Pair (x, y, _) ->
+                    Some (addConstraint a (IsEqual x) s env
+                      (fun s env ->
+                        addConstraint b (IsEqual y) s env k merge)
+                      merge)
+                | Constructor (_, a, b), Constructor (_, x, y) ->
+                    if a = x
+                    then
+                      Some (addConstraint b (IsEqual y) s env k merge)
+                    else Some (Error "Incompatiable constraints")
+                | Struct (_, x), Struct (_, y) ->
+                    let merged =
+                      FieldMap.merge (fun _f x y ->
+                        match x, y with
+                        | Some x, Some y -> Some (Ok (x, y))
+                        | None, None -> None
+                        | _, _ -> Some (Error "Incompatible constraints"))
+                        x y
+                    in Some (FieldMap.fold (fun _f vals k s env ->
+                        Result.bind vals (fun (x, y) ->
+                          addConstraint x (IsEqual y) s env k merge))
+                        merged k s env)
+                | ListVal (_, x), ListVal (_, y) ->
+                    (* TODO: Is this correct? *)
+                    Some (addConstraint x (IsEqual y) s env k merge)
+                (* TODO: Is there more we can do here? *)
+                | Constructor (_, _, _), ListVal (_, _) -> None
+                | ListVal (_, _), Constructor (_, _, _) -> None
+                (* Try to simplify function stuff below *)
+                | Function (_, _, _), _ -> None
+                | _, Function (_, _, _) ->
+                    (* Swap so that we can simplify the function *)
+                    Some (addConstraint w (IsEqual v) s env k merge)
+                | _, _ -> Some (Error "Incompatible constraints")
     in match checkValue with
     | Some res -> res
     | None ->
@@ -409,6 +497,23 @@ module Interp(Ast : Ast.Ast_Defs) = struct
         | Error msg -> Err msg
         | Ok v -> cont s (VariableMap.add var v env)
         end
+    | Add qual ->
+        begin match eval_qual qual env with
+        | Error msg -> Err msg
+        | Ok q ->
+            let new_final = add_qual q s.final
+            in let new_state = {
+              init = s.init; final = new_final; loops = s.loops;
+              bools = s.bools; constrs = s.constrs }
+            in cont new_state env
+        end
+    | Get (var, attr) ->
+        begin match get_attribute attr s env with
+        | Error msg -> Err msg
+        | Ok (v, new_state) ->
+            let new_env = VariableMap.add var (v, type_of_val v) env
+            in cont new_state new_env
+        end
     (* TODO: A bunch of other things *)
     (* For both cond and match we try to reduce the expression to a concrete
      * value that we can branch on. However, if it cannot reduce to such an
@@ -429,10 +534,8 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                     addConstraint v (IsBool true) s env
                       (fun s env ->
                         Ok (interpret thn s env cont yield ret raise))
-                      (* TODO: Not certain whether merge is actually necessary,
-                         if this was an existential would we want all of these
-                         to generate as Either or would we still want Both
-                         under the top Either? *)
+                      (* If this is an existential condition, then use Either
+                       * here instead of Both *)
                       (fun x y -> Both (x, y))
                   in let false_res =
                     addConstraint v (IsBool false) s env

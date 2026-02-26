@@ -108,6 +108,9 @@ module type Ast_Defs = sig
   val asTruth : value -> bool option
   val boolAsValue : bool -> value
 
+  (* Used to construct expressions that test equality of values of a given type *)
+  val equality_func : typ -> funct
+
   (* Used to handle loops
    * - isUnit determines whether a type is the unit type, which is needed to
    *   determine if a type is list-like
