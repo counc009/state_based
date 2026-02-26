@@ -91,11 +91,11 @@ module Interp(Ast : Ast.Ast_Defs) = struct
    * key and the value is qualifiers applied to it. For attributes, the key is
    * just the attribute and whether it is negated and this maps to the value and
    * any qualifiers applied to it. *)
-  module ElementOrder : Map.OrderedType with type t = element * value * bool = struct
-    type t = element * value * bool
+  module ElementOrder : Map.OrderedType with type t = element * value = struct
+    type t = element * value
     let compare : t -> t -> int = compare
   end
-  module ElementMap : (Map.S with type key = element * value * bool)
+  module ElementMap : (Map.S with type key = element * value)
     = Map.Make(ElementOrder)
 
   module AttributeOrder : Map.OrderedType with type t = attribute = struct
@@ -105,7 +105,9 @@ module Interp(Ast : Ast.Ast_Defs) = struct
   module AttributeMap : (Map.S with type key = attribute)
     = Map.Make(AttributeOrder)
 
-  type state = State of state ElementMap.t * (value * state) AttributeMap.t
+  type element_result = Negated | Positive of state
+  and state = State of element_result ElementMap.t * value AttributeMap.t
+
   let empty_state = State (ElementMap.empty, AttributeMap.empty)
 
   type loop_info = AllUnknown of uid | AllKnown of value | LastKnown of uid * value
@@ -134,59 +136,64 @@ module Interp(Ast : Ast.Ast_Defs) = struct
     | Success of interp_state
     | Both    of interp_res * interp_res
 
-  let rec add_qual
-      ((q, v, qs) : (element * bool, attribute) Either.t * value * state)
-      (State (els, ats) : state) : state =
-    let add_quals (State (els, ats) : state) (ps : state) =
-      let rec helper els ats state =
-        match els with
-        | ((el, v, neg), qs) :: tl
-          -> helper tl ats (add_qual (Left (el, neg), v, qs) state)
-        | [] ->
-            match ats with
-            | (at, (v, qs)) :: tl
-              -> helper [] tl (add_qual (Right at, v, qs) state)
-            | [] -> state
-      in helper (ElementMap.bindings els) (AttributeMap.bindings ats) ps
-    in match q with
-    | Left (elem, neg) ->
-        let removed = ElementMap.remove (elem, v, not neg) els
-        in let added = ElementMap.update (elem, v, neg)
-                        (fun cur ->
-                          match cur with
-                          | None -> Some qs
-                          | Some ps -> Some (add_quals qs ps))
-                        removed
-        in State (added, ats)
-    | Right attr ->
-        let added = AttributeMap.update attr
-                      (fun cur ->
-                        match cur with
-                        | None -> Some (v, qs)
-                        | Some (_, ps) -> Some (v, add_quals qs ps))
-                      ats
-        in State (els, added)
+  (* Add the second state to the first state *)
+  let rec add_states (State (el, at)) (State (em, ar)) : state =
+    let new_attrs =
+      AttributeMap.merge (fun _attr orig added ->
+        match added with
+        | Some v -> Some v
+        | None -> orig)
+        at ar
+    in let new_elems =
+      ElementMap.merge (fun _elem orig added ->
+        match orig, added with
+        | None, None -> None
+        | None, Some added -> Some added
+        | Some orig, None -> Some orig
+        | Some Negated, Some added -> Some added
+        | Some _, Some Negated -> Some Negated
+        | Some (Positive orig), Some (Positive added) ->
+            Some (Positive (add_states orig added)))
+        el em
+    in State (new_elems, new_attrs)
 
-  let rec eval_qual (q : qual) (env : env)
-    : ((element * bool, attribute) Either.t * value * state, string) result =
-    let rec eval_quals (qs : qual list) (env : env) : (state, string) result =
-      match qs with
-      | [] -> Ok empty_state
-      | q :: qs ->
-          Result.bind (eval_qual q env) (fun qres ->
-            Result.bind (eval_quals qs env) (fun state ->
-              Ok (add_qual qres state)))
-    in match q with
-    | Attribute (_, e, qs) | Element (_, e, qs) ->
-        let bq = match q with Attribute (at, _, _) -> Either.Right at
-                            | Element   (el, _, _) -> Either.Left (el, false)
-                            | _ -> failwith "Match error"
-        in Result.bind (eval_expr e env) (fun (v, _) ->
-          Result.bind (eval_quals qs env) (fun state ->
-            Ok (bq, v, state)))
-    | NotElement (el, e) ->
-        Result.bind (eval_expr e env) (fun (v, _) ->
-          Ok (Either.Left (el, true), v, empty_state))
+  type qualifier = Attribute  of attribute * value
+                 | Element    of element   * value * state
+                 | NotElement of element   * value
+
+  let add_qual (q : qualifier) (State (els, ats) : state) : state =
+    match q with
+    | Attribute (attr, v) ->
+        State (els, AttributeMap.add attr v ats)
+    | NotElement (elem, v) ->
+        State (ElementMap.add (elem, v) Negated els, ats)
+    | Element (elem, v, nested) ->
+        let updated =
+          ElementMap.update (elem, v)
+            (fun cur ->
+              let s =
+                match cur with
+                | None | Some Negated -> empty_state
+                | Some (Positive s) -> s
+              in Some (Positive (add_states s nested)))
+            els
+        in State (updated, ats)
+
+  let rec eval_qual (q : qual) (env : env) : (qualifier, string) result =
+    match q with
+    | Attribute (attr, exp) ->
+        Result.bind (eval_expr exp env) (fun (v, _) ->
+          Ok (Attribute (attr, v)))
+    | Element (elem, exp, q) ->
+        Result.bind (eval_expr exp env) (fun (v, _) ->
+          match q with
+          | None -> Ok (Element (elem, v, empty_state))
+          | Some q ->
+              Result.bind (eval_qual q env) (fun q ->
+                Ok (Element (elem, v, add_qual q empty_state))))
+    | NotElement (elem, exp) ->
+        Result.bind (eval_expr exp env) (fun (v, _) ->
+          Ok (NotElement (elem, v)))
 
   (* A type representing attempting to find some value in a structure where we
    * may or may not find it or may be able to create the value and if so we need
@@ -235,20 +242,22 @@ module Interp(Ast : Ast.Ast_Defs) = struct
       | State (elems, attrs) ->
           let with_elems =
             ElementMap.fold
-              (fun (el, v, neg) s new_state ->
+              (fun (el, v) s new_state ->
                 Result.bind new_state (fun new_state ->
                   Result.bind (subst_in_value v) (fun new_v ->
-                    Result.bind (subst_in_state s) (fun new_s ->
-                      Ok (add_qual (Either.Left (el, neg), new_v, new_s) new_state)))))
+                    match s with
+                    | Negated -> Ok (add_qual (NotElement (el, new_v)) new_state)
+                    | Positive s ->
+                        Result.bind (subst_in_state s) (fun new_s ->
+                          Ok (add_qual (Element (el, new_v, new_s)) new_state)))))
               elems (Ok empty_state)
           in let with_attrs =
             Result.bind with_elems (fun with_elems ->
               AttributeMap.fold
-                (fun attr (v, s) new_state ->
+                (fun attr v new_state ->
                   Result.bind new_state (fun new_state ->
                     Result.bind (subst_in_value v) (fun new_v ->
-                      Result.bind (subst_in_state s) (fun new_s ->
-                        Ok (add_qual (Either.Right attr, new_v, new_s) new_state)))))
+                      Ok (add_qual (Attribute (attr, new_v)) new_state))))
                 attrs (Ok with_elems))
           in with_attrs
     in let new_env : (env, string) result =

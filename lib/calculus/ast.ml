@@ -51,19 +51,15 @@ module type Ast_Defs = sig
              | ListVal      of namedTy * value
   and record = value FieldMap.t
 
-  (* A qualifier is either an attribute or element with qualifiers on it or
-   * a negated element (which are not further qualified, as handling negations
-   * of qualified qualifiers is quite difficult; it also doesn't make sense to
-   * negate attributes) *)
-  type qual = Attribute   of attribute * expr * qual list
-            | Element     of element * expr * qual list
+  (* A qualifier is either an attribute (which has a value), an element (which
+   * may have nested state on it), or a negated element. *)
+  type qual = Attribute   of attribute * expr
+            | Element     of element * expr * qual option
             | NotElement  of element * expr
   type attr = AttrAccess  of attribute
-            | OnAttribute of attribute * attr
             | OnElement   of element * expr * attr
   type elem = Element     of element * expr
             | NotElement  of element * expr
-            | OnAttribute of attribute * elem
             | OnElement   of element * expr * elem
 
   type stmt = Seq      of stmt * stmt
