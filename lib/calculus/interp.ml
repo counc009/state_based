@@ -196,15 +196,172 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           Ok (NotElement (elem, v)))
 
   (* A type representing attempting to find some value in a structure where we
-   * may or may not find it or may be able to create the value and if so we need
-   * to return additional information *)
-  type ('a, 'b) find = NotLocated
-                     | Located of 'a
+   * may find it, know that it cannot exist, or may not find it and either be
+   * able to add it "easily" or by creating a substantial structure to add it *)
+  type ('a, 'b) find = Located of 'a
+                     | NotContained
+                     | Added   of 'a * 'b
                      | Created of 'a * 'b
 
-  let get_attribute (_a : attr) (_s : interp_state) (_env : env)
+  let get_attribute (a : attr) (s : interp_state) (env : env)
     : (value * interp_state, string) result =
-      failwith "TODO"
+    let rec attr_to_state (a : attr) : (value * state, string) result =
+      match a with
+      | AttrAccess a ->
+          let v : value = Unknown (Val (uid ()), attributeDef a)
+          in Ok (v, add_qual (Attribute (a, v)) empty_state)
+      | OnElement (el, ex, at) ->
+          Result.bind (eval_expr ex env) (fun (v, _) ->
+            Result.bind (attr_to_state at) (fun (atv, s) ->
+              Ok (atv, add_qual (Element (el, v, s)) empty_state)))
+    in let rec find_in_state (a : attr) (State (els, ats))
+      : ((value, state) find, string) result =
+      match a with
+      | AttrAccess a ->
+          begin match AttributeMap.find_opt a ats with
+          | Some v -> Ok (Located v)
+          | None ->
+              let v : value = Unknown (Val (uid ()), attributeDef a)
+              in Ok (Added (v, State (els, AttributeMap.add a v ats)))
+          end
+      | OnElement (el, ex, at) ->
+          Result.bind (eval_expr ex env) (fun (v, _) ->
+            match ElementMap.find_opt (el, v) els with
+            | None ->
+                Result.bind (attr_to_state at) (fun (v, nested) ->
+                  Ok (Created (v, nested)))
+            | Some Negated -> Ok NotContained
+            | Some (Positive s) ->
+                match find_in_state at s with
+                | Error msg -> Error msg
+                | Ok NotContained -> Ok NotContained
+                | Ok (Located v) -> Ok (Located v)
+                | Ok (Added (res, st)) ->
+                    let new_els = ElementMap.add (el, v) (Positive st) els
+                    in Ok (Added (res, State (new_els, ats)))
+                | Ok (Created (res, st)) ->
+                    let new_els = ElementMap.add (el, v) (Positive st) els
+                    in Ok (Created (res, State (new_els, ats))))
+    in match find_in_state a s.final with
+    | Error msg -> Error msg
+    (* NotContained means that one of the elements the attribute is on was
+     * negated in the final state, meaning this attribute does not have a value *)
+    | Ok NotContained -> Error "Attribute does not exist"
+    | Ok (Located v) -> Ok (v, s)
+    | Ok (Added (v, new_final)) ->
+        (* We prefer to add a value for an attribute on the initial state
+         * rather than the final state since that gives us a source of the
+         * value *)
+        begin match find_in_state a s.init with
+        | Ok (Located v) -> Ok (v, s)
+        | Ok (Added (v, new_init)) ->
+            Ok (v, { init = new_init; final = s.final; loops = s.loops;
+                     bools = s.bools; constrs = s.constrs })
+        (* If the value cannot be contained in the initial state, would require
+         * creating an element, or we ran into some kind of error (which would
+         * be unexpected) we just add the attribute in the final state *)
+        (* NOTE: We prefer to Add rather than Create since this may represent a
+         * situation where we have added an element and are now accesssing
+         * an unspecified attribute *)
+        | _ -> Ok (v, { init = s.init; final = new_final; loops = s.loops;
+                        bools = s.bools; constrs = s.constrs })
+        end
+    (* We cannot create elements in the final state but we can try the initial
+     * state *)
+    | Ok (Created (_, _)) ->
+        begin match find_in_state a s.init with
+        | Ok (Located v) -> Ok (v, s)
+        | Ok NotContained -> Error "Attribute does not exist"
+        | Ok (Added (v, new_init)) | Ok (Created (v, new_init)) ->
+            Ok (v, { init = new_init; final = s.final; loops = s.loops;
+                     bools = s.bools; constrs = s.constrs })
+        (* This would be unexpected *)
+        | Error msg -> Error msg
+        end
+
+  (* Either returns whether or not the element is in the state (Either.Left) or
+   * new initial states that assume the element does and does not exist,
+   * respectively (Either.Right) *)
+  let get_element (e : elem) (s : interp_state) (env : env)
+    (k : bool -> interp_state -> interp_res)
+    : (interp_res, string) result =
+    let rec find_in_state (e : elem) (State (els, _))
+      : (bool option, string) result =
+      match e with
+      | Element (el, ex) ->
+          Result.bind (eval_expr ex env) (fun (v, _) ->
+            match ElementMap.find_opt (el, v) els with
+            | Some (Positive _) -> Ok (Some true)
+            | Some Negated -> Ok (Some false)
+            | None -> Ok None)
+      | OnElement (el, ex, e) ->
+          Result.bind (eval_expr ex env) (fun (v, _) ->
+            match ElementMap.find_opt (el, v) els with
+            | None -> Ok None
+            | Some Negated -> Ok (Some false)
+            | Some (Positive s) -> find_in_state e s)
+    in let rec states_from_elem (e : elem)
+      (k : bool -> state -> interp_res) : (interp_res, string) result =
+      match e with
+      | Element (el, ex) ->
+          Result.bind (eval_expr ex env) (fun (v, _) ->
+            let state_with =
+              add_qual (Element (el, v, empty_state)) empty_state
+            in let state_without =
+              add_qual (NotElement (el, v)) empty_state
+            in Ok (Both (k true state_with, k false state_without)))
+      | OnElement (el, ex, e) ->
+          Result.bind (eval_expr ex env) (fun (v, _) ->
+            let state_without =
+              add_qual (NotElement (el, v)) empty_state
+            in let res_e =
+              states_from_elem e
+                (fun b s -> k b (add_qual (Element (el, v, s)) empty_state))
+            in Result.bind res_e (fun res_e ->
+              Ok (Both (res_e, k false state_without))))
+    in let rec find_or_add (e : elem) (State (els, ats))
+      (k : bool -> state -> interp_res) : (interp_res, string) result =
+      match e with
+      | Element (el, ex) ->
+          Result.bind (eval_expr ex env) (fun (v, _) ->
+            match ElementMap.find_opt (el, v) els with
+            | Some (Positive _) -> Ok (k true (State (els, ats)))
+            | Some Negated -> Ok (k false (State (els, ats)))
+            | None ->
+                let els_with =
+                  ElementMap.add (el, v) (Positive empty_state) els
+                in let els_without =
+                  ElementMap.add (el, v) Negated els
+                in Ok (Both (k true (State (els_with, ats)),
+                             k false (State (els_without, ats)))))
+      | OnElement (el, ex, e) ->
+          Result.bind (eval_expr ex env) (fun (v, _) ->
+            match ElementMap.find_opt (el, v) els with
+            | Some Negated -> Ok (k false (State (els, ats)))
+            | Some (Positive s) ->
+                find_or_add e s (fun b new_s ->
+                  let new_els = ElementMap.add (el, v) (Positive new_s) els
+                  in k b (State (new_els, ats)))
+            | None ->
+                let states_res =
+                  states_from_elem (OnElement (el, ex, e)) (fun b s ->
+                    let new_els = ElementMap.add (el, v) (Positive s) els
+                    in k b (State (new_els, ats)))
+                in Result.bind states_res (fun states_res ->
+                  let els_without = ElementMap.add (el, v) Negated els
+                  in Ok (Both (states_res, k false (State (els_without, ats))))))
+    (* First check if we can resolve this question based on the final state *)
+    in match find_in_state e s.final with
+    | Error msg -> Error msg
+    | Ok (Some b) -> Ok (k b s)
+    | Ok None ->
+        (* If not, we'll use the initial state and either find out or try all
+         * the options *)
+        find_or_add e s.init (fun b new_init ->
+          let new_state = {
+            init = new_init; final = s.final; loops = s.loops;
+            bools = s.bools; constrs = s.constrs }
+          in k b new_state)
 
   let rec substitute_unknown (u : id) (v : value) (s : interp_state) (env : env)
     (k : interp_state -> env -> (interp_res, string) result)
@@ -523,6 +680,14 @@ module Interp(Ast : Ast.Ast_Defs) = struct
             let new_env = VariableMap.add var (v, type_of_val v) env
             in cont new_state new_env
         end
+    | Contains (elem, thn, els) ->
+        let get_res =
+          get_element elem s env (fun b new_s ->
+            interpret (if b then thn else els) new_s env cont yield ret raise)
+        in begin match get_res with
+        | Error msg -> Err msg
+        | Ok res -> res
+        end
     (* TODO: A bunch of other things *)
     (* For both cond and match we try to reduce the expression to a concrete
      * value that we can branch on. However, if it cannot reduce to such an
@@ -551,10 +716,13 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                       (fun s env ->
                         Ok (interpret els s env cont yield ret raise))
                       (fun x y -> Both (x, y))
+                  (* true_res and false_res can be Error iff adding the
+                   * constraint fails, meaning it is inconsistent. If only one
+                   * fails we can safely ignore it *)
                   in match true_res, false_res with
                   | Ok true_res, Ok false_res -> Both (true_res, false_res)
+                  | Ok res, Error _ | Error _, Ok res -> res
                   | Error m, Error n -> Err (m ^ "\n" ^ n)
-                  | Error m, Ok _ | Ok _, Error m -> Err m
         end
     (* TODO: A bunch of other things *)
     | TryCatch (body, var, catch, finally) ->

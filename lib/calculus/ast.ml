@@ -59,7 +59,6 @@ module type Ast_Defs = sig
   type attr = AttrAccess  of attribute
             | OnElement   of element * expr * attr
   type elem = Element     of element * expr
-            | NotElement  of element * expr
             | OnElement   of element * expr * elem
 
   type stmt = Seq      of stmt * stmt
