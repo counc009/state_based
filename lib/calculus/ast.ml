@@ -121,10 +121,10 @@ module type Ast_Defs = sig
    * or (and x y) = true is equivalent to x = y = true. To enable such
    * simplifications we allow implementations to define how constraints on a
    * function can be simplified *)
-  type constr = IsBool of bool | IsConstructor of bool * (id * typ)
+  type constr = IsBool of bool | IsConstructor of bool * value | IsEqual of value
   type result_constraint = IsBool        of value * bool
-                         | IsConstructor of value * (bool * (id * typ))
-                         | IsEqual       of id * value
+                         | IsConstructor of value * (bool * value)
+                         | IsEqual       of value * value
   type func_constraints = Unreducible | Reducible of result_constraint list list
 
   val reduceFuncConstraint : funct -> value -> constr -> func_constraints

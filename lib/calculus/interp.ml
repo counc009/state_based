@@ -142,8 +142,10 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           | [] -> state
     in helper (ElementMap.bindings els) (AttributeMap.bindings ats) ps
 
-  let substitute_unknown (u : id) (v : value) (s : interp_state) (env : env)
-    : (interp_state * env, string) result =
+  let rec substitute_unknown (u : id) (v : value) (s : interp_state) (env : env)
+    (k : interp_state -> env -> (interp_res, string) result)
+    (merge : interp_res -> interp_res -> interp_res)
+    : (interp_res, string) result =
     let rec subst_in_value (w : value) : (value, string) result =
       match w with
       | Unknown (w, _) when u = w -> Ok v
@@ -198,54 +200,180 @@ module Interp(Ast : Ast.Ast_Defs) = struct
         env
     in let new_init = subst_in_state s.init
     in let new_final = subst_in_state s.final
-    (* TODO: Don't add bools and constrs back manually, invoke addConstraint
-       for each. *)
-    in let new_bools = s.bools
-    in let new_constrs = s.constrs
-    in let new_loops = s.loops
-    in Result.bind new_init (fun new_init ->
+    in let new_loops =
+      ValueMap.fold (fun lst loop new_loops ->
+        Result.bind new_loops (fun new_loops ->
+          let new_lst = subst_in_value lst
+          in let new_loop =
+            match loop, u with
+            | AllUnknown i, Loop j when i = j -> Ok (AllKnown v)
+            | AllUnknown i, Val j when i = j -> Ok (LastKnown (i, v))
+            | AllUnknown _, _ -> Ok loop
+            | AllKnown w, _ ->
+                Result.bind (subst_in_value w) (fun w -> Ok (AllKnown w))
+            | LastKnown (i, _w), Loop j when i = j ->
+                (* TODO: Should unify w and v *) Ok (AllKnown v)
+            | LastKnown  (i, w), _ ->
+                Result.bind (subst_in_value w) (fun w -> Ok (LastKnown (i, w)))
+          in Result.bind new_loop (fun new_loop ->
+              Result.bind new_lst (fun new_lst ->
+                match ValueMap.find_opt new_lst new_loops with
+                | None ->
+                    Ok (ValueMap.add new_lst new_loop new_loops)
+                | Some _l -> (* TODO: Should unify l and new_loop *)
+                    Ok new_loops))))
+        s.loops
+        (Ok ValueMap.empty)
+    (* We don't add bools and constrs manually, we use addConstraint *)
+    in let partial_state =
+      Result.bind new_init (fun new_init ->
         Result.bind new_final (fun new_final ->
-          Result.bind new_env (fun new_env ->
-            Ok ({ init = new_init; final = new_final; loops = new_loops;
-                  bools = new_bools; constrs = new_constrs }, new_env))))
+          Result.bind new_loops (fun new_loops ->
+            Result.bind new_env (fun new_env ->
+              Ok ({ init = new_init; final = new_final; loops = new_loops;
+                    bools = ValueMap.empty; constrs = ValueMap.empty },
+                  new_env)))))
+    in let add_bools =
+      ValueMap.fold
+        (fun old_v constr k state env -> 
+          Result.bind (subst_in_value old_v) (fun new_v ->
+            addConstraint new_v (IsBool constr) state env k merge))
+        s.bools
+        k
+    in let add_constrs =
+      ValueMap.fold
+        (fun old_v (cb, cv) k state env -> 
+          Result.bind (subst_in_value old_v) (fun new_v ->
+            addConstraint new_v (IsConstructor (cb, cv)) state env k merge))
+        s.constrs
+        add_bools
+    in Result.bind partial_state (fun (s, env) -> add_constrs s env)
 
-  let addConstraint (v : value) (c : constr) (s : interp_state) (env : env)
-    (k : interp_state -> env -> interp_res) : (interp_res, string) result =
-    let checkValue =
+  and addConstraint (v : value) (c : constr) (s : interp_state) (env : env)
+    (k : interp_state -> env -> (interp_res, string) result)
+    (merge : interp_res -> interp_res -> interp_res)
+    : (interp_res, string) result =
+    let addConstraintBasic (v : value) (c : constr) (s : interp_state)
+      (env : env) (k : interp_state -> env -> (interp_res, string) result) =
       match c with
       | IsBool b ->
-          begin match ValueMap.find_opt v s.bools with
+          let new_state = {
+            init = s.init; final = s.final; loops = s.loops;
+            bools = ValueMap.add v b s.bools;
+            constrs = s.constrs }
+          in k new_state env
+      | IsConstructor (which, c) ->
+          let new_state = {
+            init = s.init; final = s.final; loops = s.loops;
+            bools = s.bools;
+            constrs = ValueMap.add v (which, c) s.constrs }
+          in k new_state env
+      | IsEqual _w -> failwith "TODO"
+
+    in let checkValue =
+      match c with
+      | IsBool b ->
+          begin match asTruth v with
           | Some c when b = c -> Some (k s env)
-          | Some _ -> Some (Err "Incompatible constraints")
+          | Some _ -> Some (Error "Incompatible constraints")
           | None ->
-              match asTruth v with
+              match ValueMap.find_opt v s.bools with
               | Some c when b = c -> Some (k s env)
-              | Some _ -> Some (Err "Incompatible constraints")
+              | Some _ -> Some (Error "Incompatible constraints")
               | None -> None
           end
-      | IsConstructor (_, _) -> failwith "TODO"
+      | IsConstructor (which, b) ->
+          begin match v with
+          | Constructor (_, c, x) when c = which ->
+              Some (addConstraint x (IsEqual b) s env k merge)
+          | Constructor (_, _, _) -> Some (Error "Incompatible constraints")
+          | _ ->
+              match ValueMap.find_opt v s.constrs with
+              | Some (c, x) when c = which ->
+                  Some (addConstraint x (IsEqual b) s env k merge)
+              | Some (_, _) -> Some (Error "Incompatible constraints")
+              | None -> None
+          end
+      | IsEqual w ->
+          if v = w
+          then Some (k s env)
+          else
+            match v, w with
+            | Unknown (id, _), _ ->
+                Some (substitute_unknown id w s env k merge)
+            | _, Unknown (id, _) ->
+                Some (substitute_unknown id v s env k merge)
+            (* TODO: Is it fair to assume literals must be syntactically equal? *)
+            | Literal (_, _), Literal (_, _) ->
+                Some (Error "Incompatible constraints")
+            | Pair (a, b, _), Pair (x, y, _) ->
+                Some (addConstraint a (IsEqual x) s env
+                  (fun s env ->
+                    addConstraint b (IsEqual y) s env k merge)
+                  merge)
+            | Constructor (_, a, b), Constructor (_, x, y) ->
+                if a = x
+                then
+                  Some (addConstraint b (IsEqual y) s env k merge)
+                else Some (Error "Incompatiable constraints")
+            | Struct (_, _x), Struct (_, _y) ->
+                failwith "TODO"
+            | ListVal (_, _x), ListVal (_, _y) ->
+                failwith "TODO"
+            | Constructor (_, _, _), ListVal (_, _) -> failwith "???"
+            | ListVal (_, _), Constructor (_, _, _) -> failwith "???"
+            (* Try to simplify function stuff below *)
+            | Function (_, _, _), _ -> None
+            | _, Function (_, _, _) ->
+                Some (addConstraint w (IsEqual v) s env k merge)
+            | _, _ -> Some (Error "Incompatible constraints")
     in match checkValue with
-    | Some res -> Ok res
+    | Some res -> res
     | None ->
         match v with
-        | Unknown (id, _) ->
+        | Unknown (id, typ) ->
             let new_val =
               match c with
-              | IsBool b -> boolAsValue b
-              | IsConstructor (_, _) -> failwith "TODO"
-            in Result.bind (substitute_unknown id new_val s env)
-                (fun (s, env) -> Ok (k s env))
-        | Function (_f, _arg, _) -> failwith "TODO"
-        | _ ->
-            match c with
-            | IsBool b ->
-                let new_state = {
-                  init = s.init; final = s.final; loops = s.loops;
-                  bools = ValueMap.add v b s.bools;
-                  constrs = s.constrs }
-                in Ok (k new_state env)
-            | IsConstructor (_, _) -> failwith "TODO"
-
+              | IsBool b -> Ok (boolAsValue b)
+              | IsConstructor (which, c) ->
+                  begin match typ with
+                  | Named nm -> Ok (Constructor (nm, which, c))
+                  | _ -> Error "Invalid type for constructor"
+                  end
+              | IsEqual w -> Ok w
+            in begin match new_val with
+            | Ok new_val -> substitute_unknown id new_val s env k merge
+            | Error msg -> Error msg
+            end
+        | Function (f, arg, _) ->
+            begin match reduceFuncConstraint f arg c with
+            | Unreducible -> addConstraintBasic v c s env k
+            | Reducible options ->
+                List.fold_left
+                  (fun total_res cs ->
+                    let this_res : (interp_res, string) result =
+                      List.fold_left
+                        (fun k c s env ->
+                          match c with
+                          | IsBool (v, b) ->
+                              addConstraint v (IsBool b) s env k merge
+                          | IsConstructor (v, (which, arg)) ->
+                              addConstraint v (IsConstructor (which, arg))
+                                s env k merge
+                          | IsEqual (x, y) ->
+                              addConstraint x (IsEqual y) s env k merge)
+                        k
+                        cs
+                        s
+                        env
+                    in match total_res, this_res with
+                    | Error _, _ -> this_res
+                    | _, Error _ -> total_res
+                    | Ok total, Ok this -> Ok (merge total this))
+                  (Error "Unsatisfiable function constraint reduction")
+                  options
+            end
+        | _ -> addConstraintBasic v c s env k
 
   let rec interpret (p : stmt) (s : interp_state) (env : env)
     (cont  : interp_state -> env -> interp_res)
@@ -297,10 +425,20 @@ module Interp(Ast : Ast.Ast_Defs) = struct
               | Some true  -> interpret thn s env cont yield ret raise
               | Some false -> interpret els s env cont yield ret raise
               | None ->
-                  let true_res = addConstraint v (IsBool true) s env
-                      (fun s env -> interpret thn s env cont yield ret raise)
-                  in let false_res = addConstraint v (IsBool false) s env
-                      (fun s env -> interpret els s env cont yield ret raise)
+                  let true_res =
+                    addConstraint v (IsBool true) s env
+                      (fun s env ->
+                        Ok (interpret thn s env cont yield ret raise))
+                      (* TODO: Not certain whether merge is actually necessary,
+                         if this was an existential would we want all of these
+                         to generate as Either or would we still want Both
+                         under the top Either? *)
+                      (fun x y -> Both (x, y))
+                  in let false_res =
+                    addConstraint v (IsBool false) s env
+                      (fun s env ->
+                        Ok (interpret els s env cont yield ret raise))
+                      (fun x y -> Both (x, y))
                   in match true_res, false_res with
                   | Ok true_res, Ok false_res -> Both (true_res, false_res)
                   | Error m, Error n -> Err (m ^ "\n" ^ n)
