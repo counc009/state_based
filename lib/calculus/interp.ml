@@ -688,7 +688,6 @@ module Interp(Ast : Ast.Ast_Defs) = struct
         | Error msg -> Err msg
         | Ok res -> res
         end
-    (* TODO: A bunch of other things *)
     (* For both cond and match we try to reduce the expression to a concrete
      * value that we can branch on. However, if it cannot reduce to such an
      * expression then we try both possible options (which involves
@@ -724,7 +723,47 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                   | Ok res, Error _ | Error _, Ok res -> res
                   | Error m, Error n -> Err (m ^ "\n" ^ n)
         end
-    (* TODO: A bunch of other things *)
+    | Match (expr, var, left, right) ->
+        begin match eval_expr expr env with
+        | Error msg -> Err msg
+        | Ok (v, t) ->
+            match t with
+            | Named n ->
+                begin match v with
+                | Constructor (_, b, v) ->
+                    let t = (if b then fst else snd) (namedTyDef n)
+                    in let new_env = VariableMap.add var (v, t) env
+                    in interpret (if b then left else right) s new_env
+                          cont yield ret raise
+                (* The value cannot be evaluated sufficiently so try both *)
+                | _ ->
+                    let (type_left, type_right) = namedTyDef n
+                    in let val_left = Unknown (Val (uid ()), type_left)
+                    in let val_right = Unknown (Val (uid ()), type_right)
+                    in let env_left =
+                      VariableMap.add var (val_left, type_left) env
+                    in let env_right =
+                      VariableMap.add var (val_right, type_right) env
+                    in let left_res =
+                      addConstraint v (IsConstructor (true, val_left))
+                        s env_left
+                        (fun s env ->
+                          Ok (interpret left s env cont yield ret raise))
+                        (fun x y -> Both (x, y))
+                    in let right_res =
+                      addConstraint v (IsConstructor (false, val_left))
+                        s env_right
+                        (fun s env ->
+                          Ok (interpret right s env cont yield ret raise))
+                        (fun x y -> Both (x, y))
+                    in match left_res, right_res with
+                    | Ok left_res, Ok right_res -> Both (left_res, right_res)
+                    | Ok res, Error _ | Error _, Ok res -> res
+                    | Error m, Error n -> Err (m ^ "\n" ^ n)
+                end
+            | _ -> Err "Cannot match over non-named type"
+        end
+    | ForEach (_var, _resTyp, _lst, _elemVar, _body) -> failwith "TODO"
     | TryCatch (body, var, catch, finally) ->
         interpret body s env
           (* continue : execute finally and then continue as usual *)
@@ -784,5 +823,4 @@ module Interp(Ast : Ast.Ast_Defs) = struct
         | Error msg -> Err msg
         | Ok v -> yield s env v
         end
-    | _ -> failwith "TODO"
 end
