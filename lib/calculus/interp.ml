@@ -16,6 +16,13 @@ module Interp(Ast : Ast.Ast_Defs) = struct
     | Struct (s, _) -> Struct s
     | ListVal (n, _) -> Named n
 
+  let list_like (n : namedTy) : typ option =
+    let (nil, cons) = namedTyDef n
+    in if not (isUnit nil) then None
+    else match cons with
+      | Product (hd, Named tl) when tl = n -> Some hd
+      | _ -> None
+
   type env = (value * typ) VariableMap.t
 
   let rec eval_expr (e : expr) (env : env) : (value * typ, string) result =
@@ -763,7 +770,68 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                 end
             | _ -> Err "Cannot match over non-named type"
         end
-    | ForEach (_var, _resTyp, _lst, _elemVar, _body) -> failwith "TODO"
+    | ForEach (var, resTy, lst, elemVar, body) ->
+        begin match eval_expr lst env with
+        | Error msg -> Err msg
+        | Ok (v, t) ->
+            match t with
+            | Named n ->
+                begin match list_like n with
+                | None -> Err "Cannot loop over non list-like type"
+                | Some elemTy ->
+                    let rec process_foreach (lst : value) (s : interp_state)
+                      (env : env)
+                      (cont : value -> interp_state -> env -> interp_res)
+                      : interp_res =
+                      match lst with
+                      | Literal _ | Pair _ | Struct _ ->
+                          Err "Internal Error: loop value has non-list value"
+                      | Constructor (_, true, u) -> (* Nil case *)
+                          cont (Constructor (listType resTy, true, u)) s env
+                      | Constructor (_, false, Pair (hd, tl, _)) -> (* Cons *)
+                          let body_env =
+                            VariableMap.add elemVar (hd, elemTy) env
+                          in interpret body s body_env
+                            (* If it continues, we produce no value this
+                             * iteration *)
+                            (fun s env -> process_foreach tl s env cont)
+                            (* If it yields, we'll end up adding that value to
+                             * the result of the loop over the tail *)
+                            (fun s env (resHd, t) ->
+                              if t <> resTy
+                              then Err "Yielded incorrect type"
+                              else
+                                process_foreach tl s env
+                                  (fun resTl s env ->
+                                    let res =
+                                      Constructor (listType resTy,
+                                        false, (* cons *)
+                                        Pair (resHd, resTl,
+                                          Product (resTy, 
+                                            Named (listType resTy))))
+                                    in cont res s env))
+                            ret
+                            raise
+                      | Constructor (_, false, _xs) -> (* Unknown cons *)
+                          failwith "TODO"
+                      (* TODO: Is it possible to collect the different
+                       * behaviors and their results together? That would be
+                       * more accurate but probably then make looping over a
+                       * ListVal more difficult *)
+                      | ListVal (_, _elemVal) ->
+                          failwith "TODO"
+                      | _ -> (* Loop over an unknown value *)
+                          failwith "TODO"
+                    in process_foreach v s env
+                      (fun res s env ->
+                        let new_env =
+                          VariableMap.add var
+                            (res, Named (listType resTy))
+                            env
+                        in cont s new_env)
+                end
+            | _ -> Err "Cannot loop over non list-like type"
+        end
     | TryCatch (body, var, catch, finally) ->
         interpret body s env
           (* continue : execute finally and then continue as usual *)
