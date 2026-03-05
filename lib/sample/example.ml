@@ -1,7 +1,7 @@
 open Calculus.Ast
 
 type atts = Content
-type elms = File
+type elms = File | Dir
 type lits = String of string | Path of string | Bool of bool | Unit
 type prim = String | Path | Bool | Unit
 
@@ -108,6 +108,7 @@ module rec Calc : Ast_Defs
 
   let elementDef : element -> typ = function
     | File -> Primitive Path
+    | Dir  -> Primitive Path
 
   let actionDef : action -> _ = function _ -> .
 
@@ -177,6 +178,7 @@ and string_of_list ?(sep = false) (v : Calc.value) : string =
 let string_of_element (e : Calc.element) : string =
   match e with
   | File -> "file"
+  | Dir  -> "dir"
 
 let string_of_attribute (a : Calc.attribute) : string =
   match a with
@@ -270,6 +272,33 @@ let full2 : Calc.stmt =
     [ Assign ("S", Literal (Path "/path/to/src"))
     ; Assign ("D", Literal (Path "/path/to/dst"))
     ; example2 ]
+
+let test1 : Calc.stmt =
+  Contains (Element (File, Literal (Path "foo")),
+    Seq (
+      Add (NotElement (File, Literal (Path "foo"))),
+      Get ("x", OnElement (File, Literal (Path "foo"), AttrAccess Content))),
+    Raise (Literal (String "file does not exist")))
+
+let test2 : Calc.stmt =
+  Contains (OnElement (Dir, Literal (Path "a"),
+              OnElement (Dir, Literal (Path "b"),
+                Element (File, Literal (Path "c")))),
+    Return (Literal Unit),
+    Raise (Literal (String "file does not exist")))
+
+let test3 : Calc.stmt =
+  Contains (Element (Dir, Literal (Path "a")),
+    Raise (Literal (String "file should not exist")),
+    Seq (
+      Add (Element (Dir, Literal (Path "a"), None)),
+      Contains (OnElement (Dir, Literal (Path "a"),
+                  Element (File, Literal (Path "b"))),
+        Raise (Literal (String "file does not exist")),
+        Return (Literal Unit)
+      )
+    )
+  )
 
 let interp (p : Calc.stmt) : CalcInterp.interp_res =
   CalcInterp.interpret p CalcInterp.init_interp_state Calc.VariableMap.empty

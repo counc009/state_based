@@ -350,7 +350,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                   in k b (State (new_els, ats)))
             | None ->
                 let states_res =
-                  states_from_elem (OnElement (el, ex, e)) (fun b s ->
+                  states_from_elem e (fun b s ->
                     let new_els = ElementMap.add (el, v) (Positive s) els
                     in k b (State (new_els, ats)))
                 in Result.bind states_res (fun states_res ->
