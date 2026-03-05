@@ -2,8 +2,11 @@ open Calculus.Ast
 
 type atts = Content
 type elms = File
-type lits = String of string | Path of string
-type prim = String | Path | Env
+type lits = String of string | Path of string | Bool of bool | Unit
+type prim = String | Path | Bool | Unit
+
+type 't funcs = Equals of 't
+type 't named = List of 't
 
 type empty = |
 
@@ -13,24 +16,24 @@ module rec Calc : Ast_Defs
   with type element   = elms
   with type literal   = lits
   with type primTy    = prim
+  with type funct     = Calc.typ funcs
+  with type namedTy   = Calc.typ named
 
-  with type namedTy   = empty
   with type structTy  = empty
-  with type funct     = empty
 = struct
   type primTy = prim
 
   type field  = string
   module FieldMap = Map.Make(String)
 
-  type namedTy  = empty
+  type namedTy  = typ named
    and structTy = empty
    and typ = Product   of typ * typ
            | Primitive of primTy
            | Named     of namedTy
            | Struct    of structTy
 
-  type funct = empty
+  type funct = typ funcs
 
   type variable = string
   module VariableMap = Map.Make(String)
@@ -45,8 +48,6 @@ module rec Calc : Ast_Defs
                | Struct      of structTy * record
                | ListVal     of namedTy * value
 
-  type env = (value * typ) VariableMap.t
-
   type attribute = atts
   type element   = elms
 
@@ -54,39 +55,53 @@ module rec Calc : Ast_Defs
             | Literal  of literal
             | Variable of variable
             | Pair     of expr * expr
-            | Env
 
-  type qual = Attribute   of attribute * expr * qual list
-            | Element     of element * expr * qual list
+  type qual = Attribute   of attribute * expr
+            | Element     of element * expr * qual option
             | NotElement  of element * expr
   type attr = AttrAccess  of attribute
-            | OnAttribute of attribute * attr
             | OnElement   of element * expr * attr
   type elem = Element     of element * expr
-            | NotElement  of element * expr
-            | OnAttribute of attribute * elem
             | OnElement   of element * expr * elem
 
   type action = |
-   and stmt   = Action   of variable * action * expr * stmt
-              | Assign   of variable * expr * stmt
-              | Add      of qual * stmt
-              | Get      of variable * attr * stmt
-              | Contains of elem * stmt * stmt
-              | Cond     of expr * stmt * stmt
-              | Match    of expr * variable * stmt * stmt
-              | ForEach  of variable * typ * expr * variable * stmt * stmt
-              | Fail     of string
-              | Return   of expr
+   and stmt = Seq      of stmt * stmt
+            | Action   of variable * action * expr
+            | Assign   of variable * expr
+            | Add      of qual
+            | Get      of variable * attr
+            | Contains of elem * stmt * stmt
+            | Cond     of expr * stmt * stmt
+            | Match    of expr * variable (* value in constructor *)
+                        * stmt * stmt (* left and right cases *)
+            | ForEach  of variable (* variable for result of for-each *)
+                        * typ (* element type of the result *)
+                        * expr * variable (* list and element var *)
+                        * stmt (* body *)
+            | TryCatch of stmt (* body of try *)
+                        * variable * stmt (* exception name and handler *)
+                        * stmt (* finally body *)
+            | Raise    of expr
+            | Return   of expr
+            | Yield    of expr (* yield for a foreach statement *)
 
-  let namedTyDef : namedTy -> typ * typ = function _ -> .
+  let namedTyDef : namedTy -> typ * typ = function
+    | List t -> (Primitive Unit, Product (t, Named (List t)))
+
   let structTyDef : structTy -> _ = function _ -> .
 
-  let funcDef : funct -> _ = function _ -> .
+  let funcDef = function
+    | Equals t -> (Product (t, t), Primitive Bool,
+        fun (v : value) : value eval ->
+          match v with
+          | Pair (x, y, _) -> Reduced (Literal (Bool (x = y), Bool))
+          | _ -> Stuck)
 
   let literalTyp : literal -> primTy = function
     | String _ -> String
     | Path   _ -> Path
+    | Bool   _ -> Bool
+    | Unit     -> Unit
 
   let attributeDef : attribute -> typ = function
     | Content -> Primitive String
@@ -96,24 +111,42 @@ module rec Calc : Ast_Defs
 
   let actionDef : action -> _ = function _ -> .
 
-  let isTruthType (_ : typ)   : bool = false
-  let asTruth     (_ : value) : bool option = None
-  let boolAsValue (_ : bool)  : value = failwith "No boolean support"
+  let isTruthType (t : typ)   : bool =
+    match t with
+    | Primitive Bool -> true
+    | _ -> false
+  let asTruth     (v : value) : bool option =
+    match v with
+    | Literal (Bool b, _) -> Some b
+    | _ -> None
+  let boolAsValue (b : bool)  : value = Literal (Bool b, Bool)
 
-  let isUnit      (_ : typ)   : bool = false
-  let listType    (_ : typ)   : namedTy = failwith "No list support"
+  let equality_func (t : typ) : funct = Equals t
 
-  let envType : typ = Primitive Env
-  let envToVal (_ : env) : value = failwith "No environment support"
-  let envFromVal (_ : value) : env = failwith "No environment support"
+  let isUnit      (t : typ)   : bool =
+    match t with
+    | Primitive Unit -> true
+    | _ -> false
+  let valUnit : value = Literal (Unit, Unit)
+  let listType    (t : typ)   : namedTy = List t
 
-  type constr = IsBool of bool | IsConstructor of bool * (id * typ)
+  type constr = IsBool of bool | IsConstructor of bool * value | IsEqual of value
   type result_constraint = IsBool        of value * bool
-                         | IsConstructor of value * (bool * (id * typ))
-                         | IsEqual       of id * value
+                         | IsConstructor of value * (bool * value)
+                         | IsEqual       of value * value
   type func_constraints = Unreducible | Reducible of result_constraint list list
 
-  let reduceFuncConstraint : funct -> _ = function _ -> .
+  let reduceFuncConstraint (f : funct) (v : value) (c : constr)
+    : func_constraints =
+    match f with
+    | Equals _ ->
+        match c with
+        | IsBool true ->
+            begin match v with
+            | Pair (x, y, _) -> Reducible [[IsEqual (x, y)]]
+            | _ -> Unreducible
+            end
+        | _ -> Unreducible
 end
 
 module CalcInterp = Calculus.Interp.Interp(Calc)
@@ -124,11 +157,22 @@ let rec string_of_value (v : Calc.value) : string =
   | Unknown (Val x, _)    -> "?" ^ string_of_int x
   | Literal (String s, _) -> "\"" ^ s ^ "\""
   | Literal (Path p, _)   -> "'" ^ p ^ "'"
+  | Literal (Bool b, _)   -> string_of_bool b
+  | Literal (Unit, _)     -> "()"
   | Pair (x, y, _) -> "(" ^ string_of_value x ^ ", " ^ string_of_value y ^ ")"
   | Struct (_, _) -> .
-  | Constructor (_, _, _) -> .
-  | Function (_, _, _) -> .
-  | ListVal (_, _) -> .
+  | Constructor (List _, _, _) -> "[" ^ string_of_list v ^ "]"
+  | Function (Equals _, Pair (x, y, _), _) ->
+      string_of_value x ^ " == " ^ string_of_value y
+  | Function (Equals _, v, _) -> "==(" ^ string_of_value v ^ ")"
+  | ListVal (List _, v) -> "list { " ^ string_of_value v ^ " }"
+and string_of_list ?(sep = false) (v : Calc.value) : string =
+  match v with
+  | Constructor (List _, true, _) -> ""
+  | Constructor (List _, false, Pair (hd, tl, _)) ->
+      (if sep then "; " else "") ^ string_of_value hd
+      ^ string_of_list ~sep:true tl
+  | _ -> (if sep then "; " else "") ^ "~" ^ string_of_value v
 
 let string_of_element (e : Calc.element) : string =
   match e with
@@ -148,16 +192,18 @@ let string_of_state (state: CalcInterp.state) : string =
     let State(elems, attrs) = state
     in string_of_list empty lhs ", " rhs (fun s -> s)
       (List.map
-        (fun ((elem, v, neg), s) ->
-          (if neg then "not " else "")
-          ^ string_of_element elem ^ "(" ^ string_of_value v ^ ")"
-          ^ inner_string_of_state "" ": < " " >" s)
+        (fun ((elem, v), (s : CalcInterp.element_result)) ->
+          match s with
+          | Negated -> 
+              "not " ^ string_of_element elem ^ "(" ^ string_of_value v ^ ")"
+          | Positive s ->
+              string_of_element elem ^ "(" ^ string_of_value v ^ ")"
+              ^ inner_string_of_state "" ": < " " >" s)
         (CalcInterp.ElementMap.to_list elems)
       @
       List.map
-        (fun (attr, (v, s)) ->
-          string_of_attribute attr ^ " = " ^ string_of_value v
-          ^ inner_string_of_state "" ": < " " >" s)
+        (fun (attr, v) ->
+          string_of_attribute attr ^ " = " ^ string_of_value v)
         (CalcInterp.AttributeMap.to_list attrs))
   in inner_string_of_state "<>" "< " " >" state
 
@@ -167,57 +213,73 @@ let string_of_loop_info (i: CalcInterp.loop_info) : string =
   | AllKnown v -> string_of_value v
   | LastKnown (i, v) -> "#" ^ string_of_int i ^ "/" ^ string_of_value v
 
-let string_of_prg_type (state : CalcInterp.prg_type) : string =
+let string_of_interp_state (s : CalcInterp.interp_state) : string =
   Printf.sprintf "%s --> %s [{ %s }, { %s }, { %s }]"
-    (string_of_state state.init)
-    (string_of_state state.final)
+    (string_of_state s.init)
+    (string_of_state s.final)
     (String.concat ", "
       (List.map (fun (v, i) -> string_of_value v ^ ": " ^ string_of_loop_info i)
-        (CalcInterp.ValueMap.to_list state.loops)))
+        (CalcInterp.ValueMap.to_list s.loops)))
     (String.concat ", "
       (List.map (fun (v, b) -> string_of_value v ^ " = " ^ string_of_bool b)
-        (CalcInterp.ValueMap.to_list state.bools)))
+        (CalcInterp.ValueMap.to_list s.bools)))
     (String.concat ", "
       (List.map (fun (v, (b, w)) -> string_of_value v ^ " = "
                   ^ (if b then "L" else "R") ^ "(" ^ string_of_value w ^ ")")
-        (CalcInterp.ValueMap.to_list state.constrs)))
+        (CalcInterp.ValueMap.to_list s.constrs)))
 
-let string_of_results (res : CalcInterp.prg_res list) : (string, string) result =
-  let rec process (res : CalcInterp.prg_res list) : string list * string list =
-    match res with
-    | [] -> ([], [])
-    | Err msg :: tl ->
-        let (succs, fails) = process tl
-        in (succs, msg :: fails)
-    | Ok (state, _) :: tl ->
-        let (succs, fails) = process tl
-        in (string_of_prg_type state :: succs, fails)
-  in match process res with
-  | ([], errors) -> Error(String.concat "\n" errors)
-  | (states, _) -> Ok(String.concat "\n" states)
+let rec string_of_interp_res (res : CalcInterp.interp_res)
+  : (string, string) result =
+  match res with
+  | Err msg -> Error msg
+  | Success s -> Ok (string_of_interp_state s)
+  | Both (x, y) ->
+      match string_of_interp_res x, string_of_interp_res y with
+      | Ok x, Ok y -> Ok (x ^ "\n" ^ y)
+      | Ok r, Error _ | Error _, Ok r -> Ok r
+      | Error x, Error y -> Error (x ^ "\n" ^ y)
+
+let rec seq (s : Calc.stmt list) : Calc.stmt =
+  match s with
+  | [] -> Assign ("_", Literal Unit)
+  | [s] -> s
+  | hd :: tl -> Seq (hd, seq tl)
 
 let example1 : Calc.stmt =
-  Get ("c", OnElement (File, Variable "S", AttrAccess Content),
-  Add (Element (File, Variable "D", [Attribute (Content, Variable "c", [])]),
-  Add (NotElement (File, Variable "S"),
-  Return (Literal (String "returned")))))
+  seq
+    [ Get ("c", OnElement (File, Variable "S", AttrAccess Content))
+    ; Add (Element (File, Variable "D", Some (Attribute (Content, Variable "c"))))
+    ; Add (NotElement (File, Variable "S"))
+    ; Return (Literal Unit) ]
 
 let full1 : Calc.stmt =
-  Assign ("S", Literal (Path "/path/to/src"),
-  Assign ("D", Literal (Path "/path/to/dst"),
-  Contains (Element (File, Variable "S"),
-    example1,
-    Fail "Missing source file")))
+  seq
+    [ Assign ("S", Literal (Path "/path/to/src"))
+    ; Assign ("D", Literal (Path "/path/to/dst"))
+    ; Contains (Element (File, Variable "S"),
+        example1,
+        Raise (Literal (String "Missing source file"))) ]
 
 let example2 : Calc.stmt =
   Contains (Element (File, Variable "S"),
     example1,
-    Return (Literal (String "returned")))
+    Return (Literal Unit))
 
 let full2 : Calc.stmt =
-  Assign ("S", Literal (Path "/path/to/src"),
-  Assign ("D", Literal (Path "/path/to/dst"),
-  example2))
+  seq
+    [ Assign ("S", Literal (Path "/path/to/src"))
+    ; Assign ("D", Literal (Path "/path/to/dst"))
+    ; example2 ]
 
-let res1 = string_of_results (CalcInterp.interpret full1 (Primitive String))
-let res2 = string_of_results (CalcInterp.interpret full2 (Primitive String))
+let interp (p : Calc.stmt) : CalcInterp.interp_res =
+  CalcInterp.interpret p CalcInterp.init_interp_state Calc.VariableMap.empty
+    (fun s _ -> Success s)
+    (* Yield results in an error *)
+    (fun _ _ _ -> Err "Nothing to yield to")
+    (* Ret is okay only if we return a unit value *)
+    (fun s _ (_, t) -> if Calc.isUnit t then Success s else Err "Nothing to return to")
+    (* Raise converts the value into an Err *)
+    (fun _ _ (v, _) -> Err (string_of_value v))
+
+let res1 = string_of_interp_res (interp full1)
+let res2 = string_of_interp_res (interp full2)
