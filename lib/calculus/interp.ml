@@ -54,7 +54,6 @@ module Interp(Ast : Ast.Ast_Defs) = struct
         | Ok _, Error n -> Error n
         end
 
-
   let construct_equals v w : (value, string) result =
     let tv = type_of_val v
     in let tw = type_of_val w
@@ -369,6 +368,50 @@ module Interp(Ast : Ast.Ast_Defs) = struct
             init = new_init; final = s.final; loops = s.loops;
             bools = s.bools; constrs = s.constrs }
           in k b new_state)
+
+  let replace_loopvar_value (v : value) (uid : uid) : value =
+    let rec helper (v : value) : value =
+      match v with
+      | Unknown (Loop x, elemTy) when x = uid -> Unknown (Val x, elemTy)
+      | Function (f, v, t) -> Function (f, helper v, t)
+      | Pair (x, y, t) -> Pair (helper x, helper y, t)
+      | Constructor (n, b, v) -> Constructor (n, b, helper v)
+      | Struct (s, r) -> Struct (s, FieldMap.map helper r)
+      (* ListVal are not modified because they are allowed to contain loop
+       * variables *)
+      | _ -> v
+    in helper v
+
+  let replace_loopvar (s : interp_state) (env : env) (uid : uid)
+    : interp_state * env =
+    let rec contains_loopvar (v : value) : bool =
+      match v with
+      | Unknown (Loop x, _) -> x = uid
+      | Function (_, v, _) -> contains_loopvar v
+      | Pair (x, y, _) -> contains_loopvar x || contains_loopvar y
+      | Constructor (_, _, v) -> contains_loopvar v
+      | Struct (_, r) -> FieldMap.exists (fun _ v -> contains_loopvar v) r
+      (* ListVal are not checked since they are lists not individual values *)
+      | _ -> false
+    in let rec replace_state (State (els, ats) : state) : state =
+      let replace_els (els : element_result ElementMap.t)
+        : element_result ElementMap.t =
+        ElementMap.mapi
+          (fun (_, v) st ->
+            match st with
+            | Negated -> Negated
+            | Positive s ->
+                if contains_loopvar v
+                then Positive s
+                else Positive (replace_state s))
+          els
+      in let replace_ats (ats : value AttributeMap.t)
+        : value AttributeMap.t =
+        AttributeMap.map (fun v -> replace_loopvar_value v uid) ats
+      in State (replace_els els, replace_ats ats)
+    in ({ init = replace_state s.init; final = replace_state s.final;
+          loops = s.loops; bools = s.bools; constrs = s.constrs },
+        VariableMap.map (fun (v, t) -> (replace_loopvar_value v uid, t)) env)
 
   let rec substitute_unknown (u : id) (v : value) (s : interp_state) (env : env)
     (k : interp_state -> env -> (interp_res, string) result)
@@ -812,16 +855,89 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                                     in cont res s env))
                             ret
                             raise
-                      | Constructor (_, false, _xs) -> (* Unknown cons *)
-                          failwith "TODO"
                       (* TODO: Is it possible to collect the different
                        * behaviors and their results together? That would be
                        * more accurate but probably then make looping over a
                        * ListVal more difficult *)
-                      | ListVal (_, _elemVal) ->
-                          failwith "TODO"
+                      | ListVal (_, elemVal) ->
+                          let body_env =
+                            VariableMap.add elemVar (elemVal, elemTy) env
+                          in interpret body s body_env
+                            (* If it continues, we produce an empty list *)
+                            (fun s env ->
+                              cont 
+                                (Constructor (listType resTy, true, valUnit))
+                                s env)
+                            (* If it yields, we return a new ListVal *)
+                            (fun s env (elemRes, t) ->
+                              if t <> resTy
+                              then Err "Yielded incorrect type"
+                              else
+                                cont (ListVal (listType resTy, elemRes))
+                                  s env)
+                            ret
+                            raise
                       | _ -> (* Loop over an unknown value *)
-                          failwith "TODO"
+                          (* The way we handle loops over unknown lists is to
+                           * create some new unknown value to represent all the
+                           * items of the list and record the association with
+                           * the list value in the state. We then return a
+                           * ListVal which indicates a result from an unknown
+                           * list *)
+                          let (loopvar, uid, s) =
+                            match ValueMap.find_opt lst s.loops with
+                            | Some (AllUnknown uid) | Some (LastKnown (uid, _))
+                                -> (Unknown (Loop uid, elemTy), Some uid, s)
+                            | Some (AllKnown v) -> (v, None, s)
+                            | None ->
+                                let uid = uid ()
+                                in let state = {
+                                  init = s.init; final = s.final;
+                                  loops = ValueMap.add lst (AllUnknown uid) s.loops;
+                                  bools = s.bools; constrs = s.constrs }
+                                in (Unknown (Loop uid, elemTy), Some uid, state)
+                          in let body_env =
+                            VariableMap.add elemVar (loopvar, elemTy) env
+                          (* This function is used to replace the loop variable
+                           * in the resulting state and environment so that all
+                           * occurences (other than those in the state on an
+                           * element that depends on the loop variable) are
+                           * marked as just representing the last element of
+                           * the list (i.e., the value that escapes) rather
+                           * than an arbitrary element since we are not longer
+                           * acting on all elements. *)
+                          in let unloop s env : interp_state * env =
+                            match uid with
+                            | None -> (s, env)
+                            | Some uid -> replace_loopvar s env uid
+                          in let unloop_val v : value =
+                            match uid with
+                            | None -> v
+                            | Some uid -> replace_loopvar_value v uid
+                          in interpret body s body_env
+                            (* If it continues, we produce no value *)
+                            (fun s env ->
+                              let (s, env) = unloop s env
+                              in cont 
+                                  (Constructor (listType resTy, true, valUnit))
+                                  s env)
+                            (* If it yields, we construct our ListVal *)
+                            (fun s env (res, t) ->
+                              let (s, env) = unloop s env
+                              in if t <> resTy
+                              then Err "Yielded incorrect type"
+                              else
+                                cont (ListVal (listType resTy, res)) s env)
+                            (* For return and raise, we also replace loop vars
+                             * in the returned/raised value again since it's
+                             * just one value now (though not necessarily the
+                             * last... *)
+                            (fun s env (v, t) ->
+                              let (s, env) = unloop s env
+                              in ret s env (unloop_val v, t))
+                            (fun s env (v, t) ->
+                              let (s, env) = unloop s env
+                              in raise s env (unloop_val v, t))
                     in process_foreach v s env
                       (fun res s env ->
                         let new_env =

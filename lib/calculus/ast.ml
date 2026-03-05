@@ -109,9 +109,11 @@ module type Ast_Defs = sig
   (* Used to handle loops
    * - isUnit determines whether a type is the unit type, which is needed to
    *   determine if a type is list-like
+   * - valUnit is a unit value
    * - listType produces the named type for a list of elements of the given type
    *)
   val isUnit : typ -> bool
+  val valUnit : value
   val listType : typ -> namedTy
 
   (* Many times constraints on function values can be simplified in some manner,
