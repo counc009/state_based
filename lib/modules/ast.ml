@@ -34,12 +34,16 @@ and  stmt = VarDecls     of bool * (string * string list * typ * expr option) li
           | IfExists     of expr * stmt list * stmt list
           | IfThenElse   of expr * stmt list * stmt list
           | Match        of expr * (pattern * stmt list) list
+          | TryCatch     of stmt list
+                          * (string * string list * stmt list) option (* catch *)
+                          * stmt list (* finally *)
           | Clear        of expr
           | Touch        of expr
           | Assert       of expr
           | AssertExists of expr
           | Return       of expr
           | Yield        of expr
+          | Raise        of string * expr (* Exception name and argument *)
           | Assign       of expr * expr
           | LetStmt      of string * expr
 
@@ -49,6 +53,7 @@ type topLevel = Enum      of string * (string * typ list option) list
               | Uninterp  of string * typ list * typ
               | Attribute of string * typ
               | Element   of string * typ
+              | Exception of string * typ
               | Function  of string * (string * typ) list * typ option * stmt list
               (* Name, aliases, return type, body *)
               | Module    of string list * string list list * typ option * stmt list

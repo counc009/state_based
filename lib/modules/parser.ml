@@ -648,6 +648,32 @@ let stmt =
       <* char ';'
       >>| fun rhs -> Assign (lhs, rhs)
 
+    in let tryCatchStmt =
+      let catchStmt =
+        string "catch" *> whitespace1
+        *> identifier
+        >>= fun exc_nm ->
+        whitespace
+        *> option []
+          (parens (sep_by (whitespace *> char ',' *> whitespace) identifier)
+            <* whitespace)
+        >>= fun exc_args ->
+        brackets stmts
+        >>| fun catch -> (exc_nm, exc_args, catch)
+      in let finallyStmt =
+        string "finally" *> whitespace
+        *> brackets stmts
+      in
+      string "try" *> whitespace
+      *> brackets stmts
+      >>= fun body ->
+      whitespace
+      *> optional catchStmt
+      >>= fun catch ->
+      whitespace
+      *> option [] finallyStmt
+      >>| fun finally -> TryCatch (body, catch, finally)
+
     in let exprStmt =
       expr stmts <* whitespace <* char ';'
         >>| fun exp -> LetStmt ("_", exp)
@@ -658,6 +684,7 @@ let stmt =
     ; forLoop
     ; ifStmts
     ; matchStmt
+    ; tryCatchStmt
     ; letStmt
     ; (string "assert" *> whitespace1
       *> keywordStmt "exists" (fun e -> AssertExists e))
@@ -666,6 +693,17 @@ let stmt =
     ; keywordStmt "assert" (fun e -> Assert e)
     ; keywordStmt "return" (fun e -> Return e)
     ; keywordStmt "yield"  (fun e -> Yield e)
+    ; (string "raise" *> whitespace1
+      *> identifier
+      >>= fun exp ->
+      whitespace
+      *> optional (parens
+          (sep_by (whitespace *> char ',' *> whitespace) (expr stmts)))
+      <* whitespace <* char ';'
+      >>| fun e ->
+        match e with
+        | Some e -> Raise (exp, ProductExp e)
+        | None -> Raise (exp, UnitExp))
     ; assignStmt
     ; exprStmt
     ]
@@ -769,6 +807,19 @@ let elem_def =
   *> parens ptype
   >>| fun t -> Element (nm, t)
 
+let except_def =
+  string "exception"
+  *> whitespace1
+  *> identifier
+  >>= fun nm ->
+  whitespace
+  *>
+  optional (parens ptype)
+  >>| fun ty ->
+    match ty with
+    | Some t -> Exception (nm, t)
+    | None -> Exception (nm, Unit)
+
 let func_def =
   string "function"
   *> whitespace1
@@ -809,6 +860,7 @@ let top_level =
       ; uninterp_def
       ; attr_def
       ; elem_def
+      ; except_def
       ; func_def
       ; mod_def
       ])
