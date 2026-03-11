@@ -6,7 +6,7 @@ type 'a list' = Nil | Singleton of 'a | List of 'a list2
 
 module StringMap = Map.Make(String)
 
-type prims      = Unit | Bool | Int | Float | String | Path | Env
+type prims      = Unit | Bool | Int | Float | String | Path
 type 't constr  = List of 't | Option of 't
                 (* For all other enums we store the name of the enum and the
                  * name of each constructor *)
@@ -48,7 +48,6 @@ type ('v, 't) lit = Unit    of unit
                   | Float   of float
                   | String  of string
                   | Path    of string
-                  | Env     of ('v * 't) StringMap.t
 
 let home_regex = Str.regexp {|^~\([^/]*\)|}
 
@@ -92,8 +91,6 @@ module rec Ast_Target : Ast_Defs
              | Struct       of structTy * record
              | ListVal      of namedTy * value
 
-  type env = (value * typ) VariableMap.t
-
   type attribute = string * typ
   type element = string * typ
 
@@ -101,30 +98,29 @@ module rec Ast_Target : Ast_Defs
             | Literal   of literal
             | Variable  of variable
             | Pair      of expr * expr
-            | Env
 
-  type qual = Attribute   of attribute * expr * qual list
-            | Element     of element * expr * qual list
+  type qual = Attribute   of attribute * expr
+            | Element     of element * expr * qual option
             | NotElement  of element * expr
   type attr = AttrAccess  of attribute
-            | OnAttribute of attribute * attr
             | OnElement   of element * expr * attr
   type elem = Element     of element * expr
-            | NotElement  of element * expr
-            | OnAttribute of attribute * elem
             | OnElement   of element * expr * elem
 
   type action = string * typ * typ * stmt option ref
-   and stmt = Action   of variable * action * expr * stmt
-            | Assign   of variable * expr * stmt
-            | Add      of qual * stmt
-            | Get      of variable * attr * stmt
+   and stmt = Seq      of stmt * stmt
+            | Action   of variable * action * expr
+            | Assign   of variable * expr
+            | Add      of qual
+            | Get      of variable * attr
             | Contains of elem * stmt * stmt
             | Cond     of expr * stmt * stmt
             | Match    of expr * variable * stmt * stmt
-            | ForEach  of variable * typ * expr * variable * stmt * stmt
-            | Fail     of string
+            | ForEach  of variable * typ * expr * variable * stmt
+            | TryCatch of stmt * variable * stmt * stmt
+            | Raise    of expr
             | Return   of expr
+            | Yield    of expr
 
   type values_equal_res = Yes | No | Unsure
   let rec values_equal x y : values_equal_res =
@@ -394,7 +390,6 @@ module rec Ast_Target : Ast_Defs
     | Float  _ -> Float
     | String _ -> String
     | Path   _ -> Path
-    | Env    _ -> Env
 
   let attributeDef (_, typ) : typ = typ
 
@@ -418,21 +413,19 @@ module rec Ast_Target : Ast_Defs
 
   let boolAsValue (b: bool) : value = Literal (Bool b, Bool)
 
+  let equality_func (t : typ) : funct = Equal t
+
   let isUnit (t : typ) : bool =
     match t with
     | Primitive Unit -> true
     | _ -> false
+  let valUnit : value = Literal (Unit (), Unit)
   let listType (t : typ) : namedTy = List t
 
-  let envType : typ = Primitive Env
-  let envToVal (env : env) : value = Literal (Env env, (Env : primTy))
-  let envFromVal (v : value) =
-    match v with Literal (Env env, _) -> env | _ -> failwith "Not environment"
-
-  type constr = IsBool of bool | IsConstructor of bool * (id * typ)
+  type constr = IsBool of bool | IsConstructor of bool * value | IsEqual of value
   type result_constraint = IsBool        of value * bool
-                         | IsConstructor of value * (bool * (id * typ))
-                         | IsEqual       of id * value
+                         | IsConstructor of value * (bool * value)
+                         | IsEqual       of value * value
   type func_constraints = Unreducible | Reducible of result_constraint list list
 
   (* Reductions of constraints can leave out any reductions that are handled by
@@ -460,8 +453,7 @@ module rec Ast_Target : Ast_Defs
         end
     | Equal _, IsBool true ->
         begin match v with
-        | Pair (Unknown (x, _), y, _) -> Reducible [[ IsEqual (x, y) ]]
-        | Pair (x, Unknown (y, _), _) -> Reducible [[ IsEqual (y, x) ]]
+        | Pair (x, y, _) -> Reducible [[ IsEqual (x, y) ]]
         | _ -> Unreducible
         end
     | _, _ -> Unreducible
@@ -479,7 +471,6 @@ let rec string_of_type (t : Ast_Target.typ) : string =
   | Primitive Float  -> "float"
   | Primitive String -> "string"
   | Primitive Path   -> "path"
-  | Primitive Env    -> "env"
   | Struct tys       ->
       Printf.sprintf "{ %s }"
         (String.concat ", "
@@ -498,8 +489,6 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
   | Literal (Float f)  -> string_of_float f
   | Literal (String s) -> "\"" ^ s ^ "\""
   | Literal (Path p)   -> "'" ^ p ^ "'"
-  | Literal (Env _)    -> "%%SOME ENV%%"
-  | Env                -> "%%ENV%%"
   | Pair (x, y)        ->
       "(" ^ string_of_expr x ^ ", " ^ string_of_expr y ^ ")"
   | Function (f, e) ->
@@ -540,74 +529,83 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
 
 let rec string_of_qual (q : Ast_Target.qual) : string =
   match q with
-  | Attribute ((attr, _), e, qs) ->
-      attr ^ " = " ^ string_of_expr e ^ " : < "
-      ^ String.concat ", " (List.map string_of_qual qs) ^ " >"
-  | Element ((elem, _), e, qs) ->
-      elem ^ "(" ^ string_of_expr e ^ ") : < "
-      ^ String.concat ", " (List.map string_of_qual qs) ^ " >"
+  | Attribute ((attr, _), e) ->
+      attr ^ " = " ^ string_of_expr e
+  | Element ((elem, _), e, q) ->
+      elem ^ "(" ^ string_of_expr e ^ ")"
+      ^ (match q with
+        | None -> ""
+        | Some q -> " : < " ^ string_of_qual q ^ " >")
   | NotElement ((elem, _), e) ->
       "!" ^ elem ^ "(" ^ string_of_expr e ^ ")"
 
 let rec string_of_attr (a : Ast_Target.attr) : string =
   match a with
   | AttrAccess ((attr, _)) -> attr
-  | OnAttribute ((attr, _), rest) -> attr ^ "." ^ string_of_attr rest
   | OnElement ((elem, _), e, rest) ->
       elem ^ "(" ^ string_of_expr e ^ ")." ^ string_of_attr rest
 
 let rec string_of_elem (e : Ast_Target.elem) : string =
   match e with
   | Element ((elem, _), e) -> elem ^ "(" ^ string_of_expr e ^ ")"
-  | NotElement ((elem, _), e) -> "!" ^ elem ^ "(" ^ string_of_expr e ^ ")"
-  | OnAttribute ((attr, _), rest) ->
-      attr ^ "." ^ string_of_elem rest
   | OnElement ((elem, _), e, rest) ->
       elem ^ "(" ^ string_of_expr e ^ ")." ^ string_of_elem rest
 
 let string_of_stmt (s : Ast_Target.stmt) : string =
   let rec process (s : Ast_Target.stmt) (indent : string) : string =
-    indent ^
     match s with
-    | Action (v, (nm, _, _, _), arg, next) ->
-        v ^ " = " ^ nm ^ "{" ^ string_of_expr arg ^ "}\n" ^ process next indent
-    | Assign (v, e, next) ->
-        v ^ " = " ^ string_of_expr e ^ "\n"               ^ process next indent
-    | Add (q, next) ->
-        "add " ^ string_of_qual q ^ "\n"                  ^ process next indent
-    | Get (v, a, next) ->
-        v ^ " = get " ^ string_of_attr a ^ "\n"           ^ process next indent
+    | Seq (fst, snd) ->
+        process fst indent ^ "\n" ^ process snd indent
+    | Action (v, (nm, _, _, _), arg) ->
+        indent ^ v ^ " = " ^ nm ^ "{" ^ string_of_expr arg ^ "}"
+    | Assign (v, e) ->
+        indent ^ v ^ " = " ^ string_of_expr e
+    | Add (q) ->
+        indent ^ "add " ^ string_of_qual q
+    | Get (v, a) ->
+        indent ^ v ^ " = get " ^ string_of_attr a
     | Contains (q, th, el) ->
-        "contains " ^ string_of_elem q ^ " {\n"
-        ^ process th ("\t" ^ indent)
+        indent ^ "contains " ^ string_of_elem q ^ " {\n"
+        ^ process th ("\t" ^ indent) ^ "\n"
         ^ indent ^ "} else {\n"
-        ^ process el ("\t" ^ indent)
-        ^ indent ^ "}\n"
+        ^ process el ("\t" ^ indent) ^ "\n"
+        ^ indent ^ "}"
     | Cond (e, th, el) ->
-        "if " ^ string_of_expr e ^ "{\n"
-        ^ process th ("\t" ^ indent)
+        indent ^ "if " ^ string_of_expr e ^ "{\n"
+        ^ process th ("\t" ^ indent) ^ "\n"
         ^ indent ^ "} else {\n"
-        ^ process el ("\t" ^ indent)
-        ^ indent ^ "}\n"
+        ^ process el ("\t" ^ indent) ^ "\n"
+        ^ indent ^ "}"
     | Match (e, v, l, r) ->
-        "match " ^ string_of_expr e ^ " with {\n"
+        indent ^ "match " ^ string_of_expr e ^ " with {\n"
         ^ indent ^ "\tL(" ^ v ^ ") => {\n"
-        ^ process l ("\t\t" ^ indent)
+        ^ process l ("\t\t" ^ indent) ^ "\n"
         ^ indent ^ "\t}\n"
         ^ indent ^ "\tR(" ^ v ^ ") => {\n"
-        ^ process r ("\t\t" ^ indent)
+        ^ process r ("\t\t" ^ indent) ^ "\n"
         ^ indent ^ "\t}\n"
-        ^ indent ^ "}\n"
-    | ForEach (v, _, lst, w, body, next) ->
-        v ^ " = foreach " ^ w ^ " in " ^ string_of_expr lst ^ " {\n"
-        ^ process body ("\t" ^ indent)
-        ^ indent ^ "};\n"
-        ^ process next indent
-    | Fail msg -> "fail \"" ^ msg ^ "\"\n"
-    | Return e -> "return " ^ string_of_expr e ^ "\n"
+        ^ indent ^ "}"
+    | ForEach (v, _, lst, w, body) ->
+        indent ^ v ^ " = foreach " ^ w ^ " in " ^ string_of_expr lst ^ " {\n"
+        ^ process body ("\t" ^ indent) ^ "\n"
+        ^ indent ^ "}"
+    | TryCatch (body, evar, catch, finally) ->
+        indent ^ "try {\n"
+        ^ process body ("\t" ^ indent) ^ "\n"
+        ^ indent ^ "} catch " ^ evar ^ "{\n"
+        ^ process catch ("\t" ^ indent) ^ "\n"
+        ^ indent ^ "} finally {\n"
+        ^ process finally ("\t" ^ indent) ^ "\n"
+        ^ indent ^ "}"
+    | Raise e ->
+        indent ^ "raise " ^ string_of_expr e
+    | Return e ->
+        indent ^ "return " ^ string_of_expr e
+    | Yield e ->
+        indent ^ "yield " ^ string_of_expr e
   in process s ""
 
-let rec value_to_string (v : Ast_Target.value) : string =
+let rec string_of_value (v : Ast_Target.value) : string =
   match v with
   | Unknown (Loop x, _)   -> "?loop(" ^ string_of_int x ^ ")"
   | Unknown (Val x, _)    -> "?" ^ string_of_int x
@@ -617,9 +615,8 @@ let rec value_to_string (v : Ast_Target.value) : string =
   | Literal (Float f, _)  -> string_of_float f
   | Literal (String s, _) -> "\"" ^ s ^ "\""
   | Literal (Path p, _)   -> "'" ^ p ^ "'"
-  | Literal (Env _, _)    -> "%%ENV%%"
   | Pair    (x, y, _)     ->
-      "(" ^ value_to_string x ^ ", " ^ value_to_string y ^ ")"
+      "(" ^ string_of_value x ^ ", " ^ string_of_value y ^ ")"
   | Constructor (ty, left, v) ->
       begin match ty with
       | List t ->
@@ -629,67 +626,67 @@ let rec value_to_string (v : Ast_Target.value) : string =
       | Option t ->
           if left
           then Printf.sprintf "None::<%s>()" (string_of_type t)
-          else Printf.sprintf "Some::<%s>(%s)" (string_of_type t) (value_to_string v)
+          else Printf.sprintf "Some::<%s>(%s)" (string_of_type t) (string_of_value v)
       | Cases (enum, constrs) ->
           string_of_constructor enum constrs left v
       end
   | Struct (_, r) ->
       "{" ^ String.concat ", "
-              (List.map (fun (nm, v) -> nm ^ ": " ^ value_to_string v)
+              (List.map (fun (nm, v) -> nm ^ ": " ^ string_of_value v)
                 (Ast_Target.FieldMap.to_list r))
           ^ "}"
-  | ListVal (_, v) -> "list { " ^ value_to_string v ^ " }"
+  | ListVal (_, v) -> "list { " ^ string_of_value v ^ " }"
   | Function (f, arg, _)  ->
       match f with
-      | Proj (true, _, _)         -> "proj1(" ^ value_to_string arg ^ ")"
-      | Proj (false, _, _)        -> "proj2(" ^ value_to_string arg ^ ")"
-      | BoolNeg                   -> "not(" ^ value_to_string arg ^ ")"
-      | BoolOr                    -> "or(" ^ value_to_string arg ^ ")"
-      | BoolAnd                   -> "and(" ^ value_to_string arg ^ ")"
-      | Concat                    -> "concat(" ^ value_to_string arg ^ ")"
-      | Equal _                   -> "equal(" ^ value_to_string arg ^ ")"
-      | Append _                  -> "append(" ^ value_to_string arg ^ ")"
-      | AddInt                    -> "add(" ^ value_to_string arg ^ ")"
-      | AddFloat                  -> "add(" ^ value_to_string arg ^ ")"
-      | LeInt                     -> "le(" ^ value_to_string arg ^ ")"
-      | LeFloat                   -> "le(" ^ value_to_string arg ^ ")"
-      | ToLower                   -> "to_lower(" ^ value_to_string arg ^ ")"
-      | Substring                 -> "substring(" ^ value_to_string arg ^ ")"
-      | StringOfInt               -> "string_of_int(" ^ value_to_string arg ^ ")"
-      | ConsPath                  -> "cons_path(" ^ value_to_string arg ^ ")"
-      | PathOfString              -> "path_of_string(" ^ value_to_string arg ^ ")"
-      | StringOfPath              -> "string_of_path(" ^ value_to_string arg ^ ")"
-      | EndsWithDir               -> "ends_with_dir(" ^ value_to_string arg ^ ")"
-      | BaseName                  -> "base_name(" ^ value_to_string arg ^ ")"
-      | PathFrom                  -> "path_from(" ^ value_to_string arg ^ ")"
-      | AddExt                    -> "add_ext(" ^ value_to_string arg ^ ")"
-      | NormalizePath             -> "norm_path(" ^ value_to_string arg ^ ")"
-      | CanEscalate               -> "can_esclate(" ^ value_to_string arg ^ ")"
-      | Uninterpreted (nm, _, _)  -> nm ^ "(" ^ value_to_string arg ^ ")"
-      | _ -> "%%FUNCTION%%(" ^ value_to_string arg ^ ")"
+      | Proj (true, _, _)         -> "proj1(" ^ string_of_value arg ^ ")"
+      | Proj (false, _, _)        -> "proj2(" ^ string_of_value arg ^ ")"
+      | BoolNeg                   -> "not(" ^ string_of_value arg ^ ")"
+      | BoolOr                    -> "or(" ^ string_of_value arg ^ ")"
+      | BoolAnd                   -> "and(" ^ string_of_value arg ^ ")"
+      | Concat                    -> "concat(" ^ string_of_value arg ^ ")"
+      | Equal _                   -> "equal(" ^ string_of_value arg ^ ")"
+      | Append _                  -> "append(" ^ string_of_value arg ^ ")"
+      | AddInt                    -> "add(" ^ string_of_value arg ^ ")"
+      | AddFloat                  -> "add(" ^ string_of_value arg ^ ")"
+      | LeInt                     -> "le(" ^ string_of_value arg ^ ")"
+      | LeFloat                   -> "le(" ^ string_of_value arg ^ ")"
+      | ToLower                   -> "to_lower(" ^ string_of_value arg ^ ")"
+      | Substring                 -> "substring(" ^ string_of_value arg ^ ")"
+      | StringOfInt               -> "string_of_int(" ^ string_of_value arg ^ ")"
+      | ConsPath                  -> "cons_path(" ^ string_of_value arg ^ ")"
+      | PathOfString              -> "path_of_string(" ^ string_of_value arg ^ ")"
+      | StringOfPath              -> "string_of_path(" ^ string_of_value arg ^ ")"
+      | EndsWithDir               -> "ends_with_dir(" ^ string_of_value arg ^ ")"
+      | BaseName                  -> "base_name(" ^ string_of_value arg ^ ")"
+      | PathFrom                  -> "path_from(" ^ string_of_value arg ^ ")"
+      | AddExt                    -> "add_ext(" ^ string_of_value arg ^ ")"
+      | NormalizePath             -> "norm_path(" ^ string_of_value arg ^ ")"
+      | CanEscalate               -> "can_esclate(" ^ string_of_value arg ^ ")"
+      | Uninterpreted (nm, _, _)  -> nm ^ "(" ^ string_of_value arg ^ ")"
+      | _ -> "%%FUNCTION%%(" ^ string_of_value arg ^ ")"
 and string_of_list_val (v : Ast_Target.value) : string =
   match v with
   | Pair (hd, tl, _) ->
-      value_to_string hd
+      string_of_value hd
       ^ begin match tl with
         | Constructor (_, is_nil, lst) ->
             if is_nil then "" else "; " ^ string_of_list_val lst
-        | Unknown (_, _) -> ";" ^ value_to_string v ^ " ..."
+        | Unknown (_, _) -> ";" ^ string_of_value v ^ " ..."
         | _ -> "; <<ERROR: MALFORMED LIST>>"
         end
-  | Unknown (_, _) -> value_to_string v ^ " ..."
+  | Unknown (_, _) -> string_of_value v ^ " ..."
   | _ -> "<<ERROR: MALFORMED LIST>>"
 and string_of_constructor enum constr is_first v =
   match constr, is_first with
   | LastTwo ((nm, _), _), true
   | Cons    ((nm, _), _), true
-    -> enum ^ "::" ^ nm ^ "(" ^ value_to_string v ^ ")"
+    -> enum ^ "::" ^ nm ^ "(" ^ string_of_value v ^ ")"
   | LastTwo (_, (nm, _)), false
-    -> enum ^ "::" ^ nm ^ "(" ^ value_to_string v ^ ")"
+    -> enum ^ "::" ^ nm ^ "(" ^ string_of_value v ^ ")"
   | Cons (_, cs), false
     -> match v with
        | Constructor (_, is_first, v) -> string_of_constructor enum cs is_first v
-       | Unknown (_, _) -> value_to_string v
+       | Unknown (_, _) -> string_of_value v
        | _ -> "<< ERROR: MALFORMED ENUM VALUE >>"
 
 let string_of_list empty lhs sep rhs f lst : string =
@@ -697,27 +694,28 @@ let string_of_list empty lhs sep rhs f lst : string =
   then empty
   else lhs ^ String.concat sep (List.map f lst) ^ rhs
 
-let state_to_string (state : TargetInterp.state) : string =
+let string_of_state (state : TargetInterp.state) : string =
   let rec inner_string_of_state if_empty lhs rhs (state : TargetInterp.state) =
     let State(elems, attrs) = state
     in string_of_list if_empty lhs ", " rhs (fun s -> s)
         (List.map
-          (fun (((elem, _), v, neg), s) ->
-            (if neg then "not " else "")
-            ^ elem ^ "(" ^ value_to_string v ^ ")"
-            ^ inner_string_of_state "" ": <" " >" s)
+          (fun (((elem, _), v), (s : TargetInterp.element_result)) ->
+            match s with
+            | Negated -> "not " ^ elem ^ "(" ^ string_of_value v ^ ")"
+            | Positive s ->
+                elem ^ "(" ^ string_of_value v ^ ")"
+                ^ inner_string_of_state "" ": <" " >" s)
           (TargetInterp.ElementMap.to_list elems)
         @
         List.map
-          (fun ((attr, _), (v, s)) -> attr ^ " = " ^ value_to_string v
-                                   ^ inner_string_of_state "" ": < " " >" s)
+          (fun ((attr, _), v) -> attr ^ " = " ^ string_of_value v)
           (TargetInterp.AttributeMap.to_list attrs))
   in inner_string_of_state "<>" "< " " >" state
 
 let string_of_constructor_constraint (v: Ast_Target.value) (left: bool)
   (arg: Ast_Target.value) : string =
-  let ty : Ast_Target.typ = TargetInterp.val_to_type v
-  in value_to_string v ^ " = " ^
+  let ty : Ast_Target.typ = TargetInterp.type_of_val v
+  in string_of_value v ^ " = " ^
   match ty with
   | Named ty ->
       begin match ty with
@@ -728,7 +726,7 @@ let string_of_constructor_constraint (v: Ast_Target.value) (left: bool)
       | Option t ->
           if left
           then Printf.sprintf "None::<%s>()" (string_of_type t)
-          else Printf.sprintf "Some::<%s>(%s)" (string_of_type t) (value_to_string arg)
+          else Printf.sprintf "Some::<%s>(%s)" (string_of_type t) (string_of_value arg)
       | Cases (enum, constrs) ->
           string_of_constructor enum constrs left arg
       end
@@ -737,35 +735,29 @@ let string_of_constructor_constraint (v: Ast_Target.value) (left: bool)
 let string_of_loop_info (i: TargetInterp.loop_info) : string =
   match i with
   | AllUnknown i -> "#" ^ string_of_int i
-  | AllKnown v -> value_to_string v
-  | LastKnown (i, v) -> "#" ^ string_of_int i ^ "/" ^ value_to_string v
+  | AllKnown v -> string_of_value v
+  | LastKnown (i, v) -> "#" ^ string_of_int i ^ "/" ^ string_of_value v
 
-let prg_type_to_string (state : TargetInterp.prg_type) : string =
+let string_of_interp_state (state : TargetInterp.interp_state) : string =
   Printf.sprintf "%s --> %s [{ %s }, { %s }, { %s }]"
-    (state_to_string state.init)
-    (state_to_string state.final)
+    (string_of_state state.init)
+    (string_of_state state.final)
     (String.concat ", "
-      (List.map (fun (v, i) -> value_to_string v ^ ": " ^ string_of_loop_info i)
+      (List.map (fun (v, i) -> string_of_value v ^ ": " ^ string_of_loop_info i)
         (TargetInterp.ValueMap.to_list state.loops)))
     (String.concat ", "
-      (List.map (fun (v, b) -> value_to_string v ^ " = " ^ string_of_bool b)
+      (List.map (fun (v, b) -> string_of_value v ^ " = " ^ string_of_bool b)
         (TargetInterp.ValueMap.to_list state.bools)))
     (String.concat ", "
       (List.map (fun (v, (b, w)) -> string_of_constructor_constraint v b w)
         (TargetInterp.ValueMap.to_list state.constrs)))
 
-let results_to_string (res : TargetInterp.prg_res list) : (string, string) result =
-  let rec process (res : TargetInterp.prg_res list) : string list * string list =
-    match res with
-    | [] -> ([], [])
-    | Err msg :: tl ->
-        let (succs, fails) = process tl
-        in (succs, msg :: fails)
-    | Ok (state, returned) :: tl ->
-        let (succs, fails) = process tl
-        in let state_str = prg_type_to_string state
-        in let value_str = value_to_string returned
-        in ((state_str ^ " returned " ^ value_str) :: succs, fails)
-  in match process res with
-  | ([], errors) -> Error(String.concat "\n" errors)
-  | (states, _) -> Ok(String.concat "\n" states)
+let rec string_of_res (res : TargetInterp.interp_res) : (string, string) result =
+  match res with
+  | Err msg -> Error msg
+  | Success s -> Ok (string_of_interp_state s)
+  | Both (x, y) ->
+      match string_of_res x, string_of_res y with
+      | Ok x, Ok y -> Ok (x ^ "\n" ^ y)
+      | Error _, Ok r | Ok r, Error _ -> Ok r
+      | Error x, Error y -> Error (x ^ "\n" ^ y)
