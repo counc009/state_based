@@ -80,6 +80,7 @@ module type Ast_Defs = sig
             | Raise    of expr
             | Return   of expr
             | Yield    of expr (* yield for a foreach statement *)
+            | Pass (* do nothing *)
 
   (* Definitions for the parameterized components *)
   val namedTyDef : namedTy -> typ * typ

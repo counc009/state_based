@@ -685,6 +685,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
     (ret   : interp_state -> env -> value * typ -> interp_res)
     (raise : interp_state -> env -> value * typ -> interp_res) : interp_res =
     match p with
+    | Pass -> cont s env
     | Seq (x, y) ->
         interpret x s env
           (fun s env -> interpret y s env cont yield ret raise)
