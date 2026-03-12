@@ -121,6 +121,7 @@ module rec Ast_Target : Ast_Defs
             | Raise    of expr
             | Return   of expr
             | Yield    of expr
+            | Pass
 
   type values_equal_res = Yes | No | Unsure
   let rec values_equal x y : values_equal_res =
@@ -603,6 +604,8 @@ let string_of_stmt (s : Ast_Target.stmt) : string =
         indent ^ "return " ^ string_of_expr e
     | Yield e ->
         indent ^ "yield " ^ string_of_expr e
+    | Pass ->
+        indent ^ "pass"
   in process s ""
 
 let rec string_of_value (v : Ast_Target.value) : string =
