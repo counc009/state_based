@@ -84,6 +84,7 @@ module rec Calc : Ast_Defs
             | Raise    of expr
             | Return   of expr
             | Yield    of expr (* yield for a foreach statement *)
+            | Pass
 
   let namedTyDef : namedTy -> typ * typ = function
     | List t -> (Primitive Unit, Product (t, Named (List t)))
