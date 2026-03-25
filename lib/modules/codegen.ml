@@ -174,6 +174,13 @@ let smap_map_res (f : 'a -> ('b, 'e) result) (m : 'a StringMap.t)
     m
     (Ok StringMap.empty)
 
+let array_foldr1 (arr : 'a array) (f : 'a -> 'b) (g : 'b -> 'b -> 'b) : 'b =
+  let rec process (i : int) : 'b =
+    if i + 1 = Array.length arr
+    then f arr.(i)
+    else g (f arr.(i)) (process (i+1))
+  in process 0
+
 (* create_type (and its related functions) convert an Ast.typ into an internal
  * typ, and if an unknown type name is encountered in the process will insert
  * that type as a placeholder into the type_env. This helps address issues
@@ -296,6 +303,67 @@ and lower_sum (enum_name : string) (cs : (int * typ list) StringMap.t)
     in Result.bind (lower_cases (Array.to_list types)) (fun cs ->
         Ok (Target.Named (Cases (enum_name, cs))))
 
+let lower_ast_typ (t : Ast.typ) (types : type_env)
+  : (Target.typ, string) result = Result.bind (process_type t types) lower_type
+
+(* Utilities for dealing with types and the type environment *)
+(* Extract the constructors from an enum type *)
+let rec extract_enum (t : typ)
+  : ((int * typ list) StringMap.t, string) result =
+  match t with
+  | Enum (_, res) -> Ok res
+  | Option t ->
+      Ok (StringMap.of_list [("nothing", (0, [])); ("some", (1, [t]))])
+  | List t ->
+      Ok (StringMap.of_list [("nil", (0, [])); ("cons", (1, [t; List t]))])
+  | Placeholder { contents = Some t } -> extract_enum t
+  | _ -> Error "Not an enum type"
+
+(* Return the constructors for a given enum type and type argument *)
+let lookup_enum (types : type_env) (nm : string) (ty_arg : Ast.typ option)
+  : ((int * typ list) StringMap.t, string) result =
+  match ty_arg with
+  | None ->
+      (* An enum defined in the environment *)
+      begin match UniqueMap.find nm types with
+      | None -> Error ("Undefined type " ^ nm)
+      | Some t -> extract_enum t
+      end
+  | Some t ->
+      (* Either a list::<t> or option::<t> *)
+      let^ t = process_type t types
+      in match nm with
+      | "list" ->
+          Ok (StringMap.of_list [("nil", (0, [])); ("cons", (1, [t; List t]))])
+      | "option" ->
+          Ok (StringMap.of_list [("nothing", (0, [])); ("some", (1, [t]))])
+      | _ -> Error ("Undefined type constructor " ^ nm)
+
+(* Given an enum name and possible type argument, check that it matches a
+ * target type *)
+let pattern_type_matches (types : type_env) (type_name, type_arg)
+  (t : Target.typ) : bool =
+  match type_arg with
+  | None ->
+      begin match t with
+      | Named (Cases (enum_name, _)) when enum_name = type_name -> true
+      | _ -> false
+      end
+  | Some ty_arg ->
+      match t with
+      | Named (List t) when type_name = "list" ->
+          begin match lower_ast_typ ty_arg types with
+          | Error _ -> false
+          | Ok ty -> ty = t
+          end
+      | Named (Option t) when type_name = "option" ->
+          begin match lower_ast_typ ty_arg types with
+          | Error _ -> false
+          | Ok ty -> ty = t
+          end
+      | _ -> false
+
+(* Code analysis *)
 let extract_module_args (body : Ast.stmt list) (types : type_env)
   : (string StringMap.t * Ast.typ StringMap.t * typ StringMap.t
       * typ StringMap.t, string) result =
@@ -360,6 +428,34 @@ let extract_module_args (body : Ast.stmt list) (types : type_env)
   in extract body
       (StringMap.empty, StringMap.empty, StringMap.empty, StringMap.empty)
 
+(* Utilities for generating expressions *)
+let stringlit (s : string) : Target.expr = Literal (String s)
+
+let option_some (e : Target.expr) (t : Target.typ) : Target.expr =
+  Function (Constructor (false, Option t), e)
+
+let option_none (t : Target.typ) : Target.expr =
+  Function (Constructor (true, Option t), Literal (Unit ()))
+
+(* Utilities for dealing with elements, attributes, and qualifiers *)
+let rec negate_qual (q : Target.qual) : (Target.qual, string) result =
+  match q with
+  | Attribute (_, _) -> Error "Cannot negate an attribute"
+  | Element (e, ex, None) -> Ok (NotElement (e, ex))
+  | Element (e, ex, Some q) ->
+      Result.bind (negate_qual q)
+        (fun nq -> Ok (Element (e, ex, Some nq) : Target.qual))
+  | NotElement (e, ex) -> Ok (Element (e, ex, None))
+
+(* Utilities for generating certain statements *)
+
+(* For exceptions, we raise a pair with the exception's name (as a string) and
+ * the value passed to the exception. *)
+let raise (exc : string) (e : Target.expr) : Target.stmt =
+  Raise (Pair (stringlit exc, e))
+
+let fatal (msg : string) : Target.stmt = raise "!FATAL" (stringlit msg)
+
 let rec generate_var_inits (names : string list) (ty : Target.typ)
   (exp : Target.expr) (locals : local_env)
   : (Target.stmt * local_env, string) result =
@@ -382,6 +478,48 @@ let rec generate_var_inits (names : string list) (ty : Target.typ)
             (fun (setup, locals) -> Ok (Target.Seq (setup_n, setup), locals))
       | _ -> Error "Internal Type Error in generate_var_inits"
 
+let generate_vars_check (input : Target.typ StringMap.t)
+  (vars : (string * Target.typ) list) (not_found : Target.stmt) : Target.stmt =
+
+  let vars = List.map fst vars
+
+  in let rec check_vars (vs : string list)
+    (found : Target.stmt) (not_found : Target.stmt)  : Target.stmt =
+    match vs with
+    | [] -> not_found
+    | v :: vs ->
+        Target.Match (
+          Function (ReadField (input, v), Variable "#input"),
+          "_",
+          check_vars vs 
+            (fatal ("Only one of [" ^ String.concat ", " vars 
+                   ^ "] should be provided"))
+            found,
+          check_vars vs found not_found)
+
+  in check_vars vars Pass not_found
+
+let codegen_expr (_e : Ast.expr) (_types : type_env) (_globals : global_env)
+  (_locals : local_env) (_is_mod : mod_info option)
+  (_k : Target.expr * Target.typ -> (Target.stmt, string) result)
+  : (Target.stmt, string) result =
+  Error "TODO"
+
+let codegen_elem (_e : Ast.expr) (_types : type_env) (_globals : global_env)
+  (_locals : local_env) (_is_mod : mod_info option)
+  : (Target.elem, string) result =
+  Error "TODO"
+
+let codegen_qual (_e : Ast.expr) (_types : type_env) (_globals : global_env)
+  (_locals : local_env) (_is_mod : mod_info option)
+  : (Target.qual, string) result =
+  Error "TODO"
+
+let codegen_assignment (_lhs : Ast.expr) (_types : type_env)
+  (_globals : global_env) (_locals : local_env) (_is_mod : mod_info option)
+  (_rhs : Target.expr) (_ty : Target.typ) : (Target.stmt, string) result =
+  Error "TODO"
+
 let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
   (excepts : except_env) (locals : local_env) (ret : Target.typ)
   (yield : Target.typ placeholder option) (is_mod : mod_info option)
@@ -389,7 +527,64 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
    * is encountered. *)
   (term : (Target.stmt, string) result) : (Target.stmt, string) result =
 
-  let rec codegen_stmt (s : Ast.stmt) (locals : local_env)
+  let rec extract_module_args
+    (vars : (string * string list * Ast.typ * Ast.expr option) list)
+    : ((string * Target.typ) list * (string * Target.typ * Ast.expr) option,
+          string) result =
+    match vars with
+    | [] -> Ok ([], None)
+    | (v, _, t, None) :: tl ->
+        let^ t = lower_ast_typ t types
+        in let^ (vs, default) = extract_module_args tl
+        in Ok ((v, t) :: vs, default)
+    | (v, _, t, Some d) :: tl ->
+        let^ t = lower_ast_typ t types
+        in let^ (vs, default) = extract_module_args tl
+        in match default with
+        | None -> Ok ((v, t) :: vs, Some (v, t, d))
+        | Some _ -> Error "multiple default values specified for variable"
+
+  in let update_module_var (decl_info : bool * StringSet.t) input
+    (locals : local_env) : local_env * Target.stmt =
+    let (required, vars) = decl_info
+    in if required && StringSet.cardinal vars = 1
+    then
+      let var = StringSet.min_elt vars
+      in match StringMap.find_opt var locals with
+      | Some (ModuleVar (_, ty)) ->
+          let fresh_nm = fresh_var var
+          in let new_env = StringMap.add var (LocalVar (fresh_nm, ty)) locals
+          in let load_var : Target.stmt =
+            Match (Function (ReadField (input, var), Variable "#input"),
+              fresh_nm,
+              fatal ("Variable " ^ var ^ " must be defined, but it isn't"),
+              Pass)
+          in (new_env, load_var)
+      | _ -> (locals, Pass)
+    else (locals, Pass)
+
+  (* Update the local environment to reflect that the variable var was chosen
+   * for a declaration that has other options *)
+  in let select_module_var (var : string) (mod_id : int) (options : StringSet.t)
+    (nm : string) (typ : Target.typ) (env : local_env) : local_env =
+
+    let rec remove_vars (vs : string list) (env : local_env) : local_env =
+      match vs with
+      | [] -> env
+      | v :: tl ->
+          remove_vars tl
+            (match StringMap.find_opt v env with
+            | None | Some (LocalVar _) -> env
+            | Some (ModuleVar (id, _)) ->
+                if id = mod_id
+                then StringMap.remove v env
+                else env)
+
+    in StringMap.add var (LocalVar (nm, typ))
+        (remove_vars (StringSet.to_list options) env)
+
+
+  in let rec codegen_stmt (s : Ast.stmt) (locals : local_env)
     (yield : Target.typ placeholder option) (is_mod : mod_info option)
     : (Target.stmt * local_env * mod_info option, string) result =
     match s with
@@ -397,9 +592,245 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
         begin match is_mod with
         | None -> Error "Module-style variable declaration in function"
         | Some (mod_env, input) ->
-            Error "TODO"
+            let^ (vars, default) = extract_module_args vars
+              (* Any declaration with a default is treated as required since it
+               * will always have a value *)
+            in let decl_info = (required || Option.is_some default,
+                                StringSet.of_list (List.map fst vars))
+            in let decl_id = uniq ()
+            in let new_mod_env = IntMap.add decl_id decl_info mod_env
+            in let locals_with_decl =
+              List.fold_left (fun env (var, typ) ->
+                StringMap.add var (ModuleVar (decl_id, typ)) env)
+                locals vars
+            in let (new_locals, var_read) =
+              update_module_var decl_info input locals_with_decl
+            in let^ decl_check =
+              match default with
+              | None ->
+                  Ok (generate_vars_check input vars
+                    (if required
+                     then fatal ("One of the arguments ["
+                                ^ String.concat ", " (List.map fst vars)
+                                ^ "] is required")
+                    else Pass))
+              | Some (var, typ, value) ->
+                  codegen_expr value types globals locals is_mod
+                    (fun (value, ty) ->
+                      if ty <> typ
+                      then Error ("default for " ^ var ^ " has wrong type")
+                      else
+                        Ok (generate_vars_check input vars
+                            (Target.Assign ("#input",
+                              Function (AddField (input, var),
+                                Pair (Variable "#input",
+                                option_some value typ))))))
+            in Ok (Target.Seq (decl_check, var_read),
+                    new_locals,
+                    Some (new_mod_env, input))
         end
-    | _ -> Error "TODO"
+    | ForLoop (v, l, b) ->
+        let^ loop =
+          codegen_expr l types globals locals is_mod (fun (lst, typ) ->
+            match typ with
+            | Named (List t) ->
+                let fresh_v = fresh_var v
+                in let body_env = StringMap.add v (LocalVar (fresh_v, t)) locals
+                in Result.bind (codegen_stmts b body_env None is_mod) (fun b ->
+                  Ok (Target.ForEach ("_", Primitive Unit, lst, fresh_v, b)))
+          | _ -> Error "can only loop over lists")
+        in Ok (loop, locals, is_mod)
+    | IfProvided (var, thn, els) ->
+        begin match is_mod with
+        | None -> Error "Module-style variable check in function"
+        | Some (mod_env, input) ->
+            match StringMap.find_opt var locals with
+            | Some (LocalVar _) ->
+                Error ("Variable " ^ var ^ " is a local, not a module variable")
+            | None ->
+                Error ("Variable " ^ var ^ " is undefined")
+            | Some (ModuleVar (mod_id, typ)) ->
+                let (required, options) = IntMap.find mod_id mod_env
+                in let fresh_nm = fresh_var var
+                in let false_decl_info =
+                  (required, StringSet.remove var options)
+                in let false_mod_env =
+                  IntMap.add mod_id false_decl_info mod_env
+                in let (false_locals, false_start) =
+                  update_module_var false_decl_info input
+                    (StringMap.remove var locals)
+                in let true_locals =
+                  select_module_var var mod_id options fresh_nm typ locals
+                in let^ thn =
+                  codegen_stmts thn true_locals yield is_mod
+                in let^ els =
+                  codegen_stmts els false_locals yield
+                    (Some (false_mod_env, input))
+                in Ok (Target.Match (
+                        Function (ReadField (input, var), Variable "#input"),
+                        fresh_nm,
+                        Seq (false_start, els), (* None *)
+                        thn (* Some *)
+                    ), locals, is_mod)
+        end
+    | IfExists (q, thn, els) ->
+        let^ elem = codegen_elem q types globals locals is_mod
+        in let^ thn = codegen_stmts thn locals yield is_mod
+        in let^ els = codegen_stmts els locals yield is_mod
+        in Ok (Target.Contains (elem, thn, els), locals, is_mod)
+    | IfThenElse (c, thn, els) ->
+        let^ res =
+          codegen_expr c types globals locals is_mod (fun (c, typ) ->
+            if typ <> Primitive Bool
+            then Error "Condition must be a boolean value"
+            else
+              let^ thn = codegen_stmts thn locals yield is_mod
+              in let^ els = codegen_stmts els locals yield is_mod
+              in Ok (Target.Cond (c, thn, els)))
+        in Ok (res, locals, is_mod)
+    | Match (e, cs) ->
+        (* First, we need to identify the type that we are matching over.
+         * We look at the first case for this, if there are none the match
+         * compiles into just evaluating the expression *)
+        begin match cs with
+        | [] ->
+            let^ res =
+              codegen_expr e types globals locals is_mod (fun _ -> Ok Pass)
+            in Ok (res, locals, is_mod)
+        | ((type_name, type_arg, _, _), _) :: _ ->
+            let^ constructors = lookup_enum types type_name type_arg
+            in let cases =
+              Array.make (StringMap.cardinal constructors) None
+            in let^ () =
+              List.fold_left
+                (fun i ((typ, ty_arg, cons, vars), body) ->
+                  Result.bind i (fun () ->
+                    if typ <> type_name || ty_arg <> type_arg
+                    then Error "Mismatched types in match case"
+                    else
+                      match StringMap.find_opt cons constructors with
+                      | None ->
+                          Error ("No constructor " ^ cons ^ " for type " ^ typ)
+                      | Some (pos, args) ->
+                          match cases.(pos) with
+                          | Some _ ->
+                              Error ("Duplicate case " ^ cons ^ " in match")
+                          | None ->
+                              let^ typ = lower_types args
+                              in let^ (setup, case_env) =
+                                generate_var_inits vars typ
+                                  (Variable "#match") locals
+                              in let^ body =
+                                codegen_stmts body case_env yield is_mod
+                              in Ok ( cases.(pos) <-
+                                  Some (Target.Seq (setup, body)) )))
+                (Ok ()) cs
+            in let^ res =
+              codegen_expr e types globals locals is_mod (fun (e, t) ->
+                if pattern_type_matches types (type_name, type_arg) t
+                then
+                  Ok (Target.Seq (
+                    Target.Assign ("#match", e),
+                    array_foldr1 cases
+                      (Option.value ~default:Target.Pass)
+                      (fun l r ->
+                        Target.Match (Variable "#match", "#match", l, r))
+                  ))
+                else Error "Incorrect type of scrutinee")
+            in Ok (res, locals, is_mod)
+        end
+    | Clear e ->
+        let^ q = codegen_qual e types globals locals is_mod
+        in Result.bind (negate_qual q)
+            (fun nq -> Ok (Target.Add nq, locals, is_mod))
+    | Touch e ->
+        let^ q = codegen_qual e types globals locals is_mod
+        in Ok (Target.Add q, locals, is_mod)
+    | Assert e ->
+        let^ result =
+          codegen_expr e types globals locals is_mod (fun (e, t) ->
+            if t <> Primitive Bool
+            then Error "Condition must be a boolean value"
+            else
+              Ok (Target.Cond (e, Pass, fatal "assertion failed")))
+        in Ok (result, locals, is_mod)
+    | AssertExists q ->
+        let^ elem = codegen_elem q types globals locals is_mod
+        in Ok (Target.Contains (elem, Pass, fatal "assertion failed"),
+                locals, is_mod)
+    | Return e ->
+        let^ result =
+          codegen_expr e types globals locals is_mod (fun (e, t) ->
+            if t <> ret
+            then Error "Mismatch in return type"
+            else Ok (Target.Return e))
+        in Ok (result, locals, is_mod)
+    | Yield e ->
+        begin match yield with
+        | None -> Error "Yield not allowed in this context"
+        | Some ty ->
+            let^ result =
+              codegen_expr e types globals locals is_mod (fun (e, t) ->
+                match !ty with
+                | None -> ty := Some t; Ok (Target.Yield e)
+                | Some ty ->
+                    if t <> ty
+                    then Error "Mismatch in yield type"
+                    else Ok (Target.Yield e))
+            in Ok (result, locals, is_mod)
+        end
+    | LetStmt (var, exp) ->
+        let fresh_var = fresh_var var
+        in let ty = ref (Target.Primitive Unit)
+        in let^ result =
+          codegen_expr exp types globals locals is_mod (fun (e, t) ->
+            ty := t; Ok (Target.Assign (fresh_var, e)))
+        in let new_locals =
+          StringMap.add var (LocalVar (fresh_var, !ty)) locals
+        in Ok (result, new_locals, is_mod)
+    | Assign (lhs, rhs) ->
+        let^ result =
+          codegen_expr rhs types globals locals is_mod (fun (e, t) ->
+            codegen_assignment lhs types globals locals is_mod e t)
+        in Ok (result, locals, is_mod)
+    | Raise (nm, exc) ->
+        let^ exc_typ =
+          match UniqueMap.find nm excepts with
+          | None -> Error ("Undefined exception " ^ nm)
+          | Some t -> lower_type t
+        in let^ result =
+          codegen_expr exc types globals locals is_mod (fun (e, t) ->
+            if t <> exc_typ
+            then Error ("Incorrect type for exception " ^ nm)
+            else Ok (raise nm e))
+        in Ok (result, locals, is_mod)
+    | TryCatch (body, catch, finally) ->
+        let^ body = codegen_stmts body locals yield is_mod
+        in let^ catch =
+          match catch with
+          | None -> Ok (Target.Raise (Variable "#catch"))
+          | Some (exc, vars, catch) ->
+              match UniqueMap.find exc excepts with
+              | None -> Error ("Undefined exception " ^ exc)
+              | Some t ->
+                  let^ typ = lower_type t
+                  in let^ (setup, body_locals) =
+                    generate_var_inits vars typ
+                      (Function (Proj (false, Primitive String, typ),
+                        Variable "#catch"))
+                      locals
+                  in let^ catch = codegen_stmts catch body_locals yield is_mod
+                  in Ok (
+                    Target.Cond (
+                      Function (Equal (Primitive String),
+                        Pair (
+                          Function (Proj (true, Primitive String, typ),
+                            Variable "#catch"),
+                          Literal (String exc))),
+                        Seq (setup, catch),
+                        Raise (Variable "#catch")))
+        in let^ finally = codegen_stmts finally locals yield is_mod
+        in Ok (Target.TryCatch (body, "#catch", catch, finally), locals, is_mod)
 
   and codegen_stmts (s : Ast.stmt list) (locals : local_env)
     (yield : Target.typ placeholder option) (is_mod : mod_info option)
@@ -535,7 +966,7 @@ let codegen (parsed : Ast.topLevel list list) : (context, string) result =
         in let^ func_body =
           codegen_stmts body types globals excepts locals ret_type None
             None default_ret
-        in Ok (body_ref := Some (func_body))
+        in Ok (body_ref := Some (Target.Seq (setup, func_body)))
     (* Module body *)
     | Some (Either.Right (body, input), ret_type, body_ref) ->
         let default_ret : (Target.stmt, string) result =
