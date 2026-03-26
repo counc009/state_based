@@ -761,13 +761,19 @@ let process_expr (e : Ast.expr) (types : type_env) (globals : global_env)
     (k : expr_result -> (Target.stmt, string) result)
     : (Target.stmt, string) result =
     match e with
-    (* TODO: We can enable top-level attributes by searching for them here *)
     | Id nm ->
         begin match StringMap.find_opt nm locals with
         | Some (LocalVar (name, typ)) -> k (Expr (Variable name, typ))
         | Some (ModuleVar _) ->
             Error ("Variable " ^ nm ^ " may not be provided")
-        | None -> Error ("Variable " ^ nm ^ " is undefined")
+        | None ->
+            (* If it's not a local, it could be a top-level attribute *)
+            match UniqueMap.find nm globals with
+            | Some (Attribute (nm, typ)) ->
+                let^ attr =
+                  Result.bind (lower_type typ) (fun t -> Ok (nm, t))
+                in k (Attr (AttrAccess attr, snd attr))
+            | _ -> Error ("Variable " ^ nm ^ " is undefined")
         end
     | BoolLit   v -> k (Expr (Literal (Bool v), Primitive Bool))
     | IntLit    v -> k (Expr (Literal (Int v), Primitive Int))
