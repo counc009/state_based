@@ -25,6 +25,17 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | Append        of 't (* Type of list elements *)
                 | AddInt
                 | AddFloat
+                | SubInt
+                | SubFloat
+                | MulInt
+                | MulFloat
+                | DivInt
+                | DivFloat
+                | Modulo
+                | LShift
+                | RShift
+                | LtInt
+                | LtFloat
                 | LeInt
                 | LeFloat
                 | ToLower
@@ -279,11 +290,89 @@ module rec Ast_Target : Ast_Defs
         fun v -> match v with
           | Pair (Literal (Int x, _), Literal (Int y, _), _)
               -> Reduced (Literal (Int (x + y), Int))
+          | Pair (Literal (Int 0, _), y, _) -> Reduced y
+          | Pair (x, Literal (Int 0, _), _) -> Reduced x
           | _ -> Stuck)
     | AddFloat -> (Product (Primitive Float, Primitive Float), Primitive Float,
         fun v -> match v with
           | Pair (Literal (Float x, _), Literal (Float y, _), _)
               -> Reduced (Literal (Float (x +. y), Float))
+          | Pair (Literal (Float 0.0, _), y, _) -> Reduced y
+          | Pair (x, Literal (Float 0.0, _), _) -> Reduced x
+          | _ -> Stuck)
+    | SubInt -> (Product (Primitive Int, Primitive Int), Primitive Int,
+        fun v -> match v with
+          | Pair (Literal (Int x, _), Literal (Int y, _), _)
+              -> Reduced (Literal (Int (x - y), Int))
+          | Pair (x, Literal (Int 0, _), _) -> Reduced x
+          | _ -> Stuck)
+    | SubFloat -> (Product (Primitive Float, Primitive Float), Primitive Float,
+        fun v -> match v with
+          | Pair (Literal (Float x, _), Literal (Float y, _), _)
+              -> Reduced (Literal (Float (x -. y), Float))
+          | Pair (x, Literal (Float 0.0, _), _) -> Reduced x
+          | _ -> Stuck)
+    | MulInt -> (Product (Primitive Int, Primitive Int), Primitive Int,
+        fun v -> match v with
+          | Pair (Literal (Int x, _), Literal (Int y, _), _)
+              -> Reduced (Literal (Int (x * y), Int))
+          | Pair (Literal (Int 0, _), _, _) -> Reduced (Literal (Int 0, Int))
+          | Pair (_, Literal (Int 0, _), _) -> Reduced (Literal (Int 0, Int))
+          | _ -> Stuck)
+    | MulFloat -> (Product (Primitive Float, Primitive Float), Primitive Float,
+        fun v -> match v with
+          | Pair (Literal (Float x, _), Literal (Float y, _), _)
+              -> Reduced (Literal (Float (x *. y), Float))
+          | Pair (Literal (Float 0.0, _), _, _) ->
+              Reduced (Literal (Float 0.0, Int))
+          | Pair (_, Literal (Float 0.0, _), _) ->
+              Reduced (Literal (Float 0.0, Int))
+          | _ -> Stuck)
+    | DivInt -> (Product (Primitive Int, Primitive Int), Primitive Int,
+        fun v -> match v with
+          | Pair (_, Literal (Int 0, _), _) -> Err "Division by 0"
+          | Pair (Literal (Int x, _), Literal (Int y, _), _)
+              -> Reduced (Literal (Int (x / y), Int))
+          | _ -> Stuck)
+    | DivFloat -> (Product (Primitive Float, Primitive Float), Primitive Float,
+        fun v -> match v with
+          | Pair (_, Literal (Float 0.0, _), _) -> Err "Division by 0"
+          | Pair (Literal (Float x, _), Literal (Float y, _), _)
+              -> Reduced (Literal (Float (x /. y), Float))
+          | _ -> Stuck)
+    | Modulo -> (Product (Primitive Int, Primitive Int), Primitive Int,
+        fun v -> match v with
+          | Pair (_, Literal (Int 0, _), _) -> Err "Modulo by 0"
+          | Pair (Literal (Int x, _), Literal (Int y, _), _)
+              -> Reduced (Literal (Int (x mod y), Int))
+          | _ -> Stuck)
+    | LShift -> (Product (Primitive Int, Primitive Int), Primitive Int,
+        fun v -> match v with
+          | Pair (_, Literal (Int y, _), _) when y < 0
+              -> Err "Shift by negative number"
+          | Pair (Literal (Int x, _), Literal (Int y, _), _)
+              -> Reduced (Literal (Int (Int.shift_left x y), Int))
+          | Pair (x, Literal (Int 0, _), _) -> Reduced x
+          | Pair (Literal (Int 0, _), _, _) -> Reduced (Literal (Int 0, Int))
+          | _ -> Stuck)
+    | RShift -> (Product (Primitive Int, Primitive Int), Primitive Int,
+        fun v -> match v with
+          | Pair (_, Literal (Int y, _), _) when y < 0
+              -> Err "Shift by negative number"
+          | Pair (Literal (Int x, _), Literal (Int y, _), _)
+              -> Reduced (Literal (Int (Int.shift_right x y), Int))
+          | Pair (x, Literal (Int 0, _), _) -> Reduced x
+          | Pair (Literal (Int 0, _), _, _) -> Reduced (Literal (Int 0, Int))
+          | _ -> Stuck)
+    | LtInt -> (Product (Primitive Int, Primitive Int), Primitive Bool,
+        fun v -> match v with
+          | Pair (Literal (Int x, _), Literal (Int y, _), _)
+              -> Reduced (Literal (Bool (x < y), Bool))
+          | _ -> Stuck)
+    | LtFloat -> (Product (Primitive Float, Primitive Float), Primitive Bool,
+        fun v -> match v with
+          | Pair (Literal (Float x, _), Literal (Float y, _), _)
+              -> Reduced (Literal (Bool (x < y), Bool))
           | _ -> Stuck)
     | LeInt -> (Product (Primitive Int, Primitive Int), Primitive Bool,
         fun v -> match v with
@@ -511,6 +600,17 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | Append _                  -> "append"
         | AddInt                    -> "add"
         | AddFloat                  -> "add"
+        | SubInt                    -> "sub"
+        | SubFloat                  -> "sub"
+        | MulInt                    -> "mul"
+        | MulFloat                  -> "mul"
+        | DivInt                    -> "div"
+        | DivFloat                  -> "div"
+        | Modulo                    -> "mod"
+        | LShift                    -> "lshift"
+        | RShift                    -> "rshift"
+        | LtInt                     -> "lt"
+        | LtFloat                   -> "lt"
         | LeInt                     -> "le"
         | LeFloat                   -> "le"
         | ToLower                   -> "to_lower"
@@ -651,6 +751,17 @@ let rec string_of_value (v : Ast_Target.value) : string =
       | Append _                  -> "append(" ^ string_of_value arg ^ ")"
       | AddInt                    -> "add(" ^ string_of_value arg ^ ")"
       | AddFloat                  -> "add(" ^ string_of_value arg ^ ")"
+      | SubInt                    -> "sub(" ^ string_of_value arg ^ ")"
+      | SubFloat                  -> "sub(" ^ string_of_value arg ^ ")"
+      | MulInt                    -> "mul(" ^ string_of_value arg ^ ")"
+      | MulFloat                  -> "mul(" ^ string_of_value arg ^ ")"
+      | DivInt                    -> "div(" ^ string_of_value arg ^ ")"
+      | DivFloat                  -> "div(" ^ string_of_value arg ^ ")"
+      | Modulo                    -> "mod(" ^ string_of_value arg ^ ")"
+      | LShift                    -> "lshift(" ^ string_of_value arg ^ ")"
+      | RShift                    -> "rshift(" ^ string_of_value arg ^ ")"
+      | LtInt                     -> "lt(" ^ string_of_value arg ^ ")"
+      | LtFloat                   -> "lt(" ^ string_of_value arg ^ ")"
       | LeInt                     -> "le(" ^ string_of_value arg ^ ")"
       | LeFloat                   -> "le(" ^ string_of_value arg ^ ")"
       | ToLower                   -> "to_lower(" ^ string_of_value arg ^ ")"
