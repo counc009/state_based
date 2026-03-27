@@ -605,6 +605,32 @@ let rec construct_product_read (e : Target.expr) (t : Target.typ) (i : int)
       then Ok (e, t)
       else Error "No such field of product"
 
+(* construct_product_access takes a product type and an index and identifes
+ * the type of that index and produces functions that will read and write
+ * to that field *)
+let rec construct_product_access (t : Target.typ) (i : int)
+  : (Target.typ
+    * (Target.expr -> Target.expr) (* read *)
+    * (Target.expr -> Target.expr -> Target.expr) (* write prod val *),
+    string) result =
+  match t with
+  | Product (x, y) ->
+      if i = 0
+      then Ok (x, (fun p -> Function (Proj (true, x, y), p)),
+            (fun p e -> Pair (e, Function (Proj (false, x, y), p))))
+      else
+        let^ (t, read, write) = construct_product_access y (i - 1)
+        in Ok (t,
+            (fun p -> read (Function (Proj (false, x, y), p) : Target.expr)),
+            (fun p e ->
+              (Pair (Function (Proj (true, x, y), p),
+                write (Function (Proj (false, x, y), p) : Target.expr) e)
+                  : Target.expr)))
+  | _ ->
+      if i = 0
+      then Ok (t, (fun e -> e), (fun _p e -> e))
+      else Error "No such field of product"
+
 (* Utilities for dealing with elements, attributes, and qualifiers *)
 let rec negate_qual (q : Target.qual) : (Target.qual, string) result =
   match q with
@@ -614,6 +640,15 @@ let rec negate_qual (q : Target.qual) : (Target.qual, string) result =
       Result.bind (negate_qual q)
         (fun nq -> Ok (Element (e, ex, Some nq) : Target.qual))
   | NotElement (e, ex) -> Ok (Element (e, ex, None))
+
+let rec qual_to_attr (q : Target.qual) : (Target.attr, string) result =
+  match q with
+  | Attribute (attr, _) -> Ok (AttrAccess attr)
+  | Element (_, _, None) -> Error "Not an attribute"
+  | Element (elem, e, Some q) ->
+      let^ attr = qual_to_attr q
+      in Ok (OnElement (elem, e, attr) : Target.attr)
+  | NotElement (_, _) -> Error "Not an attribute"
 
 (* Utilities for generating certain statements *)
 
@@ -1303,10 +1338,166 @@ let codegen_qual (e : Ast.expr) (types : type_env) (globals : global_env)
     | Elem elem -> k (elem.as_qual None)
     | _ -> Error "Expression is not an element")
 
-let codegen_assignment (_lhs : Ast.expr) (_types : type_env)
-  (_globals : global_env) (_locals : local_env) (_is_mod : mod_info option)
-  (_rhs : Target.expr) (_ty : Target.typ) : (Target.stmt, string) result =
-  Error "TODO"
+(* As we process an l-value (the left-hand side of an assignment), at any point
+ * what we have processed is either an element (that we'll construct a qual
+ * from so we can invoke Add) or a complete l-value (either a variable or an
+ * attribute).
+ * For l-values we'll produce the type we expect of the value and a function
+ * that generates a statement performing the assignment given either the
+ * expression to assign or a function which takes the current value (as an
+ * expression) and returns the new value.
+ *)
+type lval_result =
+  | Elem of (Target.qual -> (Target.stmt * Target.attr, string) result)
+  | LVal of Target.typ
+          * ((Target.expr, Target.expr -> Target.expr) Either.t
+              -> (Target.stmt, string) result)
+
+let codegen_assignment (lhs : Ast.expr) (types : type_env)
+  (globals : global_env) (locals : local_env) (is_mod : mod_info option)
+  (codegen_stmts : Ast.stmt list -> local_env -> Target.typ placeholder option
+      -> mod_info option -> (Target.stmt, string) result)
+  (rhs : Target.expr) (ty : Target.typ) : (Target.stmt, string) result =
+
+  let rec process_lval (l : Ast.expr) : (lval_result, string) result =
+    match l with
+    | Id nm ->
+        begin match StringMap.find_opt nm locals with
+        | Some (LocalVar (v, typ)) ->
+            Ok (LVal (typ,
+              fun e ->
+                match e with
+                | Either.Left e -> Ok (Target.Assign (v, e))
+                | Either.Right f ->
+                    Ok (Target.Assign (v, f (Target.Variable v)))))
+        | Some (ModuleVar _) ->
+            Error ("Variable " ^ nm ^ " may not be provided")
+        | None ->
+            match UniqueMap.find nm globals with
+            | Some (Attribute (nm, typ)) ->
+                let^ attr = Result.bind (lower_type typ) (fun t -> Ok (nm, t))
+                in Ok (LVal (snd attr,
+                    fun e ->
+                      match e with
+                      | Either.Left e -> Ok (Target.Add (Attribute (attr, e)))
+                      | Either.Right f ->
+                          let tmp = temp_name ()
+                          in Ok (Target.Seq (
+                              Target.Get (tmp, AttrAccess attr),
+                              Target.Add (Attribute (attr, f (Variable tmp)))))))
+            | _ -> Error ("Variable " ^ nm ^ " is undefined")
+        end
+    | FuncExp (Id elem, args) ->
+        begin match UniqueMap.find elem globals with
+        | Some (Element (nm, typ)) ->
+            let^ elem = Result.bind (lower_type typ) (fun t -> Ok (nm, t))
+            in Ok (Elem (fun q ->
+                let attr = ref (Error "Unable to determine attribute")
+                in let^ assign =
+                  codegen_expr (ProductExp args) types globals locals is_mod
+                    codegen_stmts (fun (e, t) ->
+                      if t <> snd elem
+                      then Error ("Incorrect type for element " ^ nm)
+                      else
+                        let qual : Target.qual = Element (elem, e, Some q)
+                        in attr := qual_to_attr qual
+                         ; Ok (Target.Add qual))
+                in Result.bind (!attr) (fun attr -> Ok (assign, attr))))
+        | Some (Uninterpreted (_, _, _)) | Some (Function (_, _, _, _))
+            -> Error ("Cannot assign to a function call, " ^ elem
+                      ^ " not an element")
+        | Some _ -> Error (elem ^ " is not a function")
+        | None ->
+            let^ _ = Builtins.lookup_builtin elem
+            in Error ("Cannot assign to a function call, " ^ elem
+                      ^ " not an element")
+        end
+    | FuncExp (Field (lhs, elem), args) ->
+        begin match UniqueMap.find elem globals with
+        | Some (Element (nm, typ)) ->
+            let^ elem = Result.bind (lower_type typ) (fun t -> Ok (nm, t))
+            in let^ lhs = process_lval lhs
+            in begin match lhs with
+            | Elem lhs -> Ok (Elem (fun q ->
+                let attr = ref (Error "Unable to determine attribute")
+                in let^ assign =
+                  codegen_expr (ProductExp args) types globals locals is_mod
+                    codegen_stmts (fun (e, t) ->
+                      if t <> snd elem
+                      then Error ("Incorrect type for element " ^ nm)
+                      else
+                        let^ (stmt, q) =
+                          lhs (Target.Element (elem, e, Some q))
+                        in attr := Ok q; Ok stmt)
+                in Result.bind (!attr) (fun attr -> Ok (assign, attr))))
+            | LVal _ -> Error "Can only access element on an element"
+            end
+        | Some _ -> Error (elem ^ " is not an element")
+        | None -> Error (elem ^ " is not defined")
+        end
+    | Field (lhs, field) ->
+        let^ lhs = process_lval lhs
+        in begin match lhs with
+        | Elem lhs -> (* We must be accessing an attribute *)
+            begin match UniqueMap.find field globals with
+            | Some (Attribute (nm, typ)) ->
+                let^ attr = Result.bind (lower_type typ) (fun t -> Ok (nm, t))
+                in Ok (LVal (snd attr,
+                    fun e ->
+                      match e with
+                      | Either.Left e ->
+                          let^ (stmt, _) = lhs (Attribute (attr, e)) in Ok stmt
+                      | Either.Right f ->
+                          let tmp = temp_name ()
+                          in let^ (assign, q) =
+                            lhs (Attribute (attr, f (Variable tmp)))
+                          in Ok (Target.Seq (Get (tmp, q), assign))))
+            | Some _ -> Error (field ^ " is not an attribute")
+            | None -> Error ("Undefined attribute " ^ field)
+            end
+        | LVal (ty, lhs) -> (* We must be accessing a record field *)
+            (* Modifying a record field always becomes reading the value
+             * and writing to a single field *)
+            match ty with
+            | Struct fields ->
+                begin match StringMap.find_opt field fields with
+                | Some ty ->
+                    Ok (LVal (ty, fun e ->
+                      match e with
+                      | Either.Left e ->
+                          lhs (Either.Right (fun r ->
+                            Target.Function (AddField (fields, field),
+                              Pair (r, e))))
+                      | Either.Right f ->
+                          lhs (Either.Right (fun r ->
+                            Target.Function (AddField (fields, field),
+                              Pair (r, 
+                                f (Function (ReadField (fields, field), r))))))))
+                | None -> Error ("Record does ont have field " ^ field)
+                end
+            | _ -> Error "L-value is not a record"
+        end
+    | ProductField (lhs, idx) ->
+        let^ lhs = process_lval lhs
+        in begin match lhs with
+        | Elem _ -> Error "L-value is not a tuple"
+        | LVal (ty, lhs) ->
+            let^ (ty, read, update) = construct_product_access ty idx
+            in Ok (LVal (ty, fun e ->
+              match e with
+              | Either.Left e -> lhs (Either.Right (fun p -> update p e))
+              | Either.Right f ->
+                  lhs (Either.Right (fun p -> update p (f (read p))))))
+        end
+    | _ -> Error "Invalid l-value"
+
+  in let^ lhs = process_lval lhs
+  in match lhs with
+  | Elem _ -> Error "Cannot assign to element"
+  | LVal (t, f) ->
+      if t <> ty
+      then Error "Incorrect type in assignment"
+      else f (Either.Left rhs)
 
 let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
   (excepts : except_env) (locals : local_env) (ret : Target.typ)
@@ -1555,7 +1746,8 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
         let^ result =
           codegen_expr rhs types globals locals is_mod codegen_stmts
           (fun (e, t) ->
-            codegen_assignment lhs types globals locals is_mod e t)
+            codegen_assignment lhs types globals locals is_mod codegen_stmts 
+              e t)
         in Ok (result, locals, is_mod)
     | Raise (nm, exc) ->
         let^ exc_typ =
