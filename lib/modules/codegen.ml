@@ -694,11 +694,11 @@ let generate_vars_check (input : Target.typ StringMap.t)
         Target.Match (
           Function (ReadField (input, v), Variable "#input"),
           "_",
+          check_vars vs found not_found,
           check_vars vs 
             (fatal ("Only one of [" ^ String.concat ", " vars 
                    ^ "] should be provided"))
-            found,
-          check_vars vs found not_found)
+            found)
 
   in check_vars vars Pass not_found
 
