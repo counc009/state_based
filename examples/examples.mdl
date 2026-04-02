@@ -10,3 +10,44 @@ function example2(nm : string) -> bool {
   touch foo(nm);
   return true;
 }
+
+attribute bar(int)
+
+module example3 {
+  (nm : string)
+  [val : int = 0]
+
+  foo(nm).bar = val;
+}
+
+function example4(v : int, nm : string) -> bool {
+  foo(nm).bar = v;
+  return true;
+}
+
+attribute baz(int, float)
+
+module example5 -> bool {
+  (nm : string)
+  [i : int]
+  [f : float]
+
+  if provided i {
+    foo(nm).baz.0 = i;
+  }
+  if provided f {
+    foo(nm).baz.1 = f;
+  }
+
+  return true;
+}
+
+module example6 {
+  (nm : string)
+  [i : int]
+
+  if provided i {
+    (f : float)
+    foo(nm).baz = (i, f);
+  }
+}

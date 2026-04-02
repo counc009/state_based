@@ -235,7 +235,8 @@ module Interp(Ast : Ast.Ast_Defs) = struct
             match ElementMap.find_opt (el, v) els with
             | None ->
                 Result.bind (attr_to_state at) (fun (v, nested) ->
-                  Ok (Created (v, nested)))
+                  Ok (Created (v,
+                    State (ElementMap.add (el, v) (Positive nested) els, ats))))
             | Some Negated -> Ok NotContained
             | Some (Positive s) ->
                 match find_in_state at s with
