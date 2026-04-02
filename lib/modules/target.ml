@@ -231,24 +231,20 @@ module rec Ast_Target : Ast_Defs
                                  fun v -> Reduced (Constructor (n, true, v)))
     | Constructor (false, n) -> (snd (namedTyDef n), Named n,
                                  fun v -> Reduced (Constructor (n, false, v)))
-    (* Note: We error with structs if they are ever unknown or for any
-     * other reason unreducible. For what we're doing structs are really just
-     * for arguments and return values to/from modules and so we really want
-     * reads to always reduce or error *)
     | EmptyStruct s -> (Primitive Unit, Struct s,
                         fun _ -> Reduced (Struct (s, FieldMap.empty)))
     | AddField (s, f) -> (Product (Struct s, FieldMap.find f (structTyDef s)),
                           Struct s,
                           fun v -> match v with Pair (Struct (_, fs), x, _)
                                     -> Reduced (Struct (s, FieldMap.add f x fs))
-                                   | _ -> Err "Add field failed to reduce")
+                                   | _ -> Stuck)
     | ReadField (s, f) -> (Struct s, FieldMap.find f (structTyDef s),
                            fun v -> match v with Struct (_, fs)
                                     -> begin match FieldMap.find_opt f fs with
                                        | Some x -> Reduced x
                                        | None -> Err ("Missing field " ^ f)
                                        end
-                                    | _ -> Err "Read field failed to reduce")
+                                    | _ -> Stuck)
     | GenUnknown t -> (Primitive Unit, t,
                        fun _ -> Reduced (Unknown (Val (uid ()), t)))
     | BoolNeg -> (Primitive Bool, Primitive Bool,
@@ -777,7 +773,12 @@ let rec string_of_value (v : Ast_Target.value) : string =
       | NormalizePath             -> "norm_path(" ^ string_of_value arg ^ ")"
       | CanEscalate               -> "can_esclate(" ^ string_of_value arg ^ ")"
       | Uninterpreted (nm, _, _)  -> nm ^ "(" ^ string_of_value arg ^ ")"
-      | _ -> "%%FUNCTION%%(" ^ string_of_value arg ^ ")"
+      | EmptyStruct _             -> "{ }"
+      | AddField (_, f)           -> "set." ^ f ^ "(" ^ string_of_value arg ^ ")"
+      | ReadField (_, f)          -> "get." ^ f ^ "(" ^ string_of_value arg ^ ")"
+      | GenUnknown _              -> "??"
+      | Constructor (w, _)        ->
+          (if w then "L" else "R") ^ "(" ^ string_of_value arg ^ ")"
 and string_of_list_val (v : Ast_Target.value) : string =
   match v with
   | Pair (hd, tl, _) ->
