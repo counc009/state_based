@@ -1,0 +1,12 @@
+element foo(string)
+
+module example1 {
+  (nm : string)
+
+  touch foo(nm);
+}
+
+function example2(nm : string) -> bool {
+  touch foo(nm);
+  return true;
+}

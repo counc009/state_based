@@ -1,9 +1,0 @@
-enum version { latest, specific(string) }
-
-element package(string)
-attribute installed(bool)
-attribute version(version)
-
-function package_present(pkg : string) -> bool {
-  return package(pkg).installed;
-}

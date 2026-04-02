@@ -1502,8 +1502,7 @@ let codegen_assignment (lhs : Ast.expr) (types : type_env)
 let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
   (excepts : except_env) (locals : local_env) (ret : Target.typ)
   (yield : Target.typ placeholder option) (is_mod : mod_info option)
-  (* A terminator to insert at the end of the stmts, unless another terminator
-   * is encountered. *)
+  (* A terminator to insert at the end of the stmts. *)
   (term : (Target.stmt, string) result) : (Target.stmt, string) result =
 
   let rec extract_module_args
@@ -1523,9 +1522,12 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
         | None -> Ok ((v, t) :: vs, Some (v, t, d))
         | Some _ -> Error "multiple default values specified for variable"
 
+  (* Only returns an updated environment and mod_info if the statement after
+   * it is reachable (i.e., s is not a terminator or all branches in it have
+   * terminators) *)
   in let rec codegen_stmt (s : Ast.stmt) (locals : local_env)
     (yield : Target.typ placeholder option) (is_mod : mod_info option)
-    : (Target.stmt * local_env * mod_info option, string) result =
+    : (Target.stmt * (local_env * mod_info option) option, string) result =
     match s with
     | VarDecls (required, vars) ->
         begin match is_mod with
@@ -1554,7 +1556,7 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
                                 ^ "] is required")
                     else Pass))
               | Some (var, typ, value) ->
-                  codegen_expr value types globals locals is_mod codegen_stmts
+                  codegen_expr value types globals locals is_mod stmts_expr
                     (fun (value, ty) ->
                       if ty <> typ
                       then Error ("default for " ^ var ^ " has wrong type")
@@ -1565,21 +1567,21 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
                                 Pair (Variable "#input",
                                 option_some value typ))))))
             in Ok (Target.Seq (decl_check, var_read),
-                    new_locals,
-                    Some (new_mod_env, input))
+                    Some (new_locals, Some (new_mod_env, input)))
         end
     | ForLoop (v, l, b) ->
         let^ loop =
-          codegen_expr l types globals locals is_mod codegen_stmts
+          codegen_expr l types globals locals is_mod stmts_expr
           (fun (lst, typ) ->
             match typ with
             | Named (List t) ->
                 let fresh_v = fresh_var v
                 in let body_env = StringMap.add v (LocalVar (fresh_v, t)) locals
-                in Result.bind (codegen_stmts b body_env None is_mod) (fun b ->
-                  Ok (Target.ForEach ("_", Primitive Unit, lst, fresh_v, b)))
+                in Result.bind (codegen_stmts b body_env None is_mod)
+                  (fun (b, _) ->
+                    Ok (Target.ForEach ("_", Primitive Unit, lst, fresh_v, b)))
           | _ -> Error "Can only loop over lists")
-        in Ok (loop, locals, is_mod)
+        in Ok (loop, Some (locals, is_mod))
     | IfProvided (var, thn, els) ->
         begin match is_mod with
         | None -> Error "Module-style variable check in function"
@@ -1601,9 +1603,9 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
                     (StringMap.remove var locals)
                 in let true_locals =
                   select_module_var var mod_id options fresh_nm typ locals
-                in let^ thn =
+                in let^ (thn, thn_reach) =
                   codegen_stmts thn true_locals yield is_mod
-                in let^ els =
+                in let^ (els, els_reach) =
                   codegen_stmts els false_locals yield
                     (Some (false_mod_env, input))
                 in Ok (Target.Match (
@@ -1611,26 +1613,32 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
                         fresh_nm,
                         Seq (false_start, els), (* None *)
                         thn (* Some *)
-                    ), locals, is_mod)
+                    ), if not thn_reach && not els_reach
+                        then None
+                        else Some (locals, is_mod))
         end
     | IfExists (q, thn, els) ->
-        let^ res =
-          codegen_elem q types globals locals is_mod codegen_stmts (fun elem ->
-            let^ thn = codegen_stmts thn locals yield is_mod
-            in let^ els = codegen_stmts els locals yield is_mod
-            in Ok (Target.Contains (elem, thn, els)))
-        in Ok (res, locals, is_mod)
+        let reachable = ref false
+        in let^ res =
+          codegen_elem q types globals locals is_mod stmts_expr (fun elem ->
+            let^ (thn, thn_reach) = codegen_stmts thn locals yield is_mod
+            in let^ (els, els_reach) = codegen_stmts els locals yield is_mod
+            in reachable := thn_reach || els_reach
+            ; Ok (Target.Contains (elem, thn, els)))
+        in Ok (res, if not !reachable then None else Some (locals, is_mod))
     | IfThenElse (c, thn, els) ->
-        let^ res =
-          codegen_expr c types globals locals is_mod codegen_stmts
+        let reachable = ref false
+        in let^ res =
+          codegen_expr c types globals locals is_mod stmts_expr
           (fun (c, typ) ->
             if typ <> Primitive Bool
             then Error "Condition must be a boolean value"
             else
-              let^ thn = codegen_stmts thn locals yield is_mod
-              in let^ els = codegen_stmts els locals yield is_mod
-              in Ok (Target.Cond (c, thn, els)))
-        in Ok (res, locals, is_mod)
+              let^ (thn, thn_reach) = codegen_stmts thn locals yield is_mod
+              in let^ (els, els_reach) = codegen_stmts els locals yield is_mod
+              in reachable := thn_reach || els_reach
+              ; Ok (Target.Cond (c, thn, els)))
+        in Ok (res, if not !reachable then None else Some (locals, is_mod))
     | Match (e, cs) ->
         (* First, we need to identify the type that we are matching over.
          * We look at the first case for this, if there are none the match
@@ -1638,13 +1646,14 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
         begin match cs with
         | [] ->
             let^ res =
-              codegen_expr e types globals locals is_mod codegen_stmts
+              codegen_expr e types globals locals is_mod stmts_expr
                 (fun _ -> Ok Pass)
-            in Ok (res, locals, is_mod)
+            in Ok (res, Some (locals, is_mod))
         | ((type_name, type_arg, _, _), _) :: _ ->
             let^ constructors = lookup_enum types type_name type_arg
             in let cases =
               Array.make (StringMap.cardinal constructors) None
+            in let reachable = ref false
             in let^ () =
               List.fold_left
                 (fun i ((typ, ty_arg, cons, vars), body) ->
@@ -1664,13 +1673,14 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
                               in let^ (setup, case_env) =
                                 generate_var_inits vars typ
                                   (Variable "#match") locals
-                              in let^ body =
+                              in let^ (body, body_reach) =
                                 codegen_stmts body case_env yield is_mod
-                              in Ok ( cases.(pos) <-
-                                  Some (Target.Seq (setup, body)) )))
+                              in reachable := !reachable || body_reach
+                              ; Ok ( cases.(pos) <-
+                                      Some (Target.Seq (setup, body)) )))
                 (Ok ()) cs
             in let^ res =
-              codegen_expr e types globals locals is_mod codegen_stmts
+              codegen_expr e types globals locals is_mod stmts_expr
               (fun (e, t) ->
                 if pattern_type_matches types (type_name, type_arg) t
                 then
@@ -1682,47 +1692,45 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
                         Target.Match (Variable "#match", "#match", l, r))
                   ))
                 else Error "Incorrect type of scrutinee")
-            in Ok (res, locals, is_mod)
+            in Ok (res, if not !reachable then None else Some (locals, is_mod))
         end
     | Clear e ->
         let^ res =
-          codegen_qual e types globals locals is_mod codegen_stmts (fun q ->
+          codegen_qual e types globals locals is_mod stmts_expr (fun q ->
             let^ nq = negate_qual q
             in Ok (Target.Add nq))
-        in Ok (res, locals, is_mod)
+        in Ok (res, Some (locals, is_mod))
     | Touch e ->
         let^ res =
-          codegen_qual e types globals locals is_mod codegen_stmts (fun q ->
+          codegen_qual e types globals locals is_mod stmts_expr (fun q ->
             Ok (Target.Add q))
-        in Ok (res, locals, is_mod)
+        in Ok (res, Some (locals, is_mod))
     | Assert e ->
         let^ result =
-          codegen_expr e types globals locals is_mod codegen_stmts
-          (fun (e, t) ->
+          codegen_expr e types globals locals is_mod stmts_expr (fun (e, t) ->
             if t <> Primitive Bool
             then Error "Condition must be a boolean value"
             else
               Ok (Target.Cond (e, Pass, fatal "assertion failed")))
-        in Ok (result, locals, is_mod)
+        in Ok (result, Some (locals, is_mod))
     | AssertExists q ->
         let^ result =
-          codegen_elem q types globals locals is_mod codegen_stmts (fun elem ->
+          codegen_elem q types globals locals is_mod stmts_expr (fun elem ->
             Ok (Target.Contains (elem, Pass, fatal "assertion failed")))
-        in Ok (result, locals, is_mod)
+        in Ok (result, Some (locals, is_mod))
     | Return e ->
         let^ result =
-          codegen_expr e types globals locals is_mod codegen_stmts
-          (fun (e, t) ->
+          codegen_expr e types globals locals is_mod stmts_expr (fun (e, t) ->
             if t <> ret
             then Error "Mismatch in return type"
             else Ok (Target.Return e))
-        in Ok (result, locals, is_mod)
+        in Ok (result, None)
     | Yield e ->
         begin match yield with
         | None -> Error "Yield not allowed in this context"
         | Some ty ->
             let^ result =
-              codegen_expr e types globals locals is_mod codegen_stmts
+              codegen_expr e types globals locals is_mod stmts_expr
               (fun (e, t) ->
                 match !ty with
                 | None -> ty := Some t; Ok (Target.Yield e)
@@ -1730,42 +1738,42 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
                     if t <> ty
                     then Error "Mismatch in yield type"
                     else Ok (Target.Yield e))
-            in Ok (result, locals, is_mod)
+            in Ok (result, None)
         end
     | LetStmt (var, exp) ->
         let fresh_var = fresh_var var
         in let ty = ref (Target.Primitive Unit)
         in let^ result =
-          codegen_expr exp types globals locals is_mod codegen_stmts
+          codegen_expr exp types globals locals is_mod stmts_expr
           (fun (e, t) ->
             ty := t; Ok (Target.Assign (fresh_var, e)))
         in let new_locals =
           StringMap.add var (LocalVar (fresh_var, !ty)) locals
-        in Ok (result, new_locals, is_mod)
+        in Ok (result, Some (new_locals, is_mod))
     | Assign (lhs, rhs) ->
         let^ result =
-          codegen_expr rhs types globals locals is_mod codegen_stmts
+          codegen_expr rhs types globals locals is_mod stmts_expr
           (fun (e, t) ->
-            codegen_assignment lhs types globals locals is_mod codegen_stmts 
+            codegen_assignment lhs types globals locals is_mod stmts_expr
               e t)
-        in Ok (result, locals, is_mod)
+        in Ok (result, Some (locals, is_mod))
     | Raise (nm, exc) ->
         let^ exc_typ =
           match UniqueMap.find nm excepts with
           | None -> Error ("Undefined exception " ^ nm)
           | Some t -> lower_type t
         in let^ result =
-          codegen_expr exc types globals locals is_mod codegen_stmts
+          codegen_expr exc types globals locals is_mod stmts_expr
           (fun (e, t) ->
             if t <> exc_typ
             then Error ("Incorrect type for exception " ^ nm)
             else Ok (raise nm e))
-        in Ok (result, locals, is_mod)
+        in Ok (result, None)
     | TryCatch (body, catch, finally) ->
-        let^ body = codegen_stmts body locals yield is_mod
-        in let^ catch =
+        let^ (body, body_reach) = codegen_stmts body locals yield is_mod
+        in let^ (catch, catch_reach) =
           match catch with
-          | None -> Ok (Target.Raise (Variable "#catch"))
+          | None -> Ok (Target.Raise (Variable "#catch"), true)
           | Some (exc, vars, catch) ->
               match UniqueMap.find exc excepts with
               | None -> Error ("Undefined exception " ^ exc)
@@ -1776,7 +1784,8 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
                       (Function (Proj (false, Primitive String, typ),
                         Variable "#catch"))
                       locals
-                  in let^ catch = codegen_stmts catch body_locals yield is_mod
+                  in let^ (catch, catch_reach) =
+                    codegen_stmts catch body_locals yield is_mod
                   in Ok (
                     Target.Cond (
                       Function (Equal (Primitive String),
@@ -1785,21 +1794,48 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
                             Variable "#catch"),
                           Literal (String exc))),
                         Seq (setup, catch),
-                        Raise (Variable "#catch")))
-        in let^ finally = codegen_stmts finally locals yield is_mod
-        in Ok (Target.TryCatch (body, "#catch", catch, finally), locals, is_mod)
+                        Raise (Variable "#catch")), catch_reach)
+        in let^ (finally, finally_reach) =
+          codegen_stmts finally locals yield is_mod
+        in Ok (Target.TryCatch (body, "#catch", catch, finally),
+            (* If the finally block always hits a terminator, the statement
+             * after the try-catch will never be reached. Otherwise, we only
+             * do not reach the statement after if the body always hits a
+             * terminator and the catch always hits one (since the body's
+             * terminator might be a raise that is caught by the body) *)
+            if not finally_reach || (not body_reach && not catch_reach)
+            then None
+            else Some (locals, is_mod))
 
+  (* The returned bool indicates whether control can continue after this list *)
   and codegen_stmts (s : Ast.stmt list) (locals : local_env)
     (yield : Target.typ placeholder option) (is_mod : mod_info option)
-    : (Target.stmt, string) result =
+    : (Target.stmt * bool, string) result =
     match s with
-    | [] -> term
+    | [] -> Ok (Pass, true)
     | s :: tl ->
-        let^ (res_s, new_locals, new_mod) = codegen_stmt s locals yield is_mod
-        in let^ res_tl = codegen_stmts tl new_locals yield new_mod
-        in Ok (Target.Seq (res_s, res_tl))
+        let^ (res_s, after) = codegen_stmt s locals yield is_mod
+        in match after with
+        | None ->
+            begin match tl with
+            | [] -> Ok (res_s, false)
+            | _ :: _ -> Error "Unreachable code"
+            end
+        | Some (new_locals, new_mod) ->
+            let^ (res_tl, res_reach) =
+              codegen_stmts tl new_locals yield new_mod
+            in Ok (Target.Seq (res_s, res_tl), res_reach)
 
-  in codegen_stmts s locals yield is_mod
+  and stmts_expr (s : Ast.stmt list) (locals : local_env)
+    (yield : Target.typ placeholder option) (is_mod : mod_info option)
+    : (Target.stmt, string) result =
+    let^ (res, _) = codegen_stmts s locals yield is_mod
+    in Ok res
+
+  in let^ (res, reach_end) = codegen_stmts s locals yield is_mod
+  in if not reach_end
+    then Ok res
+    else Result.bind term (fun t -> Ok (Target.Seq (res, t)))
 
 (* Main driver function, given the result of parsing a bunch of files (hence a
  * list of lists of top-levels), we produce return the context which contains
@@ -1913,7 +1949,7 @@ let codegen (parsed : Ast.topLevel list list) : (context, string) result =
         let default_ret : (Target.stmt, string) result =
           if type_equality ret_type Unit
           then Ok (Return (Literal (Unit ())))
-          else Error "Reached end of function body, no return"
+          else Error "Reached end of function without return"
         (* Because the calculus only allows a single arguments for everything,
          * we generate code that reads each argument out of the initial tuple
          * passed in as the #input argument *)
@@ -1929,7 +1965,7 @@ let codegen (parsed : Ast.topLevel list list) : (context, string) result =
         let default_ret : (Target.stmt, string) result =
           if type_equality ret_type Unit
           then Ok (Return (Literal (Unit ())))
-          else Error "Reached end of module body, no return"
+          else Error "Reached end of module without return"
         in let^ ret_type = lower_type ret_type
         in let^ input_type = smap_map_res lower_type input
         in let^ func_body =
@@ -1942,3 +1978,56 @@ let codegen (parsed : Ast.topLevel list list) : (context, string) result =
   in let^ funcs = flatmap_res add_func parsed
   in let^ () = foreach_res funcs codegen_func
   in Ok { types = types; globals = globals; excepts = excepts }
+
+(* Code-gen entry for an individual program given an existing context *)
+let codegen_program (body : Ast.stmt list) (c : context)
+  : (Target.stmt, string) result =
+  codegen_stmts body c.types c.globals c.excepts empty_local_env
+    (Primitive Unit) None None (Ok (Return (Literal (Unit ()))))
+
+(* TODO: What is this used for?? *)
+let find_module_name (name : string list) (c : context) : module_info option =
+  let rec helper name entry =
+    match name with
+    | [] ->
+        begin match entry with
+        | Module mod_info -> Some mod_info
+        | _ -> None
+        end
+    | nm :: name ->
+        match entry with
+        | Environment env ->
+            begin match UniqueMap.find nm env with
+            | None -> None
+            | Some entry -> helper name entry
+            end
+        | _ -> None
+  in helper name (Environment c.globals)
+
+let find_function_body (name : string list) (c : context)
+  : (Target.stmt, string) result =
+  let rec helper name entry =
+    match name with
+    | [] ->
+        begin match entry with
+        | Module m ->
+            begin match !(m.body) with
+            | None -> Error "No body for module"
+            | Some s -> Ok s
+            end
+        | Function (_, _, _, s) ->
+            begin match !s with
+            | None -> Error "No body for function"
+            | Some s -> Ok s
+            end
+        | _ -> Error "Not a function"
+        end
+    | nm :: name ->
+        match entry with
+        | Environment env ->
+            begin match UniqueMap.find nm env with
+            | None -> Error "No such function"
+            | Some entry -> helper name entry
+            end
+        | _ -> Error "Not a function"
+  in helper name (Environment c.globals)
