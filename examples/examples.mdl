@@ -51,3 +51,84 @@ module example6 {
     foo(nm).baz = (i, f);
   }
 }
+
+function example7(x : string, y: string, z : int) {
+  if exists foo(x).foo(y) {
+    foo(x).foo(y).bar = z;
+  } else {
+    foo(x).foo(y).baz = (z, 3.14);
+  }
+}
+
+struct data { i : int, f : float }
+
+attribute fiz(data)
+
+module example8 -> int {
+  (nm : string)
+  [i : int]
+  [f : float]
+
+  if provided i {
+    foo(nm).fiz.i = i;
+  }
+  if provided f {
+    foo(nm).fiz.f = f;
+  }
+
+  return foo(nm).fiz.i;
+}
+
+function example9(nm : string, i : int, f : float) {
+  foo(nm).fiz = data { i : i, f : f };
+}
+
+module exampleA {
+  (nm : string)
+  if ! (foo(nm).bar > 0) {
+    foo(nm).bar = 0;
+  }
+}
+
+element file(path)
+
+attribute contents(string)
+
+function exampleB(p : path) -> bool {
+  if exists file(p) {
+    clear file(p);
+    return true;
+  } else {
+    return false;
+  }
+}
+
+function exampleC(p : path) { clear file(p); }
+
+function exampleD(x : string, i : int) -> bool {
+  if foo(x).bar == i {
+    foo(x).bar = i + 1;
+    return true;
+  } else {
+    return false;
+  }
+}
+
+enum etest { easy, hard(int) }
+attribute z(etest)
+
+function exampleE(nm : string, i : int) -> bool {
+  match foo(nm).z {
+    etest::easy => { return false; }
+    etest::hard(j) => {
+      if i == j {
+        foo(nm).bar = j + 1;
+        return true;
+      } else {
+        return false;
+      }
+    }
+  }
+}
+
+// TODO: Test remaining features we've missed so far (assert, assert exists, loops [both stmts & exprs], and exception handling)

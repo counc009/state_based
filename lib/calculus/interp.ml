@@ -803,7 +803,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                           Ok (interpret left s env cont yield ret raise))
                         (fun x y -> Both (x, y))
                     in let right_res =
-                      addConstraint v (IsConstructor (false, val_left))
+                      addConstraint v (IsConstructor (false, val_right))
                         s env_right
                         (fun s env ->
                           Ok (interpret right s env cont yield ret raise))
