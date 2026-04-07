@@ -20,6 +20,8 @@ module UniqueMap = struct
     match find key map with
     | Some _ -> Error (Printf.sprintf "key %s already defined" key)
     | _ -> Ok (Hashtbl.add map key value)
+
+  let fold f (m : 'a t) x = Hashtbl.fold f m x
 end
 
 type 'a placeholder = 'a option ref
@@ -69,7 +71,7 @@ type except_env = typ UniqueMap.t
 type context =
   { types: type_env
   ; globals: global_env
-  ; excepts: except_env }
+  ; excepts: Target.typ StringMap.t }
 
 (* Module environments reflect optional and required arguments and their state
  * so that we can determine when a variable must be provided
@@ -652,12 +654,14 @@ let rec qual_to_attr (q : Target.qual) : (Target.attr, string) result =
 
 (* Utilities for generating certain statements *)
 
-(* For exceptions, we raise a pair with the exception's name (as a string) and
- * the value passed to the exception. *)
-let raise (exc : string) (e : Target.expr) : Target.stmt =
-  Raise (Pair (stringlit exc, e))
+(* For exceptions, we have a special function we use to construct exception
+ * values *)
+let raise (exc : string) (e : Target.expr) (excepts : Target.typ StringMap.t)
+  : Target.stmt =
+  Raise (Function (GenExcept (excepts, exc), e))
 
-let fatal (msg : string) : Target.stmt = raise "!FATAL" (stringlit msg)
+let fatal (msg : string) (excepts : Target.typ StringMap.t) : Target.stmt =
+  raise "!FATAL" (stringlit msg) excepts
 
 let rec generate_var_inits (names : string list) (ty : Target.typ)
   (exp : Target.expr) (locals : local_env)
@@ -682,7 +686,8 @@ let rec generate_var_inits (names : string list) (ty : Target.typ)
       | _ -> Error "Internal Type Error in generate_var_inits"
 
 let generate_vars_check (input : Target.typ StringMap.t)
-  (vars : (string * Target.typ) list) (not_found : Target.stmt) : Target.stmt =
+  (vars : (string * Target.typ) list) (not_found : Target.stmt)
+  (excepts : Target.typ StringMap.t): Target.stmt =
 
   let vars = List.map fst vars
 
@@ -697,14 +702,15 @@ let generate_vars_check (input : Target.typ StringMap.t)
           check_vars vs found not_found,
           check_vars vs 
             (fatal ("Only one of [" ^ String.concat ", " vars 
-                   ^ "] should be provided"))
+                   ^ "] should be provided") excepts)
             found)
 
   in check_vars vars Pass not_found
 
 (* Utilities for dealing with module arguments *)
 let update_module_var (decl_info : bool * StringSet.t) input
-  (locals : local_env) : local_env * Target.stmt =
+  (locals : local_env) (excepts : Target.typ StringMap.t)
+  : local_env * Target.stmt =
   let (required, vars) = decl_info
   in if required && StringSet.cardinal vars = 1
   then
@@ -716,7 +722,7 @@ let update_module_var (decl_info : bool * StringSet.t) input
         in let load_var : Target.stmt =
           Match (Function (ReadField (input, var), Variable "#input"),
             fresh_nm,
-            fatal ("Variable " ^ var ^ " must be defined, but it isn't"),
+            fatal ("Variable " ^ var ^ " must be defined, but it isn't") excepts,
             Pass)
         in (new_env, load_var)
     | _ -> (locals, Pass)
@@ -785,7 +791,8 @@ let as_expr (r : expr_result)
  * in the Module language involved statements in the calculus (like reading
  * attributes) *)
 let process_expr (e : Ast.expr) (types : type_env) (globals : global_env)
-  (locals : local_env) (is_mod : mod_info option)
+  (excepts : Target.typ StringMap.t) (locals : local_env)
+  (is_mod : mod_info option)
   (codegen_stmts : Ast.stmt list -> local_env -> Target.typ placeholder option
       -> mod_info option -> (Target.stmt, string) result)
   (k : expr_result -> (Target.stmt, string) result)
@@ -1235,7 +1242,7 @@ let process_expr (e : Ast.expr) (types : type_env) (globals : global_env)
                   IntMap.add mod_id false_decl_info mod_env
                 in let (false_locals, false_start) =
                   update_module_var false_decl_info input
-                    (StringMap.remove var locals)
+                    (StringMap.remove var locals) excepts
                 in let true_locals =
                   select_module_var var mod_id options fresh_nm typ locals
 
@@ -1308,32 +1315,35 @@ let process_expr (e : Ast.expr) (types : type_env) (globals : global_env)
  * language require statements in the Calculus and so we need to be able to
  * build statements while comping expressions. *)
 let codegen_expr (e : Ast.expr) (types : type_env) (globals : global_env)
-  (locals : local_env) (is_mod : mod_info option)
+  (excepts : Target.typ StringMap.t) (locals : local_env)
+  (is_mod : mod_info option)
   (codegen_stmts : Ast.stmt list -> local_env -> Target.typ placeholder option
       -> mod_info option -> (Target.stmt, string) result)
   (k : Target.expr * Target.typ -> (Target.stmt, string) result)
   : (Target.stmt, string) result =
-  process_expr e types globals locals is_mod codegen_stmts (fun e ->
+  process_expr e types globals excepts locals is_mod codegen_stmts (fun e ->
     as_expr e k)
 
 let codegen_elem (e : Ast.expr) (types : type_env) (globals : global_env)
-  (locals : local_env) (is_mod : mod_info option)
+  (excepts : Target.typ StringMap.t) (locals : local_env)
+  (is_mod : mod_info option)
   (codegen_stmts : Ast.stmt list -> local_env -> Target.typ placeholder option
       -> mod_info option -> (Target.stmt, string) result)
   (k : Target.elem -> (Target.stmt, string) result)
   : (Target.stmt, string) result =
-  process_expr e types globals locals is_mod codegen_stmts (fun e ->
+  process_expr e types globals excepts locals is_mod codegen_stmts (fun e ->
     match e with
     | Elem elem -> k (elem.as_elem None)
     | _ -> Error "Expression is not an element")
 
 let codegen_qual (e : Ast.expr) (types : type_env) (globals : global_env)
-  (locals : local_env) (is_mod : mod_info option)
+  (excepts : Target.typ StringMap.t) (locals : local_env)
+  (is_mod : mod_info option)
   (codegen_stmts : Ast.stmt list -> local_env -> Target.typ placeholder option
       -> mod_info option -> (Target.stmt, string) result)
   (k : Target.qual -> (Target.stmt, string) result)
   : (Target.stmt, string) result =
-  process_expr e types globals locals is_mod codegen_stmts (fun e ->
+  process_expr e types globals excepts locals is_mod codegen_stmts (fun e ->
     match e with
     | Elem elem -> k (elem.as_qual None)
     | _ -> Error "Expression is not an element")
@@ -1354,7 +1364,8 @@ type lval_result =
               -> (Target.stmt, string) result)
 
 let codegen_assignment (lhs : Ast.expr) (types : type_env)
-  (globals : global_env) (locals : local_env) (is_mod : mod_info option)
+  (globals : global_env) (excepts : Target.typ StringMap.t)
+  (locals : local_env) (is_mod : mod_info option)
   (codegen_stmts : Ast.stmt list -> local_env -> Target.typ placeholder option
       -> mod_info option -> (Target.stmt, string) result)
   (rhs : Target.expr) (ty : Target.typ) : (Target.stmt, string) result =
@@ -1394,8 +1405,8 @@ let codegen_assignment (lhs : Ast.expr) (types : type_env)
             in Ok (Elem (fun q ->
                 let attr = ref (Error "Unable to determine attribute")
                 in let^ assign =
-                  codegen_expr (ProductExp args) types globals locals is_mod
-                    codegen_stmts (fun (e, t) ->
+                  codegen_expr (ProductExp args) types globals excepts locals
+                    is_mod codegen_stmts (fun (e, t) ->
                       if t <> snd elem
                       then Error ("Incorrect type for element " ^ nm)
                       else
@@ -1421,8 +1432,8 @@ let codegen_assignment (lhs : Ast.expr) (types : type_env)
             | Elem lhs -> Ok (Elem (fun q ->
                 let attr = ref (Error "Unable to determine attribute")
                 in let^ assign =
-                  codegen_expr (ProductExp args) types globals locals is_mod
-                    codegen_stmts (fun (e, t) ->
+                  codegen_expr (ProductExp args) types globals excepts locals
+                    is_mod codegen_stmts (fun (e, t) ->
                       if t <> snd elem
                       then Error ("Incorrect type for element " ^ nm)
                       else
@@ -1500,7 +1511,7 @@ let codegen_assignment (lhs : Ast.expr) (types : type_env)
       else f (Either.Left rhs)
 
 let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
-  (excepts : except_env) (locals : local_env) (ret : Target.typ)
+  (excepts : Target.typ StringMap.t) (locals : local_env) (ret : Target.typ)
   (yield : Target.typ placeholder option) (is_mod : mod_info option)
   (* A terminator to insert at the end of the stmts. *)
   (term : (Target.stmt, string) result) : (Target.stmt, string) result =
@@ -1545,7 +1556,7 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
                 StringMap.add var (ModuleVar (decl_id, typ)) env)
                 locals vars
             in let (new_locals, var_read) =
-              update_module_var decl_info input locals_with_decl
+              update_module_var decl_info input locals_with_decl excepts
             in let^ decl_check =
               match default with
               | None ->
@@ -1553,11 +1564,11 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
                     (if required
                      then fatal ("One of the arguments ["
                                 ^ String.concat ", " (List.map fst vars)
-                                ^ "] is required")
-                    else Pass))
+                                ^ "] is required") excepts
+                    else Pass) excepts)
               | Some (var, typ, value) ->
-                  codegen_expr value types globals locals is_mod stmts_expr
-                    (fun (value, ty) ->
+                  codegen_expr value types globals excepts locals is_mod
+                    stmts_expr (fun (value, ty) ->
                       if ty <> typ
                       then Error ("default for " ^ var ^ " has wrong type")
                       else
@@ -1565,13 +1576,13 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
                             (Target.Assign ("#input",
                               Function (AddField (input, var),
                                 Pair (Variable "#input",
-                                option_some value typ))))))
+                                option_some value typ)))) excepts))
             in Ok (Target.Seq (decl_check, var_read),
                     Some (new_locals, Some (new_mod_env, input)))
         end
     | ForLoop (v, l, b) ->
         let^ loop =
-          codegen_expr l types globals locals is_mod stmts_expr
+          codegen_expr l types globals excepts locals is_mod stmts_expr
           (fun (lst, typ) ->
             match typ with
             | Named (List t) ->
@@ -1600,7 +1611,7 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
                   IntMap.add mod_id false_decl_info mod_env
                 in let (false_locals, false_start) =
                   update_module_var false_decl_info input
-                    (StringMap.remove var locals)
+                    (StringMap.remove var locals) excepts
                 in let true_locals =
                   select_module_var var mod_id options fresh_nm typ locals
                 in let^ (thn, thn_reach) =
@@ -1620,7 +1631,8 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
     | IfExists (q, thn, els) ->
         let reachable = ref false
         in let^ res =
-          codegen_elem q types globals locals is_mod stmts_expr (fun elem ->
+          codegen_elem q types globals excepts locals is_mod stmts_expr
+          (fun elem ->
             let^ (thn, thn_reach) = codegen_stmts thn locals yield is_mod
             in let^ (els, els_reach) = codegen_stmts els locals yield is_mod
             in reachable := thn_reach || els_reach
@@ -1629,7 +1641,7 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
     | IfThenElse (c, thn, els) ->
         let reachable = ref false
         in let^ res =
-          codegen_expr c types globals locals is_mod stmts_expr
+          codegen_expr c types globals excepts locals is_mod stmts_expr
           (fun (c, typ) ->
             if typ <> Primitive Bool
             then Error "Condition must be a boolean value"
@@ -1646,7 +1658,7 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
         begin match cs with
         | [] ->
             let^ res =
-              codegen_expr e types globals locals is_mod stmts_expr
+              codegen_expr e types globals excepts locals is_mod stmts_expr
                 (fun _ -> Ok Pass)
             in Ok (res, Some (locals, is_mod))
         | ((type_name, type_arg, _, _), _) :: _ ->
@@ -1680,7 +1692,7 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
                                       Some (Target.Seq (setup, body)) )))
                 (Ok ()) cs
             in let^ res =
-              codegen_expr e types globals locals is_mod stmts_expr
+              codegen_expr e types globals excepts locals is_mod stmts_expr
               (fun (e, t) ->
                 if pattern_type_matches types (type_name, type_arg) t
                 then
@@ -1696,31 +1708,35 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
         end
     | Clear e ->
         let^ res =
-          codegen_qual e types globals locals is_mod stmts_expr (fun q ->
+          codegen_qual e types globals excepts locals is_mod stmts_expr
+          (fun q ->
             let^ nq = negate_qual q
             in Ok (Target.Add nq))
         in Ok (res, Some (locals, is_mod))
     | Touch e ->
         let^ res =
-          codegen_qual e types globals locals is_mod stmts_expr (fun q ->
-            Ok (Target.Add q))
+          codegen_qual e types globals excepts locals is_mod stmts_expr
+            (fun q -> Ok (Target.Add q))
         in Ok (res, Some (locals, is_mod))
     | Assert e ->
         let^ result =
-          codegen_expr e types globals locals is_mod stmts_expr (fun (e, t) ->
+          codegen_expr e types globals excepts locals is_mod stmts_expr
+          (fun (e, t) ->
             if t <> Primitive Bool
             then Error "Condition must be a boolean value"
             else
-              Ok (Target.Cond (e, Pass, fatal "assertion failed")))
+              Ok (Target.Cond (e, Pass, fatal "assertion failed" excepts)))
         in Ok (result, Some (locals, is_mod))
     | AssertExists q ->
         let^ result =
-          codegen_elem q types globals locals is_mod stmts_expr (fun elem ->
-            Ok (Target.Contains (elem, Pass, fatal "assertion failed")))
+          codegen_elem q types globals excepts locals is_mod stmts_expr
+          (fun elem ->
+            Ok (Target.Contains (elem, Pass, fatal "assertion failed" excepts)))
         in Ok (result, Some (locals, is_mod))
     | Return e ->
         let^ result =
-          codegen_expr e types globals locals is_mod stmts_expr (fun (e, t) ->
+          codegen_expr e types globals excepts locals is_mod stmts_expr
+          (fun (e, t) ->
             if t <> ret
             then Error "Mismatch in return type"
             else Ok (Target.Return e))
@@ -1730,7 +1746,7 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
         | None -> Error "Yield not allowed in this context"
         | Some ty ->
             let^ result =
-              codegen_expr e types globals locals is_mod stmts_expr
+              codegen_expr e types globals excepts locals is_mod stmts_expr
               (fun (e, t) ->
                 match !ty with
                 | None -> ty := Some t; Ok (Target.Yield e)
@@ -1744,7 +1760,7 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
         let fresh_var = fresh_var var
         in let ty = ref (Target.Primitive Unit)
         in let^ result =
-          codegen_expr exp types globals locals is_mod stmts_expr
+          codegen_expr exp types globals excepts locals is_mod stmts_expr
           (fun (e, t) ->
             ty := t; Ok (Target.Assign (fresh_var, e)))
         in let new_locals =
@@ -1752,22 +1768,22 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
         in Ok (result, Some (new_locals, is_mod))
     | Assign (lhs, rhs) ->
         let^ result =
-          codegen_expr rhs types globals locals is_mod stmts_expr
+          codegen_expr rhs types globals excepts locals is_mod stmts_expr
           (fun (e, t) ->
-            codegen_assignment lhs types globals locals is_mod stmts_expr
-              e t)
+            codegen_assignment lhs types globals excepts locals is_mod
+              stmts_expr e t)
         in Ok (result, Some (locals, is_mod))
     | Raise (nm, exc) ->
         let^ exc_typ =
-          match UniqueMap.find nm excepts with
+          match StringMap.find_opt nm excepts with
           | None -> Error ("Undefined exception " ^ nm)
-          | Some t -> lower_type t
+          | Some t -> Ok t
         in let^ result =
-          codegen_expr exc types globals locals is_mod stmts_expr
+          codegen_expr exc types globals excepts locals is_mod stmts_expr
           (fun (e, t) ->
             if t <> exc_typ
             then Error ("Incorrect type for exception " ^ nm)
-            else Ok (raise nm e))
+            else Ok (raise nm e excepts))
         in Ok (result, None)
     | TryCatch (body, catch, finally) ->
         let^ (body, body_reach) = codegen_stmts body locals yield is_mod
@@ -1775,26 +1791,22 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
           match catch with
           | None -> Ok (Target.Raise (Variable "#catch"), true)
           | Some (exc, vars, catch) ->
-              match UniqueMap.find exc excepts with
+              match StringMap.find_opt exc excepts with
               | None -> Error ("Undefined exception " ^ exc)
-              | Some t ->
-                  let^ typ = lower_type t
-                  in let^ (setup, body_locals) =
-                    generate_var_inits vars typ
-                      (Function (Proj (false, Primitive String, typ),
-                        Variable "#catch"))
-                      locals
+              | Some typ ->
+                  let^ (setup, body_locals) =
+                    generate_var_inits vars typ (Variable "#except") locals
                   in let^ (catch, catch_reach) =
                     codegen_stmts catch body_locals yield is_mod
                   in Ok (
-                    Target.Cond (
-                      Function (Equal (Primitive String),
-                        Pair (
-                          Function (Proj (true, Primitive String, typ),
-                            Variable "#catch"),
-                          Literal (String exc))),
-                        Seq (setup, catch),
-                        Raise (Variable "#catch")), catch_reach)
+                    Target.Match (
+                      Function (UnpackExcept (excepts, exc), Variable "#catch"),
+                      "#except",
+                      (* None, some other error *)
+                      Raise (Variable "#catch"),
+                      (* Some, this kind of error *)
+                      Seq (setup, catch)),
+                    catch_reach)
         in let^ (finally, finally_reach) =
           codegen_stmts finally locals yield is_mod
         in Ok (Target.TryCatch (body, "#catch", catch, finally),
@@ -1941,7 +1953,8 @@ let codegen (parsed : Ast.topLevel list list) : (context, string) result =
         in Ok (Some (Either.Right (body, struct_def), ret_ty, mod_body))
     | _ -> Ok None
 
-  in let codegen_func f : (unit, string) result =
+  in let codegen_func (excepts : Target.typ StringMap.t) f
+    : (unit, string) result =
     match f with
     | None -> Ok ()
     (* Function body *)
@@ -1976,7 +1989,13 @@ let codegen (parsed : Ast.topLevel list list) : (context, string) result =
   in let^ () = foreachs_res parsed add_type
   in let^ () = foreachs_res parsed add_def
   in let^ funcs = flatmap_res add_func parsed
-  in let^ () = foreach_res funcs codegen_func
+  in let^ excepts =
+    UniqueMap.fold (fun e t excepts -> Result.bind excepts (fun excepts ->
+      let^ typ = lower_type t
+      in Ok (StringMap.add e typ excepts)))
+      excepts
+      (Ok (StringMap.singleton "!FATAL" (Target.Primitive String)))
+  in let^ () = foreach_res funcs (codegen_func excepts)
   in Ok { types = types; globals = globals; excepts = excepts }
 
 (* Code-gen entry for an individual program given an existing context *)

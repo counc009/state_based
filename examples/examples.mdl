@@ -131,4 +131,68 @@ function exampleE(nm : string, i : int) -> bool {
   }
 }
 
-// TODO: Test remaining features we've missed so far (assert, assert exists, loops [both stmts & exprs], and exception handling)
+function exampleF() {
+  assert foo("abc").bar == 3;
+  assert exists foo("xyz");
+  
+  touch foo("123");
+  assert exists foo("123");
+}
+
+function exampleG(xs : list string) -> bool {
+  for n in xs {
+    if exists foo(n) {} else { return false; }
+  }
+  return true;
+}
+
+attribute files(list path)
+
+function exampleH(p : path) {
+  for q in file(p).files {
+    if exists file(q) { clear file(q); } else { touch file(q); }
+  }
+}
+
+function exampleI(p : path) {
+  let missing = foreach q : file(p).files {
+    if exists file(q) { } else { yield cons_path(p, q); }
+  };
+
+  for q in missing {
+    touch file(q);
+  }
+}
+
+exception AnsibleError(string)
+exception OtherError()
+
+function exampleJ() -> bool {
+  raise AnsibleError("hi");
+}
+
+function exampleK(n: string) {
+  try {
+    if exists foo(n) {
+      if foo(n).bar == 3 {
+        foo(n).bar = 4;
+      } else {
+        raise OtherError();
+      }
+    } else {
+      raise AnsibleError(n ^ " missing");
+    }
+  } catch AnsibleError(msg) {
+    touch foo(msg);
+  } finally {
+    touch foo("xyz");
+  }
+}
+
+function exampleL() {
+  try {
+    exampleK("abc");
+  } catch OtherError() {
+    clear foo("xyz");
+  }
+}

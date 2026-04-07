@@ -6,7 +6,8 @@ type 'a list' = Nil | Singleton of 'a | List of 'a list2
 
 module StringMap = Map.Make(String)
 
-type prims      = Unit | Bool | Int | Float | String | Path
+type 't prims   = Unit | Bool | Int | Float | String | Path
+                | Exc of 't StringMap.t
 type 't constr  = List of 't | Option of 't
                 (* For all other enums we store the name of the enum and the
                  * name of each constructor *)
@@ -51,6 +52,9 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | AddExt
                 | NormalizePath
                 | CanEscalate
+                (* Exception functions: generating and unpacking *)
+                | GenExcept of 't StringMap.t * string
+                | UnpackExcept of 't StringMap.t * string
                 (* Name and input and output types *)
                 | Uninterpreted of string * 't * 't
 type ('v, 't) lit = Unit    of unit
@@ -59,13 +63,14 @@ type ('v, 't) lit = Unit    of unit
                   | Float   of float
                   | String  of string
                   | Path    of string
+                  | Except  of 't StringMap.t * string * 'v
 
 let home_regex = Str.regexp {|^~\([^/]*\)|}
 
 module rec Ast_Target : Ast_Defs
   with type variable  = string
   with type field     = string
-  with type primTy    = prims
+  with type primTy    = Ast_Target.typ prims
   with type namedTy   = Ast_Target.typ constr
   with type structTy  = Ast_Target.typ StringMap.t
   with type funct     = Ast_Target.typ func
@@ -75,12 +80,11 @@ module rec Ast_Target : Ast_Defs
   with type action    = string * Ast_Target.typ * Ast_Target.typ
                       * Ast_Target.stmt option ref
 = struct
-  type primTy = prims
-
   type field = string
   module FieldMap = StringMap
 
-  type namedTy = typ constr
+  type primTy  = typ prims
+  and  namedTy = typ constr
   and structTy = typ FieldMap.t
   and typ = Product    of typ * typ
           | Primitive  of primTy
@@ -465,6 +469,22 @@ module rec Ast_Target : Ast_Defs
         fun v -> match v with
         | Literal (String "root", _) -> Reduced (Literal (Bool true, Bool))
         | _ -> Stuck)
+    | GenExcept (tys, e) ->
+        (StringMap.find e tys, Primitive (Exc tys),
+          fun v -> Reduced (Literal (Except (tys, e, v), Exc tys)))
+    | UnpackExcept (tys, e) ->
+        let t = StringMap.find e tys
+        in (Primitive (Exc tys), Named (Option t),
+            fun v ->
+              match v with
+              | Literal (Except (_, n, v), _) -> 
+                  if n = e
+                  (* Some v *)
+                  then Reduced (Constructor (Option t, false, v))
+                  (* None *)
+                  else Reduced (Constructor (Option t, true,
+                        Literal (Unit (), Unit)))
+              | _ -> Err "Cannot unpack a value that's not an exception")
     (* Uninterpreted functions never reduce *)
     | Uninterpreted (_, in_typ, out_typ) ->
         (in_typ, out_typ, fun _ -> Stuck)
@@ -476,6 +496,7 @@ module rec Ast_Target : Ast_Defs
     | Float  _ -> Float
     | String _ -> String
     | Path   _ -> Path
+    | Except (tys, _, _) -> Exc tys
 
   let attributeDef (_, typ) : typ = typ
 
@@ -557,6 +578,7 @@ let rec string_of_type (t : Ast_Target.typ) : string =
   | Primitive Float  -> "float"
   | Primitive String -> "string"
   | Primitive Path   -> "path"
+  | Primitive (Exc _) -> "exc"
   | Struct tys       ->
       Printf.sprintf "{ %s }"
         (String.concat ", "
@@ -565,6 +587,109 @@ let rec string_of_type (t : Ast_Target.typ) : string =
   | Named (List t)   -> Printf.sprintf "list<%s>" (string_of_type t)
   | Named (Option t) -> Printf.sprintf "option<%s>" (string_of_type t)
   | Named (Cases (nm, _)) -> nm
+
+let rec string_of_value (v : Ast_Target.value) : string =
+  match v with
+  | Unknown (Loop x, _)   -> "?loop(" ^ string_of_int x ^ ")"
+  | Unknown (Val x, _)    -> "?" ^ string_of_int x
+  | Literal (Unit (), _)  -> "()"
+  | Literal (Bool b, _)   -> string_of_bool b
+  | Literal (Int i, _)    -> string_of_int i
+  | Literal (Float f, _)  -> string_of_float f
+  | Literal (String s, _) -> "\"" ^ s ^ "\""
+  | Literal (Path p, _)   -> "'" ^ p ^ "'"
+  | Literal (Except (_, e, v), _) -> e ^ "(" ^ string_of_value v ^ ")"
+  | Pair    (x, y, _)     ->
+      "(" ^ string_of_value x ^ ", " ^ string_of_value y ^ ")"
+  | Constructor (ty, left, v) ->
+      begin match ty with
+      | List t ->
+          if left
+          then Printf.sprintf "nil::<%s>()" (string_of_type t)
+          else Printf.sprintf "list::<%s>[%s]" (string_of_type t) (string_of_list_val v)
+      | Option t ->
+          if left
+          then Printf.sprintf "None::<%s>()" (string_of_type t)
+          else Printf.sprintf "Some::<%s>(%s)" (string_of_type t) (string_of_value v)
+      | Cases (enum, constrs) ->
+          string_of_constructor enum constrs left v
+      end
+  | Struct (_, r) ->
+      "{" ^ String.concat ", "
+              (List.map (fun (nm, v) -> nm ^ ": " ^ string_of_value v)
+                (Ast_Target.FieldMap.to_list r))
+          ^ "}"
+  | ListVal (_, v) -> "list { " ^ string_of_value v ^ " }"
+  | Function (f, arg, _)  ->
+      match f with
+      | Proj (true, _, _)         -> "proj1(" ^ string_of_value arg ^ ")"
+      | Proj (false, _, _)        -> "proj2(" ^ string_of_value arg ^ ")"
+      | BoolNeg                   -> "not(" ^ string_of_value arg ^ ")"
+      | BoolOr                    -> "or(" ^ string_of_value arg ^ ")"
+      | BoolAnd                   -> "and(" ^ string_of_value arg ^ ")"
+      | Concat                    -> "concat(" ^ string_of_value arg ^ ")"
+      | Equal _                   -> "equal(" ^ string_of_value arg ^ ")"
+      | Append _                  -> "append(" ^ string_of_value arg ^ ")"
+      | AddInt                    -> "add(" ^ string_of_value arg ^ ")"
+      | AddFloat                  -> "add(" ^ string_of_value arg ^ ")"
+      | SubInt                    -> "sub(" ^ string_of_value arg ^ ")"
+      | SubFloat                  -> "sub(" ^ string_of_value arg ^ ")"
+      | MulInt                    -> "mul(" ^ string_of_value arg ^ ")"
+      | MulFloat                  -> "mul(" ^ string_of_value arg ^ ")"
+      | DivInt                    -> "div(" ^ string_of_value arg ^ ")"
+      | DivFloat                  -> "div(" ^ string_of_value arg ^ ")"
+      | Modulo                    -> "mod(" ^ string_of_value arg ^ ")"
+      | LShift                    -> "lshift(" ^ string_of_value arg ^ ")"
+      | RShift                    -> "rshift(" ^ string_of_value arg ^ ")"
+      | LtInt                     -> "lt(" ^ string_of_value arg ^ ")"
+      | LtFloat                   -> "lt(" ^ string_of_value arg ^ ")"
+      | LeInt                     -> "le(" ^ string_of_value arg ^ ")"
+      | LeFloat                   -> "le(" ^ string_of_value arg ^ ")"
+      | ToLower                   -> "to_lower(" ^ string_of_value arg ^ ")"
+      | Substring                 -> "substring(" ^ string_of_value arg ^ ")"
+      | StringOfInt               -> "string_of_int(" ^ string_of_value arg ^ ")"
+      | ConsPath                  -> "cons_path(" ^ string_of_value arg ^ ")"
+      | PathOfString              -> "path_of_string(" ^ string_of_value arg ^ ")"
+      | StringOfPath              -> "string_of_path(" ^ string_of_value arg ^ ")"
+      | EndsWithDir               -> "ends_with_dir(" ^ string_of_value arg ^ ")"
+      | BaseName                  -> "base_name(" ^ string_of_value arg ^ ")"
+      | PathFrom                  -> "path_from(" ^ string_of_value arg ^ ")"
+      | AddExt                    -> "add_ext(" ^ string_of_value arg ^ ")"
+      | NormalizePath             -> "norm_path(" ^ string_of_value arg ^ ")"
+      | CanEscalate               -> "can_esclate(" ^ string_of_value arg ^ ")"
+      | Uninterpreted (nm, _, _)  -> nm ^ "(" ^ string_of_value arg ^ ")"
+      | EmptyStruct _             -> "{ }"
+      | AddField (_, f)           -> "set." ^ f ^ "(" ^ string_of_value arg ^ ")"
+      | ReadField (_, f)          -> "get." ^ f ^ "(" ^ string_of_value arg ^ ")"
+      | GenUnknown _              -> "??"
+      | Constructor (w, _)        ->
+          (if w then "L" else "R") ^ "(" ^ string_of_value arg ^ ")"
+      | GenExcept (_, e)          -> "except_" ^ e ^ "(" ^ string_of_value arg ^ ")"
+      | UnpackExcept (_, e)       -> "unpack_" ^ e ^ "(" ^ string_of_value arg ^ ")"
+and string_of_list_val (v : Ast_Target.value) : string =
+  match v with
+  | Pair (hd, tl, _) ->
+      string_of_value hd
+      ^ begin match tl with
+        | Constructor (_, is_nil, lst) ->
+            if is_nil then "" else "; " ^ string_of_list_val lst
+        | Unknown (_, _) -> ";" ^ string_of_value v ^ " ..."
+        | _ -> "; <<ERROR: MALFORMED LIST>>"
+        end
+  | Unknown (_, _) -> string_of_value v ^ " ..."
+  | _ -> "<<ERROR: MALFORMED LIST>>"
+and string_of_constructor enum constr is_first v =
+  match constr, is_first with
+  | LastTwo ((nm, _), _), true
+  | Cons    ((nm, _), _), true
+    -> enum ^ "::" ^ nm ^ "(" ^ string_of_value v ^ ")"
+  | LastTwo (_, (nm, _)), false
+    -> enum ^ "::" ^ nm ^ "(" ^ string_of_value v ^ ")"
+  | Cons (_, cs), false
+    -> match v with
+       | Constructor (_, is_first, v) -> string_of_constructor enum cs is_first v
+       | Unknown (_, _) -> string_of_value v
+       | _ -> "<< ERROR: MALFORMED ENUM VALUE >>"
 
 let rec string_of_expr (e : Ast_Target.expr) : string =
   match e with
@@ -575,6 +700,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
   | Literal (Float f)  -> string_of_float f
   | Literal (String s) -> "\"" ^ s ^ "\""
   | Literal (Path p)   -> "'" ^ p ^ "'"
+  | Literal (Except (_, e, v)) -> e ^ "(" ^ string_of_value v ^ ")"
   | Pair (x, y)        ->
       "(" ^ string_of_expr x ^ ", " ^ string_of_expr y ^ ")"
   | Function (f, e) ->
@@ -621,6 +747,8 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | AddExt                    -> "add_ext"
         | NormalizePath             -> "norm_path"
         | CanEscalate               -> "can_escalate"
+        | GenExcept (_, e)          -> "except_" ^ e
+        | UnpackExcept (_, e)       -> "unpack_" ^ e
         | Uninterpreted (nm, _, _)  -> nm
       in string_f ^ "(" ^ string_of_expr e ^ ")"
 
@@ -703,106 +831,6 @@ let string_of_stmt (s : Ast_Target.stmt) : string =
     | Pass ->
         indent ^ "pass"
   in process s ""
-
-let rec string_of_value (v : Ast_Target.value) : string =
-  match v with
-  | Unknown (Loop x, _)   -> "?loop(" ^ string_of_int x ^ ")"
-  | Unknown (Val x, _)    -> "?" ^ string_of_int x
-  | Literal (Unit (), _)  -> "()"
-  | Literal (Bool b, _)   -> string_of_bool b
-  | Literal (Int i, _)    -> string_of_int i
-  | Literal (Float f, _)  -> string_of_float f
-  | Literal (String s, _) -> "\"" ^ s ^ "\""
-  | Literal (Path p, _)   -> "'" ^ p ^ "'"
-  | Pair    (x, y, _)     ->
-      "(" ^ string_of_value x ^ ", " ^ string_of_value y ^ ")"
-  | Constructor (ty, left, v) ->
-      begin match ty with
-      | List t ->
-          if left
-          then Printf.sprintf "nil::<%s>()" (string_of_type t)
-          else Printf.sprintf "list::<%s>[%s]" (string_of_type t) (string_of_list_val v)
-      | Option t ->
-          if left
-          then Printf.sprintf "None::<%s>()" (string_of_type t)
-          else Printf.sprintf "Some::<%s>(%s)" (string_of_type t) (string_of_value v)
-      | Cases (enum, constrs) ->
-          string_of_constructor enum constrs left v
-      end
-  | Struct (_, r) ->
-      "{" ^ String.concat ", "
-              (List.map (fun (nm, v) -> nm ^ ": " ^ string_of_value v)
-                (Ast_Target.FieldMap.to_list r))
-          ^ "}"
-  | ListVal (_, v) -> "list { " ^ string_of_value v ^ " }"
-  | Function (f, arg, _)  ->
-      match f with
-      | Proj (true, _, _)         -> "proj1(" ^ string_of_value arg ^ ")"
-      | Proj (false, _, _)        -> "proj2(" ^ string_of_value arg ^ ")"
-      | BoolNeg                   -> "not(" ^ string_of_value arg ^ ")"
-      | BoolOr                    -> "or(" ^ string_of_value arg ^ ")"
-      | BoolAnd                   -> "and(" ^ string_of_value arg ^ ")"
-      | Concat                    -> "concat(" ^ string_of_value arg ^ ")"
-      | Equal _                   -> "equal(" ^ string_of_value arg ^ ")"
-      | Append _                  -> "append(" ^ string_of_value arg ^ ")"
-      | AddInt                    -> "add(" ^ string_of_value arg ^ ")"
-      | AddFloat                  -> "add(" ^ string_of_value arg ^ ")"
-      | SubInt                    -> "sub(" ^ string_of_value arg ^ ")"
-      | SubFloat                  -> "sub(" ^ string_of_value arg ^ ")"
-      | MulInt                    -> "mul(" ^ string_of_value arg ^ ")"
-      | MulFloat                  -> "mul(" ^ string_of_value arg ^ ")"
-      | DivInt                    -> "div(" ^ string_of_value arg ^ ")"
-      | DivFloat                  -> "div(" ^ string_of_value arg ^ ")"
-      | Modulo                    -> "mod(" ^ string_of_value arg ^ ")"
-      | LShift                    -> "lshift(" ^ string_of_value arg ^ ")"
-      | RShift                    -> "rshift(" ^ string_of_value arg ^ ")"
-      | LtInt                     -> "lt(" ^ string_of_value arg ^ ")"
-      | LtFloat                   -> "lt(" ^ string_of_value arg ^ ")"
-      | LeInt                     -> "le(" ^ string_of_value arg ^ ")"
-      | LeFloat                   -> "le(" ^ string_of_value arg ^ ")"
-      | ToLower                   -> "to_lower(" ^ string_of_value arg ^ ")"
-      | Substring                 -> "substring(" ^ string_of_value arg ^ ")"
-      | StringOfInt               -> "string_of_int(" ^ string_of_value arg ^ ")"
-      | ConsPath                  -> "cons_path(" ^ string_of_value arg ^ ")"
-      | PathOfString              -> "path_of_string(" ^ string_of_value arg ^ ")"
-      | StringOfPath              -> "string_of_path(" ^ string_of_value arg ^ ")"
-      | EndsWithDir               -> "ends_with_dir(" ^ string_of_value arg ^ ")"
-      | BaseName                  -> "base_name(" ^ string_of_value arg ^ ")"
-      | PathFrom                  -> "path_from(" ^ string_of_value arg ^ ")"
-      | AddExt                    -> "add_ext(" ^ string_of_value arg ^ ")"
-      | NormalizePath             -> "norm_path(" ^ string_of_value arg ^ ")"
-      | CanEscalate               -> "can_esclate(" ^ string_of_value arg ^ ")"
-      | Uninterpreted (nm, _, _)  -> nm ^ "(" ^ string_of_value arg ^ ")"
-      | EmptyStruct _             -> "{ }"
-      | AddField (_, f)           -> "set." ^ f ^ "(" ^ string_of_value arg ^ ")"
-      | ReadField (_, f)          -> "get." ^ f ^ "(" ^ string_of_value arg ^ ")"
-      | GenUnknown _              -> "??"
-      | Constructor (w, _)        ->
-          (if w then "L" else "R") ^ "(" ^ string_of_value arg ^ ")"
-and string_of_list_val (v : Ast_Target.value) : string =
-  match v with
-  | Pair (hd, tl, _) ->
-      string_of_value hd
-      ^ begin match tl with
-        | Constructor (_, is_nil, lst) ->
-            if is_nil then "" else "; " ^ string_of_list_val lst
-        | Unknown (_, _) -> ";" ^ string_of_value v ^ " ..."
-        | _ -> "; <<ERROR: MALFORMED LIST>>"
-        end
-  | Unknown (_, _) -> string_of_value v ^ " ..."
-  | _ -> "<<ERROR: MALFORMED LIST>>"
-and string_of_constructor enum constr is_first v =
-  match constr, is_first with
-  | LastTwo ((nm, _), _), true
-  | Cons    ((nm, _), _), true
-    -> enum ^ "::" ^ nm ^ "(" ^ string_of_value v ^ ")"
-  | LastTwo (_, (nm, _)), false
-    -> enum ^ "::" ^ nm ^ "(" ^ string_of_value v ^ ")"
-  | Cons (_, cs), false
-    -> match v with
-       | Constructor (_, is_first, v) -> string_of_constructor enum cs is_first v
-       | Unknown (_, _) -> string_of_value v
-       | _ -> "<< ERROR: MALFORMED ENUM VALUE >>"
 
 let string_of_list empty lhs sep rhs f lst : string =
   if List.is_empty lst
