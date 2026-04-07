@@ -16,8 +16,9 @@ let interp_ansible sources ansible_src =
       (* raise -- exception raised *)
       (fun _ _ (v, _) ->
         match v with
-        | Literal (Except (_, exc, _), _) ->
-            Err (Printf.sprintf "Exception %s" exc)
+        | Literal (Except (_, exc, v), _) ->
+            Err (Printf.sprintf "Exception %s(%s)" exc
+                  (Target.string_of_value v))
         | _ -> Err "Unknown Exception")
   in Result.bind (Modules.Parser.parse_files sources) (fun parsed ->
       Result.bind (Modules.Codegen.codegen parsed) (fun ctx ->
