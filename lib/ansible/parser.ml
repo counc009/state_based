@@ -2,35 +2,15 @@
  * OCaml YAML library does not seem to enforce this, so our handling of
  * playbooks and tasks handles and reports errors if a field is set multiple
  * times *)
+let ( let^ ) r f = Result.bind r f
 
 module Jinterp = Jingoo.Jg_interp
 module Jtypes = Jingoo.Jg_types
 
-type unary  = Not | Lower
-type binary = Concat | Equals | And | Or | Leq | Geq
-
-type value =
-  | String      of string
-  | Int         of int
-  | Float       of float
-  | Bool        of bool
-  | List        of value list
-  | Ident       of string
-  | Unary       of value * unary
-  | Binary      of value * binary * value
-  | Dot         of value * string
-  | VarDefined  of string
-  | Fact        of string
-  | Ternary     of value * value * value
-
-type mod_use = {
-  mod_name: string;
-  args: (string * value) list
-}
-
+(* Utilities for constructing the AST *)
 class mod_result name =
   object
-    val args           = (Hashtbl.create 10 : (string, value) Hashtbl.t)
+    val args           = (Hashtbl.create 10 : (string, Ast.value) Hashtbl.t)
 
     val mutable errors = ([] : string list)
 
@@ -41,39 +21,20 @@ class mod_result name =
       else
         Hashtbl.add args nm v
 
-    method to_mod =
+    method to_mod : (Ast.mod_use, string list) result =
       if not (List.is_empty errors)
       then Error errors
       else Ok { mod_name = name; args = List.of_seq (Hashtbl.to_seq args) }
   end
-
-type loop_kind =
-  | ItemLoop of value
-  | FileGlob of value
-
-type task_body =
-  | Module of mod_use
-  | Block  of task list
-and task = {
-  name: string;
-  register: string;
-  ignore_errors: bool;
-  condition: value option;
-  loop: loop_kind option;
-  body: task_body;
-  become: bool;
-  become_user: string;
-  notify: string list
-}
 
 class task_result =
   object
     val mutable name          = (None : string option)
     val mutable register      = (None : string option)
     val mutable ignore_errors = (None : bool option)
-    val mutable condition     = (None : value option)
-    val mutable loop          = (None : loop_kind option)
-    val mutable body          = (None : task_body option)
+    val mutable condition     = (None : Ast.value option)
+    val mutable loop          = (None : Ast.loop_kind option)
+    val mutable body          = (None : Ast.task_body option)
 
     val mutable notify        = (None : string list option)
     val mutable become        = (None : bool option)
@@ -134,46 +95,37 @@ class task_result =
       | None -> become_user <- Some n
       | _    -> errors <- "Multiple become_user fields" :: errors
 
-    method to_task =
+    method to_task : (Ast.task, string list) result =
       if not (List.is_empty errors)
       then Error errors
       else
         match body with
         | None -> Error ["no task body"]
         | Some b ->
-            Ok { name          = Option.value name ~default:""
-               ; register      = Option.value register ~default:"_"
-               ; ignore_errors = Option.value ignore_errors ~default:false
-               ; condition     = condition
-               ; loop          = loop
-               ; body          = b
-               ; notify        = Option.value notify ~default:[]
-               ; become        = Option.value become ~default:false
-               ; become_user   = Option.value become_user ~default:"root"}
+            match b, loop with
+            | Block _, Some _ -> Error ["cannot loop over block"]
+            | _, _ ->
+              Ok { name          = Option.value name ~default:""
+                 ; register      = Option.value register ~default:"_"
+                 ; ignore_errors = Option.value ignore_errors ~default:false
+                 ; condition     = condition
+                 ; loop          = loop
+                 ; body          = b
+                 ; notify        = Option.value notify ~default:[]
+                 ; become        = Option.value become ~default:false
+                 ; become_user   = Option.value become_user ~default:"root"}
   end
-
-type handler = {
-  name: string;
-  listen: string;
-  register: string;
-  ignore_errors: bool;
-  condition: value option;
-  loop: loop_kind option;
-  module_invoke: mod_use;
-  become: bool;
-  become_user: string;
-}
 
 class handler_result =
   object
     val mutable name          = (None : string option)
     val mutable listen        = (None : string option)
     val mutable register      = (None : string option)
-    val mutable module_invoke = (None : mod_use option)
+    val mutable module_invoke = (None : Ast.mod_use option)
 
     val mutable ignore_errors = (None : bool option)
-    val mutable condition     = (None : value option)
-    val mutable loop          = (None : loop_kind option)
+    val mutable condition     = (None : Ast.value option)
+    val mutable loop          = (None : Ast.loop_kind option)
     val mutable become        = (None : bool option)
     val mutable become_user   = (None : string option)
 
@@ -219,7 +171,7 @@ class handler_result =
       | None -> become_user <- Some n
       | _    -> errors <- "Multiple become_user fields" :: errors
 
-    method to_handler =
+    method to_handler : (Ast.handler, string list) result =
       if not (List.is_empty errors)
       then Error errors
       else
@@ -240,30 +192,18 @@ class handler_result =
                    ; become_user   = Option.value become_user ~default:"root" }
   end
 
-type play = {
-  name        : string;
-  hosts       : string option;
-  remote_user : string;
-  is_root     : bool option;
-  become      : bool;
-  become_user : string;
-  tasks       : task list;
-  handlers    : handler list;
-  vars        : (string * value) list
-}
-
 class play_result =
   object
     val mutable name        = (None : string option)
     val mutable hosts       = (None : string option)
     val mutable remote_user = (None : string option)
-    val mutable tasks       = (None : task list option)
-    val mutable handlers    = (None : handler list option)
+    val mutable tasks       = (None : Ast.task list option)
+    val mutable handlers    = (None : Ast.handler list option)
 
     val mutable become      = (None : bool option)
     val mutable become_user = (None : string option)
 
-    val mutable vars        = (None : (string * value) list option)
+    val mutable vars        = (None : (string * Ast.value) list option)
 
     val mutable errors      = ([] : string list)
 
@@ -302,7 +242,7 @@ class play_result =
       | None -> vars <- Some vs
       | _    -> errors <- "Multiple vars fields" :: errors
 
-    method to_play =
+    method to_play : (Ast.play, string list) result =
       if not (List.is_empty errors)
       then Error errors
       else
@@ -322,816 +262,382 @@ class play_result =
                ; vars         = Option.value vars ~default:[] }
   end
 
-let rec jinja_to_value (j: Jtypes.ast) : (value, string) result =
-  let rec jlit_to_value (j: Jtypes.tvalue) : (value, string) result =
+(* Utilities *)
+let iter_res (l : 'a list) (f : 'a -> (unit, 'e) result) : (unit, 'e) result =
+  let rec iter (xs : 'a list) =
+    match xs with
+    | [] -> Ok ()
+    | x :: xs -> let^ () = f x in iter xs
+  in iter l
+
+(* Code for processing the Ansible YAML into the AST form *)
+
+(* Convert Jinja expression into AST *)
+let rec jinja_to_value (j : Jtypes.ast) : (Ast.value, string) result =
+  let rec jlit_to_value (j : Jtypes.tvalue) : (Ast.value, string) result =
     match j with
     | Tnull -> Ok (String "")
     | Tint i -> Ok (Int i)
     | Tbool b -> Ok (Bool b)
     | Tfloat f -> Ok (Float f)
     | Tstr s -> Ok (String s)
-    | Tlist xs -> Result.map (fun xs -> List xs)
-      (List.fold_right
-        (fun x xs ->
-          Result.bind (jlit_to_value x)
-            (fun x -> Result.bind xs (fun xs -> Ok (x :: xs))))
-        xs
-        (Ok []))
+    | Tlist xs ->
+        let^ xs =
+          let rec convert (xs : Jtypes.tvalue list) =
+            match xs with
+            | [] -> Ok []
+            | x :: xs ->
+                let^ x = jlit_to_value x
+                in let^ xs = convert xs
+                in Ok (x :: xs)
+          in convert xs
+        in Ok (Ast.List xs)
     | _ -> Error "Unsupported Jinja literal value"
-  in let rec jexpr_to_value (j: Jtypes.expression) : (value, string) result =
+  in let rec jexpr_to_value (j : Jtypes.expression)
+    : (Ast.value, string) result =
     match j with
-    | IdentExpr nm -> Ok (Ident nm)
-    | LiteralExpr v -> jlit_to_value v
-    | NotOpExpr e -> Result.map (fun v -> Unary (v, Not)) (jexpr_to_value e)
-    | AndOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
-        (fun lhs -> Result.bind (jexpr_to_value rhs)
-          (fun rhs -> Ok (Binary (lhs, And, rhs))))
-    | OrOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
-        (fun lhs -> Result.bind (jexpr_to_value rhs)
-          (fun rhs -> Ok (Binary (lhs, Or, rhs))))
-    | EqEqOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
-        (fun lhs -> Result.bind (jexpr_to_value rhs)
-          (fun rhs -> Ok (Binary (lhs, Equals, rhs))))
-    | NotEqOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
-        (fun lhs -> Result.bind (jexpr_to_value rhs)
-          (fun rhs -> Ok (Unary (Binary (lhs, Equals, rhs), Not))))
-    | GtEqOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
-        (fun lhs -> Result.bind (jexpr_to_value rhs)
-          (fun rhs -> Ok (Binary (lhs, Geq, rhs))))
-    | LtEqOpExpr (lhs, rhs) -> Result.bind (jexpr_to_value lhs)
-        (fun lhs -> Result.bind (jexpr_to_value rhs)
-          (fun rhs -> Ok (Binary (lhs, Leq, rhs))))
+    | IdentExpr nm ->
+        Ok (Ident nm)
+    | LiteralExpr v ->
+        jlit_to_value v
+    | NotOpExpr e
+    | NegativeOpExpr e ->
+        let op : Ast.unary =
+          match j with
+          | NotOpExpr _ -> Not
+          | NegativeOpExpr _ -> Neg
+          | _ -> failwith "Matching error"
+        in let^ e = jexpr_to_value e
+        in Ok (Ast.Unary (e, op))
+    | PlusOpExpr (lhs, rhs)
+    | MinusOpExpr (lhs, rhs)
+    | TimesOpExpr (lhs, rhs)
+    | PowerOpExpr (lhs, rhs)
+    | DivOpExpr (lhs, rhs)
+    | ModOpExpr (lhs, rhs)
+    | AndOpExpr (lhs, rhs)
+    | OrOpExpr (lhs, rhs)
+    | NotEqOpExpr (lhs, rhs)
+    | EqEqOpExpr (lhs, rhs)
+    | LtOpExpr (lhs, rhs)
+    | GtOpExpr (lhs, rhs)
+    | LtEqOpExpr (lhs, rhs)
+    | GtEqOpExpr (lhs, rhs) ->
+        let op : Ast.binary =
+          match j with
+          | PlusOpExpr (_, _) -> Add
+          | MinusOpExpr (_, _) -> Sub
+          | TimesOpExpr (_, _) -> Mul
+          | PowerOpExpr (_, _) -> Pow
+          | DivOpExpr (_, _) -> Div
+          | ModOpExpr (_, _) -> Mod
+          | AndOpExpr (_, _) -> And
+          | OrOpExpr (_, _) -> Or
+          | NotEqOpExpr (_, _) -> Neq
+          | EqEqOpExpr (_, _) -> Eq
+          | LtOpExpr (_, _) -> Lt
+          | GtOpExpr (_, _) -> Gt
+          | LtEqOpExpr (_, _) -> Le
+          | GtEqOpExpr (_, _) -> Ge
+          | _ -> failwith "Matching error"
+        in let^ lhs = jexpr_to_value lhs
+        in let^ rhs = jexpr_to_value rhs
+        in Ok (Ast.Binary (lhs, op, rhs))
     | DotExpr (IdentExpr "ansible_facts", nm)
     | BracketExpr (IdentExpr "ansible_facts", LiteralExpr (Tstr nm)) ->
-        Ok (Fact nm)
-    | DotExpr (ex, field) -> Result.bind (jexpr_to_value ex)
-        (fun ex -> Ok (Dot (ex, field)))
+        Ok (Ast.Fact nm)
+    | DotExpr (ex, field) ->
+        let^ ex = jexpr_to_value ex
+        in Ok (Ast.Dot (ex, field))
     | ApplyExpr (IdentExpr "lower", [(None, arg)]) ->
-        Result.bind (jexpr_to_value arg) (fun ex -> Ok (Unary (ex, Lower)))
+        let^ arg = jexpr_to_value arg
+        in Ok (Ast.Unary (arg, Lower))
     | TestOpExpr (ex, IdentExpr "success") ->
-        Result.bind (jexpr_to_value ex) (fun ex -> Ok (Dot (ex, "success")))
+        let^ ex = jexpr_to_value ex
+        in Ok (Ast.Dot (ex, "success"))
     | TestOpExpr (IdentExpr var, IdentExpr "defined") ->
-        Ok (VarDefined var)
+        Ok (Ast.VarDefined var)
     | InOpExpr (lhs, ListExpr lst) ->
-        Result.bind (jexpr_to_value lhs) (fun lhs ->
-          List.fold_left (fun res rhs -> Result.bind res (fun res ->
-            Result.bind (jexpr_to_value rhs) (fun rhs ->
-              Ok (Binary (res, Or, Binary (lhs, Equals, rhs)))
-          ))) (Ok (Bool false)) lst)
+        let^ lhs = jexpr_to_value lhs
+        in List.fold_left (fun res rhs ->
+          let^ res = res
+          in let^ rhs = jexpr_to_value rhs
+          in Ok (Ast.Binary (res, Or, Binary (lhs, Eq, rhs))))
+          (Ok (Bool false))
+          lst
     | TernaryOpExpr (cond, thn, els) ->
-        Result.bind (jexpr_to_value cond) (fun cond ->
-          Result.bind (jexpr_to_value thn) (fun thn ->
-            Result.bind (jexpr_to_value els) (fun els ->
-              Ok (Ternary (cond, thn, els)))))
-    | _ -> Error "unhandled Jinja expression form"
-  in let jstmt_to_value (j: Jtypes.statement) : (value, string) result =
+        let^ cond = jexpr_to_value cond
+        in let^ thn = jexpr_to_value thn
+        in let^ els = jexpr_to_value els
+        in Ok (Ast.Ternary (cond, thn, els))
+    | _ -> Error "Unhandled Jinja expression form"
+
+  in let jstmt_to_value (j : Jtypes.statement) : (Ast.value, string) result =
     match j with
-    | TextStatement s -> Ok (String s)
+    | TextStatement s   -> Ok (String s)
     | ExpandStatement e -> jexpr_to_value e
     | _ -> Error "Unsupported Jinja form"
   in match j with
   | [] -> Ok (String "")
   | [e] -> jstmt_to_value e
-  | e :: js -> Result.bind (jstmt_to_value e)
-      (fun hd -> Result.bind (jinja_to_value js)
-        (fun tl -> Ok (Binary (hd, Concat, tl))))
+  | e :: js ->
+      let^ e = jstmt_to_value e
+      in let^ js = jinja_to_value js
+      in Ok (Ast.Binary (e, Concat, js))
 
-type var_typ = Unknown of string * Modules.Ast.typ (* name of the variable and a suggested type *)
-             | Concrete of Modules.Ast.typ
-type play_env = (string, var_typ) Hashtbl.t
+(* Coerce values into a string, if possible *)
+let process_string (y : Yaml.value) : (string, string) result =
+  match y with
+  | `String s -> Ok s
+  | `Bool   b -> Ok (string_of_bool b)
+  | `Float  f -> Ok (string_of_float f)
+  | `Null     -> Ok "" (* Sometimes null is used as an empty string *)
+  | `A _      -> Error "Expected string, found sequence"
+  | `O _      -> Error "Expected string, found mapping"
 
-let list_to_and (v: value) : value =
-  match v with
-  | List [] -> Bool true
-  | List [v] -> v
-  | List (v::vs) -> List.fold_right (fun x y -> Binary (x, And, y)) vs v
-  | _ -> v
+(* Coerce value into a list of strings *)
+let process_string_list (y : Yaml.value) : (string list, string) result =
+  match y with
+  | `String s -> Ok [s]
+  | `Bool b   -> Ok [string_of_bool b]
+  | `Float f  -> Ok [string_of_float f]
+  | `Null     -> Ok []
+  | `A vs     ->
+      let rec process (vs : Yaml.value list) : (string list, string) result =
+        match vs with
+        | [] -> Ok []
+        | hd :: tl ->
+            let^ hd = process_string hd
+            in let^ tl = process tl
+            in Ok (hd :: tl)
+      in process vs
+  | `O _ -> Error "Expected string list, found mapping"
 
-let rec codegen_type_to_ast_typ (t: Modules.Codegen.typ) : Modules.Ast.typ =
-  match t with
-  | Bool -> Bool
-  | Int -> Int
-  | Float -> Float
-  | String -> String
-  | Path -> Path
-  | Unit -> Unit
-  | Option t -> Option (codegen_type_to_ast_typ t)
-  | List t -> List (codegen_type_to_ast_typ t)
-  | Product ts -> Product (List.map codegen_type_to_ast_typ ts)
-  | Struct (nm, _) | Enum (nm, _) -> Named nm
-  | Placeholder { contents = Some t } -> codegen_type_to_ast_typ t
-  | Placeholder { contents = None } -> failwith "Internal Error: unresolved placeholder"
+let process_bool (y : Yaml.value) : (bool, string) result =
+  match y with
+  | `Bool b -> Ok b
+  | _ -> Error "expected a bool"
 
-let singleton_list (elemTy: Modules.Ast.typ) (elem: Modules.Ast.expr) =
-  Modules.Ast.EnumExp (Id "list", Some elemTy, "cons",
-    [ elem; Modules.Ast.EnumExp (Id "list", Some elemTy, "nil", []) ])
+let rec process_value (y : Yaml.value) : (Ast.value, string) result =
+  match y with
+  | `Null -> Ok (String "")
+  | `Bool b -> Ok (Bool b)
+  | `Float f -> Ok (Float f)
+  | `String s ->
+      begin try jinja_to_value (Jinterp.ast_from_string s)
+      with _ -> Error "jinja parsing error" end
+  | `A vs ->
+      let rec process (vs : Yaml.value list) : (Ast.value list, string) result =
+        match vs with
+        | [] -> Ok []
+        | hd :: tl ->
+            let^ hd = process_value hd
+            in let^ tl = process tl
+            in Ok (hd :: tl)
+      in let^ vs = process vs
+      in Ok (Ast.List vs)
+  | `O fields ->
+      let rec process (vs : (string * Yaml.value) list)
+        : ((string * Ast.value) list, string) result =
+        match vs with
+        | [] -> Ok []
+        | (f, hd) :: tl ->
+            let^ hd = process_value hd
+            in let^ tl = process tl
+            in Ok ((f, hd) :: tl)
+      in let^ fields = process fields
+      in Ok (Ast.Record fields)
 
-let process_ansible (file: string) (tys : Modules.Codegen.type_env)
-  (env : Modules.Codegen.global_env) : (Modules.Ast.stmt list, string) result =
-  let process_string v =
-    match v with
-    | `String s -> Ok s
-    | `Bool   b -> Ok (string_of_bool b)
-    | `Float  f -> Ok (string_of_float f)
-    | `Null     -> Ok "" (* It seems null is sometimes used as an empty string *)
-    | `A _      -> Error "expected string, found sequence"
-    | `O _      -> Error "expected string, found mapping"
-  in let process_bool v =
-    match v with
-    | `Bool b -> Ok b
-    | _       -> Error "expected a bool"
-  in let process_string_list v =
-    match v with
-    | `String s -> Ok [s]
-    | `Bool   b -> Ok [string_of_bool b]
-    | `Float  f -> Ok [string_of_float f]
-    | `Null     -> Ok []
-    | `A vs     -> List.fold_right 
-        (fun v res -> Result.bind res (fun res ->
-          Result.bind (process_string v) (fun v -> Ok (v :: res)))
-        ) vs (Ok [])
-    | `O _      -> Error "expected string list, found mapping"
-  in let rec process_value v =
-    match v with
-    | `Null     -> Ok (String "")
-    | `Bool b   -> Ok (Bool b)
-    | `Float f  -> Ok (Float f)
-    | `String s ->
-        begin try jinja_to_value (Jinterp.ast_from_string s)
-        with _ -> Error "jinja parsing error" end
-    | `A vs     ->
-        let rec process vs =
-          match vs with
-          | [] -> Ok []
-          | hd :: tl ->
-              Result.bind (process_value hd)
-                (fun h -> Result.map (fun tl -> h :: tl) (process tl))
-        in Result.map (fun vs -> List vs) (process vs)
-    | `O _      -> Error "expected value found mapping"
-  in let rec process_condition v =
-    match v with
-    | `Null -> Ok (Bool true)
-    | `Bool b -> Ok (Bool b)
-    | `Float f -> Ok (Float f)
-    | `String s ->
-        begin try
-          jinja_to_value (Jinterp.ast_from_string (Printf.sprintf "{{ %s }}" s))
-        with _ -> Error "jinja parsing error" end
-    | `A vs ->
-        let rec process vs =
-          match vs with
-          | [] -> Ok []
-          | hd :: tl ->
-              Result.bind (process_condition hd)
-                (fun h -> Result.map (fun tl -> h :: tl) (process tl))
-        in Result.map (fun vs -> List vs) (process vs)
-    | `O _ -> Error "expected conditions, found mapping"
-  in let rec codegen_value v (t : Modules.Ast.typ option) (play_env: play_env)
-    : (Modules.Ast.expr * Modules.Ast.typ, string) result =
-    match v with
-    | Int i ->
-        begin match t with
-        | None -> Ok (Modules.Ast.IntLit i, Modules.Ast.Int)
-        | Some Int -> Ok (Modules.Ast.IntLit i, Modules.Ast.Int)
-        | Some Float -> Ok (Modules.Ast.FloatLit (float_of_int i), Modules.Ast.Float)
-        | Some String -> Ok (Modules.Ast.StringLit (string_of_int i), Modules.Ast.String)
-        | Some (List t) ->
-            Result.map (fun (e, t) -> (singleton_list t e, Modules.Ast.List t))
-              (codegen_value v (Some t) play_env)
-        | _ -> Error "Incorrect type, found integer"
-        end
-    | Float f ->
-        begin match t with
-        | None -> Ok (Modules.Ast.FloatLit f, Modules.Ast.Float)
-        | Some Int ->
-            if Float.is_integer f
-            then Ok (Modules.Ast.IntLit (Float.to_int f), Modules.Ast.Int)
-            else Error (Printf.sprintf "Expected integer found float '%f'" f)
-        | Some Float -> Ok (Modules.Ast.FloatLit f, Modules.Ast.Float)
-        | Some String -> Ok (Modules.Ast.StringLit (string_of_float f), Modules.Ast.String)
-        | Some (List t) ->
-            Result.map (fun (e, t) -> (singleton_list t e, Modules.Ast.List t))
-              (codegen_value v (Some t) play_env)
-        | _ -> Error ("Incorrect type, found number")
-        end
-    | Bool b ->
-        begin match t with
-        | None -> Ok (Modules.Ast.BoolLit b, Modules.Ast.Bool)
-        | Some Bool -> Ok (Modules.Ast.BoolLit b, Modules.Ast.Bool)
-        | Some String -> Ok (Modules.Ast.StringLit (string_of_bool b), Modules.Ast.String)
-        | Some (List t) ->
-            Result.map (fun (e, t) -> (singleton_list t e, Modules.Ast.List t))
-              (codegen_value v (Some t) play_env)
-        | _ -> Error ("Incorrect type, found bool")
-        end
-    | List vs ->
-        (* We construct a list as a series of cons *)
-        begin match t with
-        | None ->
-            let vals =
-              List.fold_right
-                (fun v tl_info ->
-                  Result.bind tl_info
-                    (fun (tl, el) ->
-                      Result.map (fun (v, t) -> (v :: tl, Some t))
-                        (codegen_value v el play_env)))
-                vs
-                (Ok ([], None))
-            in Result.bind vals
-              (fun (vals, elem_typ) ->
-                match elem_typ with
-                | None -> Error "could not determine the type of a list"
-                | Some el ->
-                    Ok (List.fold_right
-                      (fun v e ->
-                        Modules.Ast.EnumExp (
-                          Id "list",
-                          Some el,
-                          "cons",
-                          [v; e]))
-                      vals
-                      (Modules.Ast.EnumExp (Id "list", Some el, "nil", [])),
-                      Modules.Ast.List el))
-        | Some (List el) ->
-            let vals =
-              let rec process_vals vs =
-                match vs with
-                | [] -> Ok []
-                | v :: vs ->
-                    match codegen_value v (Some el) play_env with
-                    | Ok (v, _) ->
-                        Result.map (fun tl -> v :: tl) (process_vals vs)
-                    | Error msg -> Error msg
-              in process_vals vs
-            in Result.map
-                (fun vals ->
-                  (List.fold_right
-                    (fun v e ->
-                      Modules.Ast.EnumExp (
-                        Id "list",
-                        Some el,
-                        "cons",
-                        [v; e]))
-                    vals
-                    (* Nil list *)
-                    (Modules.Ast.EnumExp (Id "list", Some el, "nil", [])),
-                    Modules.Ast.List el))
-                vals
-        | _ -> Error ("Incorrect type, found list")
-        end
-    | String s ->
-        (* Strings in YAML can actually represent many things in our type-system,
-         * specifically strings, paths, and enum values *)
-        begin match t with
-        | None -> Ok (StringLit s, Modules.Ast.String)
-        | Some String -> Ok (StringLit s, Modules.Ast.String)
-        | Some Path   -> Ok (PathLit s, Modules.Ast.Path)
-        | Some (Named nm) ->
-            begin match Modules.Codegen.UniqueMap.find nm tys with
-            | None -> Error "Internal Error: type undefined"
-            | Some typ ->
-                let rec process_for_type (typ : Modules.Codegen.typ)
-                  : (Modules.Ast.expr * Modules.Ast.typ, string) result =
-                  match typ with
-                  | String -> Ok (StringLit s, Named nm)
-                  | Path   -> Ok (PathLit s, Named nm)
-                  | Placeholder { contents = Some typ } -> process_for_type typ
-                  | Placeholder { contents = None } -> Error ("Internal Error: unknown placeholder")
-                  | Enum (_, constructors) ->
-                      begin match Modules.Codegen.StringMap.find_opt s constructors with
-                      | None -> Error (Printf.sprintf
-                          "Invalid value '%s' expected one of [%s]"
-                          s
-                          (String.concat ", "
-                            (List.map fst
-                              (Modules.Codegen.StringMap.bindings constructors))))
-                      | Some (_, []) -> Ok(EnumExp (Id nm, None, s, []), Named nm)
-                      | Some (_, _) -> Error (Printf.sprintf
-                          "Constructor %s cannot be used from Ansible, has argument"
-                          s)
-                      end
-                  | _ -> Error ("Incorrect type, found string-like")
-                in process_for_type typ
-            end
-        | Some (List t) ->
-            Result.map (fun (e, t) -> (singleton_list t e, Modules.Ast.List t))
-              (codegen_value v (Some t) play_env)
-        | _ -> Error ("Incorrect type, found string-like")
-        end
-    | Ident nm ->
-        begin match Hashtbl.find_opt play_env nm, t with
-        | Some (Concrete ty), Some t when t = ty -> Ok (Modules.Ast.Id nm, t)
-        | Some (Concrete String), Some Path ->
-            Ok (Modules.Ast.FuncExp (Id "path_of_string", [Modules.Ast.Id nm]),
-                Path)
-        | Some (Concrete Path), Some String ->
-            Ok (Modules.Ast.FuncExp (Id "string_of_path", [Modules.Ast.Id nm]),
-                String)
-        | Some (Concrete _), Some _ -> Error "mismatched types"
-        | Some (Concrete ty), None -> Ok (Modules.Ast.Id nm, ty)
-        | Some (Unknown (_, _)), Some t ->
-            let () = Hashtbl.add play_env nm (Concrete t)
-            in Ok (Modules.Ast.Id nm, t)
-        | Some (Unknown (_, t)), None ->
-            let () = Hashtbl.add play_env nm (Concrete t)
-            in Ok (Modules.Ast.Id nm, t)
-        | None, _ ->
-            (* See if this is a built-in variable *)
-            match nm with
-            | "ansible_os_family" ->
-                begin match t with
-                | Some String | None ->
-                    (* env().os_family *)
-                    Ok (Field (FuncExp (Id "env", []), "os_family"), String)
-                | _ -> Error "mismatched types"
-                end
-            | "ansible_distribution" ->
-                begin match t with
-                | Some String | None ->
-                    (* env().os_distribution *)
-                    Ok (Field (FuncExp (Id "env", []), "os_distribution"), String)
-                | _ -> Error "mismatched types"
-                end
-            | "ansible_user_id" ->
-                begin match t with
-                | Some String | None ->
-                    (* env().active_user *)
-                    Ok (Field (FuncExp (Id "env", []), "active_user"), String)
-                | _ -> Error "mismatched types"
-                end
-            | "ansible_user_gid" ->
-                (* TODO: This should actually be the group id not name I think *)
-                begin match t with
-                | Some String | None ->
-                    (* env().active_group *)
-                    Ok (Field (FuncExp (Id "env", []), "active_group"), String)
-                | Some (List String) ->
-                    Ok (singleton_list String
-                          (Field (FuncExp (Id "env", []), "active_group")),
-                        List String)
-                | _ -> Error "mismatched types"
-                end
-            | _ -> Error ("Unknown variable " ^ nm)
-        end
-    | Fact nm ->
-        begin match nm with
-        | "os_family" ->
-            begin match t with
-            | Some String | None ->
-                (* env().os_family *)
-                Ok (Field (FuncExp (Id "env", []), "os_family"), String)
-            | _ -> Error "mismatched types"
-            end
-        | "distribution" ->
-            begin match t with
-            | Some String | None ->
-                (* env().os_distribution *)
-                Ok (Field (FuncExp (Id "env", []), "os_distribution"), String)
-            | _ -> Error "mismatched types"
-            end
-        | _ -> Error ("Unknown ansible_fact " ^ nm)
-        end
-    | Unary (v, op) ->
-        begin match op, t with
-        | Not, Some Bool | Not, None ->
-            Result.bind (codegen_value v (Some Bool) play_env)
-              (fun (v, _) -> Ok (Modules.Ast.UnaryExp (v, Not),
-                                 Modules.Ast.Bool))
-        | Not, _ -> Error "Incorrect type for not (productes boolean)"
-        | Lower, Some String | Lower, None ->
-            Result.bind (codegen_value v (Some String) play_env)
-              (fun (v, _) -> Ok (Modules.Ast.FuncExp (Id "to_lower", [v]),
-                                 Modules.Ast.String))
-        | Lower, Some Path ->
-            Result.bind (codegen_value v (Some String) play_env)
-              (fun (v, _) -> Ok (Modules.Ast.FuncExp (Id "path_of_string",
-                [FuncExp (Id "to_lower", [v])]), Modules.Ast.Path))
-        | Lower, _ -> Error "Incorrect type for lower (productes string)"
-        end
-    | Binary (lhs, op, rhs) ->
-        let op_info : (Modules.Ast.typ option
-                    * (Modules.Ast.typ -> Modules.Ast.typ option)
-                    * Modules.Ast.typ
-                    * (Modules.Ast.expr -> Modules.Ast.expr -> Modules.Ast.expr)
-                    , string) result =
-          match op, t with
-          | Concat, Some String | Concat, None
-              -> Ok (Some String, (fun _ -> Some String), String,
-                     fun l r -> BinaryExp (l, r, Concat))
-          | Concat, Some Path
-              -> Ok (Some String, (fun _ -> Some String), Path,
-                     fun l r -> FuncExp (Id "path_of_string", 
-                                         [BinaryExp (l, r, Concat)]))
-          | Concat, _ -> Error "Incorrect type for concat (produces string)"
-          | Equals, Some Bool | Equals, None
-              -> Ok (None, (fun t -> Some t), Bool,
-                     fun l r -> BinaryExp (l, r, Eq))
-          | Equals, _ -> Error "Incorrect type for equals (produces bool)"
-          | And, Some Bool | And, None
-              -> Ok (Some Bool, (fun _ -> Some Bool), Bool,
-                     fun l r -> BinaryExp (l, r, And))
-          | And, _ -> Error "Incorrect type for and (produces bool)"
-          | Or, Some Bool | Or, None
-              -> Ok (Some Bool, (fun _ -> Some Bool), Bool,
-                     fun l r -> BinaryExp (l, r, Or))
-          | Or, _ -> Error "Incorrect type for or (produces bool)"
-          (* TODO: Ideally handle float as well *)
-          | Geq, Some Bool | Geq, None
-              -> Ok (Some Int, (fun _ -> Some Int), Bool,
-                     fun l r -> BinaryExp (l, r, Ge))
-          | Geq, _ -> Error "Incorrect type for geq (produces bool)"
-          | Leq, Some Bool | Leq, None
-              -> Ok (Some Int, (fun _ -> Some Int), Bool,
-                     fun l r -> BinaryExp (l, r, Le))
-          | Leq, _ -> Error "Incorrect type for leq (produces bool)"
-        in Result.bind op_info
-          (fun (lhs_t, rhs_t, ret_typ, op) ->
-            Result.bind (codegen_value lhs lhs_t play_env)
-              (fun (lhs, lhs_t) ->
-                Result.bind (codegen_value rhs (rhs_t lhs_t) play_env)
-                (fun (rhs, _) -> Ok (op lhs rhs, ret_typ))))
-    | Dot (ex, field) ->
-        Result.bind (codegen_value ex None play_env)
-        (fun (ex, ty) ->
-          match ty with
-          | Named nm ->
-              begin match Modules.Codegen.UniqueMap.find nm tys with
-              | None -> Error "Internal Error: type undefined"
-              | Some typ ->
-                  let rec process_for_field (typ: Modules.Codegen.typ)
-                    : (Modules.Ast.expr * Modules.Ast.typ, string) result =
-                    match typ with
-                    | Placeholder { contents = Some typ } -> process_for_field typ
-                    | Placeholder { contents = None } -> Error "Internal Error: unknown placeholder"
-                    | Struct (_, fields) ->
-                        begin match Modules.Codegen.StringMap.find_opt field fields with
-                        | None -> Error (Printf.sprintf "Value has no field '%s'" field)
-                        | Some t ->
-                            (* TODO: Check type *)
-                            (* TODO: Add String <-> Path coercions *)
-                            Ok (Field (ex, field), codegen_type_to_ast_typ t)
-                        end
-                    | _ -> Error (Printf.sprintf "Value has no field '%s'" field)
-                  in process_for_field typ
-              end
-          | _ -> Error (Printf.sprintf "Value has no field '%s'" field))
-    | VarDefined v ->
-        begin match Hashtbl.find_opt play_env v, t with
-        | Some _, Some Bool | Some _, None
-            -> Ok (Modules.Ast.BoolLit true, Modules.Ast.Bool)
-        | None, Some Bool | None, None
-            -> Ok (Modules.Ast.BoolLit false, Modules.Ast.Bool)
-        | _, _ -> Error "Incorrect type for is defined, produces boolean"
-        end
-    | Ternary (cond, thn, els) ->
-        Result.bind (codegen_value cond (Some Bool) play_env) (fun (cond, _) ->
-          Result.bind (codegen_value thn None play_env) (fun (thn, thn_t) ->
-            Result.bind (codegen_value els (Some thn_t) play_env) (fun (els, _) ->
-              Ok (Modules.Ast.CondExp (cond, thn, els), thn_t))))
-  in let process_module_use nm args =
+let rec process_condition (y : Yaml.value) : (Ast.value, string) result =
+  match y with
+  | `Null    -> Ok (Bool true) (* Empty list is treated as true *)
+  | `Bool b  -> Ok (Bool b)
+  | `Float f -> Ok (Float f)
+  | `String s ->
+      begin try 
+        jinja_to_value (Jinterp.ast_from_string (Printf.sprintf "{{ %s }}" s))
+      with _ -> Error "jinja parsing error" end
+  | `A vs ->
+      let rec process_elems (vs : Yaml.value list)
+        : (Ast.value, string) result =
+        match vs with
+        | [] -> Ok (Bool true)
+        | hd :: tl ->
+            let^ hd = process_condition hd
+            in let^ tl = process_elems tl
+            in Ok (Ast.Binary (hd, And, tl))
+      in process_elems vs
+  | `O _ -> Error "Expected condition, found mapping"
+
+let process_vars (y : Yaml.value)
+  : ((string * Ast.value) list, string) result =
+  match y with
+  | `O map ->
+      let rec process (vs : (string * Yaml.value) list) =
+        match vs with
+        | [] -> Ok []
+        | (nm, hd) :: tl ->
+            let^ hd = process_value hd
+            in let^ tl = process tl
+            in Ok ((nm, hd) :: tl)
+      in process map
+  | `Null -> Ok []
+  | _ -> Error "Expected variables as field mapping"
+
+let process_module_use (nm : string) (args : Yaml.value)
+  : (Ast.mod_use, string) result =
+  let res = new mod_result(nm)
+  in let^ () =
     match args with
     | `O map ->
-        let rec process_module_args map res =
-          match map with
-          | [] -> Result.map_error (String.concat "\n") res#to_mod
-          | (field, v) :: tl ->
-              match Result.map (res#add_arg field) (process_value v) with
-              | Ok () -> process_module_args tl res
-              | Error msg -> Error msg
-        in process_module_args map (new mod_result(nm))
-    | `Null -> (* No arguments *)
-        Result.map_error (String.concat "\n") (new mod_result(nm))#to_mod
-    | _ -> (* Free form arguments are not yet handled, treat as if there was
-            * nothing there *)
-        Result.map_error (String.concat "\n") (new mod_result(nm))#to_mod
-  in let rec process_task t =
-    match t with
-    | `O map ->
-        let rec process_task_fields map res =
-          match map with
-          | [] -> Result.map_error (String.concat "\n") res#to_task
-          | (field, v) :: tl ->
-              match
-                match field with
-                | "name" -> Result.map res#add_name (process_string v)
-                | "register" -> Result.map res#add_register (process_string v)
-                | "ignore_errors" -> Result.map res#add_ignore_errors (process_bool v)
-                | "become" -> Result.map res#add_become (process_bool v)
-                | "become_user" -> Result.map res#add_become_user (process_string v)
-                | "become_method" -> Ok () (* TODO *)
-                | "when" -> Result.map res#add_when (process_condition v)
-                | "with_items" | "loop"
-                  -> Result.map (fun v -> res#add_loop (ItemLoop v)) (process_value v)
-                | "with_fileglob"
-                  -> Result.map (fun v -> res#add_loop (FileGlob v)) (process_value v)
-                | "notify"
-                  -> Result.map res#add_notify (process_string_list v)
-                | "tags" -> Ok () (* TODO: We just ignore tags for now *)
-                | "loop_control" -> Ok () (* TODO: We just ignore loop_control *)
-                | "no_log" -> Ok () (* TODO *)
-                | "changed_when" -> Ok () (* TODO *)
-                | "block" ->
-                    Result.map res#add_block (process_tasks v)
-                | _ -> Result.map res#add_module (process_module_use field v)
-              with
-              | Ok () -> process_task_fields tl res
-              | Error msg -> Error msg
-        in process_task_fields map (new task_result)
-    | _      -> Error "Expected task to be a mapping with fields"
-  and process_tasks ts =
+        iter_res map (fun (field, v) ->
+          let^ v = process_value v
+          in Ok (res#add_arg field v))
+    | `Null -> Ok () (* No arguments *)
+    | _ -> Error "Free-form arguments not supported"
+  in Result.map_error (String.concat "\n") res#to_mod
+
+let rec process_task (y : Yaml.value) : (Ast.task, string) result =
+  match y with
+  | `O map ->
+      let task = new task_result
+      in let^ () = iter_res map (fun (field, v) ->
+        match field with
+        | "name" ->
+            Result.map task#add_name (process_string v)
+        | "register" ->
+            Result.map task#add_register (process_string v)
+        | "ignore_errors" ->
+            Result.map task#add_ignore_errors (process_bool v)
+        | "become" ->
+            Result.map task#add_become (process_bool v)
+        | "become_user" ->
+            Result.map task#add_become_user (process_string v)
+        | "become_method" ->
+            Ok () (* TODO *)
+        | "when" ->
+            Result.map task#add_when (process_condition v)
+        | "with_items" | "loop" ->
+            Result.map (fun v -> task#add_loop (ItemLoop v)) (process_value v)
+        | "with_fileglob" ->
+            Result.map (fun v -> task#add_loop (FileGlob v)) (process_value v)
+        | "notify" ->
+            Result.map task#add_notify (process_string_list v)
+        | "tags" ->
+            Ok () (* TODO *)
+        | "loop_control" ->
+            Ok () (* TODO *)
+        | "no_log" ->
+            Ok () (* TODO *)
+        | "changed_when" ->
+            Ok () (* TODO *)
+        | "block" ->
+            Result.map task#add_block (process_tasks v)
+        | _ ->
+            Result.map task#add_module (process_module_use field v))
+      in Result.map_error (String.concat "\n") task#to_task
+  | _ -> Error "Expected task to be a mapping with fields"
+
+and process_tasks (y : Yaml.value) : (Ast.task list, string) result =
+  let rec process_list (ts : Yaml.value list) =
     match ts with
-    | `A seq ->
-        let rec process ts =
-          match ts with
-          | [] -> Ok []
-          | t :: ts ->
-              match process_task t, process ts with
-              | Ok t, Ok ts          -> Ok (t :: ts)
-              | Ok _, Error msg      -> Error msg
-              | Error msg, Ok _      -> Error msg
-              | Error mhd, Error mtl -> Error (mhd ^ "\n" ^ mtl)
-        in process seq
-    | _      -> Error "expected sequence of tasks"
-  in let process_handler h =
-    match h with
-    | `O map ->
-        let rec process_handler_fields map res =
-          match map with
-          | [] -> Result.map_error (String.concat "\n") res#to_handler
-          | (field, v) :: tl ->
-              match
-                match field with
-                | "name" -> Result.map res#add_name (process_string v)
-                | "listen" -> Result.map res#add_listen (process_string v)
-                | "register" -> Result.map res#add_register (process_string v)
-                | "ignore_errors" -> Result.map res#add_ignore_errors (process_bool v)
-                | "become" -> Result.map res#add_become (process_bool v)
-                | "become_user" -> Result.map res#add_become_user (process_string v)
-                | "become_method" -> Ok () (* TODO *)
-                | "when" -> Result.map res#add_when (process_condition v)
-                | "with_items" | "loop"
-                  -> Result.map (fun v -> res#add_loop (ItemLoop v)) (process_value v)
-                | "with_fileglob"
-                  -> Result.map (fun v -> res#add_loop (FileGlob v)) (process_value v)
-                | _ -> Result.map res#add_module (process_module_use field v)
-              with
-              | Ok () -> process_handler_fields tl res
-              | Error msg -> Error msg
-        in process_handler_fields map (new handler_result)
-    | _ -> Error "Expected handler to be a mapping with fields"
-  in let process_handlers hs =
-    match hs with
-    | `A seq ->
-        let rec process ts =
-          match ts with
-          | [] -> Ok []
-          | h :: hs ->
-              match process_handler h, process hs with
-              | Ok h, Ok hs           -> Ok (h :: hs)
-              | Ok _, Error msg       -> Error msg
-              | Error msg, Ok _       -> Error msg
-              | Error mhd, Error mtl  -> Error (mhd ^ "\n" ^ mtl)
-        in process seq
-    | _ -> Error "expected sequence of handlers"
-  in let codegen_module_invocation m (play_env: play_env) =
-    let module_name = String.split_on_char '.' m.mod_name
-    in let module_expr =
-      match module_name with
-      | [] -> failwith "String.split_on_char always returns non-empty list"
-      | base :: fields ->
-          List.fold_left (fun m f -> Modules.Ast.Field (m, f)) (Id base) fields
-    in
-    (* Lookup the module, we need information on the types of its arguments *)
-    match Modules.Codegen.find_module_def module_name env with
-    | None -> Error (Printf.sprintf "Could not find module %s" m.mod_name)
-    | Some mod_info ->
-        let arg_aliases = mod_info.alias_map
-        in let arg_types = mod_info.args
-        in let res_type = mod_info.ret_type
-        in let module_args =
-          let rec process_args args =
-            match args with
-            | [] -> Ok []
-            | (nm, v) :: tl ->
-                let canon_name =
-                  match Modules.Codegen.StringMap.find_opt nm arg_aliases with
-                  | None -> nm
-                  | Some c -> c
-                in match Modules.Codegen.StringMap.find_opt canon_name arg_types with
-                | None -> Error (Printf.sprintf "No argument %s of module %s" nm m.mod_name)
-                | Some t ->
-                    match codegen_value v (Some t) play_env with
-                    | Ok (e, _) -> Result.map (fun tl -> (canon_name, e) :: tl) (process_args tl)
-                    | Error msg -> Error msg
-          in process_args m.args
-        in Result.map
-          (fun args -> (Modules.Ast.ModuleExp (module_expr, args), res_type))
-          module_args
-  in let codegen_task_body (b : task_body) (play_env : play_env) =
-    match b with
-    | Module m -> codegen_module_invocation m play_env
-    | Block _b -> failwith "TODO: HANDLE BLOCKS"
-  in let codegen_task (t : task) (play_env: play_env)
-    : (Modules.Ast.stmt list, string) result =
-    let () =
-      match t.loop with
-      | None -> ()
-      | Some (ItemLoop v) ->
-          (* Item loops may end up with the item type constrained by a usage
-           * to give us more information, but we'll first try to type it in
-           * case the item's usage is not in a constrained context *)
-          begin match codegen_value v None play_env with
-          | Ok (_, List t) -> Hashtbl.add play_env "item" (Unknown ("item", t))
-          | _ -> Hashtbl.add play_env "item" (Unknown ("item", String))
-          end
-      | Some (FileGlob _) -> Hashtbl.add play_env "item" (Concrete Path)
-    in Result.bind (codegen_task_body t.body play_env)
-      (fun (modul, typ) ->
-        let body = 
-          let module_invoke = Modules.Ast.LetStmt (t.register, modul)
-          in let error_checking =
-            if t.ignore_errors then []
-            else [Modules.Ast.Assert (UnaryExp (Field (Id t.register, "failed"), Not))]
-          in if t.become
-          (* If become was specified, we escalate privilege to root by
-           * 1) recording the current user and is_root property
-           * 2) assert that the current user can escalate
-           * 3) setting the user to "root" and setting is_root to true
-           * 4) after executing the module reset the user and is_root
-           *)
-          then Modules.Ast.LetStmt ("#old_user", Field (FuncExp (Id "env", []), "active_user"))
-            :: LetStmt ("#old_group", Field (FuncExp (Id "env", []), "active_group"))
-            :: LetStmt ("#old_root", Field (FuncExp (Id "env", []), "is_root"))
-            (* FIXME: should actually check that can convert to new user *)
-            :: Assert (FuncExp (Id "can_escalate", [Id "#old_user"]))
-            :: Assign (Field (FuncExp (Id "env", []), "active_user"), StringLit t.become_user)
-            :: Assign (Field (FuncExp (Id "env", []), "active_group"), StringLit t.become_user)
-            :: Assign (Field (FuncExp (Id "env", []), "is_root"), BoolLit (t.become_user = "root"))
-            :: module_invoke
-            :: Assign (Field (FuncExp (Id "env", []), "active_user"), Id "#old_user")
-            :: Assign (Field (FuncExp (Id "env", []), "active_group"), Id "#old_group")
-            :: Assign (Field (FuncExp (Id "env", []), "is_root"), Id "#old_root")
-            :: error_checking
-          else module_invoke :: error_checking
-        in let conditioned =
-          match t.condition with
-          | None -> Ok body
-          | Some cond ->
-              Result.bind
-                (codegen_value (list_to_and cond) (Some Bool) play_env)
-                (fun (c, _) -> Ok [Modules.Ast.IfThenElse (c, body, [])])
-        in let () =
-          if t.register <> "_" then Hashtbl.add play_env t.register (Concrete typ)
-        in let looped =
-          match t.loop with
-          | None -> conditioned
-          | Some (ItemLoop lst) ->
-              let item_typ = match Hashtbl.find play_env "item" with
-                             (* If there's no known type for the items, just
-                                treat them as strings *)
-                             | Unknown _ -> Modules.Ast.String
-                             | Concrete t -> t
-              in Result.bind (codegen_value lst (Some (List item_typ)) play_env)
-              (fun (lst, _) ->
-                Result.bind conditioned
-                  (fun conditioned ->
-                    Ok [Modules.Ast.ForLoop ("item", lst, conditioned)]))
-          | Some (FileGlob glob) ->
-              (* Per the documentation: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/fileglob_lookup.html
-                 with_fileglob will only return files, so within the loop we
-                 add assertions that the files exist and are just files *)
-              Result.bind (codegen_value glob (Some (List String)) play_env)
-                (fun (glob, _) ->
-                  let files = Modules.Ast.FuncExp 
-                    (* We use the file_glob uninterpreted function defined in
-                     * the find module *)
-                    (Id "file_glob",
-                      [ glob
-                      ; EnumExp (Id "find_file_type", None, "file", [])
-                      ; EnumExp (Id "file_system", None, "local", []) ])
-                  in Result.bind conditioned
-                    (fun conditioned ->
-                      let item_file =
-                        Modules.Ast.FuncExp (Id "fs",
-                          [Id "item"; EnumExp (Id "file_system", None, "local", [])])
-                      in let assert_false = Modules.Ast.Assert (BoolLit false)
-                      in let loop_body =
-                        Modules.Ast.AssertExists item_file
-                        :: Match (Field (item_file, "fs_type"),
-                          [ (("file_type", None, "file", ["_"]), [])
-                          ; (("file_type", None, "directory", ["_"]), [assert_false])
-                          ; (("file_type", None, "hard", ["_"]), [assert_false])
-                          ; (("file_type", None, "link", ["_"]), [assert_false])
-                          ])
-                        :: conditioned
-                      in Ok [Modules.Ast.ForLoop ("item", files, loop_body)]))
-        in let () = if Option.is_some t.loop then Hashtbl.remove play_env "item"
-        in looped)
-  in let codegen_play (play : play) : (Modules.Ast.stmt list, string) result =
-    (* TODO: make use of hosts field? *)
-    (* TODO: We are currently ignoring handlers *)
-    let rec codegen_tasks ts play_env =
-      match ts with
-      | [] -> Ok []
-      | t :: tl ->
-          match codegen_task t play_env with
-          | Ok t -> Result.map (fun tl -> t @ tl) (codegen_tasks tl play_env)
-          | Error msg -> Error msg
-    in let play_env = Hashtbl.create 10
-    in let () = List.iter (fun (nm, _) -> 
-        Hashtbl.add play_env nm (Unknown (nm, Modules.Ast.String))
-      ) play.vars
-    in let tasks = codegen_tasks play.tasks play_env
-    in let with_vars =
-      List.fold_right (fun (nm, v) res -> Result.bind res (fun res ->
-        let var_typ =
-          match Hashtbl.find play_env nm with
-          | Unknown (_, t) -> t
-          | Concrete t -> t
-        in Result.bind (codegen_value v (Some var_typ) play_env) (fun (v, _) ->
-          Ok (Modules.Ast.LetStmt (nm, v) :: res)
-      ))) play.vars tasks
-    in let with_become =
-      (* Handle become as above *)
-      Result.map
-      (fun body ->
-        if play.become
-        then
-            (* TODO: Actually check conversion from current to new user *)
-             Modules.Ast.Assert (FuncExp (Id "can_escalate",
-                                [Field (FuncExp (Id "env", []), "active_user")]))
-          :: Assign (Field (FuncExp (Id "env", []), "active_user"), StringLit play.become_user)
-          :: Assign (Field (FuncExp (Id "env", []), "active_group"), StringLit play.become_user)
-          :: Assign (Field (FuncExp (Id "env", []), "is_root"), BoolLit (play.become_user = "root"))
-          :: body
-        else body)
-      with_vars
-    (* Set the user by env().active_user = remote_user
-     * and set is_root based on what we know of it *)
-    in Result.map
-      (fun play_body ->
-        Modules.Ast.Assign
-          (Field (FuncExp (Id "env", []), "active_user"),
-           StringLit play.remote_user)
-        :: match play.is_root with
-           | None -> play_body
-           | Some is_root ->
-              Modules.Ast.Assign
-                (Field (FuncExp (Id "env", []), "is_root"), BoolLit is_root)
-              :: play_body)
-      with_become
-  in let process_play play =
-    match play with
-    | `O map ->
-        let rec process_play_fields map res =
-          match map with
-          | [] -> Result.map_error (String.concat "\n") res#to_play
-          | (field, v) :: tl ->
-              match
-                match field with
-                | "name"          -> Result.map res#add_name (process_string v)
-                | "hosts"         -> Result.map res#add_hosts (process_string v)
-                | "remote_user"   -> Result.map res#add_remote_user (process_string v)
-                | "tasks"         -> Result.map res#add_tasks (process_tasks v)
-                | "become"        -> Result.map res#add_become (process_bool v)
-                | "become_user"   -> Result.map res#add_become_user (process_string v)
-                | "become_method" -> Ok () (* TODO *)
-                | "handlers"      -> Result.map res#add_handlers (process_handlers v)
-                | "vars"          -> Result.map (fun r -> res#add_vars r.args)
-                                                (process_module_use "UNUSED" v)
-                | _               -> Error (Printf.sprintf "unrecognized field '%s' in play" field)
-              with
-              | Ok ()     -> process_play_fields tl res
-              | Error msg -> Error msg
-        in Result.bind (process_play_fields map (new play_result)) codegen_play
-    | _ -> Error ("Expected play to be a mapping with fields")
-  in let rec process_plays plays =
-    match plays with
     | [] -> Ok []
     | hd :: tl ->
-        match process_play hd, process_plays tl with
-        | Ok hd, Ok tl -> Ok (hd @ tl)
-        | Ok _, Error msg -> Error msg
-        | Error msg, Ok _ -> Error msg
-        | Error mhd, Error mtl -> Error (mhd ^ "\n" ^ mtl)
-  in let process_yaml code =
-    match code with
-    | `A seq -> process_plays seq
-    | _ -> Error ("Expected top-level of an ansible playbook to be a sequence of plays")
-  in let ch = open_in file
+        let^ hd = process_task hd
+        in let^ tl = process_list tl
+        in Ok (hd :: tl)
+  in match y with
+  | `A seq -> process_list seq
+  | _ -> Error "Expected sequence of tasks"
+
+let process_handler (y : Yaml.value) : (Ast.handler, string) result =
+  match y with
+  | `O map ->
+      let handler = new handler_result
+      in let^ () = iter_res map (fun (field, v) ->
+        match field with
+        | "name" ->
+            Result.map handler#add_name (process_string v)
+        | "listen" ->
+            Result.map handler#add_listen (process_string v)
+        | "register" ->
+            Result.map handler#add_register (process_string v)
+        | "ignore_errors" ->
+            Result.map handler#add_ignore_errors (process_bool v)
+        | "become" ->
+            Result.map handler#add_become (process_bool v)
+        | "become_user" ->
+            Result.map handler#add_become_user (process_string v)
+        | "become_method" ->
+            Ok () (* TODO *)
+        | "when" ->
+            Result.map handler#add_when (process_condition v)
+        | "with_items" | "loop" ->
+            Result.map (fun v -> handler#add_loop (ItemLoop v)) (process_value v)
+        | "with_fileglob" ->
+            Result.map (fun v -> handler#add_loop (FileGlob v)) (process_value v)
+        | _ -> Result.map handler#add_module (process_module_use field v))
+      in Result.map_error (String.concat "\n") handler#to_handler
+  | _-> Error "Expected handler to be a mapping with fields"
+
+let process_handlers (y : Yaml.value) : (Ast.handler list, string) result =
+  match y with
+  | `A seq ->
+      let rec process_handlers (hs : Yaml.value list) =
+        match hs with
+        | [] -> Ok []
+        | hd :: tl ->
+            let^ hd = process_handler hd
+            in let^ tl = process_handlers tl
+            in Ok (hd :: tl)
+      in process_handlers seq
+  | _ -> Error "Expeected sequence of handlers"
+
+let process_play (y : Yaml.value) : (Ast.play, string) result =
+  match y with
+  | `O map ->
+      let play = new play_result
+      in let^ () = iter_res map (fun (field, v) ->
+          match field with
+          | "name" ->
+              Result.map play#add_name (process_string v)
+          | "hosts" ->
+              Result.map play#add_hosts (process_string v)
+          | "remote_user" ->
+              Result.map play#add_remote_user (process_string v)
+          | "tasks" ->
+              Result.map play#add_tasks (process_tasks v)
+          | "become" ->
+              Result.map play#add_become (process_bool v)
+          | "become_user" ->
+              Result.map play#add_become_user (process_string v)
+          | "become_method" ->
+              Ok () (* TODO *)
+          | "handlers" ->
+              Result.map play#add_handlers (process_handlers v)
+          | "vars" ->
+              Result.map play#add_vars (process_vars v)
+          | _ ->
+              Error (Printf.sprintf "unrecognized field '%s' for play" field))
+      in Result.map_error (String.concat "\n") play#to_play
+  | _ -> Error "Expected play to be a mapping with fields"
+
+let process_playbook (y : Yaml.value) : (Ast.playbook, string) result =
+  let rec process_plays (y : Yaml.value list) : (Ast.playbook, string) result =
+    match y with
+    | [] -> Ok []
+    | hd :: tl ->
+        let^ hd = process_play hd
+        in let^ tl = process_plays tl
+        in Ok (hd :: tl)
+  in match y with
+  | `A seq -> process_plays seq
+  | _ -> Error "Ansible playbook must be a list of plays"
+
+let parse_ansible (filename : string) : (Ast.playbook, string) result =
+  let ch = open_in filename
   in let s = really_input_string ch (in_channel_length ch)
   in let () = close_in ch
   in match Yaml.of_string s with
   | Error (`Msg msg) -> Error msg
-  | Ok contents -> Result.map
-      (fun body ->
-        (* We add the following preamble to setup the environment the way we
-         * want it:
-         * - assert exists env();
-         * - assert env().time_counter = 0;
-         * - assert env().last_reboot = -1; *)
-        Modules.Ast.AssertExists (FuncExp (Id "env", []))
-        :: Assert (BinaryExp (Field (FuncExp (Id "env", []), "time_counter"), IntLit 0, Eq))
-        :: Assert (BinaryExp (Field (FuncExp (Id "env", []), "last_reboot"), IntLit (-1), Eq))
-        :: body)
-      (process_yaml contents)
+  | Ok contents -> process_playbook contents
