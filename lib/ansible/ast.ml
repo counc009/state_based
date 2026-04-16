@@ -30,7 +30,13 @@ type loop_kind =
 
 type task_body =
   | Module of mod_use
-  | Block  of task list
+  | Block  of block
+
+and block = {
+  tasks: task list;
+  rescue: task list option;
+  always: task list option
+}
 
 and task = {
   name: string;
@@ -41,7 +47,7 @@ and task = {
   body: task_body;
   become: bool;
   become_user: string;
-  notify: string list
+  notify: value list
 }
 
 type handler = {
@@ -63,7 +69,9 @@ type play = {
   is_root     : bool option;
   become      : bool;
   become_user : string;
+  pre_tasks   : task list option;
   tasks       : task list;
+  post_tasks  : task list option;
   handlers    : handler list;
   vars        : (string * value) list
 }

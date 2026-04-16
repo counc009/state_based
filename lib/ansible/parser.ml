@@ -27,6 +27,22 @@ class mod_result name =
       else Ok { mod_name = name; args = List.of_seq (Hashtbl.to_seq args) }
   end
 
+type task_body =
+  | Module of Ast.mod_use
+  | Block  of {
+      tasks: Ast.task list option;
+      rescue: Ast.task list option;
+      always: Ast.task list option
+    }
+
+let coerce_task_body (t : task_body option) : (Ast.task_body, string list) result =
+  match t with
+  | None -> Error ["no task body"]
+  | Some (Module m) -> Ok (Module m)
+  | Some (Block { tasks = None; _ }) -> Error ["no task body"]
+  | Some (Block { tasks = Some tasks; rescue; always }) ->
+      Ok (Block { tasks = tasks; rescue = rescue; always = always })
+
 class task_result =
   object
     val mutable name          = (None : string option)
@@ -34,9 +50,9 @@ class task_result =
     val mutable ignore_errors = (None : bool option)
     val mutable condition     = (None : Ast.value option)
     val mutable loop          = (None : Ast.loop_kind option)
-    val mutable body          = (None : Ast.task_body option)
+    val mutable body          = (None : task_body option)
 
-    val mutable notify        = (None : string list option)
+    val mutable notify        = (None : Ast.value list option)
     val mutable become        = (None : bool option)
     val mutable become_user   = (None : string option)
 
@@ -62,6 +78,7 @@ class task_result =
       match loop with
       | None -> loop <- Some l
       | _    -> errors <- "Multiple looping fields" :: errors
+
     method add_module m =
       match body with
       | None -> body <- Some (Module m)
@@ -71,15 +88,46 @@ class task_result =
       | Some (Block _) -> errors <-
         Printf.sprintf "Task contains both block and module %s" m.mod_name
         :: errors
+
     method add_block ts =
       match body with
-      | None -> body <- Some (Block ts)
+      | None ->
+          body <- Some (Block { tasks = Some ts; rescue = None; always = None })
       | Some (Module c) -> errors <-
         Printf.sprintf "Task contains both block and module %s" c.mod_name
         :: errors
-      | Some (Block _) -> errors <-
-        Printf.sprintf "Task contains multiple blocks"
-        :: errors
+      | Some (Block b) ->
+          match b.tasks with
+          | None ->
+              body <- Some (Block { tasks = Some ts; rescue = b.rescue; always = b.always })
+          | Some _ ->
+              errors <- "Task contains multiple block sections" :: errors
+    method add_rescue ts =
+      match body with
+      | None -> 
+          body <- Some (Block { tasks = None; rescue = Some ts; always = None })
+      | Some (Module c) -> errors <-
+          Printf.sprintf "Task contains rescue and module %s" c.mod_name
+          :: errors
+      | Some (Block b) ->
+          match b.rescue with
+          | None ->
+              body <- Some (Block { tasks = b.tasks; rescue = Some ts; always = b.always })
+          | Some _ ->
+              errors <- "Task contains multiple rescue sections" :: errors
+    method add_always ts =
+      match body with
+      | None -> 
+          body <- Some (Block { tasks = None; rescue = None; always = Some ts })
+      | Some (Module c) -> errors <-
+          Printf.sprintf "Task contains always and module %s" c.mod_name
+          :: errors
+      | Some (Block b) ->
+          match b.always with
+          | None ->
+              body <- Some (Block { tasks = b.tasks; rescue = b.rescue; always = Some ts })
+          | Some _ ->
+              errors <- "Task contains multiple always sections" :: errors
 
     method add_notify hs =
       match notify with
@@ -99,21 +147,16 @@ class task_result =
       if not (List.is_empty errors)
       then Error errors
       else
-        match body with
-        | None -> Error ["no task body"]
-        | Some b ->
-            match b, loop with
-            | Block _, Some _ -> Error ["cannot loop over block"]
-            | _, _ ->
-              Ok { name          = Option.value name ~default:""
-                 ; register      = Option.value register ~default:"_"
-                 ; ignore_errors = Option.value ignore_errors ~default:false
-                 ; condition     = condition
-                 ; loop          = loop
-                 ; body          = b
-                 ; notify        = Option.value notify ~default:[]
-                 ; become        = Option.value become ~default:false
-                 ; become_user   = Option.value become_user ~default:"root"}
+        let^ body = coerce_task_body body
+        in Ok { Ast.name      = Option.value name ~default:""
+              ; register      = Option.value register ~default:"_"
+              ; ignore_errors = Option.value ignore_errors ~default:false
+              ; condition     = condition
+              ; loop          = loop
+              ; body          = body
+              ; notify        = Option.value notify ~default:[]
+              ; become        = Option.value become ~default:false
+              ; become_user   = Option.value become_user ~default:"root"}
   end
 
 class handler_result =
@@ -197,7 +240,9 @@ class play_result =
     val mutable name        = (None : string option)
     val mutable hosts       = (None : string option)
     val mutable remote_user = (None : string option)
+    val mutable pre_tasks   = (None : Ast.task list option)
     val mutable tasks       = (None : Ast.task list option)
+    val mutable post_tasks  = (None : Ast.task list option)
     val mutable handlers    = (None : Ast.handler list option)
 
     val mutable become      = (None : bool option)
@@ -219,10 +264,19 @@ class play_result =
       match remote_user with
       | None -> remote_user <- Some n
       | _    -> errors <- "Multiple remote_user fields" :: errors
+
+    method add_pre_tasks ts =
+      match pre_tasks with
+      | None -> pre_tasks <- Some ts
+      | _    -> errors <- "Multiple pre_tasks fields" :: errors
     method add_tasks ts =
       match tasks with
       | None -> tasks <- Some ts
       | _    -> errors <- "Multiple tasks fields" :: errors
+    method add_post_tasks ts =
+      match post_tasks with
+      | None -> post_tasks <- Some ts
+      | _    -> errors <- "Multiple post_tasks fields" :: errors
     method add_handlers hs =
       match handlers with
       | None -> handlers <- Some hs
@@ -257,7 +311,9 @@ class play_result =
                ; is_root      = Option.map (fun nm -> nm = "root") remote_user
                ; become       = Option.value become ~default:false
                ; become_user  = Option.value become_user ~default:"root"
+               ; pre_tasks    = pre_tasks
                ; tasks        = t
+               ; post_tasks   = post_tasks
                ; handlers     = Option.value handlers ~default:[]
                ; vars         = Option.value vars ~default:[] }
   end
@@ -448,6 +504,12 @@ let rec process_value (y : Yaml.value) : (Ast.value, string) result =
       in let^ fields = process fields
       in Ok (Ast.Record fields)
 
+let process_value_list (y : Yaml.value) : (Ast.value list, string) result =
+  let^ v = process_value y
+  in match v with
+  | Ast.List vs -> Ok vs
+  | _ -> Ok [v]
+
 let rec process_condition (y : Yaml.value) : (Ast.value, string) result =
   match y with
   | `Null    -> Ok (Bool true) (* Empty list is treated as true *)
@@ -522,7 +584,7 @@ let rec process_task (y : Yaml.value) : (Ast.task, string) result =
         | "with_fileglob" ->
             Result.map (fun v -> task#add_loop (FileGlob v)) (process_value v)
         | "notify" ->
-            Result.map task#add_notify (process_string_list v)
+            Result.map task#add_notify (process_value_list v)
         | "tags" ->
             Ok () (* TODO *)
         | "loop_control" ->
@@ -605,8 +667,12 @@ let process_play (y : Yaml.value) : (Ast.play, string) result =
               Result.map play#add_hosts (process_string v)
           | "remote_user" ->
               Result.map play#add_remote_user (process_string v)
+          | "pre_tasks" ->
+              Result.map play#add_pre_tasks (process_tasks v)
           | "tasks" ->
               Result.map play#add_tasks (process_tasks v)
+          | "post_tasks" ->
+              Result.map play#add_post_tasks (process_tasks v)
           | "become" ->
               Result.map play#add_become (process_bool v)
           | "become_user" ->

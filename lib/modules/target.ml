@@ -5,8 +5,9 @@ type 'a list2 = LastTwo of 'a * 'a | Cons of 'a * 'a list2
 type 'a list' = Nil | Singleton of 'a | List of 'a list2
 
 module StringMap = Map.Make(String)
+module StringSet = Set.Make(String)
 
-type 't prims   = Unit | Bool | Int | Float | String | Path
+type 't prims   = Unit | Bool | Int | Float | String | Path | StringSet
                 | Exc of 't StringMap.t
 type 't constr  = List of 't | Option of 't
                 (* For all other enums we store the name of the enum and the
@@ -33,6 +34,7 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | DivInt
                 | DivFloat
                 | Modulo
+                | Power
                 | LShift
                 | RShift
                 | LtInt
@@ -42,6 +44,7 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | ToLower
                 | Substring
                 | StringOfInt
+                | FloatOfInt
                 (* Path operations *)
                 | ConsPath
                 | PathOfString
@@ -51,10 +54,13 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | PathFrom
                 | AddExt
                 | NormalizePath
-                | CanEscalate
+                | CanBecome
                 (* Exception functions: generating and unpacking *)
                 | GenExcept of 't StringMap.t * string
                 | UnpackExcept of 't StringMap.t * string
+                (* String sets *)
+                | SetAdd
+                | SetContains
                 (* Name and input and output types *)
                 | Uninterpreted of string * 't * 't
 type ('v, 't) lit = Unit    of unit
@@ -63,6 +69,7 @@ type ('v, 't) lit = Unit    of unit
                   | Float   of float
                   | String  of string
                   | Path    of string
+                  | StringSet of StringSet.t
                   | Except  of 't StringMap.t * string * 'v
 
 let home_regex = Str.regexp {|^~\([^/]*\)|}
@@ -346,6 +353,11 @@ module rec Ast_Target : Ast_Defs
           | Pair (Literal (Int x, _), Literal (Int y, _), _)
               -> Reduced (Literal (Int (x mod y), Int))
           | _ -> Stuck)
+    | Power -> (Product (Primitive Float, Primitive Float), Primitive Float,
+        fun v -> match v with
+          | Pair (Literal (Float x, _), Literal (Float y, _), _)
+              -> Reduced (Literal (Float (Float.pow x y), Float))
+          | _ -> Stuck)
     | LShift -> (Product (Primitive Int, Primitive Int), Primitive Int,
         fun v -> match v with
           | Pair (_, Literal (Int y, _), _) when y < 0
@@ -406,6 +418,11 @@ module rec Ast_Target : Ast_Defs
           | Literal (Int x, _) ->
               Reduced (Literal (String (string_of_int x), String))
           | _ -> Stuck)
+    | FloatOfInt -> (Primitive Int, Primitive Float,
+        fun v -> match v with
+          | Literal (Int x, _) ->
+              Reduced (Literal (Float (float_of_int x), Float))
+          | _ -> Stuck)
     | ConsPath -> (Product (Primitive Path, Primitive Path),
                    Primitive Path,
         fun v -> match v with
@@ -465,9 +482,14 @@ module rec Ast_Target : Ast_Defs
               = Str.replace_first home_regex {|/home/\1|} normLast
              in Reduced (Literal (Path normHome, Path))
         | _ -> Stuck)
-    | CanEscalate -> (Primitive String, Primitive Bool,
+    | CanBecome -> (Product (Primitive String, Primitive String),
+        Primitive Bool,
         fun v -> match v with
-        | Literal (String "root", _) -> Reduced (Literal (Bool true, Bool))
+        | Pair (Literal (String "root", _), _, _) ->
+            Reduced (Literal (Bool true, Bool))
+        | Pair (Literal (String init, _), Literal (String become, _), _) ->
+            if init = become then Reduced (Literal (Bool true, Bool))
+            else Stuck
         | _ -> Stuck)
     | GenExcept (tys, e) ->
         (StringMap.find e tys, Primitive (Exc tys),
@@ -485,6 +507,20 @@ module rec Ast_Target : Ast_Defs
                   else Reduced (Constructor (Option t, true,
                         Literal (Unit (), Unit)))
               | _ -> Err "Cannot unpack a value that's not an exception")
+    | SetAdd ->
+        (Product (Primitive String, Primitive StringSet),
+         Primitive StringSet,
+         fun v -> match v with
+         | Pair (Literal (String s, _), Literal (StringSet set, _), _)
+            -> Reduced (Literal (StringSet (StringSet.add s set), StringSet))
+         | _ -> Stuck)
+    | SetContains ->
+        (Product (Primitive String, Primitive StringSet),
+         Primitive Bool,
+         fun v -> match v with
+         | Pair (Literal (String k, _), Literal (StringSet set, _), _)
+            -> Reduced (Literal (Bool (StringSet.mem k set), Bool))
+         | _ -> Stuck)
     (* Uninterpreted functions never reduce *)
     | Uninterpreted (_, in_typ, out_typ) ->
         (in_typ, out_typ, fun _ -> Stuck)
@@ -496,6 +532,7 @@ module rec Ast_Target : Ast_Defs
     | Float  _ -> Float
     | String _ -> String
     | Path   _ -> Path
+    | StringSet _ -> StringSet
     | Except (tys, _, _) -> Exc tys
 
   let attributeDef (_, typ) : typ = typ
@@ -578,6 +615,7 @@ let rec string_of_type (t : Ast_Target.typ) : string =
   | Primitive Float  -> "float"
   | Primitive String -> "string"
   | Primitive Path   -> "path"
+  | Primitive StringSet -> "sset"
   | Primitive (Exc _) -> "exc"
   | Struct tys       ->
       Printf.sprintf "{ %s }"
@@ -598,6 +636,7 @@ let rec string_of_value (v : Ast_Target.value) : string =
   | Literal (Float f, _)  -> string_of_float f
   | Literal (String s, _) -> "\"" ^ s ^ "\""
   | Literal (Path p, _)   -> "'" ^ p ^ "'"
+  | Literal (StringSet s, _) -> "{" ^ String.concat ", " (StringSet.elements s) ^ "}"
   | Literal (Except (_, e, v), _) -> e ^ "(" ^ string_of_value v ^ ")"
   | Pair    (x, y, _)     ->
       "(" ^ string_of_value x ^ ", " ^ string_of_value y ^ ")"
@@ -639,6 +678,7 @@ let rec string_of_value (v : Ast_Target.value) : string =
       | DivInt                    -> "div(" ^ string_of_value arg ^ ")"
       | DivFloat                  -> "div(" ^ string_of_value arg ^ ")"
       | Modulo                    -> "mod(" ^ string_of_value arg ^ ")"
+      | Power                     -> "pow(" ^ string_of_value arg ^ ")"
       | LShift                    -> "lshift(" ^ string_of_value arg ^ ")"
       | RShift                    -> "rshift(" ^ string_of_value arg ^ ")"
       | LtInt                     -> "lt(" ^ string_of_value arg ^ ")"
@@ -648,6 +688,7 @@ let rec string_of_value (v : Ast_Target.value) : string =
       | ToLower                   -> "to_lower(" ^ string_of_value arg ^ ")"
       | Substring                 -> "substring(" ^ string_of_value arg ^ ")"
       | StringOfInt               -> "string_of_int(" ^ string_of_value arg ^ ")"
+      | FloatOfInt                -> "float_of_int(" ^ string_of_value arg ^ ")"
       | ConsPath                  -> "cons_path(" ^ string_of_value arg ^ ")"
       | PathOfString              -> "path_of_string(" ^ string_of_value arg ^ ")"
       | StringOfPath              -> "string_of_path(" ^ string_of_value arg ^ ")"
@@ -656,7 +697,7 @@ let rec string_of_value (v : Ast_Target.value) : string =
       | PathFrom                  -> "path_from(" ^ string_of_value arg ^ ")"
       | AddExt                    -> "add_ext(" ^ string_of_value arg ^ ")"
       | NormalizePath             -> "norm_path(" ^ string_of_value arg ^ ")"
-      | CanEscalate               -> "can_esclate(" ^ string_of_value arg ^ ")"
+      | CanBecome                 -> "can_become(" ^ string_of_value arg ^ ")"
       | Uninterpreted (nm, _, _)  -> nm ^ "(" ^ string_of_value arg ^ ")"
       | EmptyStruct _             -> "{ }"
       | AddField (_, f)           -> "set." ^ f ^ "(" ^ string_of_value arg ^ ")"
@@ -666,6 +707,8 @@ let rec string_of_value (v : Ast_Target.value) : string =
           (if w then "L" else "R") ^ "(" ^ string_of_value arg ^ ")"
       | GenExcept (_, e)          -> "except_" ^ e ^ "(" ^ string_of_value arg ^ ")"
       | UnpackExcept (_, e)       -> "unpack_" ^ e ^ "(" ^ string_of_value arg ^ ")"
+      | SetAdd                    -> "set_add(" ^ string_of_value arg ^ ")"
+      | SetContains               -> "set_contains(" ^ string_of_value arg ^ ")"
 and string_of_list_val (v : Ast_Target.value) : string =
   match v with
   | Pair (hd, tl, _) ->
@@ -700,6 +743,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
   | Literal (Float f)  -> string_of_float f
   | Literal (String s) -> "\"" ^ s ^ "\""
   | Literal (Path p)   -> "'" ^ p ^ "'"
+  | Literal (StringSet s) -> "{" ^ String.concat ", " (StringSet.elements s) ^ "}"
   | Literal (Except (_, e, v)) -> e ^ "(" ^ string_of_value v ^ ")"
   | Pair (x, y)        ->
       "(" ^ string_of_expr x ^ ", " ^ string_of_expr y ^ ")"
@@ -729,6 +773,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | DivInt                    -> "div"
         | DivFloat                  -> "div"
         | Modulo                    -> "mod"
+        | Power                     -> "pow"
         | LShift                    -> "lshift"
         | RShift                    -> "rshift"
         | LtInt                     -> "lt"
@@ -738,6 +783,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | ToLower                   -> "to_lower"
         | Substring                 -> "substring"
         | StringOfInt               -> "string_of_int"
+        | FloatOfInt                -> "float_of_int"
         | ConsPath                  -> "cons_path"
         | PathOfString              -> "path_of_string"
         | StringOfPath              -> "string_of_path"
@@ -746,9 +792,11 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | PathFrom                  -> "path_from"
         | AddExt                    -> "add_ext"
         | NormalizePath             -> "norm_path"
-        | CanEscalate               -> "can_escalate"
+        | CanBecome                 -> "can_become"
         | GenExcept (_, e)          -> "except_" ^ e
         | UnpackExcept (_, e)       -> "unpack_" ^ e
+        | SetAdd                    -> "set_add"
+        | SetContains               -> "set_contains"
         | Uninterpreted (nm, _, _)  -> nm
       in string_f ^ "(" ^ string_of_expr e ^ ")"
 

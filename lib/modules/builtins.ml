@@ -31,9 +31,9 @@ let lookup_builtin (nm : string)
   | "norm_path" ->
       let (arg_ty, res_ty, _) = TargetAst.funcDef NormalizePath
       in Ok (arg_ty, res_ty, Target.NormalizePath)
-  | "can_escalate" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef CanEscalate
-      in Ok (arg_ty, res_ty, Target.CanEscalate)
+  | "can_become" ->
+      let (arg_ty, res_ty, _) = TargetAst.funcDef CanBecome
+      in Ok (arg_ty, res_ty, Target.CanBecome)
   | "to_lower" ->
       let (arg_ty, res_ty, _) = TargetAst.funcDef ToLower
       in Ok (arg_ty, res_ty, Target.ToLower)

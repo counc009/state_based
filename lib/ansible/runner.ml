@@ -1,11 +1,9 @@
-open Parser
-
 module Interp = Modules.Target.TargetInterp
 module Calc = Modules.Target.Ast_Target
 module Target = Modules.Target
 
 let interp_ansible sources ansible_src =
-  let interp p : Interp.interp_res =
+  let _interp p : Interp.interp_res =
     Interp.interpret p Interp.init_interp_state Calc.VariableMap.empty
       (* continue -- should not continue, should always return *)
       (fun _ _ -> Err "Ansible program reached end without return")
@@ -21,7 +19,6 @@ let interp_ansible sources ansible_src =
                   (Target.string_of_value v))
         | _ -> Err "Unknown Exception")
   in Result.bind (Modules.Parser.parse_files sources) (fun parsed ->
-      Result.bind (Modules.Codegen.codegen parsed) (fun ctx ->
-        Result.bind (process_ansible ansible_src ctx.types ctx.globals) (fun prg ->
-          Result.bind (Modules.Codegen.codegen_program prg ctx) (fun prg ->
-            Ok (interp prg)))))
+      Result.bind (Modules.Codegen.codegen parsed) (fun _ctx ->
+        Result.bind (Parser.parse_ansible ansible_src) (fun _prg ->
+          Error "TODO")))

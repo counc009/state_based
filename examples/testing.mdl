@@ -1,0 +1,14 @@
+element env()
+
+attribute is_root(bool)
+attribute active_user(string)
+attribute active_group(string)
+
+# Time counter is used to indicate when things occurred (such as when the machine
+# was last rebooted) including possible simultaneity (such as in generating
+# ssh keys)
+attribute time_counter(int)
+attribute last_reboot(int)
+
+
+exception AnsibleFailure()
