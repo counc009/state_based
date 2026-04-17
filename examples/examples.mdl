@@ -196,3 +196,13 @@ function exampleL() {
     clear foo("xyz");
   }
 }
+
+enum taz { a, b, c }
+
+function exampleM(x : taz) -> int {
+  match x {
+    taz::a => { return 0; }
+    taz::b => { return 1; }
+  }
+  return 2;
+}

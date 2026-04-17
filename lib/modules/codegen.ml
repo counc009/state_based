@@ -1699,7 +1699,10 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
                   Ok (Target.Seq (
                     Target.Assign ("#match", e),
                     array_foldr1 cases
-                      (Option.value ~default:Target.Pass)
+                      (fun case ->
+                        match case with
+                        | None -> reachable := true; Target.Pass
+                        | Some s -> s)
                       (fun l r ->
                         Target.Match (Variable "#match", "#match", l, r))
                   ))
