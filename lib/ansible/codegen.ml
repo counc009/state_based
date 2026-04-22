@@ -1,5 +1,7 @@
 let ( let^ ) r f = Result.bind r f
 
+module Ast = Ast.Parsed
+
 let cnt = ref 0
 let new_tmp () =
   let n = !cnt
@@ -20,7 +22,7 @@ let rec list2_map_list (f : 'a -> 'b) (xs : 'a list2) : 'b list =
   | Cons (x, tl) -> f x :: list2_map_list f tl
 
 type var_type =
-  | Unknown of string * Target.typ (* Name of the variable and a suggested type *)
+  | Unknown  of Target.typ (* A suggested type *)
   | Concrete of Target.typ
 
 type play_env = (string, var_type) Hashtbl.t
@@ -278,7 +280,7 @@ let codegen_value (v : Ast.value) (ty : Target.typ option)
     | Ident nm ->
         begin match Hashtbl.find_opt env nm with
         | Some (Concrete t) -> Result.bind (coerce_value ty (Variable nm) t) k
-        | Some (Unknown (_, t)) ->
+        | Some (Unknown t) ->
             begin match ty with
             | None ->
                 let () = Hashtbl.add env nm (Concrete t)
@@ -741,7 +743,7 @@ let codegen_play (p : Ast.play) (ctx : Context.context)
   : (Target.stmt, string) result =
   let play_env = Hashtbl.create 10
   in let () = List.iter (fun (nm, _) ->
-    Hashtbl.add play_env nm (Unknown (nm, Primitive String))
+    Hashtbl.add play_env nm (Unknown (Primitive String))
   ) p.vars
   in let^ pre_tasks =
     match p.pre_tasks with
@@ -757,7 +759,7 @@ let codegen_play (p : Ast.play) (ctx : Context.context)
     fold_map_res (fun (nm, v) ->
         let var_typ =
           match Hashtbl.find play_env nm with
-          | Unknown (_, t) -> t
+          | Unknown t -> t
           | Concrete t -> t
         in codegen_value v (Some var_typ) ctx play_env (fun (v, t) ->
           let () = Hashtbl.add play_env nm (Concrete t)

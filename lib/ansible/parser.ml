@@ -7,6 +7,9 @@ let ( let^ ) r f = Result.bind r f
 module Jinterp = Jingoo.Jg_interp
 module Jtypes = Jingoo.Jg_types
 
+module Ops = Ast
+module Ast = Ast.Parsed
+
 (* Utilities for constructing the AST *)
 class mod_result name =
   object
@@ -358,7 +361,7 @@ let rec jinja_to_value (j : Jtypes.ast) : (Ast.value, string) result =
         jlit_to_value v
     | NotOpExpr e
     | NegativeOpExpr e ->
-        let op : Ast.unary =
+        let op : Ops.unary =
           match j with
           | NotOpExpr _ -> Not
           | NegativeOpExpr _ -> Neg
@@ -379,7 +382,7 @@ let rec jinja_to_value (j : Jtypes.ast) : (Ast.value, string) result =
     | GtOpExpr (lhs, rhs)
     | LtEqOpExpr (lhs, rhs)
     | GtEqOpExpr (lhs, rhs) ->
-        let op : Ast.binary =
+        let op : Ops.binary =
           match j with
           | PlusOpExpr (_, _) -> Add
           | MinusOpExpr (_, _) -> Sub
