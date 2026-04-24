@@ -369,13 +369,7 @@ let typecheck_value (v : Parsed.value) (t : etype) (_ctx : Context.context)
           in helper t
         in let^ res_v = check v e_typ
         in Ok (Typed.Unary ((res_v, op), res_typ (Typed.typeof res_v)))
-    (* The challenge is still when do we re-use the type of the sub-expression
-     * and when do we generate a new type for it?
-     * For instance, my instinct says that 3 + 2 should give 3, 2, and the
-     * whole expression the exact same type and so if we then have the
-     * expression 3 + 2 < 3.14 then we can coerce all of the sub-expressions to
-     * floats. But, if instead we have (3 + 2) == "hello" we need to coerce
-     * just the 3 + 2 sub-expression to string, not its sub-expressions. *)
+    (* Is Equiv even needed? *)
     | _ -> Error "TODO"
 
   in check v t
