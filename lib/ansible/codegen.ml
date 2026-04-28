@@ -546,6 +546,7 @@ let codegen_value (v : Ast.value) (ty : Target.typ option)
                     k (Function (AddField (tys, nm), Pair (r, v))) tys))
 
         in process_fields fields StringMap.empty (fun v ts -> k (v, Struct ts))
+    | ReAnnt _ -> failwith "FIXME"
 
   (* Takes two values which can be of any type but we want to be of the
    * same type. *)

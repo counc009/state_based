@@ -1,5 +1,10 @@
 module type AnnotatorType = sig
   type 'a anntd
+
+  (* annotation for a variable; it can be useful for this to be different *)
+  type 'a vanntd
+
+  type fact_kind
 end
   
 type unary  = Not | Neg | Lower
@@ -15,14 +20,15 @@ module Ast(A : AnnotatorType) = struct
     | Float       of float A.anntd
     | Bool        of bool A.anntd
     | List        of value list A.anntd
-    | Ident       of string A.anntd
+    | Ident       of string A.vanntd
     | Unary       of (value * unary) A.anntd
     | Binary      of (value * binary * value) A.anntd
     | Dot         of (value * string) A.anntd
     | VarDefined  of string A.anntd
-    | Fact        of string A.anntd
+    | Fact        of A.fact_kind A.anntd
     | Ternary     of (value * value * value) A.anntd
     | Record      of (string * value) list A.anntd
+    | ReAnnt      of value A.anntd
 
   type mod_use = {
     mod_name: string;
@@ -87,5 +93,7 @@ end
 module Parsed = struct
   include Ast(struct
     type 'a anntd = 'a
+    type 'a vanntd = 'a
+    type fact_kind = string
   end)
 end
