@@ -27,7 +27,7 @@ class mod_result name =
     method to_mod : (Ast.mod_use, string list) result =
       if not (List.is_empty errors)
       then Error errors
-      else Ok { mod_name = name; args = List.of_seq (Hashtbl.to_seq args) }
+      else Ok { mod_info = name; args = List.of_seq (Hashtbl.to_seq args) }
   end
 
 type task_body =
@@ -86,10 +86,10 @@ class task_result =
       match body with
       | None -> body <- Some (Module m)
       | Some (Module c) -> errors <-
-        Printf.sprintf "Multiple modules specified: %s and %s" c.mod_name m.mod_name
+        Printf.sprintf "Multiple modules specified: %s and %s" c.mod_info m.mod_info
         :: errors
       | Some (Block _) -> errors <-
-        Printf.sprintf "Task contains both block and module %s" m.mod_name
+        Printf.sprintf "Task contains both block and module %s" m.mod_info
         :: errors
 
     method add_block ts =
@@ -97,7 +97,7 @@ class task_result =
       | None ->
           body <- Some (Block { tasks = Some ts; rescue = None; always = None })
       | Some (Module c) -> errors <-
-        Printf.sprintf "Task contains both block and module %s" c.mod_name
+        Printf.sprintf "Task contains both block and module %s" c.mod_info
         :: errors
       | Some (Block b) ->
           match b.tasks with
@@ -110,7 +110,7 @@ class task_result =
       | None -> 
           body <- Some (Block { tasks = None; rescue = Some ts; always = None })
       | Some (Module c) -> errors <-
-          Printf.sprintf "Task contains rescue and module %s" c.mod_name
+          Printf.sprintf "Task contains rescue and module %s" c.mod_info
           :: errors
       | Some (Block b) ->
           match b.rescue with
@@ -123,7 +123,7 @@ class task_result =
       | None -> 
           body <- Some (Block { tasks = None; rescue = None; always = Some ts })
       | Some (Module c) -> errors <-
-          Printf.sprintf "Task contains always and module %s" c.mod_name
+          Printf.sprintf "Task contains always and module %s" c.mod_info
           :: errors
       | Some (Block b) ->
           match b.always with
@@ -189,7 +189,7 @@ class handler_result =
       match module_invoke with
       | None   -> module_invoke <- Some m
       | Some c -> errors <-
-        Printf.sprintf "Multiple modules specified: %s and %s" c.mod_name m.mod_name
+        Printf.sprintf "Multiple modules specified: %s and %s" c.mod_info m.mod_info
         :: errors
 
     method add_register nm =

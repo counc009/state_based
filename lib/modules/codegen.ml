@@ -2007,7 +2007,7 @@ let codegen_program (body : Ast.stmt list) (c : context)
   codegen_stmts body c.types c.globals c.excepts empty_local_env
     (Primitive Unit) None None (Ok (Return (Literal (Unit ()))))
 
-let find_module_def (name : string list) (g : global_env) : module_info option =
+let find_module_def (name : string list) (ctx : context) : module_info option =
   let rec helper name entry =
     match name with
     | [] ->
@@ -2023,7 +2023,7 @@ let find_module_def (name : string list) (g : global_env) : module_info option =
             | Some entry -> helper name entry
             end
         | _ -> None
-  in helper name (Environment g)
+  in helper name (Environment ctx.globals)
 
 let find_function_body (name : string list) (c : context)
   : (Target.stmt, string) result =

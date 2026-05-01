@@ -5,6 +5,7 @@ module type AnnotatorType = sig
   type 'a vanntd
 
   type fact_kind
+  type mod_info
 end
   
 type unary  = Not | Neg | Lower
@@ -31,7 +32,7 @@ module Ast(A : AnnotatorType) = struct
     | ReAnnt      of value A.anntd
 
   type mod_use = {
-    mod_name: string;
+    mod_info: A.mod_info;
     args: (string * value) list
   }
 
@@ -95,5 +96,6 @@ module Parsed = struct
     type 'a anntd = 'a
     type 'a vanntd = 'a
     type fact_kind = string
+    type mod_info = string
   end)
 end

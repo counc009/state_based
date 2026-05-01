@@ -57,6 +57,7 @@ module Typed = struct
     type 'a anntd = 'a * itype
     type 'a vanntd = 'a * (itype ref)
     type fact_kind = facts
+    type mod_info = Context.module_info
   end)
 
   let typeof (v : value) : itype =
@@ -180,14 +181,216 @@ let rec itype_of_etype (t : etype) : itype =
   | SingleOrList t -> List (itype_of_etype t)
   | Struct ts -> Struct (StringMap.map itype_of_etype ts)
 
+let rec etype_of_context_typ (t : Context.typ) : (etype, string) result =
+  match t with
+  | Bool -> Ok Bool
+  | Int -> Ok Int
+  | Float -> Ok Float
+  | String -> Ok String
+  | Path -> Ok Path
+  | Unit -> Error "Unit type not supported in Ansible YAML"
+  | Option _ -> Error "Option type not supported in Ansible YAML"
+  | List t -> let^ res_t = etype_of_context_typ t in Ok (List res_t : etype)
+  | Product _ -> Error "Product type not supported in Ansible YAML"
+  | Struct (_, ts) ->
+      let^ res_ts = smap_res etype_of_context_typ ts
+      in Ok (Struct res_ts : etype)
+  | Enum (nm, constrs) ->
+      let^ cases =
+        match Context.lower_sum nm constrs with
+        | Error msg -> Error msg
+        | Ok (Target.Named (Cases (_, cs))) -> Ok cs
+        | Ok _ -> Error "Empty or Singleton enum not supported in Ansible YAML"
+      in Ok (Enum (nm, cases) : etype)
+  | Placeholder { contents = None } ->
+      Error "Internal Error: unresolved placeholder type"
+  | Placeholder { contents = Some t } -> etype_of_context_typ t
+
+let rec itype_of_context_typ (t : Context.typ) : (itype, string) result =
+  match t with
+  | Bool -> Ok Bool
+  | Int -> Ok Int
+  | Float -> Ok Float
+  | String -> Ok String
+  | Path -> Ok Path
+  | Unit -> Error "Unit type not supported in Ansible YAML"
+  | Option _ -> Error "Option type not supported in Ansible YAML"
+  | List t -> let^ res_t = itype_of_context_typ t in Ok (List res_t : itype)
+  | Product _ -> Error "Product type not supported in Ansible YAML"
+  | Struct (_, ts) ->
+      let^ res_ts = smap_res itype_of_context_typ ts
+      in Ok (Struct res_ts : itype)
+  | Enum (nm, constrs) ->
+      let^ cases =
+        match Context.lower_sum nm constrs with
+        | Error msg -> Error msg
+        | Ok (Target.Named (Cases (_, cs))) -> Ok cs
+        | Ok _ -> Error "Empty or Singleton enum not supported in Ansible YAML"
+      in Ok (Enum (nm, cases) : itype)
+  | Placeholder { contents = None } ->
+      Error "Internal Error: unresolved placeholder type"
+  | Placeholder { contents = Some t } -> itype_of_context_typ t
+
+(* An type representation used during the coalescing process that borrows a
+ * mix of features from etypes and itypes. *)
+module Coalesce = struct
+  type ctype =
+    | Int
+    | Float
+    | Bool
+    | StringLike
+    | String
+    | Path
+    | Enum of string * (string * Target.typ) list2
+    | EmptyList
+    | List of ctype
+    | SingleOrList of ctype
+    | Struct of ctype StringMap.t
+
+  let rec string_of_ctype (t : ctype) : string =
+    match t with
+    | Int -> "int"
+    | Float -> "float"
+    | Bool -> "bool"
+    | StringLike -> "string-like"
+    | String -> "string"
+    | Path -> "path"
+    | Enum (nm, _) -> nm
+    | EmptyList -> "list"
+    | List t -> "list of " ^ string_of_ctype t
+    | SingleOrList t -> "single value or list of " ^ string_of_ctype t
+    | Struct ts ->
+        "{" 
+        ^ String.concat ", " 
+            (List.map (fun (f, t) -> f ^ ": " ^ string_of_ctype t)
+              (StringMap.to_list ts))
+        ^ "}"
+
+  let rec etype_of_ctype (t : ctype) : (etype, string) result =
+    match t with
+    | Int -> Ok Int
+    | Float -> Ok Float
+    | Bool -> Ok Bool
+    | StringLike -> Ok String
+    | String -> Ok String
+    | Path -> Ok Path
+    | Enum (nm, cs) -> Ok (Enum (nm, cs))
+    | EmptyList -> Error "Cannot infer type of empty list"
+    | List t -> Result.map (fun t -> (List t : etype)) (etype_of_ctype t)
+    | SingleOrList t ->
+        Result.map (fun t -> (SingleOrList t : etype)) (etype_of_ctype t)
+    | Struct ts ->
+        let^ res_ts = smap_res etype_of_ctype ts
+        in Ok (Struct res_ts : etype)
+
+  let rec ctype_of_itype (t : itype) : (ctype, string) result =
+    match t with
+    | Int -> Ok Int
+    | Float -> Ok Float
+    | Bool -> Ok Bool
+    | StringLike -> Ok StringLike
+    | String -> Ok String
+    | Path -> Ok Path
+    | Enum (nm, cs) -> Ok (Enum (nm, cs))
+    | EmptyList -> Ok EmptyList
+    | List t -> Result.map (fun t -> List t) (ctype_of_itype t)
+    | Struct ts ->
+        let^ res_ts = smap_res ctype_of_itype ts
+        in Ok (Struct res_ts)
+end
+
+let coalesce_var (v : var_type) : (etype, string) result =
+  (* Given the inferred type (which is a broadest type) infers the narrowest
+   * type that the value can be given. *)
+  let rec narrow_from (t : itype) : (Coalesce.ctype, string) result =
+    match t with
+    | Int | Float | Bool -> Ok String
+    (* We assume Path since we'll prefer String over Path when we coalesce *)
+    | StringLike -> Ok Path
+    | String -> Ok String
+    | Path -> Ok Path
+    | Enum (nm, cs) -> Ok (Enum (nm, cs))
+    | EmptyList -> Error "Cannot infer type of empty list"
+    | List t -> let^ res_t = narrow_from t in Ok (List res_t : Coalesce.ctype)
+    | Struct fs ->
+        let^ fs_res = smap_res narrow_from fs
+        in Ok (Struct fs_res : Coalesce.ctype)
+
+  (* Broaden the coalesced type t so that it is at least as broad as i *)
+  in let rec broaden_type (t : Coalesce.ctype) (i : itype)
+    : (Coalesce.ctype, string) result =
+    match i, t with
+    | Int, (Int | Float | StringLike | String | Path) | Float, Int -> Ok Int
+    | Float, (Float | StringLike | String | Path) -> Ok Float
+    | Bool, (Bool | StringLike | String | Path) -> Ok Bool
+
+    (* If a use is a particular enum, we need to be of that type. *)
+    | Enum (nm, cs), StringLike -> Ok (Enum (nm, cs))
+    | Enum (n, cs), Enum (m, _) ->
+        if n = m then Ok (Enum (n, cs))
+        else Error (Printf.sprintf "Type error, found %s but expected %s" m n)
+
+    | EmptyList, (EmptyList | List _ | SingleOrList _) -> Ok t
+
+    | StringLike, (Int | Float | Bool | StringLike | String | Path) -> Ok t
+    | StringLike, Enum (_, _) -> Ok t
+
+    | String, (Int | Float | Bool | String) -> Ok t
+    | String, (StringLike | Path) -> Ok String
+    
+    | Path, (Int | Float | Bool | String | Path) -> Ok t
+    | Path, StringLike -> Ok Path
+
+    | List i, List t ->
+        let^ res = broaden_type t i
+        in Ok (List res : Coalesce.ctype)
+    | List i, SingleOrList t ->
+        let^ res = broaden_type t i
+        in Ok (SingleOrList res : Coalesce.ctype)
+    | List i, EmptyList ->
+        let^ res = Coalesce.ctype_of_itype i
+        in Ok (List res : Coalesce.ctype)
+
+    | Struct tis, Struct tts ->
+        Error "TODO HERE"
+
+    | (Int | Float | Bool | Enum (_, _) | StringLike | String | Path | Struct _), SingleOrList t ->
+        broaden_type t i (* Just make singleton *)
+
+    | (Int | Float), (Bool | Enum (_, _) | EmptyList | List _ | Struct _)
+    | Bool, (Int | Float | Enum (_, _) | EmptyList | List _ | Struct _)
+    | Enum (_, _), (Int | Float | Bool | String | Path | EmptyList | List _ | Struct _)
+    | EmptyList, (Int | Float | Bool | StringLike | String | Path | Enum (_, _) | Struct _)
+    | StringLike, (EmptyList | List _ | Struct _)
+    | (String | Path), (EmptyList | Enum (_, _) | List _ | Struct _)
+    | List _, (Int | Float | Bool | StringLike | String | Path | Enum (_, _) | Struct _)
+    | Struct _, (Int | Float | Bool | StringLike | String | Path | EmptyList | Enum (_, _) | List _)
+    ->
+        Error (Printf.sprintf "Type error, found %s but expected %s"
+                  (Coalesce.string_of_ctype t) (string_of_itype i))
+
+  in let rec coalesce (ts : itype ref list) (cur : Coalesce.ctype)
+    : (Coalesce.ctype, string) result =
+    match ts with
+    | [] -> Ok cur
+    | t :: ts ->
+        let^ new_typ = broaden_type cur !t
+        in coalesce ts new_typ
+  in let^ inferred = narrow_from v.inferred
+  in let^ coalesced =
+    match inferred with
+    | List _ -> coalesce v.uses#elems inferred
+    (* We add a SingleOrList since if all uses are lists we should treat the
+     * variable as a list *)
+    | _ -> coalesce v.uses#elems (SingleOrList inferred)
+  in Coalesce.etype_of_ctype coalesced
+
 let type_error (t : itype) (e : etype) : ('a, string) result =
   Error (Printf.sprintf
           "Type error, found %s but expected %s"
           (string_of_itype t) (string_of_etype e))
 
-let typecheck (v : Parsed.value) (t : etype option) (env : play_env)
-  : (Typed.value, string) result =
-
+let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
   (* Determine whether t can be coerced to e *)
   let rec can_coerce (t : itype) (e : etype) : itype option =
     match t, e with
@@ -501,8 +704,13 @@ let typecheck (v : Parsed.value) (t : etype option) (env : play_env)
         | Some res -> Ok (ReAnnt (v, res))
         end
 
+  in coerce v t
+
+
+let type_value (v : Parsed.value) (t : etype option) (env : play_env)
+  : (Typed.value, string) result =
   (* Given two itypes attempts to return a type they can both be coerced to *)
-  in let rec unify_types (t : itype) (s : itype) : (itype, string) result =
+  let rec unify_types (t : itype) (s : itype) : (itype, string) result =
     match t, s with
     | Int, Int -> Ok Int
     | Int, Float | Float, Int | Float, Float -> Ok Float
@@ -570,7 +778,7 @@ let typecheck (v : Parsed.value) (t : etype option) (env : play_env)
             in match etype_of_itype elem_ty with
             | Ok elem ->
                 let^ res_vs =
-                  map_res (fun v -> coerce v elem) (res_v :: res_vs)
+                  map_res (fun v -> coerce_value v elem) (res_v :: res_vs)
                 in Ok (Typed.List (res_vs, List elem_ty))
             (* An error in this conversion means we have a type like EmptyList
              * or StringLike, which we would only have because all elements
@@ -597,7 +805,7 @@ let typecheck (v : Parsed.value) (t : etype option) (env : play_env)
         let^ res_v = infer v
         in begin match op with
         | Not ->
-            let^ v_typed = coerce res_v Bool
+            let^ v_typed = coerce_value res_v Bool
             in Ok (Typed.Unary ((v_typed, Not), Bool))
         | Neg ->
             begin match Typed.typeof res_v with
@@ -609,7 +817,7 @@ let typecheck (v : Parsed.value) (t : etype option) (env : play_env)
                   (string_of_itype t))
             end
         | Lower ->
-            let^ v_typed = coerce res_v String
+            let^ v_typed = coerce_value res_v String
             in Ok (Typed.Unary ((v_typed, Lower), String))
         end
     | Binary (lhs, op, rhs) ->
@@ -621,10 +829,10 @@ let typecheck (v : Parsed.value) (t : etype option) (env : play_env)
             | Int, Int ->
                 Ok (Typed.Binary ((res_lhs, op, res_rhs), Int))
             | Int, Float ->
-                let^ lhs_f = coerce res_lhs Float
+                let^ lhs_f = coerce_value res_lhs Float
                 in Ok (Typed.Binary ((lhs_f, op, res_rhs), Float))
             | Float, Int ->
-                let^ rhs_f = coerce res_rhs Float
+                let^ rhs_f = coerce_value res_rhs Float
                 in Ok (Typed.Binary ((res_lhs, op, rhs_f), Float))
             | Float, Float ->
                 Ok (Typed.Binary ((res_lhs, op, res_rhs), Float))
@@ -634,26 +842,26 @@ let typecheck (v : Parsed.value) (t : etype option) (env : play_env)
                   (string_of_itype t))
             end
         | Pow ->
-            let^ typ_lhs = coerce res_lhs Float
-            in let^ typ_rhs = coerce res_rhs Float
+            let^ typ_lhs = coerce_value res_lhs Float
+            in let^ typ_rhs = coerce_value res_rhs Float
             in Ok (Typed.Binary ((typ_lhs, Pow, typ_rhs), Float))
         | Mod ->
-            let^ typ_lhs = coerce res_lhs Int
-            in let^ typ_rhs = coerce res_rhs Int
+            let^ typ_lhs = coerce_value res_lhs Int
+            in let^ typ_rhs = coerce_value res_rhs Int
             in Ok (Typed.Binary ((typ_lhs, Mod, typ_rhs), Int))
         | And | Or ->
-            let^ typ_lhs = coerce res_lhs Bool
-            in let^ typ_rhs = coerce res_rhs Bool
+            let^ typ_lhs = coerce_value res_lhs Bool
+            in let^ typ_rhs = coerce_value res_rhs Bool
             in Ok (Typed.Binary ((typ_lhs, op, typ_rhs), Bool))
         | Lt | Gt | Le | Ge ->
             begin match Typed.typeof res_lhs, Typed.typeof res_rhs with
             | Int, Int ->
                 Ok (Typed.Binary ((res_lhs, op, res_rhs), Bool))
             | Int, Float ->
-                let^ lhs_f = coerce res_lhs Float
+                let^ lhs_f = coerce_value res_lhs Float
                 in Ok (Typed.Binary ((lhs_f, op, res_rhs), Bool))
             | Float, Int ->
-                let^ rhs_f = coerce res_rhs Float
+                let^ rhs_f = coerce_value res_rhs Float
                 in Ok (Typed.Binary ((res_lhs, op, rhs_f), Bool))
             | Float, Float ->
                 Ok (Typed.Binary ((res_lhs, op, res_rhs), Bool))
@@ -663,8 +871,8 @@ let typecheck (v : Parsed.value) (t : etype option) (env : play_env)
                   (string_of_itype t))
             end
         | Concat ->
-            let^ typ_lhs = coerce res_lhs String
-            in let^ typ_rhs = coerce res_rhs String
+            let^ typ_lhs = coerce_value res_lhs String
+            in let^ typ_rhs = coerce_value res_rhs String
             in Ok (Typed.Binary ((typ_lhs, Concat, typ_rhs), String))
         | Eq | Neq ->
             (* Boolean value to return for incompatible comparisons (i.e., definitely not equal) *)
@@ -678,29 +886,29 @@ let typecheck (v : Parsed.value) (t : etype option) (env : play_env)
             | Bool, Bool -> Ok (Typed.Binary ((res_lhs, op, res_rhs), Bool))
             | Path, Path -> Ok (Typed.Binary ((res_lhs, op, res_rhs), Bool))
             | Int, Float | Float, Int | Float, Float ->
-                let^ typ_lhs = coerce res_lhs Float
-                in let^ typ_rhs = coerce res_rhs Float
+                let^ typ_lhs = coerce_value res_lhs Float
+                in let^ typ_rhs = coerce_value res_rhs Float
                 in Ok (Typed.Binary ((typ_lhs, op, typ_rhs), Bool))
             (* FIXME: Coercing StringLike, StringLike to String could be wrong
              * if they're both the same enum type that would be fine, but also
              * this may be enough of an edge case. *)
             | (StringLike | String | Path), (StringLike | String)
             | (StringLike | String), Path ->
-                let^ typ_lhs = coerce res_lhs String
-                in let^ typ_rhs = coerce res_rhs String
+                let^ typ_lhs = coerce_value res_lhs String
+                in let^ typ_rhs = coerce_value res_rhs String
                 in Ok (Typed.Binary ((typ_lhs, op, typ_rhs), Bool))
             | EmptyList, EmptyList ->
                 Ok (Typed.Bool (neq_bool, Bool))
             | EmptyList, List t | List t, EmptyList ->
                 let^ t = etype_of_itype t
-                in let^ typ_lhs = coerce res_lhs (List t)
-                in let^ typ_rhs = coerce res_rhs (List t)
+                in let^ typ_lhs = coerce_value res_lhs (List t)
+                in let^ typ_rhs = coerce_value res_rhs (List t)
                 in Ok (Typed.Binary ((typ_lhs, op, typ_rhs), Bool))
             | List t, List s ->
                 let^ goal = unify_types t s
                 in let^ elem = etype_of_itype goal
-                in let^ typ_lhs = coerce res_lhs (List elem)
-                in let^ typ_rhs = coerce res_rhs (List elem)
+                in let^ typ_lhs = coerce_value res_lhs (List elem)
+                in let^ typ_rhs = coerce_value res_rhs (List elem)
                 in Ok (Typed.Binary ((typ_lhs, op, typ_rhs), Bool))
             | Enum (n, _), Enum (m, _) ->
                 if n = m
@@ -711,8 +919,8 @@ let typecheck (v : Parsed.value) (t : etype option) (env : play_env)
                  * is possible to reach so it may not matter. *)
                 else Ok (Typed.Bool (neq_bool, Bool))
             | Enum (nm, cs), StringLike | StringLike, Enum (nm, cs) ->
-                let^ typ_lhs = coerce res_lhs (Enum (nm, cs))
-                in let^ typ_rhs = coerce res_rhs (Enum (nm, cs))
+                let^ typ_lhs = coerce_value res_lhs (Enum (nm, cs))
+                in let^ typ_rhs = coerce_value res_rhs (Enum (nm, cs))
                 in Ok (Typed.Binary ((typ_lhs, op, typ_rhs), Bool))
             | Struct ts, Struct fs ->
                 let unify_convert t s =
@@ -724,8 +932,8 @@ let typecheck (v : Parsed.value) (t : etype option) (env : play_env)
                 | None -> Ok (Typed.Bool (neq_bool, Bool))
                 | Some (Error msg) -> Error msg
                 | Some (Ok fields) ->
-                    let^ typ_lhs = coerce res_lhs (Struct fields)
-                    in let^ typ_rhs = coerce res_rhs (Struct fields)
+                    let^ typ_lhs = coerce_value res_lhs (Struct fields)
+                    in let^ typ_rhs = coerce_value res_rhs (Struct fields)
                     in Ok (Typed.Binary ((typ_lhs, op, typ_rhs), Bool))
                 end
             (* Handles non type-equivalent equalities by just returning false *)
@@ -760,7 +968,7 @@ let typecheck (v : Parsed.value) (t : etype option) (env : play_env)
         let^ res_cond = infer cond
         in let^ res_thn = infer thn
         in let^ res_els = infer els
-        in let^ typ_cond = coerce res_cond Bool
+        in let^ typ_cond = coerce_value res_cond Bool
         in let^ res_typ =
           let rec handle_types (t : itype) (s : itype) : (etype, string) result =
             match t, s with
@@ -821,8 +1029,8 @@ let typecheck (v : Parsed.value) (t : etype option) (env : play_env)
                 Error (Printf.sprintf "Type mismatch, found %s and %s"
                         (string_of_itype t) (string_of_itype s))
           in handle_types (Typed.typeof res_thn) (Typed.typeof res_els)
-        in let^ typ_thn = coerce res_thn res_typ
-        in let^ typ_els = coerce res_els res_typ
+        in let^ typ_thn = coerce_value res_thn res_typ
+        in let^ typ_els = coerce_value res_els res_typ
         in Ok (Typed.Ternary ((typ_cond, typ_thn, typ_els),
                               Typed.typeof typ_thn))
     | Record vs ->
@@ -842,4 +1050,108 @@ let typecheck (v : Parsed.value) (t : etype option) (env : play_env)
   in let^ v = infer v
   in match t with
   | None -> Ok v
-  | Some t -> coerce v t
+  | Some t -> coerce_value v t
+
+(* Returns the typed mod_use and the return type of the module *)
+let process_mod_use (m : Parsed.mod_use) (ctx : Context.context)
+  (env : play_env) : (Typed.mod_use * itype, string) result =
+  let { Parsed.mod_info = mod_name; args } = m
+  in let module_name = String.split_on_char '.' mod_name
+  in match Context.find_module_def module_name ctx with
+  | None -> Error (Printf.sprintf "Could not find module %s" mod_name)
+  | Some ({ alias_map = arg_aliases; argument_types = arg_types; 
+            out_type = res_type; _ } as mod_info) ->
+      let^ args =
+        map_res (fun (nm, v) ->
+          let canon_name =
+            match StringMap.find_opt nm arg_aliases with
+            | None -> nm
+            | Some c -> c
+          in match StringMap.find_opt canon_name arg_types with
+          | None -> 
+              Error (Printf.sprintf "No argument %s for module %s" nm mod_name)
+          | Some t ->
+              let^ t = etype_of_context_typ t
+              in let^ res_v = type_value v (Some t) env
+              in Ok (nm, res_v))
+          args
+      in let^ res_ty = itype_of_context_typ res_type
+      in Ok ({ Typed.mod_info = mod_info; args }, res_ty)
+
+let rec process_task (t : Parsed.task) (ctx : Context.context) (env : play_env)
+  : (Typed.task * play_env, string) result =
+  let { Parsed.name; register; ignore_errors; condition; loop; body;
+        become; become_user; notify } = t
+  in let^ (loop, loop_env) =
+    match loop with
+    | None -> Ok (None, env)
+    | Some (ItemLoop v) ->
+        let^ res_v = type_value v None env
+        in begin match Typed.typeof res_v with
+        | List t ->
+            Ok (Some (Typed.ItemLoop res_v),
+              StringMap.add "item" { inferred = t; uses = new type_stack } env)
+        | t -> Error (Printf.sprintf "Type error, expected list found %s"
+                        (string_of_itype t))
+        end
+    | Some (FileGlob v) ->
+        let^ res_v = type_value v (Some (SingleOrList String)) env
+        in Ok (Some (Typed.FileGlob res_v),
+              StringMap.add "item" { inferred = Path; uses = new type_stack} env)
+  in let^ condition =
+    match condition with
+    | None -> Ok None
+    | Some v ->
+        let^ res_v = type_value v (Some Bool) loop_env in Ok (Some res_v)
+  (* I'm not 100% certain this is the correct way to handle the environment
+   * (i.e., passing the environment between sections of blocks) but since the
+   * scoping of Ansible is undefined I'm doing it. *)
+  in let^ (body, body_env) =
+    match body with
+    | Module m ->
+        let^ (m, t) = process_mod_use m ctx loop_env
+        in let res_env =
+          if register = "_"
+          then loop_env
+          else StringMap.add register { inferred = t; uses = new type_stack } 
+                              loop_env
+        in Ok (Typed.Module m, res_env)
+    | Block { tasks; rescue; always } ->
+        let^ () =
+          match loop with
+          | None -> Ok ()
+          | Some _ -> Error "Cannot have a loop on a block"
+        in let^ (tasks, tasks_env) = process_tasks tasks ctx loop_env
+        in let^ (rescue, rescue_env) =
+          match rescue with
+          | None -> Ok (None, tasks_env)
+          | Some ts ->
+              let^ (ts, res_env) = process_tasks ts ctx tasks_env
+              in Ok (Some ts, res_env)
+        in let^ (always, always_env) =
+          match always with
+          | None -> Ok (None, rescue_env)
+          | Some ts ->
+              let^ (ts, res_env) = process_tasks ts ctx rescue_env
+              in Ok (Some ts, res_env)
+        in Ok (Typed.Block { tasks; rescue; always }, always_env)
+  in let^ notify =
+    map_res (fun v -> type_value v (Some String) body_env) notify
+  in let^ loop =
+    match loop with
+    | None -> Ok None
+    | Some (ItemLoop vs) ->
+        let^ used_type = coalesce_var (StringMap.find "item" body_env)
+        in let^ res_vs = coerce_value vs used_type
+        in Ok (Some (Typed.ItemLoop res_vs))
+    | Some (FileGlob vs) -> Ok (Some (Typed.FileGlob vs))
+  in Ok ( { Typed.name; register; ignore_errors; condition; loop; body;
+            become; become_user; notify }, body_env)
+and process_tasks (ts : Parsed.task list) (ctx : Context.context)
+  (env : play_env) : (Typed.task list * play_env, string) result =
+  match ts with
+  | [] -> Ok ([], env)
+  | t :: ts ->
+      let^ (res_t, res_env) = process_task t ctx env
+      in let^ (res_ts, res_env) = process_tasks ts ctx res_env
+      in Ok (res_t :: res_ts, res_env)
