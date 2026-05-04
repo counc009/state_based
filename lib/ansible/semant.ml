@@ -352,7 +352,14 @@ let coalesce_var (v : var_type) : (etype, string) result =
         in Ok (List res : Coalesce.ctype)
 
     | Struct tis, Struct tts ->
-        Error "TODO HERE"
+        begin match merge_same_res broaden_type tts tis with
+        | None ->
+            Error (Printf.sprintf "Type error, found %s but expected %s"
+                      (Coalesce.string_of_ctype t) (string_of_itype i))
+        | Some (Error msg) -> Error msg
+        | Some (Ok res_ts) ->
+            Ok (Struct res_ts)
+        end
 
     | (Int | Float | Bool | Enum (_, _) | StringLike | String | Path | Struct _), SingleOrList t ->
         broaden_type t i (* Just make singleton *)
