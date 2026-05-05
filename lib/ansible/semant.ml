@@ -1163,11 +1163,10 @@ and process_tasks (ts : Parsed.task list) (ctx : Context.context)
       in let^ (res_ts, res_env) = process_tasks ts ctx res_env
       in Ok (res_t :: res_ts, res_env)
 
-(* QUESTION: What is the correct handling of the environment through handlers?
- * I'm inclined to say just that they don't pass them amongst themselves. I'm
- * not 100% certain that's correct but it seems okay to me. *)
+(* For handlers we do not track the environment. I'm not 100% certain that's
+ * strictly correct though. *)
 let process_handler (h : Parsed.handler) (ctx : Context.context)
-  (env : play_env) : (Typed.handler * play_env, string) result =
+  (env : play_env) : (Typed.handler, string) result =
   let { Parsed.name; listen; register; ignore_errors; condition; loop;
         module_invoke; become; become_user } = h
   in let^ (loop, loop_env) =
@@ -1207,5 +1206,56 @@ let process_handler (h : Parsed.handler) (ctx : Context.context)
         in let^ res_vs = coerce_value vs used_type
         in Ok (Some (Typed.ItemLoop res_vs))
     | Some (FileGlob vs) -> Ok (Some (Typed.FileGlob vs))
-  in Ok ({ Typed.name; listen; register; ignore_errors; condition; loop;
-           module_invoke; become; become_user }, body_env)
+  in Ok { Typed.name; listen; register; ignore_errors; condition; loop;
+          module_invoke; become; become_user }
+
+let process_play (p : Parsed.play) (ctx : Context.context)
+  : (Typed.play, string) result =
+  let { Parsed.name; hosts; remote_user; is_root; become; become_user;
+        pre_tasks; tasks; post_tasks; handlers; vars } = p
+  in let^ (vars, vars_env) =
+    let rec process_vars (vs : (string * Parsed.value) list) (env : play_env)
+      : ((string * Typed.value) list * play_env, string) result =
+      match vs with
+      | [] -> Ok ([], env)
+      | (nm, v) :: tl ->
+          let^ v = type_value v None env
+          in let t = Typed.typeof v
+          in let new_env =
+            StringMap.add nm { inferred = t; uses = new type_stack } env
+          in let^ (vs, res_env) = process_vars tl new_env
+          in Ok ((nm, v) :: vs, res_env)
+    in process_vars vars StringMap.empty
+  (* TODO: How are we going to pass the global variables over to handlers? *)
+  (* FIXME: We do need to retrieve the environment from the handlers as these
+   * may impact the types of variables *)
+  in let^ handlers = map_res (fun h -> process_handler h ctx vars_env) handlers
+  in let^ (pre_tasks, pre_tasks_env) =
+    match pre_tasks with
+    | None -> Ok (None, vars_env)
+    | Some ts ->
+        let^ (ts, env) = process_tasks ts ctx vars_env
+        in Ok (Some ts, env)
+  in let^ (tasks, tasks_env) = process_tasks tasks ctx pre_tasks_env
+  in let^ (post_tasks, final_env) =
+    match post_tasks with
+    | None -> Ok (None, vars_env)
+    | Some ts ->
+        let^ (ts, env) = process_tasks ts ctx tasks_env
+        in Ok (Some ts, env)
+  in let^ vars =
+    let rec coerce_vars (vs : (string * Typed.value) list)
+      : ((string * Typed.value) list, string) result =
+      match vs with
+      | [] -> Ok []
+      | (nm, v) :: tl ->
+          let^ used_type = coalesce_var (StringMap.find nm final_env)
+          in let^ res_v = coerce_value v used_type
+          in let^ res_vs = coerce_vars tl
+          in Ok ((nm, res_v) :: res_vs)
+    in coerce_vars vars
+  in Ok { Typed.name; hosts; remote_user; is_root; become; become_user;
+          pre_tasks; tasks; post_tasks; handlers; vars }
+
+let process_playbook (ps : Parsed.playbook) (ctx : Context.context)
+  : (Typed.playbook, string) result = map_res (fun p -> process_play p ctx) ps
