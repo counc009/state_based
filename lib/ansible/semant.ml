@@ -1162,3 +1162,50 @@ and process_tasks (ts : Parsed.task list) (ctx : Context.context)
       let^ (res_t, res_env) = process_task t ctx env
       in let^ (res_ts, res_env) = process_tasks ts ctx res_env
       in Ok (res_t :: res_ts, res_env)
+
+(* QUESTION: What is the correct handling of the environment through handlers?
+ * I'm inclined to say just that they don't pass them amongst themselves. I'm
+ * not 100% certain that's correct but it seems okay to me. *)
+let process_handler (h : Parsed.handler) (ctx : Context.context)
+  (env : play_env) : (Typed.handler * play_env, string) result =
+  let { Parsed.name; listen; register; ignore_errors; condition; loop;
+        module_invoke; become; become_user } = h
+  in let^ (loop, loop_env) =
+    match loop with
+    | None -> Ok (None, env)
+    | Some (ItemLoop v) ->
+        let^ res_v = type_value v None env
+        in begin match Typed.typeof res_v with
+        | List t ->
+            Ok (Some (Typed.ItemLoop res_v),
+              StringMap.add "item" { inferred = t; uses = new type_stack } env)
+        | t -> Error (Printf.sprintf "Type error, expected list found %s"
+                        (string_of_itype t))
+        end
+    | Some (FileGlob v) ->
+        let^ res_v = type_value v (Some (SingleOrList String)) env
+        in Ok (Some (Typed.FileGlob res_v),
+              StringMap.add "item" { inferred = Path; uses = new type_stack} env)
+  in let^ condition =
+    match condition with
+    | None -> Ok None
+    | Some v ->
+        let^ res_v = type_value v (Some Bool) loop_env in Ok (Some res_v)
+  in let^ (module_invoke, body_env) =
+    let^ (m, t) = process_mod_use module_invoke ctx loop_env
+    in let res_env =
+      if register = "_"
+      then loop_env
+      else StringMap.add register { inferred = t; uses = new type_stack }
+                          loop_env
+    in Ok (m, res_env)
+  in let^ loop =
+    match loop with
+    | None -> Ok None
+    | Some (ItemLoop vs) ->
+        let^ used_type = coalesce_var (StringMap.find "item" body_env)
+        in let^ res_vs = coerce_value vs used_type
+        in Ok (Some (Typed.ItemLoop res_vs))
+    | Some (FileGlob vs) -> Ok (Some (Typed.FileGlob vs))
+  in Ok ({ Typed.name; listen; register; ignore_errors; condition; loop;
+           module_invoke; become; become_user }, body_env)
