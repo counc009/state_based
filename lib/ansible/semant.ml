@@ -1227,8 +1227,9 @@ let process_play (p : Parsed.play) (ctx : Context.context)
           in Ok ((nm, v) :: vs, res_env)
     in process_vars vars StringMap.empty
   (* TODO: How are we going to pass the global variables over to handlers? *)
-  (* FIXME: We do need to retrieve the environment from the handlers as these
-   * may impact the types of variables *)
+  (* We don't need to retrieve the environment from the handlers since the only
+   * information we really need passed back is constraints on the types of
+   * the variables and this is handled by the mutability of the type_stack. *)
   in let^ handlers = map_res (fun h -> process_handler h ctx vars_env) handlers
   in let^ (pre_tasks, pre_tasks_env) =
     match pre_tasks with
