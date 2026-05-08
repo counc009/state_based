@@ -44,6 +44,8 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | ToLower
                 | Substring
                 | StringOfInt
+                | StringOfFloat
+                | StringOfBool
                 | FloatOfInt
                 (* Path operations *)
                 | ConsPath
@@ -418,6 +420,16 @@ module rec Ast_Target : Ast_Defs
           | Literal (Int x, _) ->
               Reduced (Literal (String (string_of_int x), String))
           | _ -> Stuck)
+    | StringOfFloat -> (Primitive Float, Primitive String,
+        fun v -> match v with
+          | Literal (Float x, _) ->
+              Reduced (Literal (String (string_of_float x), String))
+          | _ -> Stuck)
+    | StringOfBool -> (Primitive Bool, Primitive String,
+        fun v -> match v with
+          | Literal (Bool x, _) ->
+              Reduced (Literal (String (string_of_bool x), String))
+          | _ -> Stuck)
     | FloatOfInt -> (Primitive Int, Primitive Float,
         fun v -> match v with
           | Literal (Int x, _) ->
@@ -688,6 +700,8 @@ let rec string_of_value (v : Ast_Target.value) : string =
       | ToLower                   -> "to_lower(" ^ string_of_value arg ^ ")"
       | Substring                 -> "substring(" ^ string_of_value arg ^ ")"
       | StringOfInt               -> "string_of_int(" ^ string_of_value arg ^ ")"
+      | StringOfFloat             -> "string_of_float(" ^ string_of_value arg ^ ")"
+      | StringOfBool              -> "string_of_bool(" ^ string_of_value arg ^ ")"
       | FloatOfInt                -> "float_of_int(" ^ string_of_value arg ^ ")"
       | ConsPath                  -> "cons_path(" ^ string_of_value arg ^ ")"
       | PathOfString              -> "path_of_string(" ^ string_of_value arg ^ ")"
@@ -783,6 +797,8 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | ToLower                   -> "to_lower"
         | Substring                 -> "substring"
         | StringOfInt               -> "string_of_int"
+        | StringOfFloat             -> "string_of_float"
+        | StringOfBool              -> "string_of_bool"
         | FloatOfInt                -> "float_of_int"
         | ConsPath                  -> "cons_path"
         | PathOfString              -> "path_of_string"
