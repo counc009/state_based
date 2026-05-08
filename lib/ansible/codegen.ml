@@ -17,6 +17,19 @@ let new_tmp () =
   in let () = cnt := n + 1
   in "!" ^ string_of_int n
 
+let rec typ_of_itype (t : Semant.itype) : Target.typ =
+  match t with
+  | Int -> Primitive Int
+  | Float -> Primitive Float
+  | Bool -> Primitive Bool
+  | StringLike | String -> Primitive String
+  | Path -> Primitive Path
+  | Enum (nm, cs) -> Named (Cases (nm, cs))
+  (* Somewhat arbitrary coercion but we have to do something *)
+  | EmptyList -> Named (List (Primitive Unit))
+  | List t -> Named (List (typ_of_itype t))
+  | Struct ts -> Struct (StringMap.map typ_of_itype ts)
+
 let rec codegen_enum (c : string) (enum_nm : string) 
   (cases : (string * Target.typ) list2) : (Target.expr, string) result =
   match cases with
@@ -206,7 +219,34 @@ let codegen_value (v : Typed.value) (ctx : Context.context) (env : play_env)
             Error (Printf.sprintf "Codegen Error: Bool cannot have type %s"
                     (Semant.string_of_itype t))
         end
-    (* TODO: List *)
+    | List (vs, t) ->
+        let rec codegen_vals (vs : Typed.value list) (elem : Target.typ option)
+          (k : Target.expr * Target.typ -> (Target.stmt, string) result) =
+          match vs with
+          | v :: vs ->
+              codegen v (fun (e, ety) ->
+                codegen_vals vs (Some ety) (fun (evs, elem) ->
+                  k (Target.Function (
+                        Constructor (false, List elem),
+                        Pair (e, evs)), elem)))
+          | [] ->
+              match elem with
+              | None ->
+                  k (Target.Function (
+                        Constructor (true, List (Primitive Unit)),
+                        Literal (Unit ())), Primitive Unit)
+              | Some elem ->
+                  k (Target.Function (
+                        Constructor (true, List elem),
+                        Literal (Unit ())), elem)
+        in let^ elem =
+          match t with
+          | List t -> Ok (Some (typ_of_itype t))
+          | EmptyList -> Ok None
+          | _ -> 
+              Error (Printf.sprintf "Codegen Error: List cannot have type %s"
+                      (Semant.string_of_itype t))
+        in codegen_vals vs elem (fun (e, elemTy) -> k (e, Named (List elemTy)))
     | Ident (nm, t) ->
         let varty = Hashtbl.find env nm
         in let^ (t, coerce) = codegen_coerce varty !t
@@ -397,6 +437,20 @@ let codegen_value (v : Typed.value) (ctx : Context.context) (env : play_env)
                 k (Target.Function (Concat, Pair (lhs, rhs)), Primitive String)))
         | Concat, _ ->
             Error (Printf.sprintf "Codegen Error: Concat cannot have type %s"
+                    (Semant.string_of_itype t))
+        end
+    | Dot ((v, f), _) ->
+        codegen v (fun (e, t) ->
+          match t with
+          | Struct fs ->
+              k (Target.Function (ReadField (fs, f), e), StringMap.find f fs)
+          | _ -> Error "Codegen Error: Dot cannot operate on non-struct")
+    | VarDefined (nm, t) ->
+        begin match t with
+        | Bool ->
+            k (Target.Literal (Bool (Hashtbl.mem env nm)), Primitive Bool)
+        | _ ->
+            Error (Printf.sprintf "Codegen Error: VarDefined cannot have type %s"
                     (Semant.string_of_itype t))
         end
 
