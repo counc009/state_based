@@ -555,14 +555,55 @@ let codegen_handler (h : Typed.handler) (env : play_env) (ctx : Context.context)
         in let^ res = k ()
         in Ok (Target.ForEach ("_", Primitive Unit, e, "item", res))
     | Some (FileGlob v) ->
-        let$ (_e, _) = codegen_value v env
+        let$ (e, _) = codegen_value v env
         in let () = Hashtbl.add env "item" (Primitive Path)
-        in let^ _res = k ()
-        (* with_fileglob only returns files, so assert about that inside *)
-        in Error "TODO"
+        in let^ res = k ()
+        (* with_fileglob returns files on the local machine *)
+        (* NOTE: There's a lot of stuff below that is very fragile; I would
+         * much rather pull the information from the context, instead of
+         * building stuff by hand, but it is quite annoying do to so. *)
+        in let find_file_type_cs : (string * Target.typ) list2 =
+          Cons (("any", Primitive Unit),
+          Cons (("directory", Primitive Unit),
+          LastTwo (("file", Primitive Unit),
+                  ("link", Primitive Unit))))
+        in let file_system_cs : (string * Target.typ) list2 =
+          LastTwo (("remote", Primitive Unit), ("local", Primitive Unit))
+        in let file_type_cs : (string * Target.typ) list2 =
+          Cons (("file", Primitive String),
+          Cons (("directory", Named (List (Primitive Path))),
+          LastTwo (("hard", Primitive Path),
+                  ("link", Primitive Path))))
+        in let lst : Target.expr =
+          Function (
+            Uninterpreted ("file_glob",
+              Product (Named (List (Primitive String)),
+                Product (Named (Cases ("find_file_type", find_file_type_cs)),
+                  Named (Cases ("file_system", file_system_cs)))),
+              Named (List (Primitive Path))),
+            Pair (e,
+              Pair (Result.get_ok (codegen_enum "file" "find_file_type" find_file_type_cs),
+                Result.get_ok (codegen_enum "local" "file_system" file_system_cs))))
+        in Ok (Target.ForEach ("_", Primitive Unit, lst, "item", 
+          (* Also add assertions about the items (they exist and are files) *)
+          (* NOTE: Again, this is very fragile. file is thankfully the first
+           * constructor of file_type *)
+            Seq (
+              Get ("tmp",
+                OnElement (
+                  ("fs",
+                  Product (Primitive Path, 
+                    Named (Cases ("file_system", file_system_cs)))),
+                  Pair (Variable "item",
+                    Result.get_ok (codegen_enum "local" "file_system" file_system_cs)),
+                  AttrAccess ("fs_type", Named (Cases ("file_type", file_type_cs))))),
+              Match (Variable "tmp", "_",
+                res,
+                Context.fatal "assertion failed" ctx.excepts))))
   in let^ body = codegen_mod_use h.module_invoke env ctx
+  (* TODO: condition and other stuff? *)
   (* Note: ignore_errors appears to apply outside of the loop hence the catch
-   * goes outside: https://stackoverflow.com/questions/49755884 *)
+   * goes outside: https://stackoverflow.com/questions/49755884 (TODO) *)
   (* TODO: Handle become / become_user *)
   in Ok (Target.Cond (
           Function (SetContains, 
