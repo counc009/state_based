@@ -1,4 +1,5 @@
 let ( let^ ) r f = Result.bind r f
+let ( let$ ) r f = r f
 
 module Typed = Semant.Typed
 
@@ -6,6 +7,7 @@ module Target = Modules.Target.Ast_Target
 module Context = Modules.Codegen
 
 module StringMap = Modules.Target.StringMap
+module StringSet = Modules.Target.StringSet
 
 type 'a list2 = 'a Modules.Target.list2
 
@@ -29,6 +31,16 @@ let rec typ_of_itype (t : Semant.itype) : Target.typ =
   | EmptyList -> Named (List (Primitive Unit))
   | List t -> Named (List (typ_of_itype t))
   | Struct ts -> Struct (StringMap.map typ_of_itype ts)
+
+let env_attr (attr : string) (ty : Target.typ) : Target.attr =
+  OnElement (("env", Primitive Unit), Literal (Unit ()),
+    AttrAccess (attr, ty))
+
+let rec seq (ts : Target.stmt list) : Target.stmt =
+  match ts with
+  | [] -> Target.Pass
+  | [s] -> s
+  | s :: tl -> Target.Seq (s, seq tl)
 
 let rec codegen_enum (c : string) (enum_nm : string) 
   (cases : (string * Target.typ) list2) : (Target.expr, string) result =
@@ -177,7 +189,7 @@ let rec codegen_coerce (ty : Target.typ) (need : Semant.itype)
 
   | _, _ -> Error "Type Error in Codegen"
 
-let codegen_value (v : Typed.value) (ctx : Context.context) (env : play_env)
+let codegen_value (v : Typed.value) (env : play_env)
   (k : Target.expr * Target.typ -> (Target.stmt, string) result)
   : (Target.stmt, string) result =
 
@@ -224,11 +236,10 @@ let codegen_value (v : Typed.value) (ctx : Context.context) (env : play_env)
           (k : Target.expr * Target.typ -> (Target.stmt, string) result) =
           match vs with
           | v :: vs ->
-              codegen v (fun (e, ety) ->
-                codegen_vals vs (Some ety) (fun (evs, elem) ->
-                  k (Target.Function (
-                        Constructor (false, List elem),
-                        Pair (e, evs)), elem)))
+              let$ (e, ety) = codegen v
+              in let$ (evs, elem) = codegen_vals vs (Some ety)
+              in k (Target.Function (Constructor (false, List elem),
+                      Pair (e, evs)), elem)
           | [] ->
               match elem with
               | None ->
@@ -246,7 +257,8 @@ let codegen_value (v : Typed.value) (ctx : Context.context) (env : play_env)
           | _ -> 
               Error (Printf.sprintf "Codegen Error: List cannot have type %s"
                       (Semant.string_of_itype t))
-        in codegen_vals vs elem (fun (e, elemTy) -> k (e, Named (List elemTy)))
+        in let$ (e, elemTy) = codegen_vals vs elem
+        in k (e, Named (List elemTy))
     | Ident (nm, t) ->
         let varty = Hashtbl.find env nm
         in let^ (t, coerce) = codegen_coerce varty !t
@@ -257,25 +269,25 @@ let codegen_value (v : Typed.value) (ctx : Context.context) (env : play_env)
     | Unary ((v, op), t) ->
         begin match op, t with
         | Not, Bool ->
-            codegen v (fun (e, _) ->
-              k (Target.Function (BoolNeg, e), Primitive Bool))
+            let$ (e, _) = codegen v
+            in k (Target.Function (BoolNeg, e), Primitive Bool)
         | Not, _ ->
             Error (Printf.sprintf "Codegen Error: Not cannot have type %s"
                     (Semant.string_of_itype t))
         | Neg, Int ->
-            codegen v (fun (e, _) ->
-              k (Target.Function (SubInt, Pair (Literal (Int 0), e)),
-                  Primitive Int))
+            let$ (e, _) = codegen v
+            in k (Target.Function (SubInt, Pair (Literal (Int 0), e)),
+                  Primitive Int)
         | Neg, Float ->
-            codegen v (fun (e, _) ->
-              k (Target.Function (SubFloat, Pair (Literal (Float 0.0), e)),
-                  Primitive Float))
+            let$ (e, _) = codegen v
+            in k (Target.Function (SubFloat, Pair (Literal (Float 0.0), e)),
+                  Primitive Float)
         | Neg, _ ->
             Error (Printf.sprintf "Codegen Error: Neg cannot have type %s"
                     (Semant.string_of_itype t))
         | Lower, String ->
-            codegen v (fun (e, _) ->
-              k (Target.Function (ToLower, e), Primitive String))
+            let$ (e, _) = codegen v
+            in k (Target.Function (ToLower, e), Primitive String)
         | Lower, _ ->
             Error (Printf.sprintf "Codegen Error: Lower cannot have type %s"
                     (Semant.string_of_itype t))
@@ -283,168 +295,160 @@ let codegen_value (v : Typed.value) (ctx : Context.context) (env : play_env)
     | Binary ((lhs, op, rhs), t) ->
         begin match op, t with
         | Add, Int ->
-            codegen lhs (fun (lhs, _) ->
-              codegen rhs (fun (rhs, _) ->
-                k (Target.Function (AddInt, Pair (lhs, rhs)),
-                    Primitive Int)))
+            let$ (lhs, _) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in k (Target.Function (AddInt, Pair (lhs, rhs)), Primitive Int)
         | Add, Float ->
-            codegen lhs (fun (lhs, _) ->
-              codegen rhs (fun (rhs, _) ->
-                k (Target.Function (AddFloat, Pair (lhs, rhs)),
-                    Primitive Float)))
+            let$ (lhs, _) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in k (Target.Function (AddFloat, Pair (lhs, rhs)), Primitive Float)
         | Add, _ ->
             Error (Printf.sprintf "Codegen Error: Add cannot have type %s"
                     (Semant.string_of_itype t))
         | Sub, Int ->
-            codegen lhs (fun (lhs, _) ->
-              codegen rhs (fun (rhs, _) ->
-                k (Target.Function (SubInt, Pair (lhs, rhs)),
-                    Primitive Int)))
+            let$ (lhs, _) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in k (Target.Function (SubInt, Pair (lhs, rhs)), Primitive Int)
         | Sub, Float ->
-            codegen lhs (fun (lhs, _) ->
-              codegen rhs (fun (rhs, _) ->
-                k (Target.Function (SubFloat, Pair (lhs, rhs)),
-                    Primitive Float)))
+            let$ (lhs, _) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in k (Target.Function (SubFloat, Pair (lhs, rhs)), Primitive Float)
         | Sub, _ ->
             Error (Printf.sprintf "Codegen Error: Sub cannot have type %s"
                     (Semant.string_of_itype t))
         | Mul, Int ->
-            codegen lhs (fun (lhs, _) ->
-              codegen rhs (fun (rhs, _) ->
-                k (Target.Function (MulInt, Pair (lhs, rhs)),
-                    Primitive Int)))
+            let$ (lhs, _) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in k (Target.Function (MulInt, Pair (lhs, rhs)), Primitive Int)
         | Mul, Float ->
-            codegen lhs (fun (lhs, _) ->
-              codegen rhs (fun (rhs, _) ->
-                k (Target.Function (MulFloat, Pair (lhs, rhs)),
-                    Primitive Float)))
+            let$ (lhs, _) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in k (Target.Function (MulFloat, Pair (lhs, rhs)), Primitive Float)
         | Mul, _ ->
             Error (Printf.sprintf "Codegen Error: Mul cannot have type %s"
                     (Semant.string_of_itype t))
         | Pow, Float ->
-            codegen lhs (fun (lhs, _) ->
-              codegen rhs (fun (rhs, _) ->
-                k (Target.Function (Power, Pair (lhs, rhs)),
-                    Primitive Float)))
+            let$ (lhs, _) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in k (Target.Function (Power, Pair (lhs, rhs)), Primitive Float)
         | Pow, _ ->
             Error (Printf.sprintf "Codegen Error: Pow cannot have type %s"
                     (Semant.string_of_itype t))
         | Div, Int ->
-            codegen lhs (fun (lhs, _) ->
-              codegen rhs (fun (rhs, _) ->
-                k (Target.Function (DivInt, Pair (lhs, rhs)),
-                    Primitive Int)))
+            let$ (lhs, _) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in k (Target.Function (DivInt, Pair (lhs, rhs)), Primitive Int)
         | Div, Float ->
-            codegen lhs (fun (lhs, _) ->
-              codegen rhs (fun (rhs, _) ->
-                k (Target.Function (DivFloat, Pair (lhs, rhs)),
-                    Primitive Float)))
+            let$ (lhs, _) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in k (Target.Function (DivFloat, Pair (lhs, rhs)), Primitive Float)
         | Div, _ ->
             Error (Printf.sprintf "Codegen Error: Div cannot have type %s"
                     (Semant.string_of_itype t))
         | Mod, Int ->
-            codegen lhs (fun (lhs, _) ->
-              codegen rhs (fun (rhs, _) ->
-                k (Target.Function (Modulo, Pair (lhs, rhs)),
-                    Primitive Int)))
+            let$ (lhs, _) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in k (Target.Function (Modulo, Pair (lhs, rhs)), Primitive Int)
         | Mod, _ ->
             Error (Printf.sprintf "Codegen Error: Mod cannot have type %s"
                     (Semant.string_of_itype t))
         | And, Bool ->
-            codegen lhs (fun (lhs, _) ->
-              codegen rhs (fun (rhs, _) ->
-                k (Target.Function (BoolAnd, Pair (lhs, rhs)),
-                    Primitive Bool)))
+            let$ (lhs, _) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in k (Target.Function (BoolAnd, Pair (lhs, rhs)), Primitive Bool)
         | And, _ ->
             Error (Printf.sprintf "Codegen Error: And cannot have type %s"
                     (Semant.string_of_itype t))
         | Or, Bool ->
-            codegen lhs (fun (lhs, _) ->
-              codegen rhs (fun (rhs, _) ->
-                k (Target.Function (BoolOr, Pair (lhs, rhs)),
-                    Primitive Bool)))
+            let$ (lhs, _) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in k (Target.Function (BoolOr, Pair (lhs, rhs)), Primitive Bool)
         | Or, _ ->
             Error (Printf.sprintf "Codegen Error: Or cannot have type %s"
                     (Semant.string_of_itype t))
         | Neq, Bool ->
-            codegen lhs (fun (lhs, t) ->
-              codegen rhs (fun (rhs, _) ->
-                k (Target.Function (BoolNeg,
+            let$ (lhs, t) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in k (Target.Function (BoolNeg,
                     Target.Function (Equal t, Pair (lhs, rhs))),
-                    Primitive Bool)))
+                    Primitive Bool)
         | Neq, _ ->
             Error (Printf.sprintf "Codegen Error: Neq cannot have type %s"
                     (Semant.string_of_itype t))
         | Eq, Bool ->
-            codegen lhs (fun (lhs, t) ->
-              codegen rhs (fun (rhs, _) ->
-                k (Target.Function (Equal t, Pair (lhs, rhs)),
-                    Primitive Bool)))
+            let$ (lhs, t) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in k (Target.Function (Equal t, Pair (lhs, rhs)), Primitive Bool)
         | Eq, _ ->
             Error (Printf.sprintf "Codegen Error: Eq cannot have type %s"
                     (Semant.string_of_itype t))
         | Lt, Bool ->
-            codegen lhs (fun (lhs, t) ->
-              codegen rhs (fun (rhs, _) ->
-                match t with
-                | Primitive Int ->
-                    k (Target.Function (LtInt, Pair (lhs, rhs)), Primitive Bool)
-                | Primitive Float ->
-                    k (Target.Function (LtFloat, Pair (lhs, rhs)), Primitive Bool)
-                | _ -> Error "Codegen Error: Lt argument is not a number"))
+            let$ (lhs, t) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in begin match t with
+            | Primitive Int ->
+                k (Target.Function (LtInt, Pair (lhs, rhs)), Primitive Bool)
+            | Primitive Float ->
+                k (Target.Function (LtFloat, Pair (lhs, rhs)), Primitive Bool)
+            | _ -> Error "Codegen Error: Lt argument is not a number"
+            end
         | Lt, _ ->
             Error (Printf.sprintf "Codegen Error: Lt cannot have type %s"
                     (Semant.string_of_itype t))
         | Gt, Bool ->
-            codegen lhs (fun (lhs, t) ->
-              codegen rhs (fun (rhs, _) ->
-                match t with
-                | Primitive Int ->
-                    k (Target.Function (LtInt, Pair (rhs, lhs)), Primitive Bool)
-                | Primitive Float ->
-                    k (Target.Function (LtFloat, Pair (rhs, lhs)), Primitive Bool)
-                | _ -> Error "Codegen Error: Gt argument is not a number"))
+            let$ (lhs, t) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in begin match t with
+            | Primitive Int ->
+                k (Target.Function (LtInt, Pair (rhs, lhs)), Primitive Bool)
+            | Primitive Float ->
+                k (Target.Function (LtFloat, Pair (rhs, lhs)), Primitive Bool)
+            | _ -> Error "Codegen Error: Gt argument is not a number"
+            end
         | Gt, _ ->
             Error (Printf.sprintf "Codegen Error: Gt cannot have type %s"
                     (Semant.string_of_itype t))
         | Le, Bool ->
-            codegen lhs (fun (lhs, t) ->
-              codegen rhs (fun (rhs, _) ->
-                match t with
-                | Primitive Int ->
-                    k (Target.Function (LeInt, Pair (lhs, rhs)), Primitive Bool)
-                | Primitive Float ->
-                    k (Target.Function (LeFloat, Pair (lhs, rhs)), Primitive Bool)
-                | _ -> Error "Codegen Error: Le argument is not a number"))
+            let$ (lhs, t) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in begin match t with
+            | Primitive Int ->
+                k (Target.Function (LeInt, Pair (lhs, rhs)), Primitive Bool)
+            | Primitive Float ->
+                k (Target.Function (LeFloat, Pair (lhs, rhs)), Primitive Bool)
+            | _ -> Error "Codegen Error: Le argument is not a number"
+            end
         | Le, _ ->
             Error (Printf.sprintf "Codegen Error: Le cannot have type %s"
                     (Semant.string_of_itype t))
         | Ge, Bool ->
-            codegen lhs (fun (lhs, t) ->
-              codegen rhs (fun (rhs, _) ->
-                match t with
-                | Primitive Int ->
-                    k (Target.Function (LeInt, Pair (rhs, lhs)), Primitive Bool)
-                | Primitive Float ->
-                    k (Target.Function (LeFloat, Pair (rhs, lhs)), Primitive Bool)
-                | _ -> Error "Codegen Error: Ge argument is not a number"))
+            let$ (lhs, t) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in begin match t with
+            | Primitive Int ->
+                k (Target.Function (LeInt, Pair (rhs, lhs)), Primitive Bool)
+            | Primitive Float ->
+                k (Target.Function (LeFloat, Pair (rhs, lhs)), Primitive Bool)
+            | _ -> Error "Codegen Error: Ge argument is not a number"
+            end
         | Ge, _ ->
             Error (Printf.sprintf "Codegen Error: Ge cannot have type %s"
                     (Semant.string_of_itype t))
         | Concat, String ->
-            codegen lhs (fun (lhs, _) ->
-              codegen rhs (fun (rhs, _) ->
-                k (Target.Function (Concat, Pair (lhs, rhs)), Primitive String)))
+            let$ (lhs, _) = codegen lhs
+            in let$ (rhs, _) = codegen rhs
+            in k (Target.Function (Concat, Pair (lhs, rhs)), Primitive String)
         | Concat, _ ->
             Error (Printf.sprintf "Codegen Error: Concat cannot have type %s"
                     (Semant.string_of_itype t))
         end
     | Dot ((v, f), _) ->
-        codegen v (fun (e, t) ->
-          match t with
-          | Struct fs ->
-              k (Target.Function (ReadField (fs, f), e), StringMap.find f fs)
-          | _ -> Error "Codegen Error: Dot cannot operate on non-struct")
+        let$ (e, t) = codegen v
+        in begin match t with
+        | Struct fs ->
+            k (Target.Function (ReadField (fs, f), e), StringMap.find f fs)
+        | _ -> Error "Codegen Error: Dot cannot operate on non-struct"
+        end
     | VarDefined (nm, t) ->
         begin match t with
         | Bool ->
@@ -453,9 +457,117 @@ let codegen_value (v : Typed.value) (ctx : Context.context) (env : play_env)
             Error (Printf.sprintf "Codegen Error: VarDefined cannot have type %s"
                     (Semant.string_of_itype t))
         end
+    | Fact (f, t) ->
+        begin match f, t with
+        | OSFamily, String ->
+            let tmp = new_tmp ()
+            in let^ cont = k (Target.Variable tmp, Primitive String)
+            in Ok (Target.Seq (
+                    Get (tmp, env_attr "os_family" (Primitive String)),
+                    cont))
+        | OSFamily, _ ->
+            Error (Printf.sprintf "Codegen Error: OSFamily Fact cannot have type %s"
+                    (Semant.string_of_itype t))
+        | Distribution, String ->
+            let tmp = new_tmp ()
+            in let^ cont = k (Target.Variable tmp, Primitive String)
+            in Ok (Target.Seq (
+                    Get (tmp, env_attr "os_distribution" (Primitive String)),
+                    cont))
+        | Distribution, _ ->
+            Error (Printf.sprintf "Codegen Error: Distribution Fact cannot have type %s"
+                    (Semant.string_of_itype t))
+        | UserID, String ->
+            let tmp = new_tmp ()
+            in let^ cont = k (Target.Variable tmp, Primitive String)
+            in Ok (Target.Seq (
+                    Get (tmp, env_attr "active_user" (Primitive String)),
+                    cont))
+        | UserID, _ ->
+            Error (Printf.sprintf "Codegen Error: UserID Fact cannot have type %s"
+                    (Semant.string_of_itype t))
+        | GroupID, String ->
+            let tmp = new_tmp ()
+            in let^ cont = k (Target.Variable tmp, Primitive String)
+            in Ok (Target.Seq (
+                    Get (tmp, env_attr "active_group" (Primitive String)),
+                    cont))
+        | GroupID, _ ->
+            Error (Printf.sprintf "Codegen Error: GroupID Fact cannot have type %s"
+                    (Semant.string_of_itype t))
+        end
+    | Ternary ((cond, thn, els), _) ->
+        let tmp = new_tmp ()
+        in let res_ty = ref (Target.Primitive Unit)
+        in let^ thn =
+          codegen thn (fun (thn, ty) ->
+            let () = res_ty := ty
+            in Ok (Target.Assign (tmp, thn)))
+        in let^ els =
+          codegen els (fun (els, _) -> Ok (Target.Assign (tmp, els)))
+        in let$ (cond, _) = codegen cond
+        in let^ cont = k (Target.Variable tmp, !res_ty)
+        in Ok (Target.Seq (Target.Cond (cond, thn, els), cont))
+    | Record (fields, _) ->
+        let rec codegen_fields (fs : (string * Typed.value) list)
+          (ts : Target.typ StringMap.t) k =
+          match fs with
+          | [] ->
+              k ((Function (EmptyStruct ts, Literal (Unit ())) : Target.expr),
+                  ts)
+          | (f, v) :: fs ->
+              let$ (e, ety) = codegen v
+              in let$ (efs, ts) = codegen_fields fs (StringMap.add f ety ts)
+              in k ((Function (AddField (ts, f), Pair (e, efs)) : Target.expr),
+                    ts)
+        in codegen_fields fields StringMap.empty
+            (fun (e, ts) -> k (e, Struct ts))
+    | ReAnnt (v, c) ->
+        let$ (e, t) = codegen v
+        in let^ (res_ty, gen) = codegen_coerce t c
+        in begin match gen with
+        | None -> k (e, res_ty)
+        | Some gen -> gen e (fun e -> k (e, res_ty))
+        end
 
   in codegen v k
 
+let codegen_mod_use (_m : Typed.mod_use) (_env : play_env)
+  (_ctx : Context.context) : (Target.stmt, string) result =
+  Error "TODO"
+
+let codegen_tasks (_ts : Typed.task list) (_env : play_env)
+  (_ctx : Context.context) : (Target.stmt, string) result =
+  Error "TODO"
+
+(* Generates if <h.listen> in @notified then do body else do nothing *)
+let codegen_handler (h : Typed.handler) (env : play_env) (ctx : Context.context)
+  : (Target.stmt, string) result =
+  let$ () = fun k ->
+    match h.loop with
+    | None -> k ()
+    | Some (ItemLoop v) ->
+        let$ (e, t) = codegen_value v env
+        in let^ () =
+          match t with
+          | Named (List ety) -> Ok (Hashtbl.add env "item" ety)
+          | _ -> Error "Code Gen Error: expected list for loop"
+        in let^ res = k ()
+        in Ok (Target.ForEach ("_", Primitive Unit, e, "item", res))
+    | Some (FileGlob v) ->
+        let$ (_e, _) = codegen_value v env
+        in let () = Hashtbl.add env "item" (Primitive Path)
+        in let^ _res = k ()
+        (* with_fileglob only returns files, so assert about that inside *)
+        in Error "TODO"
+  in let^ body = codegen_mod_use h.module_invoke env ctx
+  (* Note: ignore_errors appears to apply outside of the loop hence the catch
+   * goes outside: https://stackoverflow.com/questions/49755884 *)
+  (* TODO: Handle become / become_user *)
+  in Ok (Target.Cond (
+          Function (SetContains, 
+            Pair (Literal (String h.listen), Variable "@notified")),
+          body, Pass))
 
 (* TODO: Account for hosts. The best way to do this is probably some condition
  * like isHostIncluded(env().host, <hosts>) *)
@@ -467,12 +579,45 @@ let codegen_play (p : Typed.play) (ctx : Context.context)
       match vs with
       | [] -> Ok Target.Pass
       | (nm, v) :: tl ->
-          codegen_value v ctx play_env (fun (e, t) ->
-            let () = Hashtbl.add play_env nm t
-            in let^ rest = codegen_vars tl
-            in Ok (Target.Seq (Assign (nm, e), rest)))
+          let$ (e, t) = codegen_value v play_env
+          in let () = Hashtbl.add play_env nm t
+          in let^ rest = codegen_vars tl
+          in Ok (Target.Seq (Assign (nm, e), rest))
     in codegen_vars p.vars
-  in Error "TODO"
+  (* Note: This scould probably be done with a fold_left and just reversing the
+   * order of the Seq but that feels like premature optimization. *)
+  in let^ handlers_run =
+    List.fold_right (fun h hs ->
+      let^ hs = hs
+      in let^ h = codegen_handler h play_env ctx in Ok (Target.Seq (h, hs)))
+      p.handlers
+      (Ok Target.Pass)
+  in let^ pre_tasks =
+    match p.pre_tasks with
+    | None -> Ok Target.Pass
+    | Some ts ->
+        let^ res_ts = codegen_tasks ts play_env ctx
+        in Ok (seq [
+                Assign ("@notified", Literal (StringSet StringSet.empty));
+                res_ts;
+                handlers_run ])
+  in let^ tasks =
+    let^ res_ts = codegen_tasks p.tasks play_env ctx
+    in Ok (seq [
+            Assign ("@notified", Literal (StringSet StringSet.empty));
+            res_ts;
+            handlers_run ])
+  in let^ post_tasks =
+    match p.post_tasks with
+    | None -> Ok Target.Pass
+    | Some ts ->
+        let^ res_ts = codegen_tasks ts play_env ctx
+        in Ok (seq [
+                Assign ("@notified", Literal (StringSet StringSet.empty));
+                res_ts;
+                handlers_run ])
+  (* TODO: remote_user, is_root, become, become_user *)
+  in Ok (seq [ var_setup; pre_tasks; tasks; post_tasks ])
 
 let codegen_playbook (p : Typed.playbook) (ctx : Context.context)
   : (Target.stmt, string) result =
