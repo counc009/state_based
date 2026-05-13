@@ -737,8 +737,8 @@ let codegen_become (become : bool) (become_user : string) (body : Target.stmt)
 let rec codegen_task (_t : Typed.task) (_env : play_env) (_ctx : Context.context)
   : (Target.stmt, string) result =
   (* TODO: register, ignore_errors, condition, loop, body, become, become_user, notify *)
-  (* TODO: What happens with notify & ignore errors? Does not notify
-   * Need success & changed field/changed_when to be true to notify *)
+  (* TODO: Notifying of handlers only occurs if the result task produced a change and
+   * (as far as I can tell) if the task succeeded. *)
   Error "TODO"
 and codegen_tasks (ts : Typed.task list) (env : play_env)
   (ctx : Context.context) : (Target.stmt, string) result =
