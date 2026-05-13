@@ -534,9 +534,12 @@ let codegen_value (v : Typed.value) (env : play_env)
 
 (* Note: ignore_errors appears to apply outside of the loop hence the catch
  * goes outside: https://stackoverflow.com/questions/49755884 *)
+(* k is an optional statement to immediately follow the module invocation,
+ * inside of any loop and condition *)
 let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
   (loop : Typed.loop_kind option) (register : string) (ignore_errors : bool)
-  (env : play_env) (ctx : Context.context) : (Target.stmt, string) result =
+  (env : play_env) (ctx : Context.context) (k : Target.stmt option)
+  : (Target.stmt, string) result =
   (* If errors are ignored we wrap with a try-catch *)
   let$ () = fun k ->
     if not ignore_errors
@@ -644,7 +647,11 @@ let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
             end
           | _ -> Error "Codegen Error: Arguments to module must be options"
     in codegen_struct (StringMap.to_list in_tys)
-  in Ok (Target.Action (register, (nm, Struct in_tys, out_ty, body), arg))
+  in let act =
+    Target.Action (register, (nm, Struct in_tys, out_ty, body), arg)
+  in match k with
+  | None -> Ok act
+  | Some k -> Ok (Target.Seq (act, k))
 
 let rec codegen_task (_t : Typed.task) (_env : play_env) (_ctx : Context.context)
   : (Target.stmt, string) result =
@@ -665,7 +672,7 @@ let codegen_handler (h : Typed.handler) (env : play_env) (ctx : Context.context)
   : (Target.stmt, string) result =
   let^ body =
     codegen_mod_use h.module_invoke h.condition h.loop h.register
-      h.ignore_errors env ctx
+      h.ignore_errors env ctx None
   (* TODO: Handle become & become_user *)
   in Ok (Target.Cond (
           Function (SetContains, 
