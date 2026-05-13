@@ -547,6 +547,8 @@ let codegen_value (v : Typed.value) (env : play_env)
 let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
   (loop : Typed.loop_kind option) (register : string) (ignore_errors : bool)
   (env : play_env) (ctx : Context.context) (k : Target.stmt option)
+  (* TODO: It wouldn't be too hard to support failed_when, simply replace
+   * the condition that protects the raise *)
   : (Target.stmt, string) result =
   (* If errors are ignored we wrap with a try-catch *)
   let$ () = fun k ->
@@ -568,6 +570,8 @@ let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
             (* No finally *)
             Target.Pass))
   in let$ () = fun k ->
+    (* TODO: Ideally we should collect the results from the task into a record
+     * with a "results" field as this is what ansible does *)
     match loop with
     | None -> k ()
     | Some (ItemLoop v) ->
@@ -655,8 +659,19 @@ let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
             end
           | _ -> Error "Codegen Error: Arguments to module must be options"
     in codegen_struct (StringMap.to_list in_tys)
+  in let^ out_fields =
+    match out_ty with
+    | Struct fs -> Ok fs
+    | _ -> Error (Printf.sprintf "Error: Module %s does not return struct" nm)
   in let act =
-    Target.Action (register, (nm, Struct in_tys, out_ty, body), arg)
+    Target.Seq (
+      Action (register, (nm, Struct in_tys, out_ty, body), arg),
+      Cond (
+          (* TODO: use failed_when condition here if specified *)
+          Function (ReadField (out_fields, "failed"), Variable register),
+          Context.raise "AnsibleError" (Literal (Unit ())) ctx.excepts,
+          Pass))
+  (* TODO: add register to env *)
   in match k with
   | None -> Ok act
   | Some k -> Ok (Target.Seq (act, k))
@@ -711,7 +726,8 @@ let codegen_become (become : bool) (become_user : string) (body : Target.stmt)
 let rec codegen_task (_t : Typed.task) (_env : play_env) (_ctx : Context.context)
   : (Target.stmt, string) result =
   (* TODO: register, ignore_errors, condition, loop, body, become, become_user, notify *)
-  (* TODO: What happens with notify & ignore errors? *)
+  (* TODO: What happens with notify & ignore errors? Does not notify
+   * Need success & changed field/changed_when to be true to notify *)
   Error "TODO"
 and codegen_tasks (ts : Typed.task list) (env : play_env)
   (ctx : Context.context) : (Target.stmt, string) result =
