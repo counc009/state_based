@@ -50,6 +50,7 @@ class task_result =
   object
     val mutable name          = (None : string option)
     val mutable register      = (None : string option)
+    val mutable failed_when   = (None : Ast.value option)
     val mutable ignore_errors = (None : bool option)
     val mutable condition     = (None : Ast.value option)
     val mutable loop          = (None : Ast.loop_kind option)
@@ -69,6 +70,10 @@ class task_result =
       match register with
       | None -> register <- Some nm
       | _    -> errors <- "Multiple register fields" :: errors
+    method add_failed_when v =
+      match failed_when with
+      | None -> failed_when <- Some v
+      | _    -> errors <- "Multiple failed_when fields" :: errors
     method add_ignore_errors v =
       match ignore_errors with
       | None -> ignore_errors <- Some v
@@ -153,6 +158,7 @@ class task_result =
         let^ body = coerce_task_body body
         in Ok { Ast.name      = Option.value name ~default:""
               ; register      = Option.value register ~default:"_"
+              ; failed_when   = failed_when
               ; ignore_errors = Option.value ignore_errors ~default:false
               ; condition     = condition
               ; loop          = loop
@@ -169,6 +175,7 @@ class handler_result =
     val mutable register      = (None : string option)
     val mutable module_invoke = (None : Ast.mod_use option)
 
+    val mutable failed_when   = (None : Ast.value option)
     val mutable ignore_errors = (None : bool option)
     val mutable condition     = (None : Ast.value option)
     val mutable loop          = (None : Ast.loop_kind option)
@@ -196,6 +203,10 @@ class handler_result =
       match register with
       | None -> register <- Some nm
       | _    -> errors <- "Multiple register fields" :: errors
+    method add_failed_when v =
+      match failed_when with
+      | None -> failed_when <- Some v
+      | _    -> errors <- "Multiple failed_when fields" :: errors
     method add_ignore_errors v =
       match ignore_errors with
       | None -> ignore_errors <- Some v
@@ -230,6 +241,7 @@ class handler_result =
                 Ok { name          = n
                    ; listen        = Option.value listen ~default:n
                    ; register      = Option.value register ~default:""
+                   ; failed_when   = failed_when
                    ; ignore_errors = Option.value ignore_errors ~default:false
                    ; condition     = condition
                    ; loop          = loop
@@ -580,6 +592,8 @@ let rec process_task (y : Yaml.value) : (Ast.task, string) result =
             Result.map task#add_become_user (process_string v)
         | "become_method" ->
             Ok () (* TODO *)
+        | "failed_when" ->
+            Result.map task#add_failed_when (process_condition v)
         | "when" ->
             Result.map task#add_when (process_condition v)
         | "with_items" | "loop" ->
@@ -635,6 +649,8 @@ let process_handler (y : Yaml.value) : (Ast.handler, string) result =
             Result.map handler#add_become_user (process_string v)
         | "become_method" ->
             Ok () (* TODO *)
+        | "failed_when" ->
+            Result.map handler#add_failed_when (process_condition v)
         | "when" ->
             Result.map handler#add_when (process_condition v)
         | "with_items" | "loop" ->

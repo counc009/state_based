@@ -546,10 +546,8 @@ let codegen_value (v : Typed.value) (env : play_env)
  * inside of any loop and condition *)
 let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
   (loop : Typed.loop_kind option) (register : string) (ignore_errors : bool)
-  (env : play_env) (ctx : Context.context) (k : Target.stmt option)
-  (* TODO: It wouldn't be too hard to support failed_when, simply replace
-   * the condition that protects the raise *)
-  : (Target.stmt, string) result =
+  (failed_when : Typed.value option) (env : play_env) (ctx : Context.context)
+  (k : Target.stmt option) : (Target.stmt, string) result =
   (* If errors are ignored we wrap with a try-catch *)
   let$ () = fun k ->
     if not ignore_errors
@@ -570,8 +568,8 @@ let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
             (* No finally *)
             Target.Pass))
   in let$ () = fun k ->
-    (* TODO: Ideally we should collect the results from the task into a record
-     * with a "results" field as this is what ansible does *)
+    (* TODO: We should collect the results from the task into a record with a
+     * "results" field as this is what ansible does *)
     match loop with
     | None -> k ()
     | Some (ItemLoop v) ->
@@ -663,15 +661,28 @@ let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
     match out_ty with
     | Struct fs -> Ok fs
     | _ -> Error (Printf.sprintf "Error: Module %s does not return struct" nm)
-  in let act =
-    Target.Seq (
-      Action (register, (nm, Struct in_tys, out_ty, body), arg),
-      Cond (
-          (* TODO: use failed_when condition here if specified *)
-          Function (ReadField (out_fields, "failed"), Variable register),
-          Context.raise "AnsibleError" (Literal (Unit ())) ctx.excepts,
-          Pass))
-  (* TODO: add register to env *)
+  (* Update the environment with the result of the module *)
+  in let () =
+    if register <> "_"
+    (* For loops we need to modify this type, except we use this type first
+     * for failed_when/changed_when and then update it later *)
+    then Hashtbl.add env register out_ty
+  in let^ act =
+    match failed_when with
+    | None ->
+        Ok (Target.Seq (
+          Action (register, (nm, Struct in_tys, out_ty, body), arg),
+          Cond (
+              Function (ReadField (out_fields, "failed"), Variable register),
+              Context.raise "AnsibleError" (Literal (Unit ())) ctx.excepts,
+              Pass)))
+    | Some cond ->
+        let$ (c, _) = codegen_value cond env
+        in Ok (Target.Seq (
+            Action (register, (nm, Struct in_tys, out_ty, body), arg),
+            Cond (c,
+              Context.raise "AnsibleError" (Literal (Unit ())) ctx.excepts,
+              Pass)))
   in match k with
   | None -> Ok act
   | Some k -> Ok (Target.Seq (act, k))
@@ -743,7 +754,7 @@ let codegen_handler (h : Typed.handler) (env : play_env) (ctx : Context.context)
   : (Target.stmt, string) result =
   let^ body =
     codegen_mod_use h.module_invoke h.condition h.loop h.register
-      h.ignore_errors env ctx None
+      h.ignore_errors h.failed_when env ctx None
   in let with_become = codegen_become h.become h.become_user body ctx
   in Ok (Target.Cond (
           Function (SetContains, 

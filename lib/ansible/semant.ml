@@ -1095,8 +1095,8 @@ let process_mod_use (m : Parsed.mod_use) (ctx : Context.context)
 
 let rec process_task (t : Parsed.task) (ctx : Context.context) (env : play_env)
   : (Typed.task * play_env, string) result =
-  let { Parsed.name; register; ignore_errors; condition; loop; body;
-        become; become_user; notify } = t
+  let { Parsed.name; register; failed_when; ignore_errors; condition; loop;
+        body; become; become_user; notify } = t
   in let^ (loop, loop_env) =
     match loop with
     | None -> Ok (None, env)
@@ -1115,6 +1115,11 @@ let rec process_task (t : Parsed.task) (ctx : Context.context) (env : play_env)
               StringMap.add "item" { inferred = Path; uses = new type_stack} env)
   in let^ condition =
     match condition with
+    | None -> Ok None
+    | Some v ->
+        let^ res_v = type_value v (Some Bool) loop_env in Ok (Some res_v)
+  in let^ failed_when =
+    match failed_when with
     | None -> Ok None
     | Some v ->
         let^ res_v = type_value v (Some Bool) loop_env in Ok (Some res_v)
@@ -1160,8 +1165,8 @@ let rec process_task (t : Parsed.task) (ctx : Context.context) (env : play_env)
         in let^ res_vs = coerce_value vs used_type
         in Ok (Some (Typed.ItemLoop res_vs))
     | Some (FileGlob vs) -> Ok (Some (Typed.FileGlob vs))
-  in Ok ( { Typed.name; register; ignore_errors; condition; loop; body;
-            become; become_user; notify }, body_env)
+  in Ok ( { Typed.name; register; failed_when; ignore_errors; condition; loop;
+            body; become; become_user; notify }, body_env)
 and process_tasks (ts : Parsed.task list) (ctx : Context.context)
   (env : play_env) : (Typed.task list * play_env, string) result =
   match ts with
@@ -1175,8 +1180,8 @@ and process_tasks (ts : Parsed.task list) (ctx : Context.context)
  * strictly correct though. *)
 let process_handler (h : Parsed.handler) (ctx : Context.context)
   (env : play_env) : (Typed.handler, string) result =
-  let { Parsed.name; listen; register; ignore_errors; condition; loop;
-        module_invoke; become; become_user } = h
+  let { Parsed.name; listen; failed_when; register; ignore_errors; condition;
+        loop; module_invoke; become; become_user } = h
   in let^ (loop, loop_env) =
     match loop with
     | None -> Ok (None, env)
@@ -1198,6 +1203,11 @@ let process_handler (h : Parsed.handler) (ctx : Context.context)
     | None -> Ok None
     | Some v ->
         let^ res_v = type_value v (Some Bool) loop_env in Ok (Some res_v)
+  in let^ failed_when =
+    match failed_when with
+    | None -> Ok None
+    | Some v ->
+        let^ res_v = type_value v (Some Bool) loop_env in Ok (Some res_v)
   in let^ (module_invoke, body_env) =
     let^ (m, t) = process_mod_use module_invoke ctx loop_env
     in let res_env =
@@ -1214,8 +1224,8 @@ let process_handler (h : Parsed.handler) (ctx : Context.context)
         in let^ res_vs = coerce_value vs used_type
         in Ok (Some (Typed.ItemLoop res_vs))
     | Some (FileGlob vs) -> Ok (Some (Typed.FileGlob vs))
-  in Ok { Typed.name; listen; register; ignore_errors; condition; loop;
-          module_invoke; become; become_user }
+  in Ok { Typed.name; listen; register; failed_when; ignore_errors; condition;
+          loop; module_invoke; become; become_user }
 
 let process_play (p : Parsed.play) (ctx : Context.context)
   : (Typed.play, string) result =
