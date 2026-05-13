@@ -57,7 +57,8 @@ module Typed = struct
     type 'a anntd = 'a * itype
     type 'a vanntd = 'a * (itype ref)
     type fact_kind = facts
-    type mod_info = Context.module_info
+    type mod_info = string * Target.typ StringMap.t * Target.typ
+                  * Target.stmt option ref
   end)
 
   let typeof (v : value) : itype =
@@ -1066,8 +1067,9 @@ let process_mod_use (m : Parsed.mod_use) (ctx : Context.context)
   in let module_name = String.split_on_char '.' mod_name
   in match Context.find_module_def module_name ctx with
   | None -> Error (Printf.sprintf "Could not find module %s" mod_name)
-  | Some ({ alias_map = arg_aliases; argument_types = arg_types; 
-            out_type = res_type; _ } as mod_info) ->
+  | Some  { name = name; alias_map = arg_aliases; argument_types = arg_types; 
+            out_type = res_type; input_struct_def = input_struct_def;
+            body = body; _ } ->
       let^ args =
         map_res (fun (nm, v) ->
           let canon_name =
@@ -1080,9 +1082,15 @@ let process_mod_use (m : Parsed.mod_use) (ctx : Context.context)
           | Some t ->
               let^ t = etype_of_context_typ t
               in let^ res_v = type_value v (Some t) env
-              in Ok (nm, res_v))
+              (* Canonicalize the argument name to make it easier to codegen *)
+              in Ok (canon_name, res_v))
           args
       in let^ res_ty = itype_of_context_typ res_type
+      in let^ mod_info =
+        let^ struct_def =
+          Context.smap_map_res Context.lower_type input_struct_def
+        in let^ out_ty = Context.lower_type res_type
+        in Ok (String.concat "." name, struct_def, out_ty, body)
       in Ok ({ Typed.mod_info = mod_info; args }, res_ty)
 
 let rec process_task (t : Parsed.task) (ctx : Context.context) (env : play_env)

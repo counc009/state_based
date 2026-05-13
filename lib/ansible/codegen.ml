@@ -532,19 +532,32 @@ let codegen_value (v : Typed.value) (env : play_env)
 
   in codegen v k
 
-let codegen_mod_use (_m : Typed.mod_use) (_env : play_env)
-  (_ctx : Context.context) : (Target.stmt, string) result =
-  Error "TODO"
-
-let codegen_tasks (_ts : Typed.task list) (_env : play_env)
-  (_ctx : Context.context) : (Target.stmt, string) result =
-  Error "TODO"
-
-(* Generates if <h.listen> in @notified then do body else do nothing *)
-let codegen_handler (h : Typed.handler) (env : play_env) (ctx : Context.context)
-  : (Target.stmt, string) result =
+(* Note: ignore_errors appears to apply outside of the loop hence the catch
+ * goes outside: https://stackoverflow.com/questions/49755884 *)
+let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
+  (loop : Typed.loop_kind option) (register : string) (ignore_errors : bool)
+  (env : play_env) (ctx : Context.context) : (Target.stmt, string) result =
+  (* If errors are ignored we wrap with a try-catch *)
   let$ () = fun k ->
-    match h.loop with
+    if not ignore_errors
+    then k ()
+    else
+      let^ res = k ()
+      in Ok (Target.TryCatch (res, "@except",
+            (* TODO: Declare AnsibleError elsewhere or make this a built-in
+             * exception *)
+            Target.Match (
+              Function (
+                UnpackExcept (ctx.excepts, "AnsibleError"),
+                Variable "@except"),
+              "@", (* Don't care about the result *)
+              (* None, some other error *)
+              Raise (Variable "@except"),
+              Target.Pass),
+            (* No finally *)
+            Target.Pass))
+  in let$ () = fun k ->
+    match loop with
     | None -> k ()
     | Some (ItemLoop v) ->
         let$ (e, t) = codegen_value v env
@@ -600,11 +613,60 @@ let codegen_handler (h : Typed.handler) (env : play_env) (ctx : Context.context)
               Match (Variable "tmp", "_",
                 res,
                 Context.fatal "assertion failed" ctx.excepts))))
-  in let^ body = codegen_mod_use h.module_invoke env ctx
-  (* TODO: condition and other stuff? *)
-  (* Note: ignore_errors appears to apply outside of the loop hence the catch
-   * goes outside: https://stackoverflow.com/questions/49755884 (TODO) *)
-  (* TODO: Handle become / become_user *)
+  in let$ () = fun k ->
+    match cond with
+    | None -> k ()
+    | Some v ->
+        let$ (e, _) = codegen_value v env
+        in let^ body = k ()
+        in Ok (Target.Cond (e, body, Pass))
+  in let { Typed.mod_info = (nm, in_tys, out_ty, body); args } = m
+  in let args = StringMap.of_list args
+  in let$ arg =
+    let rec codegen_struct (fs : (string * Target.typ) list) k =
+      match fs with
+      | [] ->
+          k (Function (EmptyStruct in_tys, Literal (Unit ())) : Target.expr)
+      | (f, t) :: tl ->
+          match t with
+          | Named (Option t) ->
+            begin match StringMap.find_opt f args with
+            | Some v ->
+                let$ (e, _) = codegen_value v env
+                in let$ res = codegen_struct tl
+                in k (Target.Function (AddField (in_tys, f),
+                      Pair (Function (Constructor (false, Option t), e), res)))
+            | None ->
+                let$ res = codegen_struct tl
+                in k (Target.Function (AddField (in_tys, f),
+                      Pair (Function (Constructor (true, Option t), 
+                              Literal (Unit ())), res)))
+            end
+          | _ -> Error "Codegen Error: Arguments to module must be options"
+    in codegen_struct (StringMap.to_list in_tys)
+  in Ok (Target.Action (register, (nm, Struct in_tys, out_ty, body), arg))
+
+let rec codegen_task (_t : Typed.task) (_env : play_env) (_ctx : Context.context)
+  : (Target.stmt, string) result =
+  (* TODO: register, ignore_errors, condition, loop, body, become, become_user, notify *)
+  (* TODO: What happens with notify & ignore errors? *)
+  Error "TODO"
+and codegen_tasks (ts : Typed.task list) (env : play_env)
+  (ctx : Context.context) : (Target.stmt, string) result =
+  match ts with
+  | [] -> Ok Target.Pass
+  | t :: ts ->
+      let^ t = codegen_task t env ctx
+      in let^ ts = codegen_tasks ts env ctx
+      in Ok (Target.Seq (t, ts))
+
+(* Generates if <h.listen> in @notified then do body else do nothing *)
+let codegen_handler (h : Typed.handler) (env : play_env) (ctx : Context.context)
+  : (Target.stmt, string) result =
+  let^ body =
+    codegen_mod_use h.module_invoke h.condition h.loop h.register
+      h.ignore_errors env ctx
+  (* TODO: Handle become & become_user *)
   in Ok (Target.Cond (
           Function (SetContains, 
             Pair (Literal (String h.listen), Variable "@notified")),
