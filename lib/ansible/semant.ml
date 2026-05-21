@@ -182,6 +182,8 @@ let rec itype_of_etype (t : etype) : itype =
   | SingleOrList t -> List (itype_of_etype t)
   | Struct ts -> Struct (StringMap.map itype_of_etype ts)
 
+(* Used for determining the desired type for arguments. So we convert List
+ * into SingleOrList *)
 let rec etype_of_context_typ (t : Context.typ) : (etype, string) result =
   match t with
   | Bool -> Ok Bool
@@ -191,7 +193,8 @@ let rec etype_of_context_typ (t : Context.typ) : (etype, string) result =
   | Path -> Ok Path
   | Unit -> Error "Unit type not supported in Ansible YAML"
   | Option _ -> Error "Option type not supported in Ansible YAML"
-  | List t -> let^ res_t = etype_of_context_typ t in Ok (List res_t : etype)
+  | List t ->
+      let^ res_t = etype_of_context_typ t in Ok (SingleOrList res_t : etype)
   | Product _ -> Error "Product type not supported in Ansible YAML"
   | Struct (_, ts) ->
       let^ res_ts = smap_res etype_of_context_typ ts

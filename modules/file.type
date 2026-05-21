@@ -1,4 +1,4 @@
-struct file_result { failed: bool, dest: path, path: path }
+struct file_result { failed: bool, changed: bool, dest: path, path: path }
 
 enum file_state { absent, directory, file, hard, link, touch }
 
@@ -41,7 +41,7 @@ module ansible.builtin.file aka file -> file_result {
             : recurse                              ? file_state::directory
                                                    : file_state::file;
 
-  let result = file_result { failed: false };
+  let result = file_result { failed: false, changed: false };
 
   if provided group { assert exists e_group(group); }
   if provided owner { assert exists e_user(owner); }
@@ -58,6 +58,7 @@ module ansible.builtin.file aka file -> file_result {
         }
 
         clear fs(path, file_system::remote);
+        result.changed = true;
       }
       result.path = path;
     }
@@ -96,6 +97,9 @@ module ansible.builtin.file aka file -> file_result {
         fs(path, file_system::remote).mode
           = provided mode ? mode
                           : fs(path, file_system::remote).mode;
+        // TODO: Technically only changed if one of the above values is
+        // different
+        result.changed = true;
       } else {
         fs(path, file_system::remote).fs_type = file_type::directory(list::<path>::nil());
         fs(path, file_system::remote).owner 
@@ -105,6 +109,7 @@ module ansible.builtin.file aka file -> file_result {
         fs(path, file_system::remote).mode
           = provided mode ? mode
                           : mode_of_umask(env().umask);
+        result.changed = true;
       }
 
       result.path = path;
@@ -122,6 +127,8 @@ module ansible.builtin.file aka file -> file_result {
         fs(path, file_system::remote).mode
           = provided mode ? mode
                           : fs(path, file_system::remote).mode;
+        // TODO: Only changed if one of these values is different
+        result.changed = true;
       }
       result.path = path;
     }
@@ -153,6 +160,8 @@ module ansible.builtin.file aka file -> file_result {
       }
       fs(path, file_system::remote).fs_type = file_type::hard(src);
 
+      // TODO: Is this correct?
+      result.changed = true;
       result.dest = path;
     }
     file_state::link => {
@@ -182,6 +191,8 @@ module ansible.builtin.file aka file -> file_result {
       }
       fs(path, file_system::remote).fs_type = file_type::link(src);
 
+      // TODO: Is this correct?
+      result.changed = true;
       result.dest = path;
     }
     file_state::touch => {
@@ -197,6 +208,8 @@ module ansible.builtin.file aka file -> file_result {
         fs(path, file_system::remote).mode
           = provided mode ? mode
                           : fs(path, file_system::remote).mode;
+        // TODO: Only changed if one of these is different
+        result.changed = true;
       } else {
         fs(path, file_system::remote).fs_type = file_type::file("");
         fs(path, file_system::remote).owner 
@@ -206,6 +219,7 @@ module ansible.builtin.file aka file -> file_result {
         fs(path, file_system::remote).mode
           = provided mode ? mode
                           : mode_of_umask(env().umask);
+        result.changed = true;
       }
       result.dest = path;
     }
