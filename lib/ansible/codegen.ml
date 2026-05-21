@@ -869,8 +869,6 @@ let codegen_handler (h : Typed.handler) (env : play_env) (ctx : Context.context)
             Pair (Literal (String h.listen), Variable "@notified")),
           with_become, Pass))
 
-(* TODO: Account for hosts. The best way to do this is probably some condition
- * like isHostIncluded(env().host, <hosts>) *)
 let codegen_play (p : Typed.play) (ctx : Context.context)
   : (Target.stmt, string) result =
   let play_env = Hashtbl.create 10
@@ -916,7 +914,7 @@ let codegen_play (p : Typed.play) (ctx : Context.context)
                 Assign ("@notified", Literal (StringSet StringSet.empty));
                 res_ts;
                 handlers_run ])
-  in Ok (seq [
+  in let body = seq [
     (* Finally, we handle details of what user the play runs as
      * (i.e., remote_user, is_root, become, become_user) *)
     Target.Add (env_qual "active_user" (Primitive String)
@@ -927,7 +925,16 @@ let codegen_play (p : Typed.play) (ctx : Context.context)
                                     (Literal (Bool is_root)))
     end;
     codegen_become p.become p.become_user
-      (seq [ var_setup; pre_tasks; tasks; post_tasks ]) ctx])
+      (seq [ var_setup; pre_tasks; tasks; post_tasks ]) ctx ]
+  (* Lastly, we will wrap the play body with a condition that checks if the
+   * host is actually run by the current play *)
+  in Ok (seq [
+    Target.Get ("@hostname", env_attr "hostname" (Primitive String));
+    Cond (
+      Function (HostIncluded,
+        Pair (Variable "@hostname", Literal (String p.hosts))),
+      body,
+      Pass) ])
 
 let codegen_playbook (p : Typed.playbook) (ctx : Context.context)
   : (Target.stmt, string) result =

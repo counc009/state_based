@@ -80,7 +80,7 @@ module Ast(A : AnnotatorType) = struct
 
   type play = {
     name        : string;
-    hosts       : string option;
+    hosts       : string;
     remote_user : string;
     is_root     : bool option;
     become      : bool;

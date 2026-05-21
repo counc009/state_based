@@ -56,7 +56,9 @@ type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
                 | PathFrom
                 | AddExt
                 | NormalizePath
+                (* Functions for Ansible *)
                 | CanBecome
+                | HostIncluded
                 (* Exception functions: generating and unpacking *)
                 | GenExcept of 't StringMap.t * string
                 | UnpackExcept of 't StringMap.t * string
@@ -503,6 +505,12 @@ module rec Ast_Target : Ast_Defs
             if init = become then Reduced (Literal (Bool true, Bool))
             else Stuck
         | _ -> Stuck)
+    | HostIncluded -> (Product (Primitive String, Primitive String),
+        Primitive Bool,
+        fun v -> match v with
+        | Pair (_, Literal (String ("all" | "*"), _), _) ->
+            Reduced (Literal (Bool true, Bool))
+        | _ -> Stuck)
     | GenExcept (tys, e) ->
         (StringMap.find e tys, Primitive (Exc tys),
           fun v -> Reduced (Literal (Except (tys, e, v), Exc tys)))
@@ -712,6 +720,7 @@ let rec string_of_value (v : Ast_Target.value) : string =
       | AddExt                    -> "add_ext(" ^ string_of_value arg ^ ")"
       | NormalizePath             -> "norm_path(" ^ string_of_value arg ^ ")"
       | CanBecome                 -> "can_become(" ^ string_of_value arg ^ ")"
+      | HostIncluded              -> "host_included(" ^ string_of_value arg ^ ")"
       | Uninterpreted (nm, _, _)  -> nm ^ "(" ^ string_of_value arg ^ ")"
       | EmptyStruct _             -> "{ }"
       | AddField (_, f)           -> "set." ^ f ^ "(" ^ string_of_value arg ^ ")"
@@ -809,6 +818,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | AddExt                    -> "add_ext"
         | NormalizePath             -> "norm_path"
         | CanBecome                 -> "can_become"
+        | HostIncluded              -> "host_included"
         | GenExcept (_, e)          -> "except_" ^ e
         | UnpackExcept (_, e)       -> "unpack_" ^ e
         | SetAdd                    -> "set_add"

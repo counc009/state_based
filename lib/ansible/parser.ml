@@ -330,19 +330,22 @@ class play_result =
         match tasks with
         | None -> Error ["no tasks in play"]
         | Some t ->
-            Ok { name         = Option.value name ~default:""
-               ; hosts        = hosts
-              (* Per https://docs.ansible.com/ansible/latest/inventory_guide/connection_details.html#setting-a-remote-user
-               * the default for the user is the name of the local user *)
-               ; remote_user  = Option.value remote_user ~default:"#local_user"
-               ; is_root      = Option.map (fun nm -> nm = "root") remote_user
-               ; become       = Option.value become ~default:false
-               ; become_user  = Option.value become_user ~default:"root"
-               ; pre_tasks    = pre_tasks
-               ; tasks        = t
-               ; post_tasks   = post_tasks
-               ; handlers     = Option.value handlers ~default:[]
-               ; vars         = Option.value vars ~default:[] }
+            match hosts with
+            | None -> Error ["hosts required for play"]
+            | Some hosts ->
+                Ok { name         = Option.value name ~default:""
+                   ; hosts        = hosts
+                  (* Per https://docs.ansible.com/ansible/latest/inventory_guide/connection_details.html#setting-a-remote-user
+                   * the default for the user is the name of the local user *)
+                   ; remote_user  = Option.value remote_user ~default:"#local_user"
+                   ; is_root      = Option.map (fun nm -> nm = "root") remote_user
+                   ; become       = Option.value become ~default:false
+                   ; become_user  = Option.value become_user ~default:"root"
+                   ; pre_tasks    = pre_tasks
+                   ; tasks        = t
+                   ; post_tasks   = post_tasks
+                   ; handlers     = Option.value handlers ~default:[]
+                   ; vars         = Option.value vars ~default:[] }
   end
 
 (* Utilities *)
