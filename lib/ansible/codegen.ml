@@ -526,7 +526,7 @@ let codegen_value (v : Typed.value) (env : play_env)
           | (f, v) :: fs ->
               let$ (e, ety) = codegen v
               in let$ (efs, ts) = codegen_fields fs (StringMap.add f ety ts)
-              in k ((Function (AddField (ts, f), Pair (e, efs)) : Target.expr),
+              in k ((Function (AddField (ts, f), Pair (efs, e)) : Target.expr),
                     ts)
         in codegen_fields fields StringMap.empty
             (fun (e, ts) -> k (e, Struct ts))
@@ -674,12 +674,12 @@ let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
                 let$ (e, _) = codegen_value v env
                 in let$ res = codegen_struct tl
                 in k (Target.Function (AddField (in_tys, f),
-                      Pair (Function (Constructor (false, Option t), e), res)))
+                      Pair (res, Function (Constructor (false, Option t), e))))
             | None ->
                 let$ res = codegen_struct tl
                 in k (Target.Function (AddField (in_tys, f),
-                      Pair (Function (Constructor (true, Option t), 
-                              Literal (Unit ())), res)))
+                      Pair (res, Function (Constructor (true, Option t), 
+                              Literal (Unit ())))))
             end
           | _ -> Error "Codegen Error: Arguments to module must be options"
     in codegen_struct (StringMap.to_list in_tys)
@@ -997,4 +997,4 @@ let codegen_playbook (p : Typed.playbook) (ctx : Context.context)
       in let^ hd = codegen_play play ctx
       in Ok (Target.Seq (hd, rest)))
       p (Ok Target.Pass)
-  in Ok (Target.Seq (preamble, s))
+  in Ok (seq [preamble; s; Target.Return (Literal (Unit ()))])

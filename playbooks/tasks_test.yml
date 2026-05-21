@@ -1,5 +1,6 @@
 ---
 - name: For RedHat and Ubuntu, install postfix, backup its config, and download a new one
+  hosts: all
   tasks:
   - name: Install postfix
     ansible.builtin.package:

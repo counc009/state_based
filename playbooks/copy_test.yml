@@ -1,5 +1,6 @@
 ---
 - name: Create files
+  hosts: all
   remote_user: aaron
 
   tasks:

@@ -1,5 +1,6 @@
 ---
 - name: Fetch file from remote
+  hosts: all
   tasks:
   - name: Fetch from remote
     ansible.builtin.fetch:

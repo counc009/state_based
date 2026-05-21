@@ -1,5 +1,6 @@
 ---
 - name: Fetch file from a url
+  hosts: all
   tasks:
   - name: Fetch from url
     ansible.builtin.get_url:

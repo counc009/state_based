@@ -1,5 +1,6 @@
 ---
 - name: Copy directory test
+  hosts: all
 
   tasks:
   - name: Fake to ensure the directory doesn't exist

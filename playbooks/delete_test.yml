@@ -1,9 +1,11 @@
 ---
 - name: Test failures
+  hosts: all
   tasks:
   - name: Delete a file
     ansible.fake.delete:
       dest: /path/to/file
+    notify: recreate
 
   - name: Try to copy that deleted file
     ignore_errors: true
@@ -11,3 +13,10 @@
       src: /path/to/file
       dest: /path/to/dest
       remote_src: yes
+
+  handlers:
+  - name: Recreate the deleted file
+    listen: recreate
+    ansible.builtin.copy:
+      content: "This is a new file"
+      dest: /path/to/file
