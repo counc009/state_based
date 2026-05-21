@@ -690,8 +690,6 @@ let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
   (* Update the environment with the result of the module *)
   in let () =
     if register <> "_"
-    (* For loops we need to modify this type, except we use this type first
-     * for failed_when/changed_when and then update it later (TODO) *)
     then Hashtbl.add env register out_ty
   in let^ act =
     match failed_when with
