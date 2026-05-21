@@ -1,4 +1,4 @@
-struct lineinfile_result { failed: bool }
+struct lineinfile_result { failed: bool, changed: bool }
 
 enum lineinfile_state { absent, present }
 
@@ -40,7 +40,7 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
     }
 
     if !success {
-      return lineinfile_result { failed: true };
+      return lineinfile_result { failed: true, changed: false };
     }
 
     let result = content;
@@ -147,7 +147,7 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
 
     if provided validate {
       if validate_contents(validate, result) {}
-      else { return lineinfile_result { failed: true }; }
+      else { return lineinfile_result { failed: true, changed: false }; }
     }
 
     fs(path, file_system::remote).fs_type = file_type::file(result);
@@ -162,20 +162,20 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
 
     match state {
       lineinfile_state::absent => {
-        return lineinfile_result { failed: true };
+        return lineinfile_result { failed: true, changed: false };
       }
       lineinfile_state::present => {
         (line: string)
         [create: bool = false]
 
         if !create {
-          return lineinfile_result { failed: true };
+          return lineinfile_result { failed: true, changed: false };
         } else {
           let result = line ^ "\n";
 
           if provided validate {
             if validate_contents(validate, result) {}
-            else { return lineinfile_result { failed: true }; }
+            else { return lineinfile_result { failed: true, changed: false }; }
           }
 
           fs(path, file_system::remote).fs_type = file_type::file(result);
@@ -192,5 +192,5 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
   }
 
 
-  return lineinfile_result { failed: false };
+  return lineinfile_result { failed: false, changed: true };
 }

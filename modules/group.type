@@ -1,6 +1,7 @@
 enum group_state { absent, present }
 
-struct group_result { failed: bool, name: string, state: group_state, system: bool }
+struct group_result { failed: bool, changed: bool, name: string,
+                      state: group_state, system: bool }
 
 uninterpreted group_used(string) -> bool
 
@@ -9,7 +10,9 @@ module ansible.builtin.group aka group -> group_result {
   (state: group_state = group_state::present)
   [gid: int] # TODO: Use
 
-  let res = group_result { failed: false, name: name, state: state };
+  let res = group_result { 
+    failed: false, changed: false, name: name, state: state
+  };
 
   match state {
     group_state::absent => {
@@ -18,6 +21,7 @@ module ansible.builtin.group aka group -> group_result {
 
       if delete_group {
         clear e_group(name);
+        res.changed = true; // TODO: Only if existed
       }
     }
     group_state::present => {
@@ -26,7 +30,7 @@ module ansible.builtin.group aka group -> group_result {
       res.system = system;
 
       if exists e_group(name) { }
-      else { e_group(name).system = system; }
+      else { e_group(name).system = system; res.changed = true; }
     }
   }
 
