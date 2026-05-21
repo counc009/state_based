@@ -54,6 +54,7 @@ module Ast(A : AnnotatorType) = struct
     name: string;
     register: string;
     failed_when : value option;
+    changed_when : value option;
     ignore_errors: bool;
     condition: value option;
     loop: loop_kind option;
@@ -68,6 +69,7 @@ module Ast(A : AnnotatorType) = struct
     listen: string;
     register: string;
     failed_when : value option;
+    changed_when : value option;
     ignore_errors: bool;
     condition: value option;
     loop: loop_kind option;

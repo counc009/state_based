@@ -750,17 +750,19 @@ let rec codegen_task (t : Typed.task) (extra_notify : Target.expr list)
                 in let$ names = codegen_notifies vs
                 in k (e :: names)
           in codegen_notifies t.notify
-        in let^ changed_cond : Target.expr =
-          let^ out_fields =
-            let { Typed.mod_info = (nm, _, out_ty, _); _ } = m
-            in match out_ty with
-            | Struct fs -> Ok fs
-            | _ ->
-                Error (Printf.sprintf
-                          "Error: Module %s does not return struct" nm)
-          (* TODO: Support changed_when *)
-          in Ok (Function (ReadField (out_fields, "changed"),
-                    Variable t.register) : Target.expr)
+        in let$ changed_cond = fun k ->
+          match t.changed_when with
+          | None ->
+              let^ out_fields =
+                let { Typed.mod_info = (nm, _, out_ty, _); _ } = m
+                in match out_ty with
+                | Struct fs -> Ok fs
+                | _ ->
+                    Error (Printf.sprintf
+                              "Error: Module %s does not return struct" nm)
+              in k (Function (ReadField (out_fields, "changed"),
+                      Variable t.register) : Target.expr)
+          | Some cond -> codegen_value cond env (fun (e, _) -> k e)
         in let notify : Target.stmt =
           let add_notify (n : Target.expr) : Target.stmt =
             Assign ("@notified",
