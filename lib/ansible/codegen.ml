@@ -549,7 +549,8 @@ let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
   (failed_when : Typed.value option) (env : play_env) (ctx : Context.context)
   (k : Target.stmt option) : (Target.stmt, string) result =
   (* If errors are ignored we wrap with a try-catch *)
-  let$ () = fun k ->
+  let { Typed.mod_info = (nm, in_tys, out_ty, body); args } = m
+  in let$ () = fun k ->
     if not ignore_errors
     then k ()
     else
@@ -566,8 +567,6 @@ let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
             (* No finally *)
             Target.Pass))
   in let$ () = fun k ->
-    (* TODO: We should collect the results from the task into a record with a
-     * "results" field as this is what ansible does *)
     match loop with
     | None -> k ()
     | Some (ItemLoop v) ->
@@ -577,7 +576,23 @@ let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
           | Named (List ety) -> Ok (Hashtbl.add env "item" ety)
           | _ -> Error "Code Gen Error: expected list for loop"
         in let^ res = k ()
-        in Ok (Target.ForEach ("_", Primitive Unit, e, "item", res))
+        in if register = "_"
+        then Ok (Target.ForEach ("_", Primitive Unit, e, "item", res))
+        else
+          (* The results of loops are collected into a record with a results
+           * field which is the list of results. We also have to update the
+           * environment so that subsequent tasks have the right type for the
+           * result of the loop. *)
+          let res_fields = StringMap.singleton "results" (Target.Named (List out_ty))
+          in let () = Hashtbl.replace env register (Struct res_fields)
+          in let tmp = new_tmp ()
+          in Ok (Target.Seq (
+            ForEach (tmp, out_ty, e, "item",
+              Seq (res, Yield (Variable register))),
+            Assign (register,
+              Function (AddField (res_fields, "results"), Pair (
+                Function (EmptyStruct res_fields, Literal (Unit ())),
+                Variable tmp)))))
     | Some (FileGlob v) ->
         let$ (e, _) = codegen_value v env
         in let () = Hashtbl.add env "item" (Primitive Path)
@@ -608,7 +623,7 @@ let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
             Pair (e,
               Pair (Result.get_ok (codegen_enum "file" "find_file_type" find_file_type_cs),
                 Result.get_ok (codegen_enum "local" "file_system" file_system_cs))))
-        in Ok (Target.ForEach ("_", Primitive Unit, lst, "item", 
+        in let with_assertions : Target.stmt =
           (* Also add assertions about the items (they exist and are files) *)
           (* NOTE: Again, this is very fragile. file is thankfully the first
            * constructor of file_type *)
@@ -623,7 +638,21 @@ let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
                   AttrAccess ("fs_type", Named (Cases ("file_type", file_type_cs))))),
               Match (Variable "tmp", "_",
                 res,
-                Context.fatal "assertion failed" ctx.excepts))))
+                Context.fatal "assertion failed" ctx.excepts))
+        in if register = "_"
+        then
+          Ok (Target.ForEach ("_", Primitive Unit, lst, "item", with_assertions))
+        else
+          let res_fields = StringMap.singleton "results" (Target.Named (List out_ty))
+          in let () = Hashtbl.replace env register (Struct res_fields)
+          in let tmp = new_tmp ()
+          in Ok (Target.Seq (
+            ForEach (tmp, out_ty, lst, "item",
+              Seq (with_assertions, Yield (Variable register))),
+            Assign (register,
+              Function (AddField (res_fields, "results"), Pair (
+                Function (EmptyStruct res_fields, Literal (Unit ())),
+                Variable tmp)))))
   in let$ () = fun k ->
     match cond with
     | None -> k ()
@@ -631,7 +660,6 @@ let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
         let$ (e, _) = codegen_value v env
         in let^ body = k ()
         in Ok (Target.Cond (e, body, Pass))
-  in let { Typed.mod_info = (nm, in_tys, out_ty, body); args } = m
   in let args = StringMap.of_list args
   in let$ arg =
     let rec codegen_struct (fs : (string * Target.typ) list) k =
