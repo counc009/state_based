@@ -13,6 +13,7 @@
       src: /path/to/file
       dest: /path/to/dest
       remote_src: yes
+    notify: create new
 
   handlers:
   - name: Recreate the deleted file
@@ -20,3 +21,7 @@
     ansible.builtin.copy:
       content: "This is a new file"
       dest: /path/to/file
+  - name: create new
+    ansible.builtin.copy:
+      content: "Something went wrong!"
+      dest: /path/to/other
