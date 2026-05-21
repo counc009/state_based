@@ -495,6 +495,9 @@ module rec Ast_Target : Ast_Defs
              in let normHome
               = Str.replace_first home_regex {|/home/\1|} normLast
              in Reduced (Literal (Path normHome, Path))
+        (* Normalization of a normalized path is just the same *)
+        | Function (NormalizePath, p, _) ->
+            Reduced (Function (NormalizePath, p, Primitive Path))
         | _ -> Stuck)
     | CanBecome -> (Product (Primitive String, Primitive String),
         Primitive Bool,

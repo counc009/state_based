@@ -1169,7 +1169,7 @@ let rec process_task (t : Parsed.task) (ctx : Context.context) (env : play_env)
     | None -> Ok None
     | Some (ItemLoop vs) ->
         let^ used_type = coalesce_var (StringMap.find "item" body_env)
-        in let^ res_vs = coerce_value vs used_type
+        in let^ res_vs = coerce_value vs (List used_type)
         in Ok (Some (Typed.ItemLoop res_vs))
     | Some (FileGlob vs) -> Ok (Some (Typed.FileGlob vs))
   in Ok ( { Typed.name; register; failed_when; changed_when; ignore_errors;
