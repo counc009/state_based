@@ -543,7 +543,7 @@ let codegen_value (v : Typed.value) (env : play_env)
 (* Note: ignore_errors appears to apply outside of the loop hence the catch
  * goes outside: https://stackoverflow.com/questions/49755884 *)
 (* k is an optional statement to immediately follow the module invocation,
- * inside of any loop and condition *)
+ * inside of any loop and condition, will execute only if the task succeeds *)
 let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
   (loop : Typed.loop_kind option) (register : string) (ignore_errors : bool)
   (failed_when : Typed.value option) (env : play_env) (ctx : Context.context)
@@ -734,19 +734,114 @@ let codegen_become (become : bool) (become_user : string) (body : Target.stmt)
         ])
     ]
 
-let rec codegen_task (_t : Typed.task) (_env : play_env) (_ctx : Context.context)
-  : (Target.stmt, string) result =
-  (* TODO: register, ignore_errors, condition, loop, body, become, become_user, notify *)
-  (* TODO: Notifying of handlers only occurs if the result task produced a change and
-   * (as far as I can tell) if the task succeeded. *)
-  Error "TODO"
-and codegen_tasks (ts : Typed.task list) (env : play_env)
-  (ctx : Context.context) : (Target.stmt, string) result =
+let rec codegen_task (t : Typed.task) (extra_notify : Target.expr list)
+  (env : play_env) (ctx : Context.context) : (Target.stmt, string) result =
+  let^ body =
+    match t.body with
+    | Module m ->
+      (* Notifying of handlers only occurs if the result task produced a change
+       * and the task succeeded. *)
+      let^ do_notify =
+        let$ names =
+          let rec codegen_notifies (vs : Typed.value list)
+            (k : Target.expr list -> (Target.stmt, string) result) =
+            match vs with
+            | [] -> k extra_notify
+            | v :: vs ->
+                let$ (e, _) = codegen_value v env
+                in let$ names = codegen_notifies vs
+                in k (e :: names)
+          in codegen_notifies t.notify
+        in Ok (Target.Cond (
+          (Literal (Bool false)) (* FIXME (TODO HERE): Changed Condition *),
+          (let add_notify (n : Target.expr) : Target.stmt =
+            Assign ("@notified",
+              Function (SetAdd, Pair (n, Variable "@notified")))
+          in seq (List.map add_notify names)),
+          Pass (* No change hence don't notify *)
+        ))
+      in codegen_mod_use m t.condition t.loop t.register t.ignore_errors
+          t.failed_when env ctx (Some do_notify)
+    | Block b ->
+      (* notify is (as of the last few years it seems) allowed on blocks, and
+       * it seems to behave as if that notify was added to each task in the
+       * block (or rescue/always) *)
+      let$ new_notify =
+        let rec codegen_notifies (vs : Typed.value list)
+          (k : Target.expr list -> (Target.stmt, string) result) =
+          match vs with
+          | [] -> k extra_notify
+          | v :: vs ->
+              let$ (e, _) = codegen_value v env
+              in let$ names = codegen_notifies vs
+              in k (e :: names)
+        in codegen_notifies t.notify
+      (* Blocks have some restrictions, they don't support loops, register,
+       * or failed_when. We check those here. *)
+      in let^ () =
+        match t.loop with
+        | None -> Ok ()
+        | Some _ -> Error "Blocks do not support loops"
+      in let^ () =
+        if t.register = "_"
+        then Ok ()
+        else Error "Blocks do not support register key"
+      in let^ () =
+        match t.failed_when with
+        | None -> Ok ()
+        | Some _ -> Error "Blocks do not support failed_when key"
+      in let^ tasks =
+        codegen_tasks b.tasks new_notify env ctx
+      in let^ rescue =
+        match b.rescue with
+        | None -> Ok None
+        | Some ts ->
+            Result.map Option.some (codegen_tasks ts new_notify env ctx)
+      in let^ always =
+        match b.always with
+        | None -> Ok None
+        | Some ts ->
+            Result.map Option.some (codegen_tasks ts new_notify env ctx)
+      in let body : Target.stmt =
+        TryCatch (tasks, "@except",
+          (* If there's a rescue block we ignore the error, otherwise re-raise *)
+          begin match rescue with
+          | None -> Raise (Variable "@except")
+          | Some catch ->
+              Match (
+                Function (UnpackExcept (ctx.excepts, "AnsibleError"),
+                          Variable "@except"),
+                "@",
+                Raise (Variable "@except"), (* None case, some other error *)
+                catch)
+          end,
+          begin match always with None -> Pass | Some finally -> finally end)
+      in let handle_ignore_errors : Target.stmt =
+        if t.ignore_errors
+        then
+          TryCatch (body, "@except",
+            Match (
+              Function (UnpackExcept (ctx.excepts, "AnsibleError"),
+                        Variable "@except"),
+              "@",
+              Raise (Variable "@except"), (* None case, some other error *)
+              Pass),
+            Pass)
+        else body
+      in begin match t.condition with
+      | None -> Ok handle_ignore_errors
+      | Some cond ->
+          codegen_value cond env (fun (cond, _) ->
+            Ok (Target.Cond (cond, handle_ignore_errors, Pass)))
+      end
+  in Ok (codegen_become t.become t.become_user body ctx)
+and codegen_tasks (ts : Typed.task list) (extra_notify : Target.expr list)
+  (env : play_env) (ctx : Context.context) : (Target.stmt, string) result =
   match ts with
   | [] -> Ok Target.Pass
   | t :: ts ->
-      let^ t = codegen_task t env ctx
-      in let^ ts = codegen_tasks ts env ctx
+      let^ t = codegen_task t extra_notify env ctx
+      in let^ ts = codegen_tasks ts extra_notify env ctx
       in Ok (Target.Seq (t, ts))
 
 (* Generates if <h.listen> in @notified then do body else do nothing *)
@@ -788,13 +883,13 @@ let codegen_play (p : Typed.play) (ctx : Context.context)
     match p.pre_tasks with
     | None -> Ok Target.Pass
     | Some ts ->
-        let^ res_ts = codegen_tasks ts play_env ctx
+        let^ res_ts = codegen_tasks ts [] play_env ctx
         in Ok (seq [
                 Assign ("@notified", Literal (StringSet StringSet.empty));
                 res_ts;
                 handlers_run ])
   in let^ tasks =
-    let^ res_ts = codegen_tasks p.tasks play_env ctx
+    let^ res_ts = codegen_tasks p.tasks [] play_env ctx
     in Ok (seq [
             Assign ("@notified", Literal (StringSet StringSet.empty));
             res_ts;
@@ -803,7 +898,7 @@ let codegen_play (p : Typed.play) (ctx : Context.context)
     match p.post_tasks with
     | None -> Ok Target.Pass
     | Some ts ->
-        let^ res_ts = codegen_tasks ts play_env ctx
+        let^ res_ts = codegen_tasks ts [] play_env ctx
         in Ok (seq [
                 Assign ("@notified", Literal (StringSet StringSet.empty));
                 res_ts;
