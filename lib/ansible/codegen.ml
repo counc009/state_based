@@ -555,8 +555,6 @@ let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
     else
       let^ res = k ()
       in Ok (Target.TryCatch (res, "@except",
-            (* TODO: Declare AnsibleError elsewhere or make this a built-in
-             * exception *)
             Target.Match (
               Function (
                 UnpackExcept (ctx.excepts, "AnsibleError"),
@@ -665,7 +663,7 @@ let codegen_mod_use (m : Typed.mod_use) (cond : Typed.value option)
   in let () =
     if register <> "_"
     (* For loops we need to modify this type, except we use this type first
-     * for failed_when/changed_when and then update it later *)
+     * for failed_when/changed_when and then update it later (TODO) *)
     then Hashtbl.add env register out_ty
   in let^ act =
     match failed_when with
@@ -752,12 +750,25 @@ let rec codegen_task (t : Typed.task) (extra_notify : Target.expr list)
                 in let$ names = codegen_notifies vs
                 in k (e :: names)
           in codegen_notifies t.notify
-        in Ok (Target.Cond (
-          (Literal (Bool false)) (* FIXME (TODO HERE): Changed Condition *),
-          (let add_notify (n : Target.expr) : Target.stmt =
+        in let^ changed_cond : Target.expr =
+          let^ out_fields =
+            let { Typed.mod_info = (nm, _, out_ty, _); _ } = m
+            in match out_ty with
+            | Struct fs -> Ok fs
+            | _ ->
+                Error (Printf.sprintf
+                          "Error: Module %s does not return struct" nm)
+          (* TODO: Support changed_when *)
+          in Ok (Function (ReadField (out_fields, "changed"),
+                    Variable t.register) : Target.expr)
+        in let notify : Target.stmt =
+          let add_notify (n : Target.expr) : Target.stmt =
             Assign ("@notified",
               Function (SetAdd, Pair (n, Variable "@notified")))
-          in seq (List.map add_notify names)),
+          in seq (List.map add_notify names)
+        in Ok (Target.Cond (
+          changed_cond,
+          notify,
           Pass (* No change hence don't notify *)
         ))
       in codegen_mod_use m t.condition t.loop t.register t.ignore_errors
@@ -903,8 +914,18 @@ let codegen_play (p : Typed.play) (ctx : Context.context)
                 Assign ("@notified", Literal (StringSet StringSet.empty));
                 res_ts;
                 handlers_run ])
-  (* TODO: remote_user, is_root, become, become_user *)
-  in Ok (seq [ var_setup; pre_tasks; tasks; post_tasks ])
+  in Ok (seq [
+    (* Finally, we handle details of what user the play runs as
+     * (i.e., remote_user, is_root, become, become_user) *)
+    Target.Add (env_qual "active_user" (Primitive String)
+                  (Literal (String p.remote_user)));
+    begin match p.is_root with
+    | None -> Target.Pass
+    | Some is_root -> Target.Add (env_qual "is_root" (Primitive Bool)
+                                    (Literal (Bool is_root)))
+    end;
+    codegen_become p.become p.become_user
+      (seq [ var_setup; pre_tasks; tasks; post_tasks ]) ctx])
 
 let codegen_playbook (p : Typed.playbook) (ctx : Context.context)
   : (Target.stmt, string) result =
