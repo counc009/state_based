@@ -740,7 +740,13 @@ let rec codegen_task (t : Typed.task) (extra_notify : Target.expr list)
       (* Notifying of handlers only occurs if the result task produced a change
        * and the task succeeded. *)
       let^ do_notify =
-        let$ names =
+        let { Typed.mod_info = (nm, _, out_ty, _); _ } = m
+        (* We have to add the result to the environment so we can properly
+         * resolve variables for notify and changed_when *)
+        in let () =
+          if t.register <> "_"
+          then Hashtbl.add env t.register out_ty
+        in let$ names =
           let rec codegen_notifies (vs : Typed.value list)
             (k : Target.expr list -> (Target.stmt, string) result) =
             match vs with
@@ -754,8 +760,7 @@ let rec codegen_task (t : Typed.task) (extra_notify : Target.expr list)
           match t.changed_when with
           | None ->
               let^ out_fields =
-                let { Typed.mod_info = (nm, _, out_ty, _); _ } = m
-                in match out_ty with
+                match out_ty with
                 | Struct fs -> Ok fs
                 | _ ->
                     Error (Printf.sprintf
@@ -768,6 +773,11 @@ let rec codegen_task (t : Typed.task) (extra_notify : Target.expr list)
             Assign ("@notified",
               Function (SetAdd, Pair (n, Variable "@notified")))
           in seq (List.map add_notify names)
+        (* And remove the result from the environment since codegen_mod_use
+         * will update it appropriately. *)
+        in let () =
+          if t.register <> "_"
+          then Hashtbl.remove env t.register
         in Ok (Target.Cond (
           changed_cond,
           notify,
