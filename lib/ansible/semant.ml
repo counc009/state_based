@@ -309,8 +309,7 @@ let coalesce_var (v : var_type) : (etype, string) result =
   let rec narrow_from (t : itype) : (Coalesce.ctype, string) result =
     match t with
     | Int | Float | Bool -> Ok String
-    (* We assume Path since we'll prefer String over Path when we coalesce *)
-    | StringLike -> Ok Path
+    | StringLike -> Ok StringLike
     | String -> Ok String
     | Path -> Ok Path
     | Enum (nm, cs) -> Ok (Enum (nm, cs))
@@ -332,7 +331,7 @@ let coalesce_var (v : var_type) : (etype, string) result =
     | Enum (nm, cs), StringLike -> Ok (Enum (nm, cs))
     | Enum (n, cs), Enum (m, _) ->
         if n = m then Ok (Enum (n, cs))
-        else Error (Printf.sprintf "Type error, found %s but expected %s" m n)
+        else Error (Printf.sprintf "(1) Type error, found %s but expected %s" m n)
 
     | EmptyList, (EmptyList | List _ | SingleOrList _) -> Ok t
 
@@ -358,7 +357,7 @@ let coalesce_var (v : var_type) : (etype, string) result =
     | Struct tis, Struct tts ->
         begin match merge_same_res broaden_type tts tis with
         | None ->
-            Error (Printf.sprintf "Type error, found %s but expected %s"
+            Error (Printf.sprintf "(2) Type error, found %s but expected %s"
                       (Coalesce.string_of_ctype t) (string_of_itype i))
         | Some (Error msg) -> Error msg
         | Some (Ok res_ts) ->
@@ -377,7 +376,7 @@ let coalesce_var (v : var_type) : (etype, string) result =
     | List _, (Int | Float | Bool | StringLike | String | Path | Enum (_, _) | Struct _)
     | Struct _, (Int | Float | Bool | StringLike | String | Path | EmptyList | Enum (_, _) | List _)
     ->
-        Error (Printf.sprintf "Type error, found %s but expected %s"
+        Error (Printf.sprintf "(3) Type error, found %s but expected %s"
                   (Coalesce.string_of_ctype t) (string_of_itype i))
 
   in let rec coalesce (ts : itype ref list) (cur : Coalesce.ctype)
@@ -396,10 +395,10 @@ let coalesce_var (v : var_type) : (etype, string) result =
     | _ -> coalesce v.uses#elems (SingleOrList inferred)
   in Coalesce.etype_of_ctype coalesced
 
-let type_error (t : itype) (e : etype) : ('a, string) result =
+let type_error (n : string) (t : itype) (e : etype) : ('a, string) result =
   Error (Printf.sprintf
-          "Type error, found %s but expected %s"
-          (string_of_itype t) (string_of_etype e))
+          "(%s) Type error, found %s but expected %s"
+          n (string_of_itype t) (string_of_etype e))
 
 let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
   (* Determine whether t can be coerced to e *)
@@ -456,7 +455,7 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
               let^ res = handle_type t c
               in Ok (Typed.List ([res], List (Typed.typeof res)))
 
-          | _, _ -> type_error t c
+          | _, _ -> type_error "A" t c
         in handle_type c t
     | Int (i, c) ->
         let rec handle_type (t : itype) (c : etype)
@@ -471,7 +470,7 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
               let^ res = handle_type t c
               in Ok (Typed.List ([res], List (Typed.typeof res)))
 
-          | _, _ -> type_error t c
+          | _, _ -> type_error "B" t c
         in handle_type c t
     | Float (f, c) ->
         let rec handle_type (t : itype) (c : etype)
@@ -485,7 +484,7 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
               let^ res = handle_type t c
               in Ok (Typed.List ([res], List (Typed.typeof res)))
 
-          | _, _ -> type_error t c
+          | _, _ -> type_error "C" t c
         in handle_type c t
     | Bool (b, c) ->
         let rec handle_type (t : itype) (c : etype)
@@ -499,7 +498,7 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
               let^ res = handle_type t c
               in Ok (Typed.List ([res], List (Typed.typeof res)))
 
-          | _, _ -> type_error t c
+          | _, _ -> type_error "D" t c
         in handle_type c t
     | List (vs, c) ->
         begin match c, t with
@@ -508,16 +507,16 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
         | List c, (List t | SingleOrList t) ->
             begin match can_coerce c t with
             | None -> 
-                type_error c t
+                type_error "E" c t
             | Some res ->
                 let^ res_vs = map_res (fun v -> coerce v t) vs
                 in Ok (Typed.List (res_vs, List res))
             end
-        | _, _ -> type_error c t
+        | _, _ -> type_error "F" c t
         end
     | Ident (nm, c) ->
         begin match can_coerce !c t with
-        | None -> type_error !c t
+        | None -> type_error "G" !c t
         | Some t ->
             let () = c := t
             in Ok (Ident (nm, c))
@@ -533,7 +532,7 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
               | SingleOrList t ->
                   let^ res_v = handle_type t
                   in Ok (Typed.List ([res_v], List (Typed.typeof res_v)))
-              | _ -> type_error Bool t
+              | _ -> type_error "H" Bool t
             in handle_type t
         | Neg -> (* Either produces an int or a float *)
             let rec handle_type (t : etype) : (Typed.value, string) result =
@@ -548,7 +547,7 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
               | _, SingleOrList t ->
                   let^ res = handle_type t
                   in Ok (Typed.List ([res], List (Typed.typeof res)))
-              | _, _ -> type_error c t
+              | _, _ -> type_error "I" c t
             in handle_type t
         | Lower -> (* Always produces a string can add a coercion *)
             let rec handle_type (t : etype) : (Typed.value, string) result =
@@ -558,7 +557,7 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
               | SingleOrList t ->
                   let^ res_v = handle_type t
                   in Ok (Typed.List ([res_v], List (Typed.typeof res_v)))
-              | _ -> type_error String t
+              | _ -> type_error "J" String t
             in handle_type t
         end
     | Binary ((lhs, op, rhs), c) ->
@@ -573,7 +572,7 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
               | SingleOrList t ->
                   let^ res_v = handle_type t
                   in Ok (Typed.List ([res_v], List (Typed.typeof res_v)))
-              | _ -> type_error Bool t
+              | _ -> type_error "K" Bool t
             in handle_type t
         | Concat -> (* Always produces a string can add a coercion *)
             let rec handle_type (t : etype) : (Typed.value, string) result =
@@ -583,7 +582,7 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
               | SingleOrList t ->
                   let^ res_v = handle_type t
                   in Ok (Typed.List ([res_v], List (Typed.typeof res_v)))
-              | _ -> type_error String t
+              | _ -> type_error "L" String t
             in handle_type t
         | Mod -> (* Always produces an int can add a coercion *)
             let rec handle_type (t : etype) : (Typed.value, string) result =
@@ -595,7 +594,7 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
               | SingleOrList t ->
                   let^ res_v = handle_type t
                   in Ok (Typed.List ([res_v], List (Typed.typeof res_v)))
-              | _ -> type_error Int t
+              | _ -> type_error "M" Int t
             in handle_type t
         | Pow -> (* Always produces a float can add a coercion *)
             let rec handle_type (t : etype) : (Typed.value, string) result =
@@ -606,7 +605,7 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
               | SingleOrList t ->
                   let^ res_v = handle_type t
                   in Ok (Typed.List ([res_v], List (Typed.typeof res_v)))
-              | _ -> type_error Float t
+              | _ -> type_error "N" Float t
             in handle_type t
         | Add | Sub | Mul | Div -> (* Overloaded for float & int *)
             let rec handle_type (t : etype) : (Typed.value, string) result =
@@ -622,7 +621,7 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
               | _, SingleOrList t ->
                   let^ res = handle_type t
                   in Ok (Typed.List ([res], List (Typed.typeof res)))
-              | _, _ -> type_error c t
+              | _, _ -> type_error "O" c t
             in handle_type t
         end
     | Dot ((v, f), c) ->
@@ -636,7 +635,7 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
               let^ () =
                 match can_coerce c t with
                 | Some _ -> Ok ()
-                | None -> type_error c t
+                | None -> type_error "P" c t
               in let new_fs = StringMap.add f (List t : etype) fs
               in let^ res_v = coerce v (Struct new_fs)
               in begin match Typed.typeof res_v with
@@ -654,7 +653,7 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
               let^ () =
                 match can_coerce c t with
                 | Some _ -> Ok ()
-                | None -> type_error c t
+                | None -> type_error "Q" c t
               in let new_fs = StringMap.add f t fs
               in let^ res_v = coerce v (Struct new_fs)
               in begin match Typed.typeof res_v with
@@ -678,7 +677,7 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
           | SingleOrList t ->
               let^ res = handle_type t
               in Ok (Typed.List ([res], List (Typed.typeof res)))
-          | _ -> type_error String t
+          | _ -> type_error "R" String t
         in handle_type t
     | Ternary ((cond, thn, els), _) ->
         let^ thn_coerce = coerce thn t
@@ -695,11 +694,11 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
                 | [] ->
                     if StringMap.is_empty ts
                     then Ok ([], StringMap.empty)
-                    else type_error c t
+                    else type_error "S" c t
                 | (f, v) :: vs ->
                     let^ ty_f =
                       match StringMap.find_opt f ts with
-                      | None -> type_error c t
+                      | None -> type_error "T" c t
                       | Some t -> Ok t
                     in let^ res_v = coerce v ty_f
                     in let^ (res_vs, fs) = helper vs (StringMap.remove f ts)
@@ -707,11 +706,11 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
                            StringMap.add f (Typed.typeof res_v) fs)
               in helper vs ts
             in Ok (Typed.Record (vs_coerced, Struct fs))
-        | _ -> type_error c t
+        | _ -> type_error "U" c t
         end
     | ReAnnt (v, c) ->
         begin match can_coerce c t with
-        | None -> type_error c t
+        | None -> type_error "V" c t
         | Some res -> Ok (ReAnnt (v, res))
         end
 

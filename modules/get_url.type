@@ -1,5 +1,10 @@
-struct get_url_result { failed: bool, dest: path, group: string, owner: string,
-                        url: path }
+struct get_url_result {
+  failed: bool,
+  changed: bool,
+  dest: path,
+  group: string,
+  owner: string,
+  url: path }
 
 uninterpreted download_url(path, option (string, string)) -> string
 uninterpreted provided_filename_url(path, option (string, string)) -> option path
@@ -13,7 +18,7 @@ module ansible.builtin.get_url aka get_url -> get_url_result {
 
   if validate_certs {
     if !validate_certificate(url) {
-      return get_url_result { failed: true };
+      return get_url_result { failed: true, changed: false };
     }
   }
 
@@ -31,7 +36,7 @@ module ansible.builtin.get_url aka get_url -> get_url_result {
     }
   }
 
-  let result = get_url_result { failed: false, url: url };
+  let result = get_url_result { failed: false, changed: false, url: url };
 
   if ends_with_dir(dest) {
     let name = '';
@@ -54,6 +59,7 @@ module ansible.builtin.get_url aka get_url -> get_url_result {
         if provided owner { fs(dst, file_system::remote).owner = owner; result.owner = owner; }
         fs(dst, file_system::remote).mode
           = provided mode ? mode : mode_of_umask(env().umask);
+        result.changed = true;
       }
     } else {
       fs(dst, file_system::remote).fs_type
@@ -62,6 +68,7 @@ module ansible.builtin.get_url aka get_url -> get_url_result {
       if provided owner { fs(dst, file_system::remote).owner = owner; result.owner = owner; }
       fs(dst, file_system::remote).mode
         = provided mode ? mode : mode_of_umask(env().umask);
+      result.changed = true;
     }
   } else {
     result.dest = dst;
@@ -77,6 +84,7 @@ module ansible.builtin.get_url aka get_url -> get_url_result {
         if provided owner { fs(dst, file_system::remote).owner = owner; result.owner = owner; }
         fs(dst, file_system::remote).mode
           = provided mode ? mode : mode_of_umask(env().umask);
+        result.changed = true;
       }
     } else {
       fs(dst, file_system::remote).fs_type
@@ -85,6 +93,7 @@ module ansible.builtin.get_url aka get_url -> get_url_result {
       if provided owner { fs(dst, file_system::remote).owner = owner; result.owner = owner; }
       fs(dst, file_system::remote).mode
         = provided mode ? mode : mode_of_umask(env().umask);
+      result.changed = true;
     }
   }
 
