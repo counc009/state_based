@@ -1,11 +1,11 @@
 open Calculus.Ast
 
-type atts = Content
-type elms = File | Dir
-type lits = String of string | Path of string | Bool of bool | Unit
-type prim = String | Path | Bool | Unit
+type atts = Content | Count
+type elms = Local | File | Dir | Fd
+type lits = String of string | Path of string | Bool of bool | Int of int | Unit
+type prim = String | Path | Bool | Int | Unit
 
-type 't funcs = Equals of 't
+type 't funcs = Equals of 't | IsZero
 type 't named = List of 't
 
 type empty = |
@@ -81,6 +81,7 @@ module rec Calc : Ast_Defs
             | TryCatch of stmt (* body of try *)
                         * variable * stmt (* exception name and handler *)
                         * stmt (* finally body *)
+            | Localize of element * expr * stmt
             | Raise    of expr
             | Return   of expr
             | Yield    of expr (* yield for a foreach statement *)
@@ -97,19 +98,28 @@ module rec Calc : Ast_Defs
           match v with
           | Pair (x, y, _) -> Reduced (Literal (Bool (x = y), Bool))
           | _ -> Stuck)
+    | IsZero -> (Primitive Int, Primitive Bool,
+        fun (v : value) : value eval ->
+          match v with
+          | Literal (Int x, _) -> Reduced (Literal (Bool (x = 0), Bool))
+          | _ -> Stuck)
 
   let literalTyp : literal -> primTy = function
     | String _ -> String
     | Path   _ -> Path
     | Bool   _ -> Bool
+    | Int    _ -> Int
     | Unit     -> Unit
 
   let attributeDef : attribute -> typ = function
     | Content -> Primitive String
+    | Count -> Primitive Int
 
   let elementDef : element -> typ = function
     | File -> Primitive Path
     | Dir  -> Primitive Path
+    | Local -> Primitive Unit
+    | Fd    -> Primitive Int
 
   let actionDef : action -> _ = function _ -> .
 
@@ -142,13 +152,19 @@ module rec Calc : Ast_Defs
     : func_constraints =
     match f with
     | Equals _ ->
-        match c with
+        begin match c with
         | IsBool true ->
             begin match v with
             | Pair (x, y, _) -> Reducible [[IsEqual (x, y)]]
             | _ -> Unreducible
             end
         | _ -> Unreducible
+        end
+    | IsZero ->
+        begin match c with
+        | IsBool true -> Reducible [[IsEqual (v, Literal (Int 0, Int))]]
+        | _ -> Unreducible
+        end
 end
 
 module CalcInterp = Calculus.Interp.Interp(Calc)
@@ -160,6 +176,7 @@ let rec string_of_value (v : Calc.value) : string =
   | Literal (String s, _) -> "\"" ^ s ^ "\""
   | Literal (Path p, _)   -> "'" ^ p ^ "'"
   | Literal (Bool b, _)   -> string_of_bool b
+  | Literal (Int i, _)    -> string_of_int i
   | Literal (Unit, _)     -> "()"
   | Pair (x, y, _) -> "(" ^ string_of_value x ^ ", " ^ string_of_value y ^ ")"
   | Struct (_, _) -> .
@@ -167,6 +184,7 @@ let rec string_of_value (v : Calc.value) : string =
   | Function (Equals _, Pair (x, y, _), _) ->
       string_of_value x ^ " == " ^ string_of_value y
   | Function (Equals _, v, _) -> "==(" ^ string_of_value v ^ ")"
+  | Function (IsZero, v, _) -> "isZero(" ^ string_of_value v ^ ")"
   | ListVal (List _, v) -> "list { " ^ string_of_value v ^ " }"
 and string_of_list ?(sep = false) (v : Calc.value) : string =
   match v with
@@ -178,12 +196,15 @@ and string_of_list ?(sep = false) (v : Calc.value) : string =
 
 let string_of_element (e : Calc.element) : string =
   match e with
-  | File -> "file"
-  | Dir  -> "dir"
+  | File  -> "file"
+  | Dir   -> "dir"
+  | Local -> "local"
+  | Fd    -> "fd"
 
 let string_of_attribute (a : Calc.attribute) : string =
   match a with
   | Content -> "content"
+  | Count   -> "count"
 
 let string_of_list empty lhs sep rhs f lst : string =
   if List.is_empty lst
@@ -299,6 +320,46 @@ let test3 : Calc.stmt =
         Return (Literal Unit)
       )
     )
+  )
+
+let test4 : Calc.stmt =
+  Contains (OnElement (Local, Literal Unit, Element (Fd, Literal (Int 0))),
+    Seq (
+      Get ("v", OnElement (Local, Literal Unit,
+                  OnElement (Fd, Literal (Int 0),
+                    AttrAccess Count))),
+      Cond (
+        Function (IsZero, Variable "v"),
+        Seq (
+          Add (Element (Local, Literal Unit, Some (
+                Element (Fd, Literal (Int 1), Some (
+                  Attribute (Count, Literal (Int 7))))))),
+        Seq (
+          Add (Element (Local, Literal Unit, Some (
+                Element (Fd, Literal (Int 0), Some (
+                  Attribute (Count, Literal (Int 1))))))),
+          Localize (Local, Literal Unit,
+            Seq (
+              Add (Element (Local, Literal Unit, Some (
+                    Element (Fd, Literal (Int 0), Some (
+                      Attribute (Count, Literal (Int 3))))))),
+            Seq (
+              Add (Element (Local, Literal Unit, Some (
+                    NotElement (Fd, Literal (Int 1))))),
+            Seq (
+              Get ("v", OnElement (Local, Literal Unit,
+                          OnElement (Fd, Literal (Int 2),
+                            AttrAccess Count))),
+              Add (Element (Local, Literal Unit, Some (
+                    Element (Fd, Literal (Int 2), Some (
+                      Attribute (Count, Literal (Int 9)))))))
+            )))
+          )
+        )),
+        Raise (Literal (String "fd(0) count is not zero"))
+      )
+    ),
+    Raise (Literal (String "fd(0) does not exist"))
   )
 
 let interp (p : Calc.stmt) : CalcInterp.interp_res =

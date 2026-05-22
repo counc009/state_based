@@ -144,6 +144,7 @@ module rec Ast_Target : Ast_Defs
             | Match    of expr * variable * stmt * stmt
             | ForEach  of variable * typ * expr * variable * stmt
             | TryCatch of stmt * variable * stmt * stmt
+            | Localize of element * expr * stmt
             | Raise    of expr
             | Return   of expr
             | Yield    of expr
@@ -898,6 +899,10 @@ let string_of_stmt (s : Ast_Target.stmt) : string =
         ^ process catch ("\t" ^ indent) ^ "\n"
         ^ indent ^ "} finally {\n"
         ^ process finally ("\t" ^ indent) ^ "\n"
+        ^ indent ^ "}"
+    | Localize ((elem, _), ex, body) ->
+        indent ^ "localize " ^ elem ^ "(" ^ string_of_expr ex ^ ") {\n"
+        ^ process body ("\t" ^ indent) ^ "\n"
         ^ indent ^ "}"
     | Raise e ->
         indent ^ "raise " ^ string_of_expr e

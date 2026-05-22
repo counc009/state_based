@@ -77,6 +77,10 @@ module type Ast_Defs = sig
             | TryCatch of stmt (* body of try *)
                         * variable * stmt (* exception name and handler *)
                         * stmt (* finally body *)
+            (* Localize executes the given body and upon exit resets the
+             * specified element (which must be top-level) to the value it
+             * had before entry. *)
+            | Localize of element * expr * stmt
             | Raise    of expr
             | Return   of expr
             | Yield    of expr (* yield for a foreach statement *)

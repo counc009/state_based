@@ -370,6 +370,29 @@ module Interp(Ast : Ast.Ast_Defs) = struct
             bools = s.bools; constrs = s.constrs }
           in k b new_state)
 
+  (* Given an element and the current state, evaluates the element and returns
+   * a function which given a new state resets the specified element in the
+   * final state to the same as the initial state.
+   * This is used for the Localize construct, and we only modify the final
+   * state so that any changes that occured during localization are undone
+   * but any inferred information about the initial state are not (since the
+   * initial version of the localized state is the current state of the state
+   * before localization). *)
+  let make_elem_reset (el : element) (ex : expr) (s : interp_state) (env : env)
+    : (interp_state -> interp_state, string) result =
+    let State (els, _) = s.final
+    in let change_final (f : state -> state) (s : interp_state) =
+      let { init; final; loops; bools; constrs } = s
+      in { init; final = f final; loops; bools; constrs }
+    in Result.bind (eval_expr ex env) (fun (v, _) ->
+        match ElementMap.find_opt (el, v) els with
+        | None ->
+            Ok (change_final (fun (State (els, ats)) ->
+              State (ElementMap.remove (el, v) els, ats)))
+        | Some b ->
+            Ok (change_final (fun (State (els, ats)) ->
+              State (ElementMap.add (el, v) b els, ats))))
+
   let replace_loopvar_value (v : value) (uid : uid) : value =
     let rec helper (v : value) : value =
       match v with
@@ -994,6 +1017,20 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                   (* yield - raise e    *) (fun s env _ -> raise s env e)
                   (* ret - just return  *) ret
                   (* raise - just raise *) raise))
+    | Localize (el, ex, body) ->
+        begin match make_elem_reset el ex s env with
+        | Error msg -> Err msg
+        | Ok reset_elem ->
+            interpret body s env
+              (* continue : reset the element and continue *)
+              (fun s env -> cont (reset_elem s) env)
+              (* yield : reset the element and yield *)
+              (fun s env e -> yield (reset_elem s) env e)
+              (* ret : reset the element and return *)
+              (fun s env e -> ret (reset_elem s) env e)
+              (* raise : reset the element and return *)
+              (fun s env e -> raise (reset_elem s) env e)
+        end
     | Raise e ->
         begin match eval_expr e env with
         | Error msg -> Err msg
