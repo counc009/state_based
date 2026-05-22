@@ -1,0 +1,25 @@
+---
+- name: Test blocks
+  hosts: all
+  tasks:
+    - name: Do some file stuff
+      block:
+        - name: Delete the file
+          ansible.builtin.file:
+            path: /the/file
+            state: absent
+        - name: Copy from it
+          ansible.builtin.copy:
+            src: /the/file
+            remote_src: yes
+            dest: /some/other
+      rescue:
+        - name: Create an empty file
+          ansible.builtin.copy:
+            dest: /the/file
+            content: ""
+      always:
+        - name: Create another file
+          ansible.builtin.copy:
+            dest: /another/file
+            content: "!"

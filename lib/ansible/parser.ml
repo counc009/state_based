@@ -627,6 +627,10 @@ let rec process_task (y : Yaml.value) : (Ast.task, string) result =
             Ok () (* TODO *)
         | "block" ->
             Result.map task#add_block (process_tasks v)
+        | "rescue" ->
+            Result.map task#add_rescue (process_tasks v)
+        | "always" ->
+            Result.map task#add_always (process_tasks v)
         | _ ->
             Result.map task#add_module (process_module_use field v))
       in Result.map_error (String.concat "\n") task#to_task
