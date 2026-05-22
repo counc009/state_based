@@ -1,4 +1,4 @@
-struct reboot_result { failed: bool, rebooted: bool }
+struct reboot_result { failed: bool, changed: bool, rebooted: bool }
 
 module ansible.builtin.reboot aka reboot -> reboot_result {
   [post_reboot_delay: int] # TODO: Use
@@ -8,5 +8,5 @@ module ansible.builtin.reboot aka reboot -> reboot_result {
   [reboot_timeout: int] # TODO: Use
 
   env().last_reboot = get_time();
-  return reboot_result { failed: false, rebooted: true };
+  return reboot_result { failed: false, changed: true, rebooted: true };
 }
