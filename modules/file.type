@@ -71,12 +71,12 @@ module ansible.builtin.file aka file -> file_result {
                 assert exists fs(f, file_system::remote);
                 fs(f, file_system::remote).owner
                   = provided owner ? owner
-                  : env().is_root  ? fs(f, file_system::remote).owner
-                                   : env().active_user;
+                  : is_root        ? fs(f, file_system::remote).owner
+                                   : active_user;
                 fs(f, file_system::remote).owner_group
                   = provided group ? group
-                  : env().is_root  ? fs(f, file_system::remote).owner_group
-                                   : env().active_group;
+                  : is_root        ? fs(f, file_system::remote).owner_group
+                                   : active_group;
                 fs(f, file_system::remote).mode
                   = provided mode ? mode : fs(f, file_system::remote).mode;
               }
@@ -88,12 +88,12 @@ module ansible.builtin.file aka file -> file_result {
         }
         fs(path, file_system::remote).owner 
           = provided owner ? owner
-          : env().is_root  ? fs(path, file_system::remote).owner
-                           : env().active_user;
+          : is_root        ? fs(path, file_system::remote).owner
+                           : active_user;
         fs(path, file_system::remote).owner_group 
           = provided group ? group
-          : env().is_root  ? fs(path, file_system::remote).owner_group
-                           : env().active_group;
+          : is_root        ? fs(path, file_system::remote).owner_group
+                           : active_group;
         fs(path, file_system::remote).mode
           = provided mode ? mode
                           : fs(path, file_system::remote).mode;
@@ -103,9 +103,9 @@ module ansible.builtin.file aka file -> file_result {
       } else {
         fs(path, file_system::remote).fs_type = file_type::directory(list::<path>::nil());
         fs(path, file_system::remote).owner 
-          = provided owner ? owner : env().active_user;
+          = provided owner ? owner : active_user;
         fs(path, file_system::remote).owner_group 
-          = provided group ? group : env().active_group;
+          = provided group ? group : active_group;
         fs(path, file_system::remote).mode
           = provided mode ? mode
                           : mode_of_umask(env().umask);
@@ -118,12 +118,12 @@ module ansible.builtin.file aka file -> file_result {
       if exists fs(path, file_system::remote) {
         fs(path, file_system::remote).owner 
           = provided owner ? owner
-          : env().is_root  ? fs(path, file_system::remote).owner
-                           : env().active_user;
+          : is_root        ? fs(path, file_system::remote).owner
+                           : active_user;
         fs(path, file_system::remote).owner_group 
           = provided group ? group
-          : env().is_root  ? fs(path, file_system::remote).owner_group
-                           : env().active_group;
+          : is_root        ? fs(path, file_system::remote).owner_group
+                           : active_group;
         fs(path, file_system::remote).mode
           = provided mode ? mode
                           : fs(path, file_system::remote).mode;
@@ -140,20 +140,20 @@ module ansible.builtin.file aka file -> file_result {
       if exists fs(path, file_system::remote) {
         fs(path, file_system::remote).owner 
           = provided owner ? owner
-          : env().is_root  ? fs(path, file_system::remote).owner
-                           : env().active_user;
+          : is_root        ? fs(path, file_system::remote).owner
+                           : active_user;
         fs(path, file_system::remote).owner_group 
           = provided group ? group
-          : env().is_root  ? fs(path, file_system::remote).owner_group
-                           : env().active_group;
+          : is_root        ? fs(path, file_system::remote).owner_group
+                           : active_group;
         fs(path, file_system::remote).mode
           = provided mode ? mode
                           : fs(path, file_system::remote).mode;
       } else {
         fs(path, file_system::remote).owner 
-          = provided owner ? owner : env().active_user;
+          = provided owner ? owner : active_user;
         fs(path, file_system::remote).owner_group 
-          = provided group ? group : env().active_group;
+          = provided group ? group : active_group;
         fs(path, file_system::remote).mode
           = provided mode ? mode
                           : mode_of_umask(env().umask);
@@ -171,20 +171,20 @@ module ansible.builtin.file aka file -> file_result {
       if exists fs(path, file_system::remote) {
         fs(path, file_system::remote).owner 
           = provided owner ? owner
-          : env().is_root  ? fs(path, file_system::remote).owner
-                           : env().active_user;
+          : is_root        ? fs(path, file_system::remote).owner
+                           : active_user;
         fs(path, file_system::remote).owner_group 
           = provided group ? group
-          : env().is_root  ? fs(path, file_system::remote).owner_group
-                           : env().active_group;
+          : is_root        ? fs(path, file_system::remote).owner_group
+                           : active_group;
         fs(path, file_system::remote).mode
           = provided mode ? mode
                           : fs(path, file_system::remote).mode;
       } else {
         fs(path, file_system::remote).owner 
-          = provided owner ? owner : env().active_user;
+          = provided owner ? owner : active_user;
         fs(path, file_system::remote).owner_group 
-          = provided group ? group : env().active_group;
+          = provided group ? group : active_group;
         fs(path, file_system::remote).mode
           = provided mode ? mode
                           : mode_of_umask(env().umask);
@@ -199,12 +199,12 @@ module ansible.builtin.file aka file -> file_result {
       if exists fs(path, file_system::remote) {
         fs(path, file_system::remote).owner 
           = provided owner ? owner
-          : env().is_root  ? fs(path, file_system::remote).owner
-                           : env().active_user;
+          : is_root        ? fs(path, file_system::remote).owner
+                           : active_user;
         fs(path, file_system::remote).owner_group 
           = provided group ? group
-          : env().is_root  ? fs(path, file_system::remote).owner_group
-                           : env().active_group;
+          : is_root        ? fs(path, file_system::remote).owner_group
+                           : active_group;
         fs(path, file_system::remote).mode
           = provided mode ? mode
                           : fs(path, file_system::remote).mode;
@@ -213,9 +213,9 @@ module ansible.builtin.file aka file -> file_result {
       } else {
         fs(path, file_system::remote).fs_type = file_type::file("");
         fs(path, file_system::remote).owner 
-          = provided owner ? owner : env().active_user;
+          = provided owner ? owner : active_user;
         fs(path, file_system::remote).owner_group 
-          = provided group ? group : env().active_group;
+          = provided group ? group : active_group;
         fs(path, file_system::remote).mode
           = provided mode ? mode
                           : mode_of_umask(env().umask);

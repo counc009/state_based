@@ -29,3 +29,11 @@ let interp_ansible sources ansible_src =
               | Ok msg ->
                   Ok (Printf.printf "\nInterpretation Succeeded:\n%s\n\n" msg)
             )))))
+
+let ansible_debug sources ansible_src =
+  Result.bind (Modules.Parser.parse_files sources) (fun parsed ->
+    Result.bind (Modules.Codegen.codegen parsed) (fun ctx ->
+      Result.bind (Parser.parse_ansible ansible_src) (fun prg ->
+        Result.bind (Semant.process_playbook prg ctx) (fun typed ->
+          Result.bind (Codegen.codegen_playbook typed ctx) (fun stmt ->
+            Ok (Printf.printf "\n\n%s\n\n" (Target.string_of_stmt stmt)))))))

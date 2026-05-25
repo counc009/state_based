@@ -83,7 +83,7 @@ module ansible.builtin.user aka user -> user_result {
 
         if provided home {
           # Changing the home directory requires root privileges
-          if !env().is_root { res.failed = true; return res; }
+          if !is_root { res.failed = true; return res; }
 
           homedir = norm_path(home);
 
@@ -118,7 +118,7 @@ module ansible.builtin.user aka user -> user_result {
         touch e_group(name);
 
         # User doesn't exist, this requires root privilege as discussed above
-        if !env().is_root { res.failed = true; return res; }
+        if !is_root { res.failed = true; return res; }
 
         touch e_user(name);
 
@@ -164,7 +164,7 @@ module ansible.builtin.user aka user -> user_result {
           res.password = password;
           res.changed = true;
 
-          if !env().is_root { res.failed = true; return res; }
+          if !is_root { res.failed = true; return res; }
 
           # This isn't really documented in Ansible, but in Linux any password
           # beginning with either of these characters should suffice

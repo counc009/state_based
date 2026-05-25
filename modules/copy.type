@@ -66,11 +66,11 @@ module ansible.builtin.copy aka copy -> copy_result {
 
     if exists fs(src, loc) {
       let group = provided group ? group
-                : env().is_root  ? fs(src, loc).owner_group
-                                 : env().active_group;
+                : is_root        ? fs(src, loc).owner_group
+                                 : active_group;
       let owner = provided owner ? owner
-                : env().is_root  ? fs(src, loc).owner
-                                 : env().active_user;
+                : is_root        ? fs(src, loc).owner
+                                 : active_user;
 
       if ends_with_dir(dest) {
         # If src is a file, add it's base name, if it's a directory we copy
@@ -180,8 +180,8 @@ module ansible.builtin.copy aka copy -> copy_result {
                  ? fs(dst, file_system::remote).mode
                : mode_of_umask(env().umask);
       fs(dst, file_system::remote).fs_type = file_type::file(content);
-      fs(dst, file_system::remote).owner_group = provided group ? group : env().active_group;
-      fs(dst, file_system::remote).owner = provided owner ? owner : env().active_user;
+      fs(dst, file_system::remote).owner_group = provided group ? group : active_group;
+      fs(dst, file_system::remote).owner = provided owner ? owner : active_user;
       fs(dst, file_system::remote).mode = mode;
       return copy_result { failed: false, changed: true };
     }

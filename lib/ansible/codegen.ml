@@ -36,13 +36,17 @@ let rec typ_of_itype (t : Semant.itype) : Target.typ =
   | List t -> Named (List (typ_of_itype t))
   | Struct ts -> Struct (StringMap.map typ_of_itype ts)
 
+let local_attr (attr : string) (ty : Target.typ) : Target.attr =
+  OnElement (("#local", Primitive Unit), Literal (Unit ()),
+    AttrAccess (attr, ty))
+
+let local_qual (attr : string) (ty : Target.typ) (v : Target.expr) : Target.qual =
+  Element (("#local", Primitive Unit), Literal (Unit ()),
+    Some (Attribute ((attr, ty), v)))
+
 let env_attr (attr : string) (ty : Target.typ) : Target.attr =
   OnElement (("env", Primitive Unit), Literal (Unit ()),
     AttrAccess (attr, ty))
-
-let env_qual (attr : string) (ty : Target.typ) (v : Target.expr) : Target.qual =
-  Element (("env", Primitive Unit), Literal (Unit ()),
-    Some (Attribute ((attr, ty), v)))
 
 let rec seq (ts : Target.stmt list) : Target.stmt =
   match ts with
@@ -489,7 +493,7 @@ let codegen_value (v : Typed.value) (env : play_env)
             let tmp = new_tmp ()
             in let^ cont = k (Target.Variable tmp, Primitive String)
             in Ok (Target.Seq (
-                    Get (tmp, env_attr "active_user" (Primitive String)),
+                    Get (tmp, local_attr "active_user" (Primitive String)),
                     cont))
         | UserID, _ ->
             Error (Printf.sprintf "Codegen Error: UserID Fact cannot have type %s"
@@ -498,7 +502,7 @@ let codegen_value (v : Typed.value) (env : play_env)
             let tmp = new_tmp ()
             in let^ cont = k (Target.Variable tmp, Primitive String)
             in Ok (Target.Seq (
-                    Get (tmp, env_attr "active_group" (Primitive String)),
+                    Get (tmp, local_attr "active_group" (Primitive String)),
                     cont))
         | GroupID, _ ->
             Error (Printf.sprintf "Codegen Error: GroupID Fact cannot have type %s"
@@ -715,24 +719,17 @@ let codegen_become (become : bool) (become_user : string) (body : Target.stmt)
   (ctx : Context.context) : Target.stmt =
   if not become then body
   (* Become means we should attempt to escalate to be become_user (we also
-   * set is_root based on this) and then after the body we undo the
-   * escalation. NOTE: It would actually be great to have local state to use
-   * here; because we don't have that and have to perform resets we use a
-   * try-catch-finally so that we can put the reset in the finally *)
+   * set is_root based on this). We localize so that these changes do not
+   * impact the rest of the code (since the task/play only escalates for
+   * itself). *)
   else
-    (* Archive env().active_user/active_group/is_root (to tmps)
-     * Assert can_escalate(env().active_user)
-     * Set env().active_user/active_group/is_root based on become_user
-     * body
-     * Reset env().active_user/active_group/is_root (from tmps) *)
+    (* assert can_become(env().active_user)
+     * Set active_user/active_group/is_root based on become_user
+     * body *)
     let old_user = named_tmp "user"
-    in let old_group = named_tmp "group"
-    in let old_root = named_tmp "root"
-    in seq [
-      (* Stash current user/group *)
-      Get (old_user, env_attr "active_user" (Primitive String));
-      Get (old_group, env_attr "active_group" (Primitive String));
-      Get (old_root, env_attr "is_root" (Primitive Bool));
+    in Target.Localize (("#local", Primitive Unit), Literal (Unit ()),
+    seq [
+      Get (old_user, local_attr "active_user" (Primitive String));
 
       (* Assert that we can escalate *)
       Cond (Function (CanBecome,
@@ -741,22 +738,16 @@ let codegen_become (become : bool) (become_user : string) (body : Target.stmt)
         Context.fatal "failed to become user" ctx.excepts);
 
       (* Update user/group *)
-      Add (env_qual "active_user" (Primitive String)
+      Add (local_qual "active_user" (Primitive String)
             (Literal (String become_user)));
-      Add (env_qual "active_group" (Primitive String)
+      Add (local_qual "active_group" (Primitive String)
             (Literal (String become_user)));
-      Add (env_qual "is_root" (Primitive Bool)
+      Add (local_qual "is_root" (Primitive Bool)
             (Literal (Bool (become_user = "root"))));
 
       (* Body *)
-      TryCatch (body, "@except", Raise (Variable "@except"),
-        (* Reset user/group *)
-        seq [
-          Add (env_qual "active_user" (Primitive String) (Variable old_user));
-          Add (env_qual "active_group" (Primitive String) (Variable old_group));
-          Add (env_qual "is_root" (Primitive Bool) (Variable old_root))
-        ])
-    ]
+      body
+    ])
 
 let rec codegen_task (t : Typed.task) (extra_notify : Target.expr list)
   (env : play_env) (ctx : Context.context) : (Target.stmt, string) result =
@@ -953,36 +944,36 @@ let codegen_play (p : Typed.play) (ctx : Context.context)
   in let body = seq [
     (* Finally, we handle details of what user the play runs as
      * (i.e., remote_user, is_root, become, become_user) *)
-    Target.Add (env_qual "active_user" (Primitive String)
+    Target.Add (local_qual "active_user" (Primitive String)
                   (Literal (String p.remote_user)));
     begin match p.is_root with
     | None -> Target.Pass
-    | Some is_root -> Target.Add (env_qual "is_root" (Primitive Bool)
+    | Some is_root -> Target.Add (local_qual "is_root" (Primitive Bool)
                                     (Literal (Bool is_root)))
     end;
     codegen_become p.become p.become_user
       (seq [ var_setup; pre_tasks; tasks; post_tasks ]) ctx ]
   (* Lastly, we will wrap the play body with a condition that checks if the
    * host is actually run by the current play *)
-  in Ok (seq [
+  in Ok (Target.Localize (("#local", Primitive Unit), Literal (Unit ()),
+  seq [
     Target.Get ("@hostname", env_attr "hostname" (Primitive String));
     Cond (
       Function (HostIncluded,
         Pair (Variable "@hostname", Literal (String p.hosts))),
       body,
-      Pass) ])
+      Pass)
+  ]))
 
 let codegen_playbook (p : Typed.playbook) (ctx : Context.context)
   : (Target.stmt, string) result =
   (* The preamble to Ansible programs sets up the environment appropriately, in
    * particular:
-   * - ensure env() exists
    * - ensure env().time_counter is 0
    * - ensure env().last_reboot  is -1
    *)
   let^ preamble : Target.stmt =
     Modules.Codegen.codegen_stmts [
-      AssertExists (FuncExp (Id "env", []));
       Assert (BinaryExp (Field (FuncExp (Id "env", []), "time_counter"),
                          IntLit 0, Eq));
       Assert (BinaryExp (Field (FuncExp (Id "env", []), "last_reboot"),
