@@ -55,15 +55,18 @@ type module_info =
 
 type type_env = typ UniqueMap.t
 
-type env_entry = Attribute of string * typ
-               | Element of string * typ
-               | Uninterpreted of string * typ list * typ
-               (* Function has its argument type and then return type *)
-               | Function of string * Target.typ * typ * Target.stmt placeholder
-               | Module of module_info
-               (* Environment is used to create a multi-level environment to
-                * handle fully qualified names *)
-               | Environment of global_env
+type env_entry =
+  (* Attributes and Elements have whether they are local and then their name
+   * and type *)
+  | Attribute of bool * string * typ
+  | Element of bool * string * typ
+  | Uninterpreted of string * typ list * typ
+  (* Function has its argument type and then return type *)
+  | Function of string * Target.typ * typ * Target.stmt placeholder
+  | Module of module_info
+  (* Environment is used to create a multi-level environment to handle fully
+   * qualified names *)
+  | Environment of global_env
 and global_env = env_entry UniqueMap.t
 
 type except_env = typ UniqueMap.t
@@ -652,6 +655,12 @@ let rec qual_to_attr (q : Target.qual) : (Target.attr, string) result =
       in Ok (OnElement (elem, e, attr) : Target.attr)
   | NotElement (_, _) -> Error "Not an attribute"
 
+let local_attr (a : Target.attr) : Target.attr =
+  OnElement (("#local", Primitive Unit), Literal (Unit ()), a)
+
+let local_qual (q : Target.qual) : Target.qual =
+  Element (("#local", Primitive Unit), Literal (Unit ()), Some q)
+
 (* Utilities for generating certain statements *)
 
 (* For exceptions, we have a special function we use to construct exception
@@ -756,12 +765,30 @@ type p_elem = {
   as_attr : Target.attr -> Target.attr
 }
 
-let p_elem_top (el : Target.element) (ex : Target.expr) : p_elem =
+let p_elem_top (is_local : bool) (el : Target.element) (ex : Target.expr)
+  : p_elem =
   { as_elem = (fun o ->
-      match o with None   -> Element (el, ex)
-                 | Some e -> OnElement (el, ex, e))
-  ; as_qual = (fun o -> Element (el, ex, o))
-  ; as_attr = (fun o -> OnElement (el, ex, o)) }
+      match o with
+      | None   ->
+          if is_local
+          then OnElement (("#local", Primitive Unit), Literal (Unit ()),
+                  Element (el, ex))
+          else Element (el, ex)
+      | Some e ->
+          if is_local
+          then OnElement (("#local", Primitive Unit), Literal (Unit ()),
+                OnElement (el, ex, e))
+          else OnElement (el, ex, e))
+  ; as_qual = (fun o ->
+      if is_local
+      then Element (("#local", Primitive Unit), Literal (Unit ()),
+            Some (Element (el, ex, o)))
+      else Element (el, ex, o))
+  ; as_attr = (fun o ->
+      if is_local
+      then OnElement (("#local", Primitive Unit), Literal (Unit ()),
+            OnElement (el, ex, o))
+      else OnElement (el, ex, o)) }
 
 let p_elem_add (q : p_elem) (el : Target.element) (ex : Target.expr) : p_elem =
   { as_elem = (fun o ->
@@ -811,10 +838,12 @@ let process_expr (e : Ast.expr) (types : type_env) (globals : global_env)
         | None ->
             (* If it's not a local, it could be a top-level attribute *)
             match UniqueMap.find nm globals with
-            | Some (Attribute (nm, typ)) ->
+            | Some (Attribute (is_local, nm, typ)) ->
                 let^ attr =
                   Result.bind (lower_type typ) (fun t -> Ok (nm, t))
-                in k (Attr (AttrAccess attr, snd attr))
+                in if is_local
+                then k (Attr (local_attr (AttrAccess attr), snd attr))
+                else k (Attr (AttrAccess attr, snd attr))
             | _ -> Error ("Variable " ^ nm ^ " is undefined")
         end
     | BoolLit   v -> k (Expr (Literal (Bool v), Primitive Bool))
@@ -905,7 +934,7 @@ let process_expr (e : Ast.expr) (types : type_env) (globals : global_env)
         begin match func with
         | Field (q, nm) ->
             begin match UniqueMap.find nm globals with
-            | Some (Element (nm, tys)) ->
+            | Some (Element (_, nm, tys)) ->
                 let^ elem = Result.bind (lower_type tys) (fun t -> Ok (nm, t))
                 in process q locals is_mod (fun q ->
                   match q with
@@ -921,13 +950,13 @@ let process_expr (e : Ast.expr) (types : type_env) (globals : global_env)
             end
         | Id nm ->
             begin match UniqueMap.find nm globals with
-            | Some (Element (nm, tys)) ->
+            | Some (Element (is_local, nm, tys)) ->
                 let^ elem = Result.bind (lower_type tys) (fun t -> Ok (nm, t))
                 in process (ProductExp args) locals is_mod (fun a ->
                     as_expr a (fun (e, t) ->
                       if t <> snd elem
                       then Error ("Incorrect type for element " ^ nm)
-                      else k (Elem (p_elem_top elem e))))
+                      else k (Elem (p_elem_top is_local elem e))))
             | Some (Uninterpreted (nm, in_tys, out_typ)) ->
                 let^ in_ty = lower_type (Product in_tys)
                 in let^ out_ty = lower_type out_typ
@@ -1009,7 +1038,7 @@ let process_expr (e : Ast.expr) (types : type_env) (globals : global_env)
           | Elem elem ->
               (* We must be accessing an attribute *)
               begin match UniqueMap.find field globals with
-              | Some (Attribute (nm, typ)) ->
+              | Some (Attribute (_, nm, typ)) ->
                   let^ attr = 
                     Result.bind (lower_type typ) (fun t -> Ok (nm, t))
                   in k (Attr (elem.as_attr (AttrAccess attr), snd attr))
@@ -1385,22 +1414,32 @@ let codegen_assignment (lhs : Ast.expr) (types : type_env)
             Error ("Variable " ^ nm ^ " may not be provided")
         | None ->
             match UniqueMap.find nm globals with
-            | Some (Attribute (nm, typ)) ->
+            | Some (Attribute (is_local, nm, typ)) ->
                 let^ attr = Result.bind (lower_type typ) (fun t -> Ok (nm, t))
                 in Ok (LVal (snd attr,
                     fun e ->
                       match e with
-                      | Either.Left e -> Ok (Target.Add (Attribute (attr, e)))
+                      | Either.Left e ->
+                          if is_local
+                          then
+                            Ok (Target.Add (local_qual (Attribute (attr, e))))
+                          else Ok (Target.Add (Attribute (attr, e)))
                       | Either.Right f ->
                           let tmp = temp_name ()
-                          in Ok (Target.Seq (
-                              Target.Get (tmp, AttrAccess attr),
-                              Target.Add (Attribute (attr, f (Variable tmp)))))))
+                          in if is_local
+                          then Ok (Target.Seq (
+                            Target.Get (tmp, local_attr (AttrAccess attr)),
+                            Target.Add 
+                              (local_qual (Attribute (attr, f (Variable tmp))))
+                          ))
+                          else Ok (Target.Seq (
+                            Target.Get (tmp, AttrAccess attr),
+                            Target.Add (Attribute (attr, f (Variable tmp)))))))
             | _ -> Error ("Variable " ^ nm ^ " is undefined")
         end
     | FuncExp (Id elem, args) ->
         begin match UniqueMap.find elem globals with
-        | Some (Element (nm, typ)) ->
+        | Some (Element (is_local, nm, typ)) ->
             let^ elem = Result.bind (lower_type typ) (fun t -> Ok (nm, t))
             in Ok (Elem (fun q ->
                 let attr = ref (Error "Unable to determine attribute")
@@ -1410,7 +1449,10 @@ let codegen_assignment (lhs : Ast.expr) (types : type_env)
                       if t <> snd elem
                       then Error ("Incorrect type for element " ^ nm)
                       else
-                        let qual : Target.qual = Element (elem, e, Some q)
+                        let qual : Target.qual =
+                          if is_local
+                          then local_qual (Element (elem, e, Some q))
+                          else Element (elem, e, Some q)
                         in attr := qual_to_attr qual
                          ; Ok (Target.Add qual))
                 in Result.bind (!attr) (fun attr -> Ok (assign, attr))))
@@ -1425,7 +1467,7 @@ let codegen_assignment (lhs : Ast.expr) (types : type_env)
         end
     | FuncExp (Field (lhs, elem), args) ->
         begin match UniqueMap.find elem globals with
-        | Some (Element (nm, typ)) ->
+        | Some (Element (_, nm, typ)) ->
             let^ elem = Result.bind (lower_type typ) (fun t -> Ok (nm, t))
             in let^ lhs = process_lval lhs
             in begin match lhs with
@@ -1451,7 +1493,7 @@ let codegen_assignment (lhs : Ast.expr) (types : type_env)
         in begin match lhs with
         | Elem lhs -> (* We must be accessing an attribute *)
             begin match UniqueMap.find field globals with
-            | Some (Attribute (nm, typ)) ->
+            | Some (Attribute (_, nm, typ)) ->
                 let^ attr = Result.bind (lower_type typ) (fun t -> Ok (nm, t))
                 in Ok (LVal (snd attr,
                     fun e ->
@@ -1821,6 +1863,11 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
             if not finally_reach || (not body_reach && not catch_reach)
             then None
             else Some (locals, is_mod))
+    | Localize body ->
+        let^ (body, body_reach) = codegen_stmts body locals yield is_mod
+        in Ok (Target.Localize 
+                (("#local", Primitive Unit), Literal (Unit ()), body),
+               if body_reach then Some (locals, is_mod) else None)
 
   (* The returned bool indicates whether control can continue after this list *)
   and codegen_stmts (s : Ast.stmt list) (locals : local_env)
@@ -1915,12 +1962,12 @@ let codegen (parsed : Ast.topLevel list list) : (context, string) result =
         let^ in_tys = map_res (fun t -> process_type t types) in_tys
         in let^ out_typ = process_type out_ty types
         in UniqueMap.add nm (Uninterpreted (nm, in_tys, out_typ)) globals
-    | Attribute (nm, ty) ->
+    | Attribute (is_local, nm, ty) ->
         Result.bind (process_type ty types) (fun typ ->
-          UniqueMap.add nm (Attribute (nm, typ)) globals)
-    | Element (nm, ty) ->
+          UniqueMap.add nm (Attribute (is_local, nm, typ)) globals)
+    | Element (is_local, nm, ty) ->
         Result.bind (process_type ty types) (fun typ ->
-          UniqueMap.add nm (Element (nm, typ)) globals)
+          UniqueMap.add nm (Element (is_local, nm, typ)) globals)
     | Exception (nm, ty) ->
         Result.bind (process_type ty types) (fun typ ->
           UniqueMap.add nm typ excepts)

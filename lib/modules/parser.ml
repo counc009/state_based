@@ -674,6 +674,11 @@ let stmt =
       *> option [] finallyStmt
       >>| fun finally -> TryCatch (body, catch, finally)
 
+    in let localizeStmt =
+      string "localize" *> whitespace
+      *> brackets stmts
+      >>| fun body -> Localize body
+
     in let exprStmt =
       expr stmts <* whitespace <* char ';'
         >>| fun exp -> LetStmt ("_", exp)
@@ -685,6 +690,7 @@ let stmt =
     ; ifStmts
     ; matchStmt
     ; tryCatchStmt
+    ; localizeStmt
     ; letStmt
     ; (string "assert" *> whitespace1
       *> keywordStmt "exists" (fun e -> AssertExists e))
@@ -789,23 +795,28 @@ let uninterp_def =
   *> typ
   >>| fun res -> Uninterp (nm, args, res)
 
-let attr_def =
+let attr_def is_local =
   string "attribute"
   *> whitespace1
   *> identifier
   >>= fun nm ->
   whitespace
   *> parens ptype
-  >>| fun t -> Attribute (nm, t)
+  >>| fun t -> Attribute (is_local, nm, t)
 
-let elem_def =
+let elem_def is_local =
   string "element"
   *> whitespace1
   *> identifier
   >>= fun nm ->
   whitespace
   *> parens ptype
-  >>| fun t -> Element (nm, t)
+  >>| fun t -> Element (is_local, nm, t)
+
+let local_def =
+  string "local"
+  *> whitespace1
+  *> choice [ attr_def true; elem_def true ]
 
 let except_def =
   string "exception"
@@ -858,8 +869,9 @@ let top_level =
       ; struct_def
       ; type_def
       ; uninterp_def
-      ; attr_def
-      ; elem_def
+      ; attr_def false
+      ; elem_def false
+      ; local_def
       ; except_def
       ; func_def
       ; mod_def

@@ -206,3 +206,11 @@ function exampleM(x : taz) -> int {
   }
   return 2;
 }
+
+local element fd(int)
+local attribute count(int)
+
+function exampleN(f : int) {
+  fd(f).count = fd(f).count + 1;
+  count = count + f;
+}

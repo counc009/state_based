@@ -46,13 +46,17 @@ and  stmt = VarDecls     of bool * (string * string list * typ * expr option) li
           | Raise        of string * expr (* Exception name and argument *)
           | Assign       of expr * expr
           | LetStmt      of string * expr
+          | Localize     of stmt list
 
 type topLevel = Enum      of string * (string * typ list option) list
               | Struct    of string * (string * typ) list
               | Type      of string * typ
               | Uninterp  of string * typ list * typ
-              | Attribute of string * typ
-              | Element   of string * typ
+              (* For attributes and elements we record whether they are local,
+               * their name, and the type (of the value and argument,
+               * respectively) *)
+              | Attribute of bool * string * typ
+              | Element   of bool * string * typ
               | Exception of string * typ
               | Function  of string * (string * typ) list * typ option * stmt list
               (* Name, aliases, return type, body *)
