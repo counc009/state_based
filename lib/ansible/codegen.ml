@@ -969,19 +969,29 @@ let codegen_playbook (p : Typed.playbook) (ctx : Context.context)
   : (Target.stmt, string) result =
   (* The preamble to Ansible programs sets up the environment appropriately, in
    * particular:
-   * - ensure env().time_counter is 0
-   * - ensure env().last_reboot  is -1
+   * - ensure that the local element exists in the initial state
+   * - ensure env().time_counter is 0 in the initial state
+   * - ensure env().last_reboot  is -1 in the initial state
    *)
-  let^ preamble : Target.stmt =
-    Modules.Codegen.codegen_stmts [
-      Assert (BinaryExp (Field (FuncExp (Id "env", []), "time_counter"),
-                         IntLit 0, Eq));
-      Assert (BinaryExp (Field (FuncExp (Id "env", []), "last_reboot"),
-                         IntLit (-1), Eq))
-    ]
-    ctx.types ctx.globals ctx.excepts Modules.Codegen.empty_local_env
-    (Primitive Unit) None None (Ok Pass)
-
+  let preamble : Target.stmt =
+    seq [
+      Contains (Element (("#local", Primitive Unit), Literal (Unit ())),
+        Pass,
+        Context.fatal "assertion failed" ctx.excepts);
+      Get ("@time_counter",
+        OnElement (("env", Primitive Unit), Literal (Unit ()),
+          AttrAccess (("time_counter", Primitive Int))));
+      Cond (Function (Equal (Primitive Int),
+              Pair (Variable "@time_counter", Literal (Int 0))),
+        Pass,
+        Context.fatal "assertion failed" ctx.excepts);
+      Get ("@last_reboot",
+        OnElement (("env", Primitive Unit), Literal (Unit ()),
+          AttrAccess (("last_reboot", Primitive Int))));
+      Cond (Function (Equal (Primitive Int),
+              Pair (Variable "@last_reboot", Literal (Int (-1)))),
+        Pass,
+        Context.fatal "assertion failed" ctx.excepts) ]
   in let^ s =
     List.fold_right (fun play rest ->
       let^ rest = rest

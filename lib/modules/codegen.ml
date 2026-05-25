@@ -2051,8 +2051,17 @@ let codegen (parsed : Ast.topLevel list list) : (context, string) result =
 (* Code-gen entry for an individual program given an existing context *)
 let codegen_program (body : Ast.stmt list) (c : context)
   : (Target.stmt, string) result =
-  codegen_stmts body c.types c.globals c.excepts empty_local_env
-    (Primitive Unit) None None (Ok (Return (Literal (Unit ()))))
+  let^ res =
+    codegen_stmts body c.types c.globals c.excepts empty_local_env
+      (Primitive Unit) None None (Ok (Return (Literal (Unit ()))))
+  (* We insert a requirement that #local() exist since this is an element
+   * used by our compilation process and not having it exist can be a problem
+   * if we write a local before reading any. *)
+  in Ok (Target.Seq (
+      Contains (Element (("#local", Primitive Unit), Literal (Unit ())),
+        Pass,
+        fatal "assertion failed" c.excepts),
+      res))
 
 let find_module_def (name : string list) (ctx : context) : module_info option =
   let rec helper name entry =
