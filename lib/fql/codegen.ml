@@ -432,8 +432,8 @@ let codegen_act (a: Ast.act) env
   (* NOTE: We should add options for key-type and probably other fields *)
   | CreateSshKey { loc } ->
       Result.bind (codegen_path loc env) (fun (map, path, sys) ->
-        Ok (Target.LetStmt ("time", GenUnknown Int)
-        :: Target.LetStmt ("comment", GenUnknown String)
+        Ok (Target.LetStmt ("time", GenExistential Int)
+        :: Target.LetStmt ("comment", GenExistential String)
         :: Assign (Field (fs path sys, "fs_type"),
             EnumExp (Id "file_type", None, "file",
               [ FuncExp (Id "ssh_private_key",
@@ -747,7 +747,7 @@ let codegen_act (a: Ast.act) env
                       :: Clear (fs (Id "f") src_sys)
                       :: desc) :: [], map))))
   | Reboot -> Ok (
-    Target.LetStmt ("time", GenUnknown Int)
+    Target.LetStmt ("time", GenExistential Int)
     :: Assert (BinaryExp (IntLit 0, Id "time", Le))
     :: Assign (Field (FuncExp (Id "env", []), "last_reboot"), Id "time")
     :: [], env)
@@ -919,6 +919,6 @@ let codegen_query (q: Ast.query)
       ) env.users setup
     in let bind_unknowns =
       StringMap.fold (fun v t c ->
-        Target.LetStmt ("?" ^ v, GenUnknown t) :: c
+        Target.LetStmt ("?" ^ v, GenExistential t) :: c
       ) env.unknowns assert_users
     in Ok bind_unknowns)
