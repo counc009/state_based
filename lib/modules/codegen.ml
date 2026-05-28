@@ -852,9 +852,12 @@ let process_expr (e : Ast.expr) (types : type_env) (globals : global_env)
     | StringLit v -> k (Expr (Literal (String v), Primitive String))
     | PathLit   v -> k (Expr (Literal (Path v), Primitive Path))
     | UnitExp     -> k (Expr (Literal (Unit ()), Primitive Unit))
-    | GenUnknown t ->
+    | GenUniversal t ->
         let^ ty = lower_ast_typ t types
-        in k (Expr (Function (GenUnknown ty, Literal (Unit ())), ty))
+        in k (Expr (Function (GenUniversal ty, Literal (Unit ())), ty))
+    | GenExistential t ->
+        let^ ty = lower_ast_typ t types
+        in k (Expr (Function (GenExistential ty, Literal (Unit ())), ty))
     | ProductExp es ->
         begin match es with
         | [] -> k (Expr (Literal (Unit ()), Primitive Unit))

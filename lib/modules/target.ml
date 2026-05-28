@@ -12,19 +12,20 @@ type 't prims   = Unit | Bool | Int | Float | String | Path | StringSet
 type 't constr  = List of 't | Option of 't
                 (* For all other enums we store the name of the enum and the
                  * name of each constructor *)
-                | Cases of string * (string * 't) list2
-type 't func    = Proj          of bool * 't * 't   (* true = 1, false = 2 *)
-                | Constructor   of bool * 't constr (* true = L, false = R *)
-                | EmptyStruct   of 't StringMap.t
-                | AddField      of 't StringMap.t * string
-                | ReadField     of 't StringMap.t * string
-                | GenUnknown    of 't
+                | Cases          of string * (string * 't) list2
+type 't func    = Proj           of bool * 't * 't   (* true = 1, false = 2 *)
+                | Constructor    of bool * 't constr (* true = L, false = R *)
+                | EmptyStruct    of 't StringMap.t
+                | AddField       of 't StringMap.t * string
+                | ReadField      of 't StringMap.t * string
+                | GenUniversal   of 't
+                | GenExistential of 't
                 | BoolNeg
                 | BoolOr
                 | BoolAnd
                 | Concat
-                | Equal         of 't
-                | Append        of 't (* Type of list elements *)
+                | Equal          of 't
+                | Append         of 't (* Type of list elements *)
                 | AddInt
                 | AddFloat
                 | SubInt
@@ -261,8 +262,10 @@ module rec Ast_Target : Ast_Defs
                                        | None -> Err ("Missing field " ^ f)
                                        end
                                     | _ -> Stuck)
-    | GenUnknown t -> (Primitive Unit, t,
-                       fun _ -> Reduced (Unknown (Val (uid ()), t)))
+    | GenUniversal t -> (Primitive Unit, t,
+                          fun _ -> Reduced (Unknown (Universal (uid ()), t)))
+    | GenExistential t -> (Primitive Unit, t,
+                          fun _ -> Reduced (Unknown (Existential (uid ()), t)))
     | BoolNeg -> (Primitive Bool, Primitive Bool,
         fun v -> match v with Literal (Bool b, _)
                     -> Reduced (Literal (Bool (not b), Bool))
@@ -652,14 +655,15 @@ let rec string_of_type (t : Ast_Target.typ) : string =
 
 let rec string_of_value (v : Ast_Target.value) : string =
   match v with
-  | Unknown (Loop x, _)   -> "?loop(" ^ string_of_int x ^ ")"
-  | Unknown (Val x, _)    -> "?" ^ string_of_int x
-  | Literal (Unit (), _)  -> "()"
-  | Literal (Bool b, _)   -> string_of_bool b
-  | Literal (Int i, _)    -> string_of_int i
-  | Literal (Float f, _)  -> string_of_float f
-  | Literal (String s, _) -> "\"" ^ s ^ "\""
-  | Literal (Path p, _)   -> "'" ^ p ^ "'"
+  | Unknown (Loop x, _)         -> "?loop(" ^ string_of_int x ^ ")"
+  | Unknown (Universal x, _)    -> "∀" ^ string_of_int x
+  | Unknown (Existential x, _)  -> "∃" ^ string_of_int x
+  | Literal (Unit (), _)        -> "()"
+  | Literal (Bool b, _)         -> string_of_bool b
+  | Literal (Int i, _)          -> string_of_int i
+  | Literal (Float f, _)        -> string_of_float f
+  | Literal (String s, _)       -> "\"" ^ s ^ "\""
+  | Literal (Path p, _)         -> "'" ^ p ^ "'"
   | Literal (StringSet s, _) -> "{" ^ String.concat ", " (StringSet.elements s) ^ "}"
   | Literal (Except (_, e, v), _) -> e ^ "(" ^ string_of_value v ^ ")"
   | Pair    (x, y, _)     ->
@@ -729,7 +733,8 @@ let rec string_of_value (v : Ast_Target.value) : string =
       | EmptyStruct _             -> "{ }"
       | AddField (_, f)           -> "set." ^ f ^ "(" ^ string_of_value arg ^ ")"
       | ReadField (_, f)          -> "get." ^ f ^ "(" ^ string_of_value arg ^ ")"
-      | GenUnknown _              -> "??"
+      | GenUniversal _            -> "?∀"
+      | GenExistential _          -> "?∃"
       | Constructor (w, _)        ->
           (if w then "L" else "R") ^ "(" ^ string_of_value arg ^ ")"
       | GenExcept (_, e)          -> "except_" ^ e ^ "(" ^ string_of_value arg ^ ")"
@@ -784,7 +789,8 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | EmptyStruct _             -> "{}"
         | AddField (_, field)       -> "add#" ^ field
         | ReadField (_, field)      -> "get#" ^ field
-        | GenUnknown _              -> "?"
+        | GenUniversal _            -> "?∀"
+        | GenExistential _          -> "?∃"
         | BoolNeg                   -> "not"
         | BoolOr                    -> "or"
         | BoolAnd                   -> "and"
@@ -977,12 +983,60 @@ let string_of_interp_state (state : TargetInterp.interp_state) : string =
       (List.map (fun (v, (b, w)) -> string_of_constructor_constraint v b w)
         (TargetInterp.ValueMap.to_list state.constrs)))
 
-let rec string_of_res (res : TargetInterp.interp_res) : (string, string) result =
-  match res with
+let string_of_res (res : TargetInterp.interp_res) : (string, string) result =
+  let rec string_of_res (res : TargetInterp.interp_res) (indent : int)
+    (is_all : bool) : (string, string) result =
+    let prefix =
+      String.make indent '\t'
+      ^ match indent mod 3 with
+      | 0 -> "- "
+      | 1 -> "+ "
+      | _ -> "* "
+    in match res with
+    | Err msg -> Error msg
+    | Success s -> Ok (prefix ^ string_of_interp_state s)
+    | Both (x, y) ->
+        let new_indent = if is_all then indent else indent + 1
+        in begin match
+          string_of_res x new_indent true, string_of_res y new_indent true
+        with
+        | Ok x, Ok y ->
+            if is_all
+            then Ok (x ^ "\n" ^ y)
+            else Ok (prefix ^ "ALL\n" ^ x ^ "\n" ^ y)
+        | Error _, Ok r | Ok r, Error _ ->
+            if is_all
+            then Ok r
+            else Ok (prefix ^ "ALL\n" ^ r)
+        | Error x, Error y -> Error (x ^ "\n" ^ y)
+        end
+    | Either (x, y) ->
+        let new_indent = if is_all then indent + 1 else indent
+        in begin match
+          string_of_res x new_indent false, string_of_res y new_indent false
+        with
+        | Ok x, Ok y ->
+            if is_all
+            then Ok (prefix ^ "SOME\n" ^ x ^ "\n" ^ y)
+            else Ok (x ^ "\n" ^ y)
+        | Error _, Ok r | Ok r, Error _ ->
+            if is_all
+            then Ok (prefix ^ "SOME\n" ^ r)
+            else Ok r
+        | Error x, Error y -> Error (x ^ "\n" ^ y)
+        end
+  in match res with
   | Err msg -> Error msg
   | Success s -> Ok (string_of_interp_state s)
   | Both (x, y) ->
-      match string_of_res x, string_of_res y with
-      | Ok x, Ok y -> Ok (x ^ "\n" ^ y)
-      | Error _, Ok r | Ok r, Error _ -> Ok r
+      begin match string_of_res x 0 true, string_of_res y 0 true with
+      | Ok x, Ok y -> Ok ("ALL\n" ^ x ^ "\n" ^ y)
+      | Error _, Ok r | Ok r, Error _ -> Ok ("ALL\n" ^ r)
       | Error x, Error y -> Error (x ^ "\n" ^ y)
+      end
+  | Either (x, y) ->
+      begin match string_of_res x 0 false, string_of_res y 0 false with
+      | Ok x, Ok y -> Ok ("SOME\n" ^ x ^ "\n" ^ y)
+      | Error _, Ok r | Ok r, Error _ -> Ok ("SOME\n" ^ r)
+      | Error x, Error y -> Error (x ^ "\n" ^ y)
+      end
