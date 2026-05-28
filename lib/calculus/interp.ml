@@ -141,6 +141,14 @@ module Interp(Ast : Ast.Ast_Defs) = struct
     | Err     of string
     | Success of interp_state
     | Both    of interp_res * interp_res
+    | Either  of interp_res * interp_res
+
+  (* Create an unknown value given whether it is existential or universal and
+   * its type *)
+  let unknown_value (is_ex : bool) (ty : typ) : value =
+    Unknown (
+      (if is_ex then Existential (uid ()) else Universal (uid ())),
+      ty)
 
   (* Add the second state to the first state *)
   let rec add_states (State (el, at)) (State (em, ar)) : state =
@@ -211,35 +219,36 @@ module Interp(Ast : Ast.Ast_Defs) = struct
 
   let get_attribute (a : attr) (s : interp_state) (env : env)
     : (value * interp_state, string) result =
-    let rec attr_to_state (a : attr) : (value * state, string) result =
+    let rec attr_to_state (a : attr) (is_final : bool)
+      : (value * state, string) result =
       match a with
       | AttrAccess a ->
-          let v : value = Unknown (Val (uid ()), attributeDef a)
+          let v : value = unknown_value is_final (attributeDef a)
           in Ok (v, add_qual (Attribute (a, v)) empty_state)
       | OnElement (el, ex, at) ->
           Result.bind (eval_expr ex env) (fun (v, _) ->
-            Result.bind (attr_to_state at) (fun (atv, s) ->
+            Result.bind (attr_to_state at is_final) (fun (atv, s) ->
               Ok (atv, add_qual (Element (el, v, s)) empty_state)))
-    in let rec find_in_state (a : attr) (State (els, ats))
+    in let rec find_in_state (a : attr) (State (els, ats)) (is_final : bool)
       : ((value, state) find, string) result =
       match a with
       | AttrAccess a ->
           begin match AttributeMap.find_opt a ats with
           | Some v -> Ok (Located v)
           | None ->
-              let v : value = Unknown (Val (uid ()), attributeDef a)
+              let v : value = unknown_value is_final (attributeDef a)
               in Ok (Added (v, State (els, AttributeMap.add a v ats)))
           end
       | OnElement (el, ex, at) ->
           Result.bind (eval_expr ex env) (fun (v, _) ->
             match ElementMap.find_opt (el, v) els with
             | None ->
-                Result.bind (attr_to_state at) (fun (res, nested) ->
+                Result.bind (attr_to_state at is_final) (fun (res, nested) ->
                   Ok (Created (res,
                     State (ElementMap.add (el, v) (Positive nested) els, ats))))
             | Some Negated -> Ok NotContained
             | Some (Positive s) ->
-                match find_in_state at s with
+                match find_in_state at s is_final with
                 | Error msg -> Error msg
                 | Ok NotContained -> Ok NotContained
                 | Ok (Located v) -> Ok (Located v)
@@ -249,7 +258,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                 | Ok (Created (res, st)) ->
                     let new_els = ElementMap.add (el, v) (Positive st) els
                     in Ok (Created (res, State (new_els, ats))))
-    in match find_in_state a s.final with
+    in match find_in_state a s.final true with
     | Error msg -> Error msg
     (* NotContained means that one of the elements the attribute is on was
      * negated in the final state, meaning this attribute does not have a value *)
@@ -259,7 +268,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
         (* We prefer to add a value for an attribute on the initial state
          * rather than the final state since that gives us a source of the
          * value *)
-        begin match find_in_state a s.init with
+        begin match find_in_state a s.init false with
         | Ok (Located v) -> Ok (v, s)
         | Ok (Added (v, new_init)) ->
             Ok (v, { init = new_init; final = s.final; loops = s.loops;
@@ -276,7 +285,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
     (* We cannot create elements in the final state but we can try the initial
      * state *)
     | Ok (Created (_, _)) ->
-        begin match find_in_state a s.init with
+        begin match find_in_state a s.init false with
         | Ok (Located v) -> Ok (v, s)
         | Ok NotContained -> Error "Attribute does not exist"
         | Ok (Added (v, new_init)) | Ok (Created (v, new_init)) ->
@@ -393,10 +402,36 @@ module Interp(Ast : Ast.Ast_Defs) = struct
             Ok (change_final (fun (State (els, ats)) ->
               State (ElementMap.add (el, v) b els, ats))))
 
+  (* Checks whether a value contains any Universal unknowns, this is important
+   * for interpreting matches and conditionals over unevaluated values *)
+  let rec contains_universal (v : value) : bool =
+    match v with
+    | Unknown (Universal _, _) -> true
+    (* We treat loop variables like existentials since they represent multiple
+     * values at once *)
+    | Unknown (Loop _, _) -> true
+    | Unknown (Existential _, _) -> false
+    | Literal (_, _) -> false
+    | Function (_, v, _) -> contains_universal v
+    | Pair (x, y, _) -> contains_universal x || contains_universal y
+    | Constructor (_, _, v) -> contains_universal v
+    | Struct (_, r) -> FieldMap.exists (fun _ -> contains_universal) r
+    (* TODO: I think this is correct for similar reasons to loop variables,
+     * additionally an expression like length({ ... }) has an arbitrary value
+     * based on the list that its derived from *)
+    | ListVal (_, _) -> true
+
   let replace_loopvar_value (v : value) (uid : uid) : value =
     let rec helper (v : value) : value =
       match v with
-      | Unknown (Loop x, elemTy) when x = uid -> Unknown (Val x, elemTy)
+      (* TODO: Should this be a Universal or an Existential?
+       * I think it really depends on the list that is being looped over, if it
+       * contains a Universal variable then it should probably be Universal
+       * because it can take any value depending on that other Universal value.
+       * However, if the list does not contain a Universal then I think
+       * Existential is correct since it just represents some particular value
+       *)
+      | Unknown (Loop x, elemTy) when x = uid -> Unknown (Universal x, elemTy)
       | Function (f, v, t) -> Function (f, helper v, t)
       | Pair (x, y, t) -> Pair (helper x, helper y, t)
       | Constructor (n, b, v) -> Constructor (n, b, helper v)
@@ -504,7 +539,8 @@ module Interp(Ast : Ast.Ast_Defs) = struct
           in let new_loop =
             match loop, u with
             | AllUnknown i, Loop j when i = j -> Ok (AllKnown v)
-            | AllUnknown i, Val j when i = j -> Ok (LastKnown (i, v))
+            | AllUnknown i, (Universal j | Existential j) when i = j ->
+                Ok (LastKnown (i, v))
             | AllUnknown _, _ -> Ok loop
             | AllKnown w, _ ->
                 Result.bind (subst_in_value w) (fun w -> Ok (AllKnown w))
@@ -778,7 +814,8 @@ module Interp(Ast : Ast.Ast_Defs) = struct
               | Some true  -> interpret thn s env cont yield ret raise
               | Some false -> interpret els s env cont yield ret raise
               | None ->
-                  let true_res =
+                  let is_either = not (contains_universal v)
+                  in let true_res =
                     addConstraint v (IsBool true) s env
                       (fun s env ->
                         Ok (interpret thn s env cont yield ret raise))
@@ -794,7 +831,10 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                    * constraint fails, meaning it is inconsistent. If only one
                    * fails we can safely ignore it *)
                   in match true_res, false_res with
-                  | Ok true_res, Ok false_res -> Both (true_res, false_res)
+                  | Ok true_res, Ok false_res ->
+                      if is_either
+                      then Either (true_res, false_res)
+                      else Both (true_res, false_res)
                   | Ok res, Error _ | Error _, Ok res -> res
                   | Error m, Error n -> Err (m ^ "\n" ^ n)
         end
@@ -812,9 +852,10 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                           cont yield ret raise
                 (* The value cannot be evaluated sufficiently so try both *)
                 | _ ->
-                    let (type_left, type_right) = namedTyDef n
-                    in let val_left = Unknown (Val (uid ()), type_left)
-                    in let val_right = Unknown (Val (uid ()), type_right)
+                    let is_exist = not (contains_universal v)
+                    in let (type_left, type_right) = namedTyDef n
+                    in let val_left = unknown_value is_exist type_left
+                    in let val_right = unknown_value is_exist type_right
                     in let env_left =
                       VariableMap.add var (val_left, type_left) env
                     in let env_right =
@@ -832,7 +873,10 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                           Ok (interpret right s env cont yield ret raise))
                         (fun x y -> Both (x, y))
                     in match left_res, right_res with
-                    | Ok left_res, Ok right_res -> Both (left_res, right_res)
+                    | Ok left_res, Ok right_res ->
+                        if is_exist
+                        then Either (left_res, right_res)
+                        else Both (left_res, right_res)
                     | Ok res, Error _ | Error _, Ok res -> res
                     | Error m, Error n -> Err (m ^ "\n" ^ n)
                 end

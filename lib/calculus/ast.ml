@@ -2,7 +2,12 @@ let uid_count = ref 0
 let uid () = let x = !uid_count in uid_count := x + 1 ; x
 
 type uid = int
-type id = Loop of int | Val of int
+(* Unknown values are one of three things: loop variables, indicating they are
+ * all elements of some unevaluated list; universal variables, indicating they
+ * can take any value (derived from the initial state); or existential
+ * variables, indicating they just represent some particular
+ * unknown/unspecified value *)
+type id = Loop of int | Universal of int | Existential of int
 
 type 'a eval = Reduced of 'a
              | Stuck

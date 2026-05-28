@@ -172,7 +172,8 @@ module CalcInterp = Calculus.Interp.Interp(Calc)
 let rec string_of_value (v : Calc.value) : string =
   match v with
   | Unknown (Loop x, _)   -> "?loop(" ^ string_of_int x ^ ")"
-  | Unknown (Val x, _)    -> "?" ^ string_of_int x
+  | Unknown (Universal x, _)    -> "∀" ^ string_of_int x
+  | Unknown (Existential x, _)    -> "∃" ^ string_of_int x
   | Literal (String s, _) -> "\"" ^ s ^ "\""
   | Literal (Path p, _)   -> "'" ^ p ^ "'"
   | Literal (Bool b, _)   -> string_of_bool b
@@ -258,10 +259,17 @@ let rec string_of_interp_res (res : CalcInterp.interp_res)
   | Err msg -> Error msg
   | Success s -> Ok (string_of_interp_state s)
   | Both (x, y) ->
-      match string_of_interp_res x, string_of_interp_res y with
+      begin match string_of_interp_res x, string_of_interp_res y with
       | Ok x, Ok y -> Ok (x ^ "\n" ^ y)
       | Ok r, Error _ | Error _, Ok r -> Ok r
       | Error x, Error y -> Error (x ^ "\n" ^ y)
+      end
+  | Either (x, y) ->
+      begin match string_of_interp_res x, string_of_interp_res y with
+      | Ok x, Ok y -> Ok (Printf.sprintf "[\n%s\n\n%s\n]" x y)
+      | Ok r, Error _ | Error _, Ok r -> Ok r
+      | Error x, Error y -> Error (x ^ "\n" ^ y)
+      end
 
 let rec seq (s : Calc.stmt list) : Calc.stmt =
   match s with
@@ -362,6 +370,23 @@ let test4 : Calc.stmt =
     Raise (Literal (String "fd(0) does not exist"))
   )
 
+let test5 : Calc.stmt =
+  Seq (
+    Contains (Element (File, Literal (Path "/path/to/file")),
+      Get ("v", OnElement (File, Literal (Path "/path/to/file"),
+                  AttrAccess Count)),
+      Seq (
+        Add (Element (File, Literal (Path "/path/to/file"), None)),
+        Get ("v", OnElement (File, Literal (Path "/path/to/file"),
+                    AttrAccess Count))
+      )
+    ),
+    Cond (Function (IsZero, Variable "v"),
+      Add (Element (Fd, Literal (Int 1), None)),
+      Add (Element (Fd, Literal (Int 2), None))
+    )
+  )
+
 let interp (p : Calc.stmt) : CalcInterp.interp_res =
   CalcInterp.interpret p CalcInterp.init_interp_state Calc.VariableMap.empty
     (fun s _ -> Success s)
@@ -372,5 +397,6 @@ let interp (p : Calc.stmt) : CalcInterp.interp_res =
     (* Raise converts the value into an Err *)
     (fun _ _ (v, _) -> Err (string_of_value v))
 
-let res1 = string_of_interp_res (interp full1)
-let res2 = string_of_interp_res (interp full2)
+let test (p : Calc.stmt) : unit =
+  match string_of_interp_res (interp p) with
+  | Ok s | Error s -> Printf.printf "\n%s\n" s
