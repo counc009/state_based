@@ -166,22 +166,17 @@ let codegen_file_info (fs : Target.expr) (owner : ParseTree.value option)
   in let^ (config_group, env) =
     match group with
     | None -> Ok (config_mode, env)
-    | Some (Str g) -> Ok (
-          Assign (Field (fs, "owner_group"), StringLit g) :: config_mode,
-          env)
-    | Some (Unknown v) ->
-        let^ env = add_unknown env v Target.String
-        in Ok (Target.Assign (Field (fs, "owner_group"), Id ("?" ^ v))
-                :: config_mode,
-                env)
+    | Some g ->
+        let^ (group, env) =
+          codegen_value g Target.String env (fun s -> StringLit s)
+        in Ok (Target.Assign (Field (fs, "owner_group"), group) 
+                :: config_mode, env)
   in match owner with
   | None -> Ok (config_group, env)
-  | Some (Str u) ->
-      Ok (Assign (Field (fs, "owner"), StringLit u) :: config_group, env)
-  | Some (Unknown v) ->
-      let^ env = add_unknown env v Target.String
-      in Ok (Target.Assign (Field (fs, "owner"), Id ("?" ^ v)) :: config_group,
-              env)
+  | Some u ->
+      let^ (user, env) =
+        codegen_value u Target.String env (fun s -> StringLit s)
+      in Ok (Target.Assign (Field (fs, "owner"), user) :: config_group, env)
 
 let codegen_file_desc (fs : Target.expr) (p : Ast.file_desc) (env : env)
   : (Target.stmt list * env, string) result =
@@ -287,19 +282,15 @@ let codegen_condition (c: Ast.cond) (thn : Target.stmt list)
          * environment since that changes how we check whether it is installed *)
         | System | Apt | Dnf | Pip None ->
             Ok ([Target.FuncExp (Id "e_package", [StringLit name])], env)
-        | Pip (Some (Str path)) ->
-            let virtenv =
-              Target.FuncExp (Id "virtual_environment", [PathLit path])
-            in Ok ([ virtenv;
-                     FuncExp (Field (virtenv, "e_package"), [StringLit name]) ],
-                     env)
-        | Pip (Some (Unknown v)) ->
-            let virtenv =
-              Target.FuncExp (Id "virtual_environment", [Id v])
-            in let^ env = add_unknown env v Target.Path
-            in Ok ([ virtenv;
-                    FuncExp (Field (virtenv, "e_package"), [StringLit name]) ],
-                    env)
+        | Pip (Some p) ->
+            let^ (path, env) =
+              codegen_value p Target.Path env (fun s -> PathLit s)
+            in let virtenv =
+              Target.FuncExp (Id "virtual_environment", [path])
+            in Ok ([ 
+                  virtenv;
+                  FuncExp (Field (virtenv, "e_package"), [StringLit name]) ],
+                env)
       in begin match conds with
       | [] ->
           failwith "INTERNAL ERROR: No condition to check package installed"
@@ -326,10 +317,8 @@ let codegen_act (a : Ast.act) (env : env)
       in let^ (version, env) =
         match version with
         | None -> Ok (Target.StringLit "HEAD", env)
-        | Some (Str s) -> Ok (Target.StringLit s, env)
-        | Some (Unknown v) -> 
-            Result.bind (add_unknown env v Target.String)
-              (fun map -> Ok (Target.Id ("?" ^ v), map))
+        | Some v ->
+            codegen_value v Target.String env (fun s -> Target.StringLit s)
       in let files =
         Target.FuncExp (Id "git_files",
           [Id "^repo"; version; StringLit "origin"])
@@ -661,11 +650,7 @@ let codegen_act (a : Ast.act) (env : env)
                    pkg, env)
         | Pip (Some p) ->
             let^ (path, env) =
-              match p with
-              | Str s -> Ok (Target.PathLit s, env)
-              | Unknown v ->
-                  let^ env = add_unknown env v Target.Path
-                  in Ok (Target.Id v, env)
+              codegen_value p Target.Path env (fun s -> PathLit s)
             in let virtenv =
               Target.FuncExp (Id "virtual_environment", [path])
             in let pkg =
@@ -752,11 +737,7 @@ let codegen_act (a : Ast.act) (env : env)
    * assert about the result *)
   | SetEnvVar { name; value } ->
       let^ (value, env) =
-        match value with
-        | Str s -> Ok (Target.StringLit s, env)
-        | Unknown v ->
-            let^ env = add_unknown env v Target.String
-            in Ok (Target.Id ("?" ^ v), env)
+        codegen_value value Target.String env (fun s -> StringLit s)
       in let path = Target.PathLit "/etc/environment"
       in let sys = Target.EnumExp (Id "file_system", None, "remote", [])
       in let regex = Target.StringLit ("^" ^ name ^ "=")
@@ -821,11 +802,7 @@ let codegen_act (a : Ast.act) (env : env)
               env)
       | Pip (Some p) ->
           let^ (path, env) =
-            match p with
-            | Str s -> Ok (Target.PathLit s, env)
-            | Unknown v ->
-                let^ env = add_unknown env v Target.Path
-                in Ok (Target.Id v, env)
+            codegen_value p Target.Path env (fun s -> Target.PathLit s)
           in let virtenv = Target.FuncExp (Id "virtual_environment", [path])
           in let pkg =
             Target.FuncExp (Field (virtenv, "e_package"), [StringLit name])
@@ -835,12 +812,9 @@ let codegen_act (a : Ast.act) (env : env)
       let^ (path, sys, env) = codegen_path dest.path env
       in let^ (config, env) = codegen_file_desc (fs path sys) dest env
       in let^ (str, env) =
-        match str with
-        | Str s -> Ok (Target.StringLit (s ^ "\\n"), env)
-        | Unknown v ->
-            let^ env = add_unknown env v Target.String
-            in Ok (Target.BinaryExp (Id ("?" ^ v), StringLit "\\n", Concat),
-                    env)
+        let^ (str, env) =
+          codegen_value str Target.String env (fun s -> Target.StringLit s)
+        in Ok (Target.BinaryExp (str, StringLit "\\n", Concat), env)
       in begin match position with
       | Overwrite -> Ok (
         Target.Assign (Field (fs path sys, "fs_type"),
