@@ -815,26 +815,25 @@ module Interp(Ast : Ast.Ast_Defs) = struct
               | Some false -> interpret els s env cont yield ret raise
               | None ->
                   let is_either = not (contains_universal v)
+                  in let merge =
+                    if is_either
+                    then (fun x y -> Either (x, y))
+                    else (fun x y -> Both (x, y))
                   in let true_res =
                     addConstraint v (IsBool true) s env
                       (fun s env ->
                         Ok (interpret thn s env cont yield ret raise))
-                      (* If this is an existential condition, then use Either
-                       * here instead of Both *)
-                      (fun x y -> Both (x, y))
+                      merge
                   in let false_res =
                     addConstraint v (IsBool false) s env
                       (fun s env ->
                         Ok (interpret els s env cont yield ret raise))
-                      (fun x y -> Both (x, y))
+                      merge
                   (* true_res and false_res can be Error iff adding the
                    * constraint fails, meaning it is inconsistent. If only one
                    * fails we can safely ignore it *)
                   in match true_res, false_res with
-                  | Ok true_res, Ok false_res ->
-                      if is_either
-                      then Either (true_res, false_res)
-                      else Both (true_res, false_res)
+                  | Ok true_res, Ok false_res -> merge true_res false_res
                   | Ok res, Error _ | Error _, Ok res -> res
                   | Error m, Error n -> Err (m ^ "\n" ^ n)
         end
@@ -853,6 +852,10 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                 (* The value cannot be evaluated sufficiently so try both *)
                 | _ ->
                     let is_exist = not (contains_universal v)
+                    in let merge =
+                      if is_exist
+                      then (fun x y -> Either (x, y))
+                      else (fun x y -> Both (x, y))
                     in let (type_left, type_right) = namedTyDef n
                     in let val_left = unknown_value is_exist type_left
                     in let val_right = unknown_value is_exist type_right
@@ -865,18 +868,15 @@ module Interp(Ast : Ast.Ast_Defs) = struct
                         s env_left
                         (fun s env ->
                           Ok (interpret left s env cont yield ret raise))
-                        (fun x y -> Both (x, y))
+                        merge
                     in let right_res =
                       addConstraint v (IsConstructor (false, val_right))
                         s env_right
                         (fun s env ->
                           Ok (interpret right s env cont yield ret raise))
-                        (fun x y -> Both (x, y))
+                        merge
                     in match left_res, right_res with
-                    | Ok left_res, Ok right_res ->
-                        if is_exist
-                        then Either (left_res, right_res)
-                        else Both (left_res, right_res)
+                    | Ok left_res, Ok right_res -> merge left_res right_res
                     | Ok res, Error _ | Error _, Ok res -> res
                     | Error m, Error n -> Err (m ^ "\n" ^ n)
                 end
