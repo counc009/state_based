@@ -3,10 +3,10 @@ module Calc = Target.Ast_Target
 
 let ( let^ ) r f = Result.bind r f
 
-let test (p : string) =
+let test_ast (p : Ast.stmt list) =
   let^ parsed = Parser.parse_files ["../../examples/examples.mdl"]
   in let^ context = Codegen.codegen parsed
-  in let^ s = Codegen.codegen_program (Parser.parse_stmts_string p) context
+  in let^ s = Codegen.codegen_program p context
   in let b =
     Interp.interpret s Interp.init_interp_state Calc.VariableMap.empty
       (* continue -- should not continune, should always return [for now] *)
@@ -25,6 +25,8 @@ let test (p : string) =
   in match Target.string_of_res b with
   | Error msg -> Ok (Printf.printf "\nInterpretation Failed:\n%s\n\n" msg)
   | Ok msg -> Ok (Printf.printf "\nInterpretation Succeeded:\n%s\n\n" msg)
+
+let test (p : string) = test_ast (Parser.parse_stmts_string p)
 
 let debug (p : string) =
   let^ parsed = Parser.parse_files ["../../examples/examples.mdl"]

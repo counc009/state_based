@@ -12,7 +12,12 @@ type pattern = string * typ option * string * string list
 type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
           | StringLit of string | PathLit of string | UnitExp
           | GenUniversal of typ
-          | GenExistential of typ
+          (* With an existential we can specify an expression that the value
+           * must satisfy to enforce properties about the value (i.e., to
+           * represent that it may have one of a number of possible values but
+           * is not an arbitrary value). The function takes in the variable
+           * name and returns the expression. *)
+          | GenExistential of typ * (string -> expr)
           | ProductExp of expr list
           | RecordExp of expr * (string * expr) list
           | FieldSetExp of expr * string * expr

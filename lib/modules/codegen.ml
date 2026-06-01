@@ -1,4 +1,5 @@
 let ( let^ ) r f = Result.bind r f
+let ( let$ ) r f = r f
 
 type 'a list2 = 'a Target.list2
 
@@ -855,9 +856,25 @@ let process_expr (e : Ast.expr) (types : type_env) (globals : global_env)
     | GenUniversal t ->
         let^ ty = lower_ast_typ t types
         in k (Expr (Function (GenUniversal ty, Literal (Unit ())), ty))
-    | GenExistential t ->
+    | GenExistential (t, pred) ->
         let^ ty = lower_ast_typ t types
-        in k (Expr (Function (GenExistential ty, Literal (Unit ())), ty))
+        in let tmp = temp_name ()
+        in let$ pred =
+          process (pred tmp)
+            (StringMap.add tmp (LocalVar (tmp, ty)) locals) is_mod
+        in let$ (cond, t) = as_expr pred
+        in if t <> Primitive Bool
+        then Error "Condition on GenExistential must be a boolean value"
+        else
+          let^ res_k = k (Expr (Variable tmp, ty))
+          (* The code we generate is
+           * <tmp> = GetExistential[ty]()
+           * if <cond> { <k tmp> }
+           * else { <fatal> } *)
+          in Ok (Target.Seq (
+            Assign (tmp, Function (GenExistential ty, Literal (Unit ()))),
+            Cond (cond, res_k,
+              fatal "assertion failed: existential" excepts)))
     | ProductExp es ->
         begin match es with
         | [] -> k (Expr (Literal (Unit ()), Primitive Unit))
