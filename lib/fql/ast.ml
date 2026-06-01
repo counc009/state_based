@@ -1,5 +1,7 @@
 module Target = Modules.Ast
 
+(* TODO: Need to make these support multiple values as well, for instance bash
+ * can be found at /usr/bin/bash or /bin/bash *)
 type dest = Value of ParseTree.value | InHome of string * ParseTree.value
 type path = Remote of dest | Controller of dest
 
@@ -11,6 +13,9 @@ type ansible_os = Debian | Ubuntu | RedHat | DebianFamily | RedHatFamily
 (* For pip we optionally specify a virtual environment to install in *)
 type package_manager = System | Apt | Dnf | Pip of ParseTree.value option
 
+(* TODO: I want to make this a list of names and package managers. Actually
+ * updating the KB, though, requires access to a RedHat system to see what
+ * package names work *)
 type pkg = { name: string; pkg_manager: package_manager }
 
 type cond = CheckOs         of ansible_os
