@@ -9,7 +9,7 @@
 open Knowledge
 open Utils
 
-module Semant(Knowledge: Knowledge_Base) = struct
+module Semant(K: KB) = struct
   let analyze_path (p: ParseTree.vals) : (Ast.path, string) result =
     match p with
     | [s] | [Str "remote"; s] -> Ok (Remote (Value s))
@@ -146,7 +146,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
             in let (last, rest) = list_last desc
             in match last with
             | Str "file" ->
-                Result.bind (Knowledge.fileDef ctx rest args) (fun p ->
+                Result.bind (K.fileDef ctx rest args) (fun p ->
                   if args_empty args
                   then
                     Result.bind (analyze_base ctx t) (fun t ->
@@ -156,7 +156,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
                     Error (Printf.sprintf "Unhandled arguments in exists: %s"
                                           (args_to_string args)))
             | Str "directory" ->
-                Result.bind (Knowledge.dirDef ctx rest args) (fun p ->
+                Result.bind (K.dirDef ctx rest args) (fun p ->
                   if args_empty args
                   then
                     Result.bind (analyze_base ctx t) (fun t ->
@@ -170,7 +170,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
         end
     | Required (desc, args) ->
         let args = make_args args
-        in Result.bind (Knowledge.requirementDef ctx desc args) (fun c ->
+        in Result.bind (K.requirementDef ctx desc args) (fun c ->
             if args_empty args
             then
               Result.bind (analyze_base ctx t) (fun t ->
@@ -181,7 +181,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
                                     (args_to_string args)))
     | Installed (desc, args) ->
         let args = make_args args
-        in Result.bind (Knowledge.pkgDef ctx desc args) (fun pkg ->
+        in Result.bind (K.pkgDef ctx desc args) (fun pkg ->
           if args_empty args
           then
             Result.bind (analyze_base ctx t) (fun t ->
@@ -192,7 +192,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
                                   (args_to_string args)))
     | Running (desc, args) ->
         let args = make_args args
-        in Result.bind (Knowledge.serviceDef ctx desc args) (fun nm ->
+        in Result.bind (K.serviceDef ctx desc args) (fun nm ->
           if args_empty args
           then
             Result.bind (analyze_base ctx t) (fun t ->
@@ -210,7 +210,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
     | Clone vs ->
         let (last, rest) = list_last vs
         in if last = Str "repository"
-        then Result.bind (Knowledge.gitRepoDef ctx rest args) (fun repo ->
+        then Result.bind (K.gitRepoDef ctx rest args) (fun repo ->
           match extract_arg args "into" with
           | None -> Error "Clone requires 'into' argument with target directory"
           | Some p -> Result.bind (analyze_path p) (fun p ->
@@ -233,9 +233,9 @@ module Semant(Knowledge: Knowledge_Base) = struct
         | Str ("file" as ty) | Str ("directory" as ty) ->
             let (def, codegen) =
               if ty = "file"
-              then (Knowledge.fileDef,
+              then (K.fileDef,
                     fun src dst -> Ast.CopyFile { src = src; dest = dst })
-              else (Knowledge.dirDef,
+              else (K.dirDef,
                     fun src dst -> Ast.CopyDir { src = src; dest = dst })
             in let src =
               match extract_arg args "from" with
@@ -264,7 +264,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
         | Str "files" ->
             let src =
               match extract_arg args "from" with
-              | None -> rest_consumed := true; Knowledge.filesDef ctx rest args
+              | None -> rest_consumed := true; K.filesDef ctx rest args
               | Some p -> Result.bind (analyze_path p) (fun p ->
                   match extract_arg args "glob" with
                   | None -> Ok (Ast.InPath p)
@@ -278,7 +278,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
               | Some p -> Result.map (fun p -> Ast.InPath p) (analyze_path p)
               | None -> if !rest_consumed
                   then Error "For copy, expected at least one of 'to' and 'from'"
-                  else (rest_consumed := true; Knowledge.filesDef ctx rest args)
+                  else (rest_consumed := true; K.filesDef ctx rest args)
             in if not !rest_consumed && not (List.is_empty rest)
             then Error (Printf.sprintf "Copy description not used: %s"
                                        (ParseTree.unparse_vals rest))
@@ -307,7 +307,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
                   else Error (Printf.sprintf
                         "For create, argument 'at' should not be mixed with file description '%s'"
                         (ParseTree.unparse_vals rest))
-              | None -> Knowledge.fileDef ctx rest args
+              | None -> K.fileDef ctx rest args
             in let contents =
               match extract_arg args "content" with
               | None -> Ok None
@@ -335,7 +335,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
                   else Error (Printf.sprintf
                         "For create, argument 'at' should not be mixed with directory description '%s'"
                         (ParseTree.unparse_vals rest))
-              | None -> Knowledge.dirDef ctx rest args
+              | None -> K.dirDef ctx rest args
             in Result.bind path (fun path ->
                 Result.bind (extract_file_info args) (fun file_info ->
                   if args_empty args
@@ -489,7 +489,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
             let path =
               match extract_arg args "at" with
               | Some p -> analyze_path p
-              | None -> Knowledge.fileDef ctx rest args
+              | None -> K.fileDef ctx rest args
             in Result.bind path (fun path ->
               if args_empty args
               then Ok (Ast.DeleteFile { loc = path })
@@ -500,7 +500,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
             let path =
               match extract_arg args "at" with
               | Some p -> analyze_path p
-              | None -> Knowledge.dirDef ctx rest args
+              | None -> K.dirDef ctx rest args
             in Result.bind path (fun path ->
               if args_empty args
               then Ok (Ast.DeleteDir { loc = path })
@@ -510,7 +510,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
         | Str "files" ->
             let path =
               match extract_arg args "in" with
-              | None -> Knowledge.filesDef ctx rest args
+              | None -> K.filesDef ctx rest args
               | Some p -> Result.bind (analyze_path p) (fun p ->
                   match extract_arg args "glob" with
                   | None -> Ok (Ast.InPath p)
@@ -631,7 +631,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
         | Str "file" ->
             let path =
               match extract_arg args "to" with
-              | None -> Knowledge.fileDef ctx rest args
+              | None -> K.fileDef ctx rest args
               | Some p ->
                   match rest with
                   | [] -> analyze_path p
@@ -712,7 +712,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
                       "Expected a single string as package version, found: %s"
                       (ParseTree.unparse_vals vs))
         in Result.bind version (fun version ->
-            Result.bind (Knowledge.pkgDef ctx vs args) (fun pkg ->
+            Result.bind (K.pkgDef ctx vs args) (fun pkg ->
               if args_empty args
               then Ok (Ast.InstallPkg { pkg = pkg; version = version })
               else Error (Printf.sprintf "Unhandled arguments for install: %s"
@@ -724,9 +724,9 @@ module Semant(Knowledge: Knowledge_Base) = struct
         | Str ("file" as ty) | Str ("directory" as ty) ->
             let (def, codegen) =
               if ty = "file"
-              then (Knowledge.fileDef,
+              then (K.fileDef,
                     fun src dst -> Ast.MoveFile { src = src; dest = dst })
-              else (Knowledge.dirDef,
+              else (K.dirDef,
                     fun src dst -> Ast.MoveDir { src = src; dest = dst })
             in let src =
               match extract_arg args "from" with
@@ -755,7 +755,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
         | Str "files" ->
             let src =
               match extract_arg args "from" with
-              | None -> rest_consumed := true; Knowledge.filesDef ctx rest args
+              | None -> rest_consumed := true; K.filesDef ctx rest args
               | Some p -> Result.bind (analyze_path p) (fun p ->
                   match extract_arg args "glob" with
                   | None -> Ok (Ast.InPath p)
@@ -769,7 +769,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
               | Some p -> Result.map (fun p -> Ast.InPath p) (analyze_path p)
               | None -> if !rest_consumed
                   then Error "For copy, expected at least one of 'to' and 'from'"
-                  else (rest_consumed := true; Knowledge.filesDef ctx rest args)
+                  else (rest_consumed := true; K.filesDef ctx rest args)
             in if not !rest_consumed && not (List.is_empty rest)
             then Error (Printf.sprintf "Move description not used: %s"
                                        (ParseTree.unparse_vals rest))
@@ -840,7 +840,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
             in let shell =
               match extract_arg args "to" with
               | None -> Error "Argument 'to' required to set default shell"
-              | Some s -> Knowledge.programLoc ctx s args
+              | Some s -> K.programLoc ctx s args
             in Result.bind user (fun user ->
                 Result.bind shell (fun shell ->
                   if args_empty args
@@ -854,7 +854,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
         let (last, rest) = list_last vs
         in begin match last with
         | Str "service" ->
-            Result.bind (Knowledge.serviceDef ctx rest args) (fun service ->
+            Result.bind (K.serviceDef ctx rest args) (fun service ->
               if args_empty args
               then Ok (Ast.StartService { name = service })
               else Error (Printf.sprintf "Unhandled arguments for start: %s"
@@ -866,7 +866,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
         let (last, rest) = list_last vs
         in begin match last with
         | Str "service" ->
-            Result.bind (Knowledge.serviceDef ctx rest args) (fun service ->
+            Result.bind (K.serviceDef ctx rest args) (fun service ->
               if args_empty args
               then Ok (Ast.StopService { name = service })
               else Error (Printf.sprintf "Unhandled arguments for stop: %s"
@@ -875,7 +875,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
                                      (ParseTree.unparse_vals vs))
         end
     | Uninstall vs ->
-        Result.bind (Knowledge.pkgDef ctx vs args) (fun pkg ->
+        Result.bind (K.pkgDef ctx vs args) (fun pkg ->
           if args_empty args
           then Ok (Ast.UninstallPkg { pkg = pkg })
           else Error (Printf.sprintf "Unhandled arguments for install: %s"
@@ -891,7 +891,7 @@ module Semant(Knowledge: Knowledge_Base) = struct
               | Some p ->
                   let (last, rest) = list_last p
                   in if last = Str "file"
-                  then Knowledge.fileDef ctx rest args
+                  then K.fileDef ctx rest args
                   else analyze_path p
             in let position =
               match extract_arg args "position" with

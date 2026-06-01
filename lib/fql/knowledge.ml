@@ -3,7 +3,7 @@ open Utils
 
 type gitRepoInfo = { repo: string; version: ParseTree.value option }
 
-module type Knowledge_Base = sig
+module type KB = sig
   val gitRepoDef : context -> ParseTree.vals -> args
                                              -> (gitRepoInfo, string) result
 
@@ -19,7 +19,7 @@ module type Knowledge_Base = sig
   val serviceDef : context -> ParseTree.vals -> args -> (string, string) result
 end
 
-module Example : Knowledge_Base = struct
+module Example : KB = struct
   let gitRepoDef _ctx (vs: ParseTree.vals) args =
     match vs with
     | [Str ("github" as ty)] | [Str ("git" as ty)] ->
