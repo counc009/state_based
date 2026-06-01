@@ -676,13 +676,15 @@ let codegen_act (a : Ast.act) (env : env)
       in begin match version with
         | None -> Ok (install, env)
         | Some "latest" -> Ok (
-            install @ [Target.Assign (Field (pkg, "version"), 
-              EnumExp (Id "package_version", None, "latest", []))],
+            [Target.Seq (install,
+              [Target.Assign (Field (pkg, "version"), 
+                EnumExp (Id "package_version", None, "latest", []))])],
             env)
         | Some v -> Ok (
-            install @ [Target.Assign (Field (pkg, "version"),
-              EnumExp (Id "package_version", None, "specific",
-                [StringLit v]))],
+            [Target.Seq (install,
+              [Target.Assign (Field (pkg, "version"),
+                EnumExp (Id "package_version", None, "specific",
+                  [StringLit v]))])],
             env)
       end
   | MoveDir { src; dest } ->
@@ -869,7 +871,7 @@ let codegen_query (q : Ast.query) : (Target.stmt list, string) result =
     | Seq (fst, snd) ->
         let^ (fst, env) = codegen fst env
         in let^ (snd, env) = codegen snd env
-        in Ok (fst @ snd, env)
+        in Ok ([Target.Seq (fst, snd)], env)
     | Cond (c, thn, els) ->
         let^ (thn, env) = codegen thn env
         in let^ (els, env) = codegen els env

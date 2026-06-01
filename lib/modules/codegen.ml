@@ -1888,6 +1888,11 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
         in Ok (Target.Localize 
                 (("#local", Primitive Unit), Literal (Unit ()), body),
                if body_reach then Some (locals, is_mod) else None)
+    | Seq (fst, snd) ->
+        let^ (fst, fst_reach) = codegen_stmts fst locals yield is_mod
+        in let^ (snd, snd_reach) = codegen_stmts snd locals yield is_mod
+        in Ok (Target.Seq (fst, snd),
+              if fst_reach && snd_reach then Some (locals, is_mod) else None)
 
   (* The returned bool indicates whether control can continue after this list *)
   and codegen_stmts (s : Ast.stmt list) (locals : local_env)

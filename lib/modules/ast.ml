@@ -53,6 +53,7 @@ and  stmt = VarDecls     of bool * (string * string list * typ * expr option) li
           | Assign       of expr * expr
           | LetStmt      of string * expr
           | Localize     of stmt list
+          | Seq          of stmt list * stmt list
 
 type topLevel = Enum      of string * (string * typ list option) list
               | Struct    of string * (string * typ) list
