@@ -1,3 +1,5 @@
+module Target = Modules.Ast
+
 type dest = Value of ParseTree.value | InHome of string * ParseTree.value
 type path = Remote of dest | Controller of dest
 
@@ -33,9 +35,10 @@ type account_desc = User  of string
                   | Group of string
 
 
-type act = CloneGitRepo     of { repo: string; version: ParseTree.value option;
-                                 dest: file_desc }
-
+type act = CloneGitRepo of {
+            repo: Target.expr;
+            version: ParseTree.value option;
+            dest: file_desc }
          | CopyDir          of { src: path; dest: file_desc }
          | CopyFile         of { src: path; dest: file_desc }
          | CopyFiles        of { src: paths; dest: files_desc }

@@ -332,10 +332,12 @@ let codegen_act (a: Ast.act) env
                   (fun map -> Ok (Target.Id ("?" ^ v), map))
           in Result.bind version (fun (version, v_map) ->
             let files = Target.FuncExp (Id "git_files",
-              [StringLit repo; version; StringLit "origin"])
+              [Id "^repo"; version; StringLit "origin"])
             in Result.bind (codegen_file_desc (fs dir_path sys) dest v_map)
               (fun (desc, map) ->
-                Ok (Target.Assign (
+                Ok (
+                  Target.LetStmt ("^repo", repo)
+                  :: Assign (
                   Field (fs dir_path sys, "fs_type"),
                   EnumExp (Id "file_type", None, "directory", [
                     ForEachExp ("f", files,
@@ -344,8 +346,7 @@ let codegen_act (a: Ast.act) env
                           Field(fs (Id "p") sys, "fs_type"),
                           EnumExp (Id "file_type", None, "file", [
                             FuncExp (Id "git_content",
-                              [StringLit repo; version; StringLit "origin"
-                              ; Id "f"])
+                              [Id "^repo"; version; StringLit "origin"; Id "f"])
                           ])
                         )
                       ; Yield (Id "p")])

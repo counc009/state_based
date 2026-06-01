@@ -1,7 +1,9 @@
 open Ast
 open Utils
 
-type gitRepoInfo = { repo: string; version: ParseTree.value option }
+module Target = Modules.Ast
+
+type gitRepoInfo = { repo: Target.expr; version: ParseTree.value option }
 
 module type KB = sig
   val gitRepoDef : context -> ParseTree.vals -> args
@@ -20,6 +22,15 @@ module type KB = sig
 end
 
 module Example : KB = struct
+  (* Generates an existential value of a given type that takes on one of a
+   * certain list of values *)
+  let existential_some (t : Target.typ) (vs : Target.expr list) : Target.expr =
+    let pred nm : Target.expr =
+      List.fold_left
+        (fun cond v -> Target.BinaryExp (BinaryExp (Id nm, v, Eq), cond, Or))
+        (BoolLit false) vs
+    in GenExistential (t, pred)
+
   let gitRepoDef _ctx (vs: ParseTree.vals) args =
     match vs with
     | [Str ("github" as ty)] | [Str ("git" as ty)] ->
@@ -30,11 +41,21 @@ module Example : KB = struct
             | Some [Str nm] ->
                 begin match String.split_on_char '/' nm with
                 | [org; repo] ->
+                    (* It seems tht the .git is optional for github, hence we
+                     * use an approprate GenExistential *)
                     begin match extract_arg args "via" with
-                    | Some [Str "ssh"] -> Ok (
-                        Printf.sprintf "git@github.com:%s/%s.git" org repo)
-                    | Some [Str "https"] | None -> Ok (
-                        Printf.sprintf "https://github.com/%s/%s.git" org repo)
+                    | Some [Str "ssh"] ->
+                        let repo_base =
+                          Printf.sprintf "git@github.com:%s/%s" org repo
+                        in let repo_vals : Target.expr list =
+                          [StringLit repo_base; StringLit (repo_base ^ ".git")]
+                        in Ok (existential_some String repo_vals)
+                    | Some [Str "https"] | None ->
+                        let repo_base =
+                          Printf.sprintf "https://github.com/%s/%s" org repo
+                        in let repo_vals : Target.expr list =
+                          [StringLit repo_base; StringLit (repo_base ^ ".git")]
+                        in Ok (existential_some String repo_vals)
                     | Some vs -> Error (Printf.sprintf
                       "For github repository, expectd 'ssh' or 'https' for 'via' argument, found: %s"
                       (ParseTree.unparse_vals vs))
@@ -49,7 +70,7 @@ module Example : KB = struct
                   (ParseTree.unparse_vals vs))
           else match extract_arg args "from" with
             | None -> Error "For git repository, expected 'from' argument"
-            | Some [Str nm] -> Ok nm
+            | Some [Str nm] -> Ok (StringLit nm)
             | Some vs ->
                 Error (Printf.sprintf
                   "For git repository, expected single 'from' value, found: %s"
