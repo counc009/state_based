@@ -18,7 +18,7 @@ module type KB = sig
 
   val pkgDef : context -> ParseTree.vals -> args -> (Ast.pkg, string) result
   val programLoc : context -> ParseTree.vals -> args -> (path, string) result
-  val serviceDef : context -> ParseTree.vals -> args -> (string, string) result
+  val serviceDef : context -> ParseTree.vals -> args -> (Target.expr, string) result
 end
 
 module Example : KB = struct
@@ -247,16 +247,20 @@ module Example : KB = struct
     | _ -> Error (Printf.sprintf "Unknown executable: %s"
                                  (ParseTree.unparse_vals vs))
 
-  let serviceDef ctx (vs: ParseTree.vals) _args =
+  let serviceDef ctx (vs: ParseTree.vals) _args
+    : (Target.expr, string) result =
     match vs with
-    | [Str "ssh"; Str "server"] | [Str "ssh server"] -> Ok "sshd"
+    | [Str "ssh"; Str "server"] | [Str "ssh server"] ->
+        Ok (existential_some Target.String [StringLit "sshd"; StringLit "ssh"])
     | [Str "apache"; Str "server"] | [Str "apache server"] ->
         begin match ctx.os with
         | None -> Error "cannot handle apache server service without knowing OS"
-        | Some Debian | Some Ubuntu | Some DebianFamily -> Ok "apache2"
-        | Some RedHat | Some RedHatFamily -> Ok "httpd"
+        | Some Debian | Some Ubuntu | Some DebianFamily ->
+            Ok (StringLit "apache2")
+        | Some RedHat | Some RedHatFamily ->
+            Ok (StringLit "httpd")
         end
-    | [Str "postfix"] -> Ok "postfix"
+    | [Str "postfix"] -> Ok (StringLit "postfix")
     | _ -> Error (Printf.sprintf "Unknown service: %s"
                                  (ParseTree.unparse_vals vs))
 end

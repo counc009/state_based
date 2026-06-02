@@ -315,11 +315,14 @@ let codegen_condition (c: Ast.cond) (thn : Target.stmt list)
       in let^ res = existential_cases pkg_cases
       in Ok (res, env)
   | ServiceRunning serv ->
-      let service = Target.FuncExp (Id "e_service", [StringLit serv])
-      in Ok (Target.IfExists (service,
-                [IfThenElse (Field (service, "running"), thn, els)],
-                els),
-              env)
+      let service = Target.FuncExp (Id "e_service", [Id "^serv"])
+      in Ok (
+        Target.Seq (
+          [LetStmt ("^serv", serv)],
+          [IfExists (Id "^serv",
+            [IfThenElse (Field (service, "running"), thn, els)],
+            els)]),
+        env)
 
 let codegen_act (a : Ast.act) (env : env)
   : (Target.stmt list * env, string) result =
@@ -826,11 +829,11 @@ let codegen_act (a : Ast.act) (env : env)
               :: [], env)
   | StartService { name } ->
       Ok (Target.Assign (
-          Field (FuncExp (Id "e_service", [StringLit name]), "running"),
+          Field (FuncExp (Id "e_service", [name]), "running"),
           BoolLit true) :: [], env)
   | StopService { name } ->
       Ok (Target.Assign (
-          Field (FuncExp (Id "e_service", [StringLit name]), "running"),
+          Field (FuncExp (Id "e_service", [name]), "running"),
           BoolLit false) :: [], env)
   | UninstallPkg { pkg = pkgs } ->
       let^ (pkg_cases, env) =

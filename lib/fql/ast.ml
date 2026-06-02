@@ -17,11 +17,13 @@ type package_manager = System | Apt | Dnf | Pip of ParseTree.value option
 type pkg_spec = { name: string; pkg_manager: package_manager }
 type pkg = pkg_spec list
 
+type service = Target.expr
+
 type cond = CheckOs         of ansible_os
           | FileExists      of path
           | DirExists       of path
           | PkgInstalled    of pkg
-          | ServiceRunning  of string
+          | ServiceRunning  of service
 
 type perm = { mutable owner: bool; mutable group: bool; mutable other: bool }
 type file_perms = { read: perm option; write: perm option; exec: perm option;
@@ -83,9 +85,9 @@ type act = CloneGitRepo of {
          | SetFilesPerms    of { locs: paths; perms: file_perms }
          | SetShell         of { user: string; shell: path }
 
-         | StartService     of { name: string }
+         | StartService     of { name: service }
 
-         | StopService      of { name: string }
+         | StopService      of { name: service }
 
          | UninstallPkg     of { pkg: pkg }
 
