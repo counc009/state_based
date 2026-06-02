@@ -334,13 +334,15 @@ let codegen_act (a : Ast.act) (env : env)
       in let files =
         Target.FuncExp (Id "git_files",
           [Id "^repo"; version; StringLit "origin"])
-      in let^ (config_dir, env) = codegen_file_desc (fs dir_path sys) dest env
+      in let^ (config_dir, env) =
+        codegen_file_desc (fs (Id "^dst") sys) dest env
       in Ok (
         Target.LetStmt ("^repo", repo)
-        :: Assign (Field (fs dir_path sys, "fs_type"),
+        :: LetStmt ("^dst", dir_path)
+        :: Assign (Field (fs (Id "^dst") sys, "fs_type"),
             EnumExp (Id "file_type", None, "directory", [
               ForEachExp ("f", files,
-                [ LetStmt ("p", FuncExp (Id "cons_path", [dir_path; Id "f"]))
+                [ LetStmt ("p", FuncExp (Id "cons_path", [Id "^dst"; Id "f"]))
                 ; Assign (Field (fs (Id "p") sys, "fs_type"),
                     EnumExp (Id "file_type", None, "file", [
                       FuncExp (Id "git_content",
@@ -352,23 +354,25 @@ let codegen_act (a : Ast.act) (env : env)
       let^ (src_path, src_sys, env) = codegen_path src env
       in let^ (dst_path, dst_sys, env) = codegen_path dest.path env
       in let^ (config_dst, env) = 
-        codegen_file_desc (fs dst_path dst_sys) dest env
+        codegen_file_desc (fs (Id "^dst") dst_sys) dest env
       in Ok (
-        Target.AssertExists (fs src_path src_sys)
-        :: Assert (FuncExp (Id "is_dir", [src_path; src_sys]))
+        Target.LetStmt ("^src", src_path)
+        :: LetStmt ("^dst", dst_path)
+        :: AssertExists (fs (Id "^src") src_sys)
+        :: Assert (FuncExp (Id "is_dir", [Id "^src"; src_sys]))
         :: LetStmt ("files",
             ForEachExp (
               "file",
-              FuncExp (Id "get_dir_contents", [src_path; src_sys]),
+              FuncExp (Id "get_dir_contents", [Id "^src"; src_sys]),
               [ AssertExists (fs (Id "file") src_sys)
               ; Assert (FuncExp (Id "is_file", [Id "file"; src_sys]))
               ; LetStmt ("res",
-                  FuncExp (Id "cons_path", [dst_path;
-                    FuncExp (Id "path_from", [src_path; Id "file"])]))
+                  FuncExp (Id "cons_path", [Id "^dst";
+                    FuncExp (Id "path_from", [Id "^src"; Id "file"])]))
               ; Assign (Field (fs (Id "res") dst_sys, "fs_type"),
                         Field (fs (Id "file") src_sys, "fs_type"))
               ; Yield (Id "res") ]))
-        :: Assign (Field (fs dst_path dst_sys, "fs_type"),
+        :: Assign (Field (fs (Id  "^dst") dst_sys, "fs_type"),
                    EnumExp (Id "file_type", None, "directory",
                             [Id "files"]))
         :: config_dst, env)
@@ -376,12 +380,14 @@ let codegen_act (a : Ast.act) (env : env)
       let^ (src_path, src_sys, env) = codegen_path src env
       in let^ (dst_path, dst_sys, env) = codegen_path dest.path env
       in let^ (config_dst, env) =
-        codegen_file_desc (fs dst_path dst_sys) dest env
+        codegen_file_desc (fs (Id "^dst") dst_sys) dest env
       in Ok (
-        Target.AssertExists (fs src_path src_sys)
-        :: Assert (FuncExp (Id "is_file", [src_path; src_sys]))
-        :: Assign (Field (fs dst_path dst_sys, "fs_type"),
-                   Field (fs src_path src_sys, "fs_type"))
+        Target.LetStmt ("^src", src_path)
+        :: LetStmt ("^dst", dst_path)
+        :: AssertExists (fs (Id "^src") src_sys)
+        :: Assert (FuncExp (Id "is_file", [Id "^src"; src_sys]))
+        :: Assign (Field (fs (Id "^dst") dst_sys, "fs_type"),
+                   Field (fs (Id "^src") src_sys, "fs_type"))
         :: config_dst, env)
   | CopyFiles { src; dest } ->
       let^ (src_paths, src_sys, env) = codegen_paths src env
@@ -391,14 +397,13 @@ let codegen_act (a : Ast.act) (env : env)
           let^ (dst_path, dst_sys, env) = codegen_path dst env
           in let dst_file =
             Target.FuncExp (Id "cons_path",
-              [ dst_path; FuncExp (Id "base_name", [Id "f"]) ])
+              [ Id "^dst"; FuncExp (Id "base_name", [Id "f"]) ])
           in let^ (config_dst, env) = 
             codegen_files_desc (fs dst_file dst_sys) dest env
           in Ok (
-            Target.ForLoop ("f", src_paths,
+            Target.LetStmt ("^dst", dst_path)
+            :: ForLoop ("f", src_paths,
               Assert (FuncExp (Id "is_file", [Id "f"; src_sys]))
-              (* TODO: Is this right?? It seems to be repeatedly assigning to
-               * the same destination *)
               :: Assign (Field (fs dst_file dst_sys, "fs_type"),
                   Field (fs (Id "f") src_sys, "fs_type"))
               :: config_dst
@@ -406,10 +411,11 @@ let codegen_act (a : Ast.act) (env : env)
       end
   | CreateDir { dest } ->
       let^ (path, sys, env) = codegen_path dest.path env
-      in let^ (config, env) = codegen_file_desc (fs path sys) dest env
+      in let^ (config, env) = codegen_file_desc (fs (Id "^dst") sys) dest env
       in Ok (
-        Target.Assign (
-          Field (fs path sys, "fs_type"),
+        Target.LetStmt ("^dst", path)
+        :: Assign (
+          Field (fs (Id "^dst") sys, "fs_type"),
           EnumExp (Id "file_type", None, "directory",
             [EnumExp (Id "list", Some Path, "nil", [])]))
         :: config, env)
@@ -418,10 +424,11 @@ let codegen_act (a : Ast.act) (env : env)
        * empty *)
       let content = Option.value ~default:"" content
       in let^ (path, sys, env) = codegen_path dest.path env
-      in let^ (config, env) = codegen_file_desc (fs path sys) dest env
+      in let^ (config, env) = codegen_file_desc (fs (Id "^dst") sys) dest env
       in Ok (
-        Target.Assign (
-          Field (fs path sys, "fs_type"),
+        Target.LetStmt ("^dst", path)
+        :: Assign (
+          Field (fs (Id "^dst") sys, "fs_type"),
           EnumExp (Id "file_type", None, "file",
             [StringLit content]))
         :: config, env)
@@ -432,10 +439,11 @@ let codegen_act (a : Ast.act) (env : env)
   | CreateSshKey { loc } ->
       let^ (path, sys, env) = codegen_path loc env
       in Ok (
-        Target.LetStmt ("time", GenExistential (Int, fun _ -> BoolLit true))
+        Target.LetStmt ("^dst", path)
+        :: LetStmt ("time", GenExistential (Int, fun _ -> BoolLit true))
         :: Target.LetStmt ("comment",
             GenExistential (String, fun _ -> BoolLit true))
-        :: Assign (Field (fs path sys, "fs_type"),
+        :: Assign (Field (fs (Id "^dst") sys, "fs_type"),
             EnumExp (Id "file_type", None, "file",
               [ FuncExp (Id "ssh_private_key",
                 [ StringLit "rsa"
@@ -444,8 +452,9 @@ let codegen_act (a : Ast.act) (env : env)
                 ; Id "comment"
                 ; Id "time" ]) ]))
         :: Assign (
-          Field (fs (FuncExp (Id "add_ext", [path; StringLit ".pub"])) sys, 
-                "fs_type"),
+            Field (
+              fs (FuncExp (Id "add_ext", [Id "^dst"; StringLit ".pub"])) sys, 
+              "fs_type"),
             EnumExp (Id "file_type", None, "file",
               [ FuncExp (Id "ssh_public_key",
                 [ StringLit "rsa"
@@ -491,36 +500,38 @@ let codegen_act (a : Ast.act) (env : env)
                 Field (FuncExp (Id "e_user", [StringLit user]), "homedir");
                   path ]), env)
       in let virtenv = Target.FuncExp (Id "virtual_environment", [path])
-      in let set_version =
+      in let with_version =
         match version with
-        | None -> []
+        | None -> Target.Touch virtenv
         | Some s -> 
             Target.Assign (Field (virtenv, "python_version"),
                            StringLit ("python" ^ s))
-            :: []
-      in Ok (Target.Touch virtenv :: set_version, env)
+      in Ok ([with_version], env)
   | DeleteDir { loc } ->
       let^ (path, sys, env) = codegen_path loc env
       in Ok (
-        Target.ForLoop ("f", FuncExp (Id "get_dir_contents", [path; sys]),
+        Target.LetStmt ("^dst", path)
+        :: ForLoop ("f", FuncExp (Id "get_dir_contents", [Id "^dst"; sys]),
           [Clear (fs (Id "f") sys)])
-        :: Clear (fs path sys) :: [], env)
+        :: Clear (fs (Id "^dst") sys) :: [], env)
   | DeleteFile { loc } ->
       let^ (path, sys, env) = codegen_path loc env
       in Ok (
-        Target.Assert (FuncExp (Id "is_file", [path; sys]))
-        :: Target.Clear (fs path sys) :: [], env)
+        Target.LetStmt ("^dst", path)
+        :: Assert (FuncExp (Id "is_file", [Id "^dst"; sys]))
+        :: Clear (fs (Id "^dst") sys) :: [], env)
   | DeleteFiles { loc } ->
       begin match loc with
       | InPath p ->
           let^ (p, sys, env) = codegen_path p env
           in Ok (
-            Target.ForLoop ("f", FuncExp (Id "get_dir_contents", [p; sys]),
+            Target.LetStmt ("^dst", p)
+            :: ForLoop ("f", FuncExp (Id "get_dir_contents", [Id "^dst"; sys]),
               [ Assert (FuncExp (Id "is_file", [Id "f"; sys]))
               ; Clear (fs (Id "f") sys) ])
           (* TODO: To ensure we can't just delete the directory, I have to add
            * this. Not sure how I feel about it *)
-            :: Assign (Field (fs p sys, "fs_type"),
+            :: Assign (Field (fs (Id "^dst") sys, "fs_type"),
                 EnumExp (Id "file_type", None, "directory",
                   [EnumExp (Id "list", Some Path, "nil", [])]))
             :: [], env)
@@ -583,10 +594,11 @@ let codegen_act (a : Ast.act) (env : env)
         :: [], env)
   | DownloadFile { dest; src } ->
       let^ (path, sys, env) = codegen_path dest.path env
-      in let^ (config, env) = codegen_file_desc (fs path sys) dest env
+      in let^ (config, env) = codegen_file_desc (fs (Id "^dst") sys) dest env
       in Ok (
-        Target.Assign (
-          Field (fs path sys, "fs_type"),
+        Target.LetStmt ("^dst", path)
+        :: Assign (
+          Field (fs (Id "^dst") sys, "fs_type"),
           EnumExp (Id "file_type", None, "file",
             [FuncExp (Id "download_url",
               [PathLit src;
@@ -665,12 +677,13 @@ let codegen_act (a : Ast.act) (env : env)
                 let^ (path, env) =
                   codegen_value p Target.Path env (fun s -> PathLit s)
                 in let virtenv =
-                  Target.FuncExp (Id "virtual_environment", [path])
+                  Target.FuncExp (Id "virtual_environment", [Id "^dst"])
                 in let pkg : Target.expr =
                   FuncExp (Field (virtenv, "e_package"), [StringLit name])
                 in let install =
                   Target.Touch (FuncExp (Field (pkg, "e_pip"), []))
-                in Ok (install, pkg, env)
+                in Ok (Target.Seq ([LetStmt ("^dst", path)], [install]),
+                    pkg, env)
           in let full_install =
             match version with
             | None -> install
@@ -690,38 +703,44 @@ let codegen_act (a : Ast.act) (env : env)
   | MoveDir { src; dest } ->
       let^ (src_path, src_sys, env) = codegen_path src env
       in let^ (dst_path, dst_sys, env) = codegen_path dest.path env
-      in let^ (config, env) = codegen_file_desc (fs dst_path dst_sys) dest env
+      in let^ (config, env) =
+        codegen_file_desc (fs (Id "^dst") dst_sys) dest env
       in Ok (
-        Target.AssertExists (fs src_path src_sys)
-        :: Assert (FuncExp (Id "is_dir", [src_path; src_sys]))
+        Target.LetStmt ("^src", src_path)
+        :: LetStmt ("^dst", dst_path)
+        :: AssertExists (fs (Id "^src") src_sys)
+        :: Assert (FuncExp (Id "is_dir", [Id "^src"; src_sys]))
         :: LetStmt ("files",
             ForEachExp (
               "file",
-              FuncExp (Id "get_dir_contents", [src_path; src_sys]),
+              FuncExp (Id "get_dir_contents", [Id "^src"; src_sys]),
               [ AssertExists (fs (Id "file") src_sys)
               ; Assert (FuncExp (Id "is_file", [Id "file"; src_sys]))
               ; LetStmt ("res",
-                  FuncExp (Id "cons_path", [dst_path;
-                    FuncExp (Id "path_from", [src_path; Id "file"])]))
+                  FuncExp (Id "cons_path", [Id "^dst";
+                    FuncExp (Id "path_from", [Id "^src"; Id "file"])]))
               ; Assign (Field (fs (Id "res") dst_sys, "fs_type"),
                         Field (fs (Id "file") src_sys, "fs_type"))
               ; Clear (fs (Id "file") src_sys)
               ; Yield (Id "res") ]))
-        :: Assign (Field (fs dst_path dst_sys, "fs_type"),
+        :: Assign (Field (fs (Id "^dst") dst_sys, "fs_type"),
                    EnumExp (Id "file_type", None, "directory",
                             [Id "files"]))
-        :: Clear (fs src_path src_sys)
+        :: Clear (fs (Id "^src") src_sys)
         :: config, env)
   | MoveFile { src; dest } ->
       let^ (src_path, src_sys, env) = codegen_path src env
       in let^ (dst_path, dst_sys, env) = codegen_path dest.path env
-      in let^ (config, env) = codegen_file_desc (fs dst_path dst_sys) dest env
+      in let^ (config, env) =
+        codegen_file_desc (fs (Id "^dst") dst_sys) dest env
       in Ok (
-        Target.AssertExists (fs src_path src_sys)
-        :: Assert (FuncExp (Id "is_file", [src_path; src_sys]))
-        :: Assign (Field (fs dst_path dst_sys, "fs_type"),
-                    Field (fs src_path src_sys, "fs_type"))
-        :: Clear (fs src_path src_sys)
+        Target.LetStmt ("^src", src_path)
+        :: LetStmt ("^dst", dst_path)
+        :: AssertExists (fs (Id "^src") src_sys)
+        :: Assert (FuncExp (Id "is_file", [Id "^src"; src_sys]))
+        :: Assign (Field (fs (Id "^dst") dst_sys, "fs_type"),
+                    Field (fs (Id "^src") src_sys, "fs_type"))
+        :: Clear (fs (Id "^src") src_sys)
         :: config, env)
   | MoveFiles { src; dest } ->
       let^ (src_paths, src_sys, env) = codegen_paths src env
@@ -731,11 +750,12 @@ let codegen_act (a : Ast.act) (env : env)
           let^ (dst_path, dst_sys, env) = codegen_path dst env
           in let dst_file =
             Target.FuncExp (Id "cons_path",
-              [ dst_path; FuncExp (Id "base_name", [Id "f"]) ])
+              [ Id "^dst"; FuncExp (Id "base_name", [Id "f"]) ])
           in let^ (config, env) = 
-            codegen_files_desc (fs dst_file dst_sys) dest env
+            codegen_files_desc (fs (Id "^dst") dst_sys) dest env
           in Ok (
-            Target.ForLoop ("f", src_paths,
+            Target.LetStmt ("^dst", dst_path)
+            :: ForLoop ("f", src_paths,
               Assert (FuncExp (Id "is_file", [Id "f"; src_sys]))
               :: Assign (Field (fs dst_file dst_sys, "fs_type"),
                   Field (fs (Id "f") src_sys, "fs_type"))
@@ -776,8 +796,10 @@ let codegen_act (a : Ast.act) (env : env)
         :: [], env)
   | SetFilePerms { loc; perms } ->
       let^ (path, sys, env) = codegen_path loc env
-      in Ok (Target.Assert (FuncExp (Id "is_file", [path; sys]))
-              :: codegen_file_perms (fs path sys) perms, env)
+      in Ok (
+        Target.LetStmt ("^dst", path)
+        :: Assert (FuncExp (Id "is_file", [Id "^dst"; sys]))
+        :: codegen_file_perms (fs (Id "^dst") sys) perms, env)
   | SetFilesPerms { locs; perms } ->
       let^ (paths, sys, env) = codegen_paths locs env
       in Ok (
@@ -835,31 +857,31 @@ let codegen_act (a : Ast.act) (env : env)
       in Ok ([res], env)
   | WriteFile { str; dest; position } ->
       let^ (path, sys, env) = codegen_path dest.path env
-      in let^ (config, env) = codegen_file_desc (fs path sys) dest env
+      in let^ (config, env) = codegen_file_desc (fs (Id "^dst") sys) dest env
       in let^ (str, env) =
         let^ (str, env) =
           codegen_value str Target.String env (fun s -> Target.StringLit s)
         in Ok (Target.BinaryExp (str, StringLit "\\n", Concat), env)
-      in begin match position with
-      | Overwrite -> Ok (
-        Target.Assign (Field (fs path sys, "fs_type"),
-          EnumExp (Id "file_type", None, "file", [str]))
-        :: config, env)
-      | Top -> Ok (
-        Target.LetStmt ("c",
-          FuncExp (Id "get_file_content", [path; sys]))
-        :: Target.Assign (Field (fs path sys, "fs_type"),
-          EnumExp (Id "file_type", None, "file",
-            [BinaryExp (str, Id "c", Concat)]))
-        :: config, env)
-      | Bottom -> Ok (
-        Target.LetStmt ("c",
-          FuncExp (Id "get_file_content", [path; sys]))
-        :: Target.Assign (Field (fs path sys, "fs_type"),
-          EnumExp (Id "file_type", None, "file",
-            [BinaryExp (Id "c", str, Concat)]))
-        :: config, env)
-      end
+      in let write =
+        Target.LetStmt ("^dst", path)
+        :: match position with
+        | Overwrite ->
+            Assign (Field (fs (Id "^dst") sys, "fs_type"),
+              EnumExp (Id "file_type", None, "file", [str]))
+            :: config
+        | Top ->
+            LetStmt ("c", FuncExp (Id "get_file_content", [Id "^dst"; sys]))
+            :: Assign (Field (fs (Id "^dst") sys, "fs_type"),
+                EnumExp (Id "file_type", None, "file",
+                  [BinaryExp (str, Id "c", Concat)]))
+            :: config
+        | Bottom ->
+            LetStmt ("c", FuncExp (Id "get_file_content", [Id "^dst"; sys]))
+            :: Assign (Field (fs (Id "^dst") sys, "fs_type"),
+                EnumExp (Id "file_type", None, "file",
+                  [BinaryExp (Id "c", str, Concat)]))
+            :: config
+      in Ok (write, env)
 
 let codegen_query (q : Ast.query) : (Target.stmt list, string) result =
   let rec codegen (q : Ast.query) (env : env)
