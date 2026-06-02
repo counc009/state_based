@@ -1889,10 +1889,8 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
                 (("#local", Primitive Unit), Literal (Unit ()), body),
                if body_reach then Some (locals, is_mod) else None)
     | Seq (fst, snd) ->
-        let^ (fst, fst_reach) = codegen_stmts fst locals yield is_mod
-        in let^ (snd, snd_reach) = codegen_stmts snd locals yield is_mod
-        in Ok (Target.Seq (fst, snd),
-              if fst_reach && snd_reach then Some (locals, is_mod) else None)
+        let^ (body, body_reach) = codegen_stmts_seq fst snd locals yield is_mod
+        in Ok (body, if body_reach then Some (locals, is_mod) else None)
 
   (* The returned bool indicates whether control can continue after this list *)
   and codegen_stmts (s : Ast.stmt list) (locals : local_env)
@@ -1911,6 +1909,24 @@ let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
         | Some (new_locals, new_mod) ->
             let^ (res_tl, res_reach) =
               codegen_stmts tl new_locals yield new_mod
+            in Ok (Target.Seq (res_s, res_tl), res_reach)
+
+  and codegen_stmts_seq (x : Ast.stmt list) (y : Ast.stmt list)
+    (locals : local_env) (yield : Target.typ placeholder option)
+    (is_mod : mod_info option) : (Target.stmt * bool, string) result =
+    match x with
+    | [] -> codegen_stmts y locals yield is_mod
+    | s :: tl ->
+        let^ (res_s, after) = codegen_stmt s locals yield is_mod
+        in match after with
+        | None ->
+            begin match tl, y with
+            | [], [] -> Ok (res_s, false)
+            | _, _ -> Error "Unreachable code"
+            end
+        | Some (new_locals, new_mod) ->
+            let^ (res_tl, res_reach) =
+              codegen_stmts_seq tl y new_locals yield new_mod
             in Ok (Target.Seq (res_s, res_tl), res_reach)
 
   and stmts_expr (s : Ast.stmt list) (locals : local_env)

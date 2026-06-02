@@ -53,6 +53,9 @@ and  stmt = VarDecls     of bool * (string * string list * typ * expr option) li
           | Assign       of expr * expr
           | LetStmt      of string * expr
           | Localize     of stmt list
+          (* Useful for constructing programs, Seq allows us to combine two
+           * blocks but they are in the same environment, so Seq (x, y) behaves
+           * the same as x @ y *)
           | Seq          of stmt list * stmt list
 
 type topLevel = Enum      of string * (string * typ list option) list
