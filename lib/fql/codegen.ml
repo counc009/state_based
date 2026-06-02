@@ -618,31 +618,48 @@ let codegen_act (a : Ast.act) (env : env)
         let spec = "ALL=(ALL:ALL)"
         in let cmd = if passwordless then "NOPASSWD:ALL" else "ALL"
         in user ^ "\t" ^ spec ^ " " ^ cmd
-      in let path = Target.PathLit "/etc/sudoers"
+      in let path =
+        Target.GenExistential (Target.Path, fun nm ->
+          BinaryExp (
+            BinaryExp (
+              Id nm,
+              PathLit "/etc/sudoers",
+              Eq
+            ),
+            BinaryExp (
+              Id nm,
+              FuncExp (Id "cons_path",
+                [PathLit "/etc/sudoers.d";
+                  GenExistential (Target.Path, fun _ -> BoolLit true)]),
+              Eq
+            ),
+            Or))
       in let sys = Target.EnumExp (Id "file_system", None, "remote", [])
-      in Ok (Target.LetStmt ("c", FuncExp (Id "get_file_content", [path; sys]))
-         :: Target.IfThenElse (
-              (* FIXME: in regex_matches and replace_last we should use a form
-               * of user that is a regex. As long as the name doesn't contain
-               * special regex characters, this is fine and so probably is
-               * alright for the moment *)
-              FuncExp (Id "regex_matches", [ StringLit ("^" ^ user); Id "c" ]),
-              [ LetStmt ("r",
-                  FuncExp (Id "replace_last", 
-                    [ StringLit ("^" ^ user) ; StringLit line ; Id "c" ]))
-              ; Assert (FuncExp (Id "validate_contents",
-                  [ StringLit "/usr/sbin/visudo -cf %s"; Id "r" ]))
-              ; Assign (Field (fs path sys, "fs_type"),
-                  EnumExp (Id "file_type", None, "file", [Id "r"]))
-              ],
-              [ LetStmt ("r",
-                  BinaryExp (Id "c", StringLit (line ^ "\\n"), Concat))
-              ; Assert (FuncExp (Id "validate_contents",
-                  [ StringLit "/usr/sbin/visudo -cf %s"; Id "r" ]))
-              ; Assign (Field (fs path sys, "fs_type"),
-                  EnumExp (Id "file_type", None, "file", [Id "r"]))
-              ])
-         :: [], env)
+      in Ok (
+        Target.LetStmt ("^path", path)
+        :: LetStmt ("c", FuncExp (Id "get_file_content", [Id "^path"; sys]))
+        :: Target.IfThenElse (
+            (* FIXME: in regex_matches and replace_last we should use a form
+             * of user that is a regex. As long as the name doesn't contain
+             * special regex characters, this is fine and so probably is
+             * alright for the moment *)
+            FuncExp (Id "regex_matches", [ StringLit ("^" ^ user); Id "c" ]),
+            [ LetStmt ("r",
+                FuncExp (Id "replace_last", 
+                  [ StringLit ("^" ^ user) ; StringLit line ; Id "c" ]))
+            ; Assert (FuncExp (Id "validate_contents",
+                [ StringLit "/usr/sbin/visudo -cf %s"; Id "r" ]))
+            ; Assign (Field (fs (Id "^path") sys, "fs_type"),
+                EnumExp (Id "file_type", None, "file", [Id "r"]))
+            ],
+            [ LetStmt ("r",
+                BinaryExp (Id "c", StringLit (line ^ "\\n"), Concat))
+            ; Assert (FuncExp (Id "validate_contents",
+                [ StringLit "/usr/sbin/visudo -cf %s"; Id "r" ]))
+            ; Assign (Field (fs (Id "^path") sys, "fs_type"),
+                EnumExp (Id "file_type", None, "file", [Id "r"]))
+            ])
+        :: [], env)
   | InstallPkg { pkg = pkgs; version } ->
       let^ (pkg_cases, env) =
         List.fold_left (fun acc { Ast.name; pkg_manager } ->
