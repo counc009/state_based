@@ -3,8 +3,6 @@ open Utils
 
 module Target = Modules.Ast
 
-type gitRepoInfo = { repo: Target.expr; version: ParseTree.value option }
-
 module type KB = sig
   val gitRepoDef : context -> ParseTree.vals -> args
                                              -> (gitRepoInfo, string) result
@@ -107,7 +105,12 @@ module Example : KB = struct
     | _ -> Error (Printf.sprintf "Unsupported repository type: %s"
                                  (ParseTree.unparse_vals vs))
 
-  let remote_path (s : string) : Ast.path = Remote (Value (Str s))
+  let remote_path (s : string) : Ast.path = Remote (Absolute (Parsed (Str s)))
+
+  let remote_path_options (ps : string list) : Ast.path =
+    Remote (Absolute (Target (
+      existential_some Target.Path
+        (List.map (fun s -> Target.PathLit s) ps))))
 
   let fileDef _ctx (vs: ParseTree.vals) args =
     match vs with
@@ -120,7 +123,7 @@ module Example : KB = struct
     | [Str "bash"; Str "configuration"] ->
         begin match extract_arg args "user" with
         | None -> Error "Must specify 'user' for bash configuration file"
-        | Some [Str nm] -> Ok (Remote (InHome (nm, Str ".bashrc")))
+        | Some [Str nm] -> Ok (Remote (InHome (nm, Parsed (Str ".bashrc"))))
         | Some vs -> Error (Printf.sprintf
             "For bash configuration file, expected single name for 'user', found: %s"
             (ParseTree.unparse_vals vs))
@@ -128,7 +131,7 @@ module Example : KB = struct
     | [Str "zsh"; Str "configuration"] ->
         begin match extract_arg args "user" with
         | None -> Error "Must specify 'user' for zsh configuration file"
-        | Some [Str nm] -> Ok (Remote (InHome (nm, Str ".zshrc")))
+        | Some [Str nm] -> Ok (Remote (InHome (nm, Parsed (Str ".zshrc"))))
         | Some vs -> Error (Printf.sprintf
             "For zsh configuration file, expected single name for 'user', found: %s"
             (ParseTree.unparse_vals vs))
@@ -136,7 +139,7 @@ module Example : KB = struct
     | [Str "bashrc"] ->
         begin match extract_arg args "user" with
         | None -> Error "Must specify 'user' for bashrc file"
-        | Some [Str nm] -> Ok (Remote (InHome (nm, Str ".bashrc")))
+        | Some [Str nm] -> Ok (Remote (InHome (nm, Parsed (Str ".bashrc"))))
         | Some vs -> Error (Printf.sprintf
             "For bashrc file, expected single name for 'user', found: %s"
             (ParseTree.unparse_vals vs))
@@ -144,7 +147,7 @@ module Example : KB = struct
     | [Str "zshrc"] ->
         begin match extract_arg args "user" with
         | None -> Error "Must specify 'user' for zshrc file"
-        | Some [Str nm] -> Ok (Remote (InHome (nm, Str ".zshrc")))
+        | Some [Str nm] -> Ok (Remote (InHome (nm, Parsed (Str ".zshrc"))))
         | Some vs -> Error (Printf.sprintf
             "For zshrc file, expected single name for 'user', found: %s"
             (ParseTree.unparse_vals vs))
@@ -159,7 +162,7 @@ module Example : KB = struct
     | [Str "zsh"; Str "configuration"] ->
         begin match extract_arg args "user" with
         | None -> Error "Must specify 'user' for zsh configuration directory"
-        | Some [Str nm] -> Ok (Remote (InHome (nm, Str ".zshrc.d")))
+        | Some [Str nm] -> Ok (Remote (InHome (nm, Parsed (Str ".zshrc.d"))))
         | Some vs -> Error (Printf.sprintf
             "For zsh configuration directory, expected single name for 'user', found: %s"
             (ParseTree.unparse_vals vs))
@@ -229,12 +232,11 @@ module Example : KB = struct
     | _ -> Error (Printf.sprintf "Unknown package: %s"
                                  (ParseTree.unparse_vals vs))
 
-  (* TODO: There are other possible paths to these shells, in particular
-   * at least on Debian /bin is a link of /usr/bin *)
   let programLoc _ctx (vs: ParseTree.vals) _args =
     match vs with
-    | [Str "zsh"] -> Ok (remote_path "/bin/zsh")
-    | [Str "bash"] -> Ok (remote_path "/bin/bash")
+    (* At least on Debian and RHEL, /bin is a link to /usr/bin *)
+    | [Str "zsh"] -> Ok (remote_path_options ["/bin/zsh"; "/usr/bin/zsh"])
+    | [Str "bash"] -> Ok (remote_path_options ["/bin/bash"; "/usr/bin/bash"])
     | _ -> Error (Printf.sprintf "Unknown executable: %s"
                                  (ParseTree.unparse_vals vs))
 

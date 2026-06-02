@@ -1,14 +1,15 @@
 module Target = Modules.Ast
 
-(* TODO: Need to make these support multiple values as well, for instance bash
- * can be found at /usr/bin/bash or /bin/bash *)
-type dest = Value of ParseTree.value | InHome of string * ParseTree.value
+type value = Parsed of ParseTree.value | Target of Target.expr
+type dest = Absolute of value | InHome of string * value
 type path = Remote of dest | Controller of dest
 
 type paths = InPath   of path
            | Glob     of { base: path; glob: string }
 
 type ansible_os = Debian | Ubuntu | RedHat | DebianFamily | RedHatFamily
+
+type gitRepoInfo = { repo: Target.expr; version: ParseTree.value option }
 
 (* For pip we optionally specify a virtual environment to install in *)
 type package_manager = System | Apt | Dnf | Pip of ParseTree.value option

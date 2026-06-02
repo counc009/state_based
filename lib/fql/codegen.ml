@@ -47,6 +47,12 @@ let codegen_value (v : ParseTree.value) (ty : typ) (env : env)
       let^ env = add_unknown env v ty
       in Ok (Target.Id ("?" ^ v), env)
 
+let codegen_ast_value (v : Ast.value) (ty : typ) (env : env)
+  (from_str : string -> Target.expr) : (Target.expr * env, string) result =
+   match v with
+   | Parsed v -> codegen_value v ty env from_str
+   | Target e -> Ok (e, env)
+
 (* Returns the path and system as expressions *)
 let codegen_path (p : Ast.path) (env : env)
   : (Target.expr * Target.expr * env, string) result =
@@ -55,12 +61,12 @@ let codegen_path (p : Ast.path) (env : env)
     in Target.EnumExp (Id "file_system", None, sys, [])
   in let^ (path, env) =
     match p with
-    | Controller (Value v) | Remote (Value v) ->
-        codegen_value v Target.Path env (fun s -> Target.PathLit s)
+    | Controller (Absolute v) | Remote (Absolute v) ->
+        codegen_ast_value v Target.Path env (fun s -> Target.PathLit s)
     | Controller (InHome (user, v)) | Remote (InHome (user, v)) ->
         let user_exp = Target.FuncExp (Id "e_user", [StringLit user])
         in let^ (path, env) =
-          codegen_value v Target.Path env (fun s -> Target.PathLit s)
+          codegen_ast_value v Target.Path env (fun s -> Target.PathLit s)
         in Ok (Target.FuncExp (Id "cons_path",
                   [ Field (user_exp, "homedir"); path ]),
                 add_user env user)
@@ -469,11 +475,11 @@ let codegen_act (a : Ast.act) (env : env)
         match loc with
         | Controller _ ->
             Error "Virtual Environment must be on remote machine"
-        | Remote (Value v) ->
-            codegen_value v Target.Path env (fun s -> Target.PathLit s)
+        | Remote (Absolute v) ->
+            codegen_ast_value v Target.Path env (fun s -> Target.PathLit s)
         | Remote (InHome (user, v)) ->
             let^ (path, env) =
-              codegen_value v Target.Path env (fun s -> Target.PathLit s)
+              codegen_ast_value v Target.Path env (fun s -> Target.PathLit s)
             in Ok (
               Target.FuncExp (Id "cons_path", [
                 Field (FuncExp (Id "e_user", [StringLit user]), "homedir");
@@ -774,11 +780,11 @@ let codegen_act (a : Ast.act) (env : env)
       let^ (shell, env) =
         match shell with
         | Controller _ -> Error "Path to a user's shell must be a remote path"
-        | Remote (Value v) ->
-            codegen_value v Target.Path env (fun s -> Target.PathLit s)
+        | Remote (Absolute v) ->
+            codegen_ast_value v Target.Path env (fun s -> Target.PathLit s)
         | Remote (InHome (user, v)) ->
             let^ (path, env) = 
-              codegen_value v Target.Path env (fun s -> Target.PathLit s)
+              codegen_ast_value v Target.Path env (fun s -> Target.PathLit s)
             in Ok (
               Target.FuncExp (Id "cons_path",
                 [ Field (FuncExp (Id "e_user", [StringLit user]), "homedir")

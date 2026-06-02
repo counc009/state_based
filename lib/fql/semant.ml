@@ -12,8 +12,8 @@ open Utils
 module Semant(K: KB) = struct
   let analyze_path (p: ParseTree.vals) : (Ast.path, string) result =
     match p with
-    | [s] | [Str "remote"; s] -> Ok (Remote (Value s))
-    | [Str "controller"; s] -> Ok (Controller (Value s))
+    | [s] | [Str "remote"; s] -> Ok (Remote (Absolute (Parsed s)))
+    | [Str "controller"; s] -> Ok (Controller (Absolute (Parsed s)))
     | _ -> Error (Printf.sprintf "unhandled path specifier '%s'"
                       (ParseTree.unparse_vals p))
 
@@ -457,7 +457,8 @@ module Semant(K: KB) = struct
                       Result.bind user
                         (fun user -> 
                           Ok (Some (Ast.Remote (
-                            InHome (user, Str (Printf.sprintf ".ssh/%s" n))))))
+                            InHome (user,
+                              Parsed (Str (Printf.sprintf ".ssh/%s" n)))))))
                   | Some vs ->
                       Error (Printf.sprintf
                         "Expected a single string as name for ssh key, found: %s"
