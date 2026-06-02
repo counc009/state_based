@@ -1,6 +1,8 @@
 open Ast
 open Utils
 
+let ( let^ ) = Result.bind
+
 module Target = Modules.Ast
 
 module type KB = sig
@@ -183,10 +185,11 @@ module Example : KB = struct
     | _ -> Error (Printf.sprintf "Unknown requirement: %s"
                                  (ParseTree.unparse_vals vs))
 
+  (* TODO: Validate all of these packages and other possibilities *)
   let pkgDef ctx (vs: ParseTree.vals) args =
     match vs with
     | [Str "numpy"] ->
-        let virtenv =
+        let^ virtenv =
           match extract_arg args "in" with
           | Some [Str "virtual"; Str "environment"]
           | Some [Str "virtual environment"] ->
@@ -198,37 +201,41 @@ module Example : KB = struct
                   (ParseTree.unparse_vals vs))
               end
           | _ -> Ok None
-        in Result.bind virtenv (fun virtenv ->
-          match virtenv with
-          | Some p -> Ok { name = "numpy"; pkg_manager = Pip (Some p) }
-          | None ->
-              match ctx.os with
-              | None -> Error "cannot handle numpy system-wide without knowing OS"
-              | Some Debian | Some Ubuntu | Some DebianFamily ->
-                  Ok { name = "python3-numpy"; pkg_manager = Apt }
-              | Some RedHat | Some RedHatFamily ->
-                  Ok { name = "numpy"; pkg_manager = Pip None })
-    | [Str "bash"] -> Ok { name = "bash"; pkg_manager = System }
-    | [Str "zsh"] -> Ok { name = "zsh"; pkg_manager = System }
-    | [Str "postfix"] -> Ok { name = "postfix"; pkg_manager = System }
+        in begin match virtenv with
+        | Some p -> Ok [{ name = "numpy"; pkg_manager = Pip (Some p) }]
+        | None ->
+            match ctx.os with
+            | None -> Error "cannot handle numpy system-wide without knowing OS"
+            | Some Debian | Some DebianFamily ->
+                Ok [{ name = "python3-numpy"; pkg_manager = Apt }]
+            (* TODO: pip works on Ubuntu desktop but may not work on Ubuntu server *)
+            | Some Ubuntu ->
+                Ok [{ name = "python3-numpy"; pkg_manager = Apt };
+                    { name = "numpy"; pkg_manager = Pip None }]
+            | Some RedHat | Some RedHatFamily ->
+                Ok [{ name = "numpy"; pkg_manager = Pip None }]
+        end
+    | [Str "bash"] -> Ok [{ name = "bash"; pkg_manager = System }]
+    | [Str "zsh"] -> Ok [{ name = "zsh"; pkg_manager = System }]
+    | [Str "postfix"] -> Ok [{ name = "postfix"; pkg_manager = System }]
     | [Str "apache"] | [Str "apache"; Str "server"] | [Str "apache server"] ->
         begin match ctx.os with
         | None -> Error "cannot handle apache server without knowing OS"
         | Some Debian | Some Ubuntu | Some DebianFamily ->
-            Ok { name = "apache2"; pkg_manager = Apt }
+            Ok [{ name = "apache2"; pkg_manager = Apt }]
         | Some RedHat | Some RedHatFamily ->
-            Ok { name = "httpd"; pkg_manager = Dnf }
+            Ok [{ name = "httpd"; pkg_manager = Dnf }]
         end
     | [Str "ssh"; Str "client"] | [Str "ssh client"] ->
         begin match ctx.os with
         | None -> Error "cannot handle ssh client without knowing OS"
         | Some Debian | Some Ubuntu | Some DebianFamily ->
-            Ok { name = "openssh-client"; pkg_manager = Apt }
+            Ok [{ name = "openssh-client"; pkg_manager = Apt }]
         | Some RedHat | Some RedHatFamily ->
-            Ok { name = "openssh-clients"; pkg_manager = Dnf }
+            Ok [{ name = "openssh-clients"; pkg_manager = Dnf }]
         end
     | [Str "ssh"; Str "server"] | [Str "ssh server"] ->
-        Ok { name = "openssh-server"; pkg_manager = System }
+        Ok [{ name = "openssh-server"; pkg_manager = System }]
     | _ -> Error (Printf.sprintf "Unknown package: %s"
                                  (ParseTree.unparse_vals vs))
 

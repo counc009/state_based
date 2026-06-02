@@ -14,10 +14,8 @@ type gitRepoInfo = { repo: Target.expr; version: ParseTree.value option }
 (* For pip we optionally specify a virtual environment to install in *)
 type package_manager = System | Apt | Dnf | Pip of ParseTree.value option
 
-(* TODO: I want to make this a list of names and package managers. Actually
- * updating the KB, though, requires access to a RedHat system to see what
- * package names work *)
-type pkg = { name: string; pkg_manager: package_manager }
+type pkg_spec = { name: string; pkg_manager: package_manager }
+type pkg = pkg_spec list
 
 type cond = CheckOs         of ansible_os
           | FileExists      of path

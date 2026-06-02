@@ -164,6 +164,17 @@ let codegen_file_perms (fs : Target.expr) (p : Ast.file_perms)
   | None -> []
   | Some m -> Target.Assign (Field (fs, "mode"), StringLit m) :: []
 
+let rec existential_cases (cs : Target.stmt list)
+  : (Target.stmt, string) result =
+  match cs with
+  | [] -> Error "No cases"
+  | [c] -> Ok c
+  | c :: cs ->
+      let^ cs = existential_cases cs
+      in let cond : Target.expr =
+        GenExistential (Bool, (fun _ -> Target.BoolLit true))
+      in Ok (Target.IfThenElse (cond, [c], [cs]))
+
 (* Given a file description code-gen setting the fs-object information *)
 let codegen_file_info (fs : Target.expr) (owner : ParseTree.value option)
   (group : ParseTree.value option) (perms : Ast.file_perms) (env : env)
@@ -281,33 +292,28 @@ let codegen_condition (c: Ast.cond) (thn : Target.stmt list)
               Assert (FuncExp (Id "is_dir", [path; system])) :: thn,
               els),
             env)
-  | PkgInstalled { name; pkg_manager } ->
-      let^ (conds, env) =
-        match pkg_manager with
-        (* We only care about the package manager if it specifies a virtual
-         * environment since that changes how we check whether it is installed *)
-        | System | Apt | Dnf | Pip None ->
-            Ok ([Target.FuncExp (Id "e_package", [StringLit name])], env)
-        | Pip (Some p) ->
-            let^ (path, env) =
-              codegen_value p Target.Path env (fun s -> PathLit s)
-            in let virtenv =
-              Target.FuncExp (Id "virtual_environment", [path])
-            in Ok ([ 
-                  virtenv;
-                  FuncExp (Field (virtenv, "e_package"), [StringLit name]) ],
-                env)
-      in begin match conds with
-      | [] ->
-          failwith "INTERNAL ERROR: No condition to check package installed"
-      | top :: rest ->
-          Ok (Target.IfExists (top,
-              List.fold_left
-                (fun thn cond -> [Target.IfExists (cond, thn, els)])
-                thn
-                rest,
-              els), env)
-      end
+  | PkgInstalled pkgs ->
+      let^ (pkg_cases, env) =
+        List.fold_left (fun acc { Ast.name; pkg_manager } ->
+          let^ (pkg_cases, env) = acc
+          in let^ (cond, env) =
+            match pkg_manager with
+            (* We only care about the package manager if it specifies a virtual
+             * environment since that changes how we check whether it is
+             * installed *)
+            | System | Apt | Dnf | Pip None ->
+                Ok (Target.FuncExp (Id "e_package", [StringLit name]), env)
+            | Pip (Some p) ->
+                let^ (path, env) =
+                  codegen_value p Target.Path env (fun s -> PathLit s)
+                in let virtenv =
+                  Target.FuncExp (Id "virtual_environment", [path])
+                in Ok (Target.FuncExp (Field (virtenv, "e_package"),
+                    [StringLit name]), env)
+          in Ok (Target.IfExists (cond, thn, els) :: pkg_cases, env)
+        ) (Ok ([], env)) pkgs
+      in let^ res = existential_cases pkg_cases
+      in Ok (res, env)
   | ServiceRunning serv ->
       let service = Target.FuncExp (Id "e_service", [StringLit serv])
       in Ok (Target.IfExists (service,
@@ -622,62 +628,65 @@ let codegen_act (a : Ast.act) (env : env)
                   EnumExp (Id "file_type", None, "file", [Id "r"]))
               ])
          :: [], env)
-  | InstallPkg { pkg = { name; pkg_manager }; version } ->
-      let^ (install, pkg, env) =
-        match pkg_manager with
-        | Apt ->
-            let pkg = Target.FuncExp (Id "e_package", [StringLit name])
-            in Ok ([Target.Touch (FuncExp (Field (pkg, "e_apt"), []))],
-                   pkg, env)
-        | Dnf ->
-            let pkg = Target.FuncExp (Id "e_package", [StringLit name])
-            in Ok ([Target.Touch (FuncExp (Field (pkg, "e_dnf"), []))],
-                   pkg, env)
-        | Pip None ->
-            let pkg = Target.FuncExp (Id "e_package", [StringLit name])
-            in Ok ([Target.Touch (FuncExp (Field (pkg, "e_pip"), []))],
-                   pkg, env)
-        | System ->
-            let pkg = Target.FuncExp (Id "e_package", [StringLit name])
-            in Ok ([Target.IfThenElse (
-                      BinaryExp (
-                        Field (FuncExp (Id "env", []), "os_family"),
-                        StringLit "Debian",
-                        Eq),
-                      [ Touch (FuncExp (Field (pkg, "e_apt"), [])) ],
-                      [ Target.IfThenElse (
-                        BinaryExp (
-                          Field (FuncExp (Id "env", []), "os_family"),
-                          StringLit "RedHat",
-                          Eq),
-                        [ Touch (FuncExp (Field (pkg, "e_dnf"), [])) ],
-                        [ Touch (FuncExp (Field (pkg, "sys"), [])) ])
-                   ])],
-                   pkg, env)
-        | Pip (Some p) ->
-            let^ (path, env) =
-              codegen_value p Target.Path env (fun s -> PathLit s)
-            in let virtenv =
-              Target.FuncExp (Id "virtual_environment", [path])
-            in let pkg =
-              Target.FuncExp (Field (virtenv, "e_package"), [StringLit name])
-            in Ok ([ Target.AssertExists virtenv
-                   ; Touch (FuncExp (Field (pkg, "e_pip"), [])) ],
-                   pkg, env)
-      in begin match version with
-        | None -> Ok (install, env)
-        | Some "latest" -> Ok (
-            [Target.Seq (install,
-              [Target.Assign (Field (pkg, "version"), 
-                EnumExp (Id "package_version", None, "latest", []))])],
-            env)
-        | Some v -> Ok (
-            [Target.Seq (install,
-              [Target.Assign (Field (pkg, "version"),
-                EnumExp (Id "package_version", None, "specific",
-                  [StringLit v]))])],
-            env)
-      end
+  | InstallPkg { pkg = pkgs; version } ->
+      let^ (pkg_cases, env) =
+        List.fold_left (fun acc { Ast.name; pkg_manager } ->
+          let^ (cases, env) = acc
+          in let^ (install, pkg, env) =
+            match pkg_manager with
+            | Apt ->
+                let pkg = Target.FuncExp (Id "e_package", [StringLit name])
+                in let install =
+                  Target.Touch (FuncExp (Field (pkg, "e_apt"), []))
+                in Ok (install, pkg, env)
+            | Dnf ->
+                let pkg = Target.FuncExp (Id "e_package", [StringLit name])
+                in let install =
+                  Target.Touch (FuncExp (Field (pkg, "e_dnf"), []))
+                in Ok (install, pkg, env)
+            | Pip None ->
+                let pkg = Target.FuncExp (Id "e_package", [StringLit name])
+                in let install =
+                  Target.Touch (FuncExp (Field (pkg, "e_pip"), []))
+                in Ok (install, pkg, env)
+            | System ->
+                let pkg = Target.FuncExp (Id "e_package", [StringLit name])
+                in let os = Target.Field (FuncExp (Id "env", []), "os_family")
+                in let install =
+                  Target.IfThenElse (BinaryExp (os, StringLit "Debian", Eq),
+                    [ Touch (FuncExp (Field (pkg, "e_apt"), [])) ],
+                    [ IfThenElse (BinaryExp (os, StringLit "RedHat", Eq),
+                      [ Touch (FuncExp (Field (pkg, "e_dnf"), [])) ],
+                      [ Touch (FuncExp (Field (pkg, "sys"), [])) ]
+                    )]
+                  )
+                in Ok (install, pkg, env)
+            | Pip (Some p) ->
+                let^ (path, env) =
+                  codegen_value p Target.Path env (fun s -> PathLit s)
+                in let virtenv =
+                  Target.FuncExp (Id "virtual_environment", [path])
+                in let pkg : Target.expr =
+                  FuncExp (Field (virtenv, "e_package"), [StringLit name])
+                in let install =
+                  Target.Touch (FuncExp (Field (pkg, "e_pip"), []))
+                in Ok (install, pkg, env)
+          in let full_install =
+            match version with
+            | None -> install
+            | Some "latest" ->
+                Target.Seq ([install],
+                  [Assign (Field (pkg, "version"),
+                    EnumExp (Id "package_version", None, "latest", []))])
+            | Some v ->
+                Target.Seq ([install],
+                  [Assign (Field (pkg, "version"),
+                    EnumExp (Id "package_version", None, "specific",
+                      [StringLit v]))])
+          in Ok (full_install :: cases, env)
+        ) (Ok ([], env)) pkgs
+      in let^ res = existential_cases pkg_cases
+      in Ok ([res], env)
   | MoveDir { src; dest } ->
       let^ (src_path, src_sys, env) = codegen_path src env
       in let^ (dst_path, dst_sys, env) = codegen_path dest.path env
@@ -801,19 +810,29 @@ let codegen_act (a : Ast.act) (env : env)
       Ok (Target.Assign (
           Field (FuncExp (Id "e_service", [StringLit name]), "running"),
           BoolLit false) :: [], env)
-  | UninstallPkg { pkg = { name; pkg_manager } } ->
-      begin match pkg_manager with
-      | Apt | Dnf | Pip None | System ->
-          Ok (Target.Clear (FuncExp (Id "e_package", [StringLit name])) :: [],
-              env)
-      | Pip (Some p) ->
-          let^ (path, env) =
-            codegen_value p Target.Path env (fun s -> Target.PathLit s)
-          in let virtenv = Target.FuncExp (Id "virtual_environment", [path])
-          in let pkg =
-            Target.FuncExp (Field (virtenv, "e_package"), [StringLit name])
-          in Ok (Target.AssertExists virtenv :: Clear pkg :: [], env)
-      end
+  | UninstallPkg { pkg = pkgs } ->
+      let^ (pkg_cases, env) =
+        List.fold_left (fun acc { Ast.name; pkg_manager } ->
+          let^ (pkg_cases, env) = acc
+          in let^ (uninstall, env) =
+            match pkg_manager with
+            | Apt | Dnf | Pip None | System ->
+                let uninstall =
+                  Target.Clear (FuncExp (Id "e_package", [StringLit name]))
+                in Ok (uninstall, env)
+            | Pip (Some p) ->
+                let^ (path, env) =
+                  codegen_value p Target.Path env (fun s -> Target.PathLit s)
+                in let virtenv =
+                  Target.FuncExp (Id "virtual_environment", [path])
+                in let uninstall =
+                  Target.Clear (FuncExp (Field (virtenv, "e_package"),
+                    [StringLit name]))
+                in Ok (uninstall, env)
+          in Ok (uninstall :: pkg_cases, env)
+        ) (Ok ([], env)) pkgs
+      in let^ res = existential_cases pkg_cases
+      in Ok ([res], env)
   | WriteFile { str; dest; position } ->
       let^ (path, sys, env) = codegen_path dest.path env
       in let^ (config, env) = codegen_file_desc (fs path sys) dest env
