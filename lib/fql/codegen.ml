@@ -788,8 +788,9 @@ let codegen_act (a : Ast.act) (env : env)
     :: Assert (BinaryExp (IntLit 0, Id "time", Le))
     :: Assign (Field (FuncExp (Id "env", []), "last_reboot"), Id "time")
     :: [], env)
-  (* FIXME TODO: Like with the sudoers file, I think it would be better to
-   * assert about the result *)
+  (* TODO: One concern I have about this is that it does not require that the
+   * original file contents be preserved as much as possible. We need some way
+   * that what changes were made are propagated to the user for inspection. *)
   | SetEnvVar { name; value } ->
       let^ (value, env) =
         codegen_value value Target.String env (fun s -> StringLit s)
@@ -798,22 +799,15 @@ let codegen_act (a : Ast.act) (env : env)
       in let regex = Target.StringLit ("^" ^ name ^ "=")
       in let line =
         Target.BinaryExp (StringLit (name ^ "="), value, Concat)
-      in Ok (
-        Target.LetStmt ("c", FuncExp (Id "get_file_content", [path; sys]))
-        :: Target.IfThenElse (
-          FuncExp (Id "regex_matches", [ regex; Id "c" ]),
-          [ LetStmt ("r",
-              FuncExp (Id "replace_last",
-                [ regex; line; Id "c" ]))
-          ; Assign (Field (fs path sys, "fs_type"),
-              EnumExp (Id "file_type", None, "file", [Id "r"]))
-          ],
-          [ LetStmt ("r", BinaryExp (Id "c", 
-              BinaryExp (line, StringLit "\\n", Concat), Concat))
-          ; Assign (Field (fs path sys, "fs_type"),
-              EnumExp (Id "file_type", None, "file", [Id "r"]))
-          ])
-        :: [], env)
+      (* Ensure that the file has been modified and the new contents's last
+       * line matching our variable has the expected value *)
+      in Ok ([Target.Assign (Field (fs path sys, "fs_type"),
+              EnumExp (Id "file_type", None, "file", [
+                GenExistential (String, fun nm ->
+                  BinaryExp (
+                    FuncExp (Id "last_line_matching", [regex; Id nm]),
+                    line,
+                    Eq))]))], env)
   | SetFilePerms { loc; perms } ->
       let^ (path, sys, env) = codegen_path loc env
       in Ok (
