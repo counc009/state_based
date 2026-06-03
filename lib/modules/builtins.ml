@@ -43,4 +43,29 @@ let lookup_builtin (nm : string)
   | "string_of_int" ->
       let (arg_ty, res_ty, _) = TargetAst.funcDef StringOfInt
       in Ok (arg_ty, res_ty, Target.StringOfInt)
+  | "concat_line" ->
+      let (arg_ty, res_ty, _) = TargetAst.funcDef ConcatLine
+      in Ok (arg_ty, res_ty, Target.ConcatLine)
+  | "regex_of_literal" ->
+      let (arg_ty, res_ty, _) = TargetAst.funcDef RegexOfLiteral
+      in Ok (arg_ty, res_ty, Target.RegexOfLiteral)
+  | "remove_matching_lines" ->
+      let (arg_ty, res_ty, _) = TargetAst.funcDef RemoveMatchingLines
+      in Ok (arg_ty, res_ty, Target.RemoveMatchingLines)
+  | "replace_last_matching_expand" ->
+      let (arg_ty, res_ty, _) = TargetAst.funcDef ReplaceLastMatchingExpand
+      in Ok (arg_ty, res_ty, Target.ReplaceLastMatchingExpand)
+  | "replace_last_matching" ->
+      let (arg_ty, res_ty, _) = TargetAst.funcDef ReplaceLastMatching
+      in Ok (arg_ty, res_ty, Target.ReplaceLastMatching)
+  | "insert_line_matching" ->
+      let (arg_ty, res_ty, _) = TargetAst.funcDef InsertNearMatching
+      in Ok (arg_ty, res_ty, Target.InsertNearMatching)
+  | "line_matches_regex" ->
+      let (arg_ty, res_ty, _) = TargetAst.funcDef RegexLineMatches
+      in Ok (arg_ty, res_ty, Target.RegexLineMatches)
+  | "last_line_matching" ->
+      let (arg_ty, res_ty, _) = TargetAst.funcDef GetLastLineMatch
+      in Ok (arg_ty, res_ty, Target.GetLastLineMatch)
+
   | _ -> Error ("Undefined name " ^ nm)

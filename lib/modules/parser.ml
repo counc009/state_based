@@ -878,10 +878,10 @@ let top_level =
       ])
 let file_parser = whitespace *> top_level <* whitespace
 
-let comments_regex = Str.regexp {|\(#\|//\).*|}
+let comments_regex = Re.compile (Re.Perl.re {|(#|//).*|})
 
 let remove_comments (s : string) : string =
-  Str.global_replace comments_regex "" s
+  Re.replace_string comments_regex ~by:"" s
 
 let parse_file (filename : string) : (topLevel list, string) result =
   let ch = open_in filename
