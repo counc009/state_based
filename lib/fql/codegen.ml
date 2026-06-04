@@ -625,7 +625,7 @@ let codegen_act (a : Ast.act) (env : env)
         let spec = "ALL=(ALL:ALL)"
         in let cmd = if passwordless then "NOPASSWD:ALL" else "ALL"
         (* TODO: The spacing of this line doesn't actually matter *)
-        in user ^ "\t" ^ spec ^ " " ^ cmd
+        in Target.StringLit (user ^ "\t" ^ spec ^ " " ^ cmd)
       (* TODO: We should really be tracking information about how we want to
        * manage sudoers on the system, as that may impact what the path name
        * really should be. Some of the generated code also just creates the
@@ -820,21 +820,38 @@ let codegen_act (a : Ast.act) (env : env)
         codegen_value value Target.String env (fun s -> StringLit s)
       in let path = Target.PathLit "/etc/environment"
       in let sys = Target.EnumExp (Id "file_system", None, "remote", [])
-      in let regex = Target.StringLit ("^" ^ name ^ "=")
+      in let regex =
+        let base_regex = "^" ^ name ^ "="
+        in Target.GenExistential (Target.String, fun nm ->
+          BinaryExp (
+            BinaryExp (Id nm, StringLit base_regex, Eq),
+          BinaryExp (
+            BinaryExp (Id nm, StringLit (base_regex ^ ".*"), Eq),
+            BinaryExp (Id nm, StringLit (base_regex ^ ".*$"), Eq),
+            Or),
+          Or))
       in let line =
-        (* TODO: value can also be wrapped in quotes *)
-        Target.BinaryExp (StringLit (name ^ "="), value, Concat)
+        Target.GenExistential (Target.String, fun nm ->
+          BinaryExp (
+            BinaryExp (Id nm, 
+              BinaryExp(StringLit (name ^ "="), value, Concat), Eq),
+            BinaryExp (Id nm,
+              BinaryExp (BinaryExp (StringLit (name ^ "=\""), value, Concat), 
+                StringLit "\"", Concat), Eq),
+            Or))
       in Ok (
-        Target.LetStmt ("c", FuncExp (Id "get_file_content", [path; sys]))
+        Target.LetStmt ("^regex", regex)
+        :: LetStmt ("^line", line)
+        :: LetStmt ("c", FuncExp (Id "get_file_content", [path; sys]))
         :: Target.IfThenElse (
-          FuncExp (Id "regex_matches", [ regex; Id "c" ]),
+          FuncExp (Id "line_matches_regex", [ Id "^regex"; Id "c" ]),
           [ LetStmt ("r",
-              FuncExp (Id "replace_last",
-                [ regex; line; Id "c" ]))
+              FuncExp (Id "replace_last_matching",
+                [ Id "^regex"; Id "^line"; Id "c" ]))
           ; Assign (Field (fs path sys, "fs_type"),
               EnumExp (Id "file_type", None, "file", [Id "r"]))
           ],
-          [ LetStmt ("r", FuncExp (Id "concat_line", [Id "c"; line]))
+          [ LetStmt ("r", FuncExp (Id "concat_line", [Id "c"; Id "^line"]))
           ; Assign (Field (fs path sys, "fs_type"),
               EnumExp (Id "file_type", None, "file", [Id "r"]))
           ])
