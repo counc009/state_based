@@ -839,23 +839,36 @@ let codegen_act (a : Ast.act) (env : env)
               BinaryExp (BinaryExp (StringLit (name ^ "=\""), value, Concat), 
                 StringLit "\"", Concat), Eq),
             Or))
+      in let^ cases =
+        (* Technically, it is fine to just always add the line to the end of
+         * the file, so we handle two separate cases *)
+        existential_cases [
+          (* Option 1, search by regex and replace/add as appropriate *)
+          Target.Seq ([],
+            LetStmt ("^regex", regex)
+            :: Target.IfThenElse (
+              FuncExp (Id "line_matches_regex", [ Id "^regex"; Id "c" ]),
+              [ LetStmt ("r",
+                  FuncExp (Id "replace_last_matching",
+                    [ Id "^regex"; Id "^line"; Id "c" ]))
+              ; Assign (Field (fs path sys, "fs_type"),
+                  EnumExp (Id "file_type", None, "file", [Id "r"]))
+              ],
+              [ LetStmt ("r", FuncExp (Id "concat_line", [Id "c"; Id "^line"]))
+              ; Assign (Field (fs path sys, "fs_type"),
+                  EnumExp (Id "file_type", None, "file", [Id "r"]))
+              ])
+            :: []);
+          (* Option 2, just add it to the end of the file *)
+          Target.Assign (Field (fs path sys, "fs_type"),
+            EnumExp (Id "file_type", None, "file", [
+              FuncExp (Id "concat_line", [Id "c"; Id "^line"])
+            ]))
+        ]
       in Ok (
-        Target.LetStmt ("^regex", regex)
-        :: LetStmt ("^line", line)
+        Target.LetStmt ("^line", line)
         :: LetStmt ("c", FuncExp (Id "get_file_content", [path; sys]))
-        :: Target.IfThenElse (
-          FuncExp (Id "line_matches_regex", [ Id "^regex"; Id "c" ]),
-          [ LetStmt ("r",
-              FuncExp (Id "replace_last_matching",
-                [ Id "^regex"; Id "^line"; Id "c" ]))
-          ; Assign (Field (fs path sys, "fs_type"),
-              EnumExp (Id "file_type", None, "file", [Id "r"]))
-          ],
-          [ LetStmt ("r", FuncExp (Id "concat_line", [Id "c"; Id "^line"]))
-          ; Assign (Field (fs path sys, "fs_type"),
-              EnumExp (Id "file_type", None, "file", [Id "r"]))
-          ])
-        :: [], env)
+        :: cases :: [], env)
   | SetFilePerms { loc; perms } ->
       let^ (path, sys, env) = codegen_path loc env
       in Ok (
