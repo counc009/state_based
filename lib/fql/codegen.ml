@@ -570,10 +570,10 @@ let codegen_act (a : Ast.act) (env : env)
       then Ok (
         Target.LetStmt ("c", FuncExp (Id "get_file_content", [path; sys]))
         :: Target.IfThenElse ( (* FIXME: this regex *)
-              FuncExp (Id "regex_matches",
+              FuncExp (Id "line_matches_regex",
                 [ StringLit ("^" ^ user ^ ".*NOPASSWD"); Id "c" ]),
               [ LetStmt ("r",
-                  FuncExp (Id "replace_last", 
+                  FuncExp (Id "replace_last_matching", 
                     [ StringLit ("^" ^ user ^ ".*NOPASSWD")
                     ; StringLit (user ^ "\t" ^ "ALL=(ALL:ALL) ALL")
                     ; Id "c" ]))
@@ -588,7 +588,7 @@ let codegen_act (a : Ast.act) (env : env)
         Target.LetStmt ("c", FuncExp (Id "get_file_content", [path; sys]))
         (* "^" ^ user is only valid as the regex as long as user doesn't
          * contain any regular expression special characters *)
-        :: LetStmt ("r", FuncExp (Id "remove_lines", 
+        :: LetStmt ("r", FuncExp (Id "remove_matching_lines", 
             [ StringLit ("^" ^ user); Id "c" ]))
         :: Assert (FuncExp (Id "validate_contents",
             [ StringLit "/usr/sbin/visudo -cf %s"; Id "r" ]))
@@ -609,6 +609,13 @@ let codegen_act (a : Ast.act) (env : env)
                   Some (Product [String; String]), "nothing", [])])]))
        :: config, env)
   (* FIXME TODO: As above *)
+  (* It's actually a non-trivial question of what it means to grant a user sudo
+   * access, because you might only grant them access on certain machines, to
+   * run certain commands, and they may only be able to run commands as certain
+   * users/groups. In a more complete FQL these would probably be options to
+   * the query.
+   * For the moment, we assume that it means full sudo access, in other words
+   * any machine, any user and group, and any command. *)
   | EnableSudo { who; passwordless } ->
       let user =
         match who with
@@ -617,7 +624,13 @@ let codegen_act (a : Ast.act) (env : env)
       in let line =
         let spec = "ALL=(ALL:ALL)"
         in let cmd = if passwordless then "NOPASSWD:ALL" else "ALL"
+        (* TODO: The spacing of this line doesn't actually matter *)
         in user ^ "\t" ^ spec ^ " " ^ cmd
+      (* TODO: We should really be tracking information about how we want to
+       * manage sudoers on the system, as that may impact what the path name
+       * really should be. Some of the generated code also just creates the
+       * file which could only be okay if we track those details to decide
+       * whether overriding the file is fine. *)
       in let path =
         Target.GenExistential (Target.Path, fun nm ->
           BinaryExp (
@@ -635,25 +648,37 @@ let codegen_act (a : Ast.act) (env : env)
             ),
             Or))
       in let sys = Target.EnumExp (Id "file_system", None, "remote", [])
+      (* Any of the regexes ^user, ^user.*, and ^user.*$ will work *)
+      in let regex =
+        (* Technically user could have special characters that need to be
+         * escaped for a regex, but this is unlikely since the standard regex
+         * for user names is ^[a-z][-a-z0-9]*$ *)
+        let base_regex = "^" ^ user
+        in Target.GenExistential (Target.String, fun nm ->
+          BinaryExp (
+            BinaryExp (Id nm, StringLit base_regex, Eq),
+          BinaryExp (
+            BinaryExp (Id nm, StringLit (base_regex ^ ".*"), Eq),
+            BinaryExp (Id nm, StringLit (base_regex ^ ".*$"), Eq),
+            Or),
+          Or))
       in Ok (
         Target.LetStmt ("^path", path)
+        :: LetStmt ("^regex", regex)
+        :: LetStmt ("^line", line)
         :: LetStmt ("c", FuncExp (Id "get_file_content", [Id "^path"; sys]))
         :: Target.IfThenElse (
-            (* FIXME: in regex_matches and replace_last we should use a form
-             * of user that is a regex. As long as the name doesn't contain
-             * special regex characters, this is fine and so probably is
-             * alright for the moment *)
-            FuncExp (Id "regex_matches", [ StringLit ("^" ^ user); Id "c" ]),
+            FuncExp (Id "line_matches_regex", [ Id "^regex"; Id "c" ]),
             [ LetStmt ("r",
-                FuncExp (Id "replace_last", 
-                  [ StringLit ("^" ^ user) ; StringLit line ; Id "c" ]))
+                FuncExp (Id "replace_last_matching", 
+                  [ Id "^regex"; Id "^line"; Id "c" ]))
             ; Assert (FuncExp (Id "validate_contents",
                 [ StringLit "/usr/sbin/visudo -cf %s"; Id "r" ]))
             ; Assign (Field (fs (Id "^path") sys, "fs_type"),
                 EnumExp (Id "file_type", None, "file", [Id "r"]))
             ],
             [ LetStmt ("r",
-                BinaryExp (Id "c", StringLit (line ^ "\\n"), Concat))
+                FuncExp (Id "concat_line", [Id "c"; Id "^line"]))
             ; Assert (FuncExp (Id "validate_contents",
                 [ StringLit "/usr/sbin/visudo -cf %s"; Id "r" ]))
             ; Assign (Field (fs (Id "^path") sys, "fs_type"),
@@ -797,6 +822,7 @@ let codegen_act (a : Ast.act) (env : env)
       in let sys = Target.EnumExp (Id "file_system", None, "remote", [])
       in let regex = Target.StringLit ("^" ^ name ^ "=")
       in let line =
+        (* TODO: value can also be wrapped in quotes *)
         Target.BinaryExp (StringLit (name ^ "="), value, Concat)
       in Ok (
         Target.LetStmt ("c", FuncExp (Id "get_file_content", [path; sys]))
@@ -808,8 +834,7 @@ let codegen_act (a : Ast.act) (env : env)
           ; Assign (Field (fs path sys, "fs_type"),
               EnumExp (Id "file_type", None, "file", [Id "r"]))
           ],
-          [ LetStmt ("r", BinaryExp (Id "c", 
-              BinaryExp (line, StringLit "\\n", Concat), Concat))
+          [ LetStmt ("r", FuncExp (Id "concat_line", [Id "c"; line]))
           ; Assign (Field (fs path sys, "fs_type"),
               EnumExp (Id "file_type", None, "file", [Id "r"]))
           ])
