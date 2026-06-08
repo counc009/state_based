@@ -3,36 +3,28 @@
  * interpretation (the result of interpreting the generated Ansible program) we
  * check whether the candidate matches the reference.
  *
- * To do this for the moment we verify that each input/output state pair in the
- * reference has a "matching" state pair in the candidate. To identify that a
- * pair matches we need 1) that the assumptions in the candidate's input state
- * are consistent with those in reference's input state [ideally we want the
- * candidate's input state to only include assumptions from the reference's
- * input state but if it has additional assumptions we record that to permit
- * better analysis] and 2) that the actions in the candidate's output state
- * include all those from the reference's output state [again, ideally it would
- * be exactly the actions in the reference's but we'll record additional
- * actions that are taken]
+ * Considering a single execution path through both programs (i.e., a
+ * particular initial/final state pair from each of the reference and candidate
+ * programs) we determine whether they "match" by checking 1) that the
+ * candidate's input state is consistent with the reference's (meaning any
+ * shared assumptions are the same but both are allowed additional assumptions
+ * that the other does not make) and 2) that the candidate's output state
+ * covers the reference's (meaning that any actions performed by the reference
+ * are also performed by the candidate but the candidate may perform other
+ * actions as well).
  *
- * Note that this process actually involves a unification-like piece since there
- * may be unknown values in the reference solution which is allowed to take a
- * particular value (rather than having to be an arbitrary value). We determine
- * which unknowns are allowed to be arbitrary values by checking that they do
- * not appear as attribute values in the initial state (since such unknowns are
- * an assumption about the initial state).
- * FIXME: I think ideally we would track whether each unknown is a forall or
- * existential unknown (where unknowns generated during interpretation would be
- * forall but those generated via the GenUnknown expression would be
- * existential). Having this would be useful for the task described below since
- * it could be used to have existential variables to describe the set of
- * possible behaviors where we only need one of them from the candidate.
+ * For considering the entirety of the programs' behaviors then we want to show
+ * that every behavior expected by the reference is satisfied by the candidate,
+ * meaning that there is some execution path of the candidate which matches the
+ * expected behavior, as described above. Now, not every behavior the reference
+ * can have is expected because existential variables can introduce options,
+ * such as different package names or paths that might be used. In these cases,
+ * just one of these options is required to be matched by the candidate.
  *
- * In the future (TODO) we would like to be able to be able to interpret formal
- * queries to produce a set of sets of input/output states where only one
- * member of each set needs to be satisfied (for instance members of the same
- * set might reflect different ways to update the sudoers file) but the basis
- * of that is still checking equivalence of pairs of states so the approach
- * described above is still the core of that algorithm.
+ * Now the matching process described above involves a unification-like process
+ * because any variables from the candidate can be instantiated to match
+ * variables or values in the reference) and existential variables in the
+ * reference can be instantiated to match values from the candidate.
  *)
 
 module Interp = Modules.Target.TargetInterp
