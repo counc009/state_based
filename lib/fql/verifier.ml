@@ -30,103 +30,108 @@
 module Interp = Modules.Target.TargetInterp
 module Ast = Modules.Target.Ast_Target
 
-module IntSet : Set.S with type elt = int = Set.Make(Int)
-module IntMap : Map.S with type key = int = Map.Make(Int)
+(* A multi-map, where each value can be mapped to a list of values *)
+module MultiMap(Ord : Map.OrderedType) : sig
+  type k = Ord.t
+  type 'a t
+  val empty : 'a t
+  val add : k -> 'a -> 'a t -> 'a t
+  val extend : k -> 'a list -> 'a t -> 'a t
+  val find : k -> 'a t -> 'a list
+end = struct
+  type k = Ord.t
 
-(* Identify the universal variables *)
-let universal_vars ((p, _): (Interp.prg_type * Ast.value)) : IntSet.t =
-  let rec add_unknowns (v: Ast.value) s =
-    match v with
-    | Unknown (Loop i, _) | Unknown (Val i, _) -> IntSet.add i s
-    | Literal (_, _) -> s
-    | Function (_, v, _) -> add_unknowns v s
-    | Pair (x, y, _) -> add_unknowns x (add_unknowns y s)
-    | Constructor (_, _, v) -> add_unknowns v s
-    | Struct (_, r) -> Ast.FieldMap.fold (fun _ -> add_unknowns) r s
-    | ListVal (_, v) -> add_unknowns v s
-  in let rec process_elems (elems : Interp.state Interp.ElementMap.t) s =
-    Interp.ElementMap.fold (fun _ -> process_state) elems s
-  and process_attrs
-    (attrs : (Ast.value * Interp.state) Interp.AttributeMap.t) s =
-    Interp.AttributeMap.fold
-      (fun _ ((v, state) : Ast.value * Interp.state) set ->
-        process_state state (add_unknowns v set))
-      attrs
-      s
-  and process_state (state: Interp.state) s =
-    let (elems, attrs) = match state with State (elsm, ats) -> (elsm, ats)
-    in process_elems elems (process_attrs attrs s)
-  in process_state p.init IntSet.empty
+  module M = Map.Make(Ord)
+  type 'a t = 'a list M.t
 
-(* For the outcome of our verification we either decide the candidate is
- * incompatible with the reference (because it makes conflicting assumptions
- * or does not perform some necessary actions) or it is compatible though even
- * in that case we may report additional assumptions that are needed or
- * additional actions that were performed
- *)
-(*type outcome = Incompatible of unit
-             | Compatible   of unit*)
+  let empty = M.empty
+  let add k x m = M.add_to_list k x m
+  let extend k xs m =
+    M.update k
+      (fun ys -> match ys with None -> Some xs | Some ys -> Some (xs @ ys))
+      m
+  let find k m =
+    match M.find_opt k m with
+    | None -> []
+    | Some xs -> xs
+end
 
-type unification = Value of Ast.value | Unknown of int
+(* A Unifier maps keys to values or other keys, tracking a unification of the
+ * keys and values *)
+module UnifierMake(Ord : Map.OrderedType) : sig
+  type k = Ord.t
+  type 'a unification = Value of 'a | Link of k
+  type 'a t
+  val empty : 'a t
+  val find : k -> 'a t -> 'a unification option
+  val add : k -> 'a unification -> 'a t -> 'a t
+end = struct
+  module Map = Map.Make(Ord)
+  module MMap = MultiMap(Ord)
 
-(* The unifier holds the following information that is necessary to properly
- * handle unifying expressions:
- * - map: maps an unknown to a value or other unknown it is unified with
- * - vmap: maps an unknown to the list of unknowns mapped to it, i.e. if
- *   vmap[i] = xs and j in xs then map[j] = Unknown i
- * - universals: the set of universal unknowns (i.e. unknowns that can only be
- *   unified with other unknowns). This is initialized as the unknowns
- *   appearing as attribute values in the reference's initial state and then
- *   may expand as unknowns are unified to universal unknowns.
- *)
-type unifier = { map: unification IntMap.t; vmap: int list IntMap.t;
-                 universals: IntSet.t }
+  type k = Ord.t
 
-let lmap_find (i: int) (map: 'a list IntMap.t) : 'a list =
-  match IntMap.find_opt i map with
-  | None -> []
-  | Some xs -> xs
+  type 'a unification = Value of 'a | Link of k
 
-let lmap_add (i: int) (x: 'a) (map: 'a list IntMap.t) : 'a list IntMap.t =
-  IntMap.update i 
-    (fun xs -> match xs with None -> Some [x] | Some xs -> Some (x :: xs))
-    map
+  (* The unifier holds the following information that is necessary to properly
+   * handle unifying expressions:
+   * - map: maps a key to a value or other key it is unified with
+   * - vmap: maps a key to the list of keys mapped to it, i.e. if vmap[i] = xs
+   *   and j in xs then map[j] = Link i *)
+  type 'a t = { map : 'a unification Map.t; vmap : k MMap.t }
 
-let lmap_extend (i: int) (xs: 'a list) (map: 'a list IntMap.t)
-  : 'a list IntMap.t =
-  IntMap.update i
-    (fun ys -> match ys with None -> Some xs | Some ys -> Some (xs @ ys))
-    map
+  let empty = { map = Map.empty; vmap = MMap.empty }
+  let find k u = Map.find_opt k u.map
+  let add k v u =
+    let { map; vmap } = u
+    (* We need to perform 2 updates to map: map k -> v and for any j such that
+     * j -> k we update it so that j -> v (in particular this means we use
+     * vmap[k] and update those bindings to v) *)
+    (* Error if we attempt a re-unification (i.e., unifying a value already
+     * unified) because that could represent something going horribly wrong and
+     * breaks the tracking of what values are meant to be equal *)
+    in let map =
+      Map.update k
+        (fun x -> match x with None -> Some v
+                  | Some _ -> failwith "Cannot re-unify a value")
+        map
+    in let map =
+      List.fold_left (fun map j -> Map.add j v map) map (MMap.find k vmap)
+    in let vmap =
+      match v with
+      | Link k  -> MMap.extend k (MMap.find k vmap) vmap
+      | Value _ -> vmap
+    in { map; vmap }
+end
 
-let new_unifier (universals: IntSet.t) : unifier =
-  { map = IntMap.empty; vmap = IntMap.empty; universals = universals }
+module Unifier = UnifierMake(Int)
+type unifier = Ast.value Unifier.t
 
-let unifier_find (i: int) (u: unifier) : unification option =
-  IntMap.find_opt i u.map
+(* The result of comparing two diffent states, in particular subtracing one
+ * state from another *)
+type elem_diff = Negated | Positive of state_diff
+and state_diff =
+  (* bool for elements tracks if this element itself is part of the diff or if
+   * it only appears because of a nested diff *)
+  StateDiff of (bool * elem_diff) Interp.ElementMap.t
+             * Ast.value Interp.AttributeMap.t
 
-let unifier_add (i: int) (v: unification) (u: unifier) : unifier =
-  let { map; vmap; universals } = u
-  (* We need to perform 2 updates to map: map i -> v and for any j such that
-   * j -> i we update it so that j -> v (in particular this means we use
-   * vmap[i] and update those variables' bindings to v *)
-  in { map = List.fold_left (fun map j -> IntMap.add j v map)
-                (IntMap.add i v map) (lmap_find i vmap);
-  (* For vmap, if v = Unknown k then we transfer vmap[i] to be part of vmap[k] *)
-       vmap = (match v with Unknown k -> lmap_extend k (lmap_find i vmap) vmap
-                         | Value _ -> vmap);
-  (* For universals, if v = Unknown k and i is universal, then k is now
-   * universal *)
-       universals =
-         if IntSet.mem i universals
-         then match v with Unknown k -> IntSet.add k universals
-                         | Value _ -> universals
-         else universals
-     }
+let diff_empty : state_diff =
+  StateDiff (Interp.ElementMap.empty, Interp.AttributeMap.empty)
 
-(* The bool in the elements records whether this element itself is part of the
- * diff or only present because of a diff on it *)
-type state_diff = StateDiff of (bool * state_diff) Interp.ElementMap.t
-                       * (Ast.value option * state_diff) Interp.AttributeMap.t
+(*
+let rec state_to_diff (s : Interp.state) : state_diff =
+  let State (elems, attrs) = s
+  in StateDiff (
+    Interp.ElementMap.map (fun s -> (true, elem_to_diff s)) elems,
+    attrs)
+and elem_to_diff (s : Interp.element_result) =
+  match s with
+  | Negated -> Negated
+  | Positive s -> Positive (state_to_diff s)
+*)
+
+(*
 type outcome = { m: unifier; constraints: unit; assumptions: state_diff;
                  actions: state_diff }
 
@@ -144,17 +149,6 @@ let add_elem e (d: state_diff) (diff: state_diff) : state_diff =
   match diff with
   | StateDiff (elms, ats) ->
       StateDiff (Interp.ElementMap.add e (false, d) elms, ats)
-
-let empty_diff : state_diff =
-  StateDiff (Interp.ElementMap.empty, Interp.AttributeMap.empty)
-
-let rec state_to_diff (s: Interp.state) : state_diff =
-  match s with
-  | State (elems, attrs) ->
-      StateDiff (
-        Interp.ElementMap.map (fun s -> (true, state_to_diff s)) elems,
-        Interp.AttributeMap.map (fun (v, s) -> (Some v, state_to_diff s)) attrs
-      )
 
 let rec add_state_to_diff (d: state_diff) (s: Interp.state) : state_diff =
   match d, s with
@@ -201,21 +195,28 @@ let add_elems (elms: Interp.state Interp.ElementMap.t) (diff: state_diff) =
         | Some (b, d), Some s -> Some (b, add_state_to_diff d s))
         elems elms
       in StateDiff (new_elems, attrs)
+*)
 
 let rec evaluate_val (v: Ast.value) (m: unifier) : Ast.value =
   match v with
   | Unknown (Loop i, t) ->
-      begin match unifier_find i m with
+      begin match Unifier.find i m with
       | None -> v
       (* This case should not occur *)
       | Some (Value _) -> failwith "Cannot replace Loop unknown with value"
-      | Some (Unknown j) -> Unknown (Loop j, t)
+      | Some (Link j) -> Unknown (Loop j, t)
       end
-  | Unknown (Val i, t) ->
-      begin match unifier_find i m with
+  | Unknown (Universal i, t) ->
+      begin match Unifier.find i m with
       | None -> v
       | Some (Value w) -> w
-      | Some (Unknown j) -> Unknown (Val j, t)
+      | Some (Link j) -> Unknown (Universal j, t)
+      end
+  | Unknown (Existential i, t) ->
+      begin match Unifier.find i m with
+      | None -> v
+      | Some (Value w) -> w
+      | Some (Link j) -> Unknown (Existential j, t)
       end
   | Literal (_, _) -> v
   | Function (f, v, t) ->
@@ -225,7 +226,6 @@ let rec evaluate_val (v: Ast.value) (m: unifier) : Ast.value =
       | Reduced w -> w
       | Stuck -> Function (f, new_v, t)
       | Err msg ->
-          (* FIXME *)
           failwith ("While substituting an unknown a function evaluation failed: " ^ msg)
       end
   | Pair (x, y, t) -> Pair (evaluate_val x m, evaluate_val y m, t)
@@ -233,6 +233,7 @@ let rec evaluate_val (v: Ast.value) (m: unifier) : Ast.value =
   | Struct (t, r) -> Struct (t, Ast.FieldMap.map (fun v -> evaluate_val v m) r)
   | ListVal (n, w) -> ListVal (n, evaluate_val w m)
 
+(*
 let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
   (cand: Interp.prg_type * Ast.value) : outcome list =
   let (ref, ref_val) = ref
@@ -696,3 +697,4 @@ let print_verification (v: merged_outcomes option list) : bool =
     | None -> Printf.printf "FAILED TO VERIFY\n"; false
     | Some v -> Printf.printf "UNIFIED: %s\n" (outcome_to_string v); success
   ) true v
+*)
