@@ -30,82 +30,61 @@
 module Interp = Modules.Target.TargetInterp
 module Ast = Modules.Target.Ast_Target
 
-(* A multi-map, where each value can be mapped to a list of values *)
-module MultiMap(Ord : Map.OrderedType) : sig
-  type k = Ord.t
-  type 'a t
-  val empty : 'a t
-  val add : k -> 'a -> 'a t -> 'a t
-  val extend : k -> 'a list -> 'a t -> 'a t
-  val find : k -> 'a t -> 'a list
-end = struct
-  type k = Ord.t
+(* A Unifier maps variable numbers to values *)
+module Unifier : sig
+  type t
+  val empty : t
+  val find : int -> t -> Ast.value option
+  val add : int -> Ast.value -> t -> t
+end 
+= struct
+  module M = Map.Make(Int)
 
-  module M = Map.Make(Ord)
-  type 'a t = 'a list M.t
+  (* This type is kinda nuanced, because we're using a Map which is immutable
+   * but then wrapping it in a ref. The reason for this is that we want the
+   * Unifier to be observationally persistent, so if u is a unifier and then
+   * we assign m = add k v u, m is a unifier with k --> v while u has not
+   * changed, but find also performs some background work that is essentially
+   * path compression, and since these don't change the observational behavior
+   * of the Unifier, it is preferable to be able to record that compression
+   * so we don't need to do it again later *)
+  type t = Ast.value M.t ref
 
-  let empty = M.empty
-  let add k x m = M.add_to_list k x m
-  let extend k xs m =
-    M.update k
-      (fun ys -> match ys with None -> Some xs | Some ys -> Some (xs @ ys))
-      m
-  let find k m =
-    match M.find_opt k m with
-    | None -> []
-    | Some xs -> xs
-end
+  let empty = ref M.empty
 
-(* A Unifier maps keys to values or other keys, tracking a unification of the
- * keys and values *)
-module UnifierMake(Ord : Map.OrderedType) : sig
-  type k = Ord.t
-  type 'a unification = Value of 'a | Link of k
-  type 'a t
-  val empty : 'a t
-  val find : k -> 'a t -> 'a unification option
-  val add : k -> 'a unification -> 'a t -> 'a t
-end = struct
-  module Map = Map.Make(Ord)
-  module MMap = MultiMap(Ord)
-
-  type k = Ord.t
-
-  type 'a unification = Value of 'a | Link of k
-
-  (* The unifier holds the following information that is necessary to properly
-   * handle unifying expressions:
-   * - map: maps a key to a value or other key it is unified with
-   * - vmap: maps a key to the list of keys mapped to it, i.e. if vmap[i] = xs
-   *   and j in xs then map[j] = Link i *)
-  type 'a t = { map : 'a unification Map.t; vmap : k MMap.t }
-
-  let empty = { map = Map.empty; vmap = MMap.empty }
-  let find k u = Map.find_opt k u.map
   let add k v u =
-    let { map; vmap } = u
-    (* We need to perform 2 updates to map: map k -> v and for any j such that
-     * j -> k we update it so that j -> v (in particular this means we use
-     * vmap[k] and update those bindings to v) *)
-    (* Error if we attempt a re-unification (i.e., unifying a value already
-     * unified) because that could represent something going horribly wrong and
-     * breaks the tracking of what values are meant to be equal *)
-    in let map =
-      Map.update k
-        (fun x -> match x with None -> Some v
-                  | Some _ -> failwith "Cannot re-unify a value")
-        map
-    in let map =
-      List.fold_left (fun map j -> Map.add j v map) map (MMap.find k vmap)
-    in let vmap =
-      match v with
-      | Link k  -> MMap.extend k (MMap.find k vmap) vmap
-      | Value _ -> vmap
-    in { map; vmap }
+    ref (M.update k
+      (function None -> Some v | Some _ -> failwith "Cannot re-unify a value")
+      !u)
+
+  (* find is the most difficult function because we must ensure that any
+   * unknown values that might be contained within the value in the map are
+   * replaced by the value they map to (if any). We then apply path compression
+   * to update each variable we encounter to its most recent value, which we do
+   * mutuably since it doesn't impact the observational behavior of the unifier
+   * and reduces the future need to traverse the map *)
+  let rec find k u =
+    match M.find_opt k !u with
+    | None -> None
+    | Some v ->
+        let rec subst (v : Ast.value) : Ast.value =
+          match v with
+          | Unknown ((Loop i | Universal i | Existential i), _) ->
+              begin match find i u with
+              | None -> v
+              | Some v -> v
+              end
+          | Literal (_, _) -> v
+          | Function (f, v, t) -> Function (f, subst v, t)
+          | Pair (x, y, t) -> Pair (subst x, subst y, t)
+          | Constructor (n, c, v) -> Constructor (n, c, subst v)
+          | Struct (t, fs) -> Struct (t, Ast.FieldMap.map subst fs)
+          | ListVal (t, v) -> ListVal (t, subst v)
+        in let v = subst v
+        in u := M.add k v !u; Some v
 end
 
-module Unifier = UnifierMake(Int)
-type unifier = Ast.value Unifier.t
+type unifier = Unifier.t
 
 (* The result of comparing two diffent states, in particular subtracing one
  * state from another *)
@@ -197,30 +176,16 @@ let add_elems (elms: Interp.state Interp.ElementMap.t) (diff: state_diff) =
       in StateDiff (new_elems, attrs)
 *)
 
-let rec evaluate_val (v: Ast.value) (m: unifier) : Ast.value =
+let rec evaluate_val (u : unifier) (v : Ast.value) : Ast.value =
   match v with
-  | Unknown (Loop i, t) ->
-      begin match Unifier.find i m with
+  | Unknown ((Loop i | Universal i | Existential i), _) ->
+      begin match Unifier.find i u with
       | None -> v
-      (* This case should not occur *)
-      | Some (Value _) -> failwith "Cannot replace Loop unknown with value"
-      | Some (Link j) -> Unknown (Loop j, t)
-      end
-  | Unknown (Universal i, t) ->
-      begin match Unifier.find i m with
-      | None -> v
-      | Some (Value w) -> w
-      | Some (Link j) -> Unknown (Universal j, t)
-      end
-  | Unknown (Existential i, t) ->
-      begin match Unifier.find i m with
-      | None -> v
-      | Some (Value w) -> w
-      | Some (Link j) -> Unknown (Existential j, t)
+      | Some v -> v
       end
   | Literal (_, _) -> v
   | Function (f, v, t) ->
-      let new_v = evaluate_val v m
+      let new_v = evaluate_val u v
       in let (_, _, f_def) = Ast.funcDef f
       in begin match f_def new_v with
       | Reduced w -> w
@@ -228,10 +193,109 @@ let rec evaluate_val (v: Ast.value) (m: unifier) : Ast.value =
       | Err msg ->
           failwith ("While substituting an unknown a function evaluation failed: " ^ msg)
       end
-  | Pair (x, y, t) -> Pair (evaluate_val x m, evaluate_val y m, t)
-  | Constructor (n, c, v) -> Constructor (n, c, evaluate_val v m)
-  | Struct (t, r) -> Struct (t, Ast.FieldMap.map (fun v -> evaluate_val v m) r)
-  | ListVal (n, w) -> ListVal (n, evaluate_val w m)
+  | Pair (x, y, t) -> Pair (evaluate_val u x, evaluate_val u y, t)
+  | Constructor (n, c, v) -> Constructor (n, c, evaluate_val u v)
+  | Struct (t, r) -> Struct (t, Ast.FieldMap.map (fun v -> evaluate_val u v) r)
+  | ListVal (n, w) -> ListVal (n, evaluate_val u w)
+
+(* The evaluate_candidate function both evaluates the value and replaces all
+ * Universal variables with Existential ones, because even the Universal values
+ * in the candidate can be instantiated *)
+let rec evaluate_candidate (u : unifier) (v : Ast.value) : Ast.value =
+  match v with
+  | Unknown (Loop i, _) ->
+      begin match Unifier.find i u with
+      | None -> v
+      | Some v -> v
+      end
+  | Unknown ((Universal i | Existential i), t) ->
+      begin match Unifier.find i u with
+      | None -> Unknown (Existential i, t)
+      | Some v -> v
+      end
+  | Literal (_, _) -> v
+  | Function (f, v, t) ->
+      let new_v = evaluate_candidate u v
+      in let (_, _, f_def) = Ast.funcDef f
+      in begin match f_def new_v with
+      | Reduced w -> w
+      | Stuck -> Function (f, new_v, t)
+      | Err msg ->
+          failwith ("While substituting an unknown a function evaluation failed: " ^ msg)
+      end
+  | Pair (x, y, t) -> Pair (evaluate_candidate u x, evaluate_candidate u y, t)
+  | Constructor (n, c, v) -> Constructor (n, c, evaluate_candidate u v)
+  | Struct (t, r) -> Struct (t, Ast.FieldMap.map (evaluate_candidate u) r)
+  | ListVal (n, w) -> ListVal (n, evaluate_candidate u w)
+
+type unified =
+  | NotUnified
+  | Equal (* Already equal under the given unification, no additional constraints were needed *)
+  | Unified of unifier
+
+(* Attempts to unify two values where at least one of them is an unreduced
+ * function *)
+let add_function_constraint (_u : unifier) (_cand : Ast.value) (_ref : Ast.value)
+  : unified = NotUnified (* TODO *)
+
+let unify_values (u : unifier) (cand : Ast.value) (ref : Ast.value) : unified =
+  let cand = evaluate_candidate u cand
+  in let ref = evaluate_val u ref
+  in let rec unify (u : unifier) (cand : Ast.value) (ref : Ast.value)
+    : unified =
+    match cand, ref with
+    | Literal (c, _), Literal (r, _) ->
+        if c = r then Equal else NotUnified
+    | Function (fc, vc, _), Function (fr, vr, _) ->
+        if fc = fr
+        then
+          match unify u vc vr with
+          | Equal -> Equal
+          | Unified u -> Unified u
+          | NotUnified -> add_function_constraint u cand ref
+        else add_function_constraint u cand ref
+    | Pair (xc, yc, _), Pair (xr, yr, _) ->
+        begin match unify u xc xr with
+        | NotUnified -> NotUnified
+        | Equal -> unify u yc yr
+        | Unified u ->
+            begin match unify u yc yr with
+            | NotUnified -> NotUnified
+            | Equal -> Unified u
+            | Unified u -> Unified u
+            end
+        end
+    | Constructor (nc, cc, vc), Constructor (nr, cr, vr) ->
+        if nc <> nr || cc <> cr
+        then NotUnified
+        else unify u vc vr
+    | Struct (_, cs), Struct (_, rs) ->
+        (* By checking that they have equal cardinality and then ensuring that
+         * each binding in rs is also a binding in cs we ensure they have the
+         * same bindings *)
+        if Ast.FieldMap.cardinal cs <> Ast.FieldMap.cardinal rs
+        then NotUnified
+        else Ast.FieldMap.fold (fun f vr res ->
+          match res with
+          | NotUnified -> NotUnified
+          | Equal ->
+              begin match Ast.FieldMap.find_opt f cs with
+              | None -> NotUnified
+              | Some vc -> unify u vc vr
+              end
+          | Unified u ->
+              begin match Ast.FieldMap.find_opt f cs with
+              | None -> NotUnified
+              | Some vc ->
+                  begin match unify u vc vr with
+                  | NotUnified -> NotUnified
+                  | Equal -> Unified u
+                  | Unified u -> Unified u
+                  end
+              end
+          ) rs Equal
+    | ListVal (_, vc), ListVal (_, vr) -> unify u vc vr
+  in unify u cand ref
 
 (*
 let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
