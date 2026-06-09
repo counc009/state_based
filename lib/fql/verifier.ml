@@ -228,6 +228,19 @@ let rec evaluate_candidate (u : unifier) (v : Ast.value) : Ast.value =
   | Struct (t, r) -> Struct (t, Ast.FieldMap.map (evaluate_candidate u) r)
   | ListVal (n, w) -> ListVal (n, evaluate_candidate u w)
 
+let lookup_loop (loops : Interp.loop_info Interp.ValueMap.t) (id : int)
+  : Ast.value option =
+  Interp.ValueMap.fold (fun lst v res ->
+    match res with
+    | Some res -> Some res
+    | None ->
+        match v with
+        | Interp.AllUnknown n | LastKnown (n, _) ->
+            if n = id then Some lst else None
+        | AllKnown _ -> None)
+    loops
+    None
+
 type unified =
   | NotUnified
   | Equal (* Already equal under the given unification, no additional constraints were needed *)
@@ -238,7 +251,10 @@ type unified =
 let add_function_constraint (_u : unifier) (_cand : Ast.value) (_ref : Ast.value)
   : unified = NotUnified (* TODO *)
 
-let unify_values (u : unifier) (cand : Ast.value) (ref : Ast.value) : unified =
+let unify_values (u : unifier)
+  (loops_cand : Interp.loop_info Interp.ValueMap.t)
+  (loops_ref : Interp.loop_info Interp.ValueMap.t)
+  (cand : Ast.value) (ref : Ast.value) : unified =
   let cand = evaluate_candidate u cand
   in let ref = evaluate_val u ref
   in let rec unify (u : unifier) (cand : Ast.value) (ref : Ast.value)
@@ -295,6 +311,70 @@ let unify_values (u : unifier) (cand : Ast.value) (ref : Ast.value) : unified =
               end
           ) rs Equal
     | ListVal (_, vc), ListVal (_, vr) -> unify u vc vr
+    | Unknown (Loop c, _), Unknown (Loop r, _) ->
+        if c = r then Equal
+        else
+          (* Because we've performed evaluation already variables in the
+           * candidate and reference may not have originated from the same
+           * side, and so when looking up the lists we check all loops *)
+          let list_c =
+            match lookup_loop loops_cand c with
+            | Some lst -> Some (evaluate_candidate u lst)
+            | None ->
+                match lookup_loop loops_ref c with
+                | Some lst -> Some (evaluate_val u lst)
+                | None -> None
+          in let list_r =
+            match lookup_loop loops_cand c with
+            | Some lst -> Some (evaluate_candidate u lst)
+            | None ->
+                match lookup_loop loops_ref c with
+                | Some lst -> Some (evaluate_val u lst)
+                | None -> None
+          in begin match list_c, list_r with
+          | Some list_c, Some list_r ->
+              begin match unify u list_c list_r with
+              | NotUnified -> NotUnified
+              | Equal -> Unified (Unifier.add c ref u)
+              | Unified u -> Unified (Unifier.add c ref u)
+              end
+          | _ -> NotUnified
+          end
+    (* Loop variables cannot unify with anything other than other loop
+     * variables because they represent a specific set of unknown values (the
+     * values in the unreduced list) *)
+    | Unknown (Loop _, _), _ | _, Unknown (Loop _, _) -> NotUnified
+    (* Universal variables can only be unified with other universals *)
+    (* Note that neither variable has an existing binding as otherwise it would
+     * have been replaced by evaluation *)
+    | Unknown (Universal c, _), Unknown (Universal _, _) ->
+        Unified (Unifier.add c ref u)
+    | Unknown (Existential e, _), Unknown (Universal i, t)
+    | Unknown (Universal i, t), Unknown (Existential e, _) ->
+        Unified (Unifier.add e (Unknown (Universal i, t)) u)
+    | Unknown (Universal _, _), _ | _, Unknown (Universal _, _) -> NotUnified
+    | Unknown (Existential i, _), v | v, Unknown (Existential i, _) ->
+        Unified (Unifier.add i v u)
+
+    | Literal (_, _),
+      (Pair (_, _, _) | Constructor (_, _, _) | Struct (_, _) | ListVal (_, _))
+    | (Pair (_, _, _) | Constructor (_, _, _) | Struct (_, _) | ListVal (_, _)),
+      Literal (_, _)
+    | Pair (_, _, _),
+      (Constructor (_, _, _) | Struct (_, _) | ListVal (_, _))
+    | (Constructor (_, _, _) | Struct (_, _) | ListVal (_, _)), Pair (_, _, _)
+    | Constructor (_, _, _), Struct (_, _)
+    | Struct (_, _), Constructor (_, _, _)
+    | Struct (_, _), ListVal (_, _)
+    | ListVal (_, _), Struct (_, _)
+    -> NotUnified
+
+    (* TODO??? *)
+    | Constructor (_, _, _), ListVal (_, _)
+    | ListVal (_, _), Constructor (_, _, _) -> NotUnified
+
+    | _, Function (_, _, _) | Function (_, _, _), _ ->
+        add_function_constraint u cand ref
   in unify u cand ref
 
 (*
