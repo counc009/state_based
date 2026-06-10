@@ -911,6 +911,9 @@ module rec Ast_Target : Ast_Defs
         | Pair (x, y, _) -> Reducible [[ IsEqual (x, y) ]]
         | _ -> Unreducible
         end
+    (* TODO: Support some reductions involving Concat, ConcatLine, ConsPath,
+     * and AddExt (where possible) at least when constrained to be given
+     * literals *)
     | _, _ -> Unreducible
 end
 

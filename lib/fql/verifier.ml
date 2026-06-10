@@ -262,6 +262,10 @@ let add_function_constraint (_u : unifier) (cand : Ast.value) (ref : Ast.value)
       (* Try reducing the constraint cand = ref, try both options for which
        * function we try to reduce in case one works while the other doesn't *)
       begin match Ast.reduceFuncConstraint fc vc (IsEqual ref) with
+      (* TODO: Maybe we actually need unified to allow us to return a set of
+       * possible unifiers. That would also fix an issue noted later on where
+       * f(x) and f(y) can be unified either by unifying x and y or by unifying
+       * f(x) and f(y) through this procedure. *)
       | Reducible _cases -> failwith "TODO"
       | Unreducible ->
           match Ast.reduceFuncConstraint fr vr (IsEqual cand) with
