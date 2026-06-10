@@ -247,9 +247,49 @@ type unified =
   | Unified of unifier
 
 (* Attempts to unify two values where at least one of them is an unreduced
- * function *)
-let add_function_constraint (_u : unifier) (_cand : Ast.value) (_ref : Ast.value)
-  : unified = NotUnified (* TODO *)
+ * function. If both are unreduced functions they either do not use the same
+ * function or their arguments are not unifiable *)
+let add_function_constraint (_u : unifier) (cand : Ast.value) (ref : Ast.value)
+  : unified =
+  match cand, ref with
+  (* Uninterpreted functions generally represent functions that cannot be
+   * computed or determined. Therefore, the only way to be equal is for the two
+   * values to invoke that same function with equal arguments. By our
+   * assumptions, this is not the case. *)
+  | Function (Uninterpreted (_, _, _), _, _), _
+  | _, Function (Uninterpreted (_, _, _), _, _) -> NotUnified
+  | Function (fc, vc, _), Function (fr, vr, _) ->
+      (* Try reducing the constraint cand = ref, try both options for which
+       * function we try to reduce in case one works while the other doesn't *)
+      begin match Ast.reduceFuncConstraint fc vc (IsEqual ref) with
+      | Reducible _cases -> failwith "TODO"
+      | Unreducible ->
+          match Ast.reduceFuncConstraint fr vr (IsEqual cand) with
+          | Reducible _cases -> failwith "TODO"
+          | Unreducible -> failwith "TODO"
+      end
+  | Function (f, v, _), Literal (Bool b, _)
+  | Literal (Bool b, _), Function (f, v, _) ->
+      (* Try reducing the constraint f(v) = b *)
+      begin match Ast.reduceFuncConstraint f v (IsBool b) with
+      | Reducible _cases -> failwith "TODO"
+      | Unreducible -> failwith "TODO"
+      end
+  | Function (f, v, _), Constructor (_, which, x)
+  | Constructor (_, which, x), Function (f, v, _) ->
+      (* Try reducing the constraint f(v) = which(x) *)
+      begin match Ast.reduceFuncConstraint f v (IsConstructor (which, x)) with
+      | Reducible _cases -> failwith "TODO"
+      | Unreducible -> failwith "TODO"
+      end
+  | Function (f, v, _), other
+  | other, Function (f, v, _) ->
+      (* Try reducing the constraint f(v) = other *)
+      begin match Ast.reduceFuncConstraint f v (IsEqual other) with
+      | Reducible _cases -> failwith "TODO"
+      | Unreducible -> failwith "TODO"
+      end
+  | _, _ -> failwith "at least one argument to add_function_constraint must be a function"
 
 let unify_values (u : unifier)
   (loops_cand : Interp.loop_info Interp.ValueMap.t)
@@ -265,6 +305,10 @@ let unify_values (u : unifier)
     | Function (fc, vc, _), Function (fr, vr, _) ->
         if fc = fr
         then
+          (* TODO: Technically there's no reason vc and vr have to be equal,
+           * they could just be values such that f(vc) = f(vr). This means this
+           * code is overly conservative and potentially misses some other
+           * options on how to unify, but this is probably for the moment. *)
           match unify u vc vr with
           | Equal -> Equal
           | Unified u -> Unified u
@@ -369,7 +413,9 @@ let unify_values (u : unifier)
     | ListVal (_, _), Struct (_, _)
     -> NotUnified
 
-    (* TODO??? *)
+    (* ListVals where the list that was originally looped over was an
+     * existential could, in theory, unify with a concrete list, but I don't
+     * know that this is worth supporting at this time *)
     | Constructor (_, _, _), ListVal (_, _)
     | ListVal (_, _), Constructor (_, _, _) -> NotUnified
 
