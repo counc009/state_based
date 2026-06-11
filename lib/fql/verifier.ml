@@ -244,7 +244,7 @@ let lookup_loop (loops : Interp.loop_info Interp.ValueMap.t) (id : int)
 type unified =
   | NotUnified
   | Equal (* Already equal under the given unification, no additional constraints were needed *)
-  | Unified of unifier
+  | Unified of unifier list
 
 (* Attempts to unify two values where at least one of them is an unreduced
  * function. If both are unreduced functions they either do not use the same
@@ -309,13 +309,24 @@ let unify_values (u : unifier)
     | Function (fc, vc, _), Function (fr, vr, _) ->
         if fc = fr
         then
-          (* TODO: Technically there's no reason vc and vr have to be equal,
-           * they could just be values such that f(vc) = f(vr). This means this
-           * code is overly conservative and potentially misses some other
-           * options on how to unify, but this is probably for the moment. *)
           match unify u vc vr with
           | Equal -> Equal
-          | Unified u -> Unified u
+          (* If vc and vr can be unified (but aren't already equal), we could
+           * unify them or we could try to solve the function constraint, so
+           * we try that too, what we do based on its return:
+           * - NotUnified : return Unified us because we can make the values
+           *   equal by unifying vc and vr
+           * - Equal : return Equal because we somehow proved equality without
+           *   any changes
+           * - Unified u' -> return Unified (us @ u') because we can either
+           *   just unify vc and vr directly or do whatever unifications u'
+           *   contains. *)
+          | Unified us ->
+              begin match add_function_constraint u cand ref with
+              | NotUnified -> Unified us
+              | Equal -> Equal
+              | Unified u' -> Unified (us @ u')
+              end
           | NotUnified -> add_function_constraint u cand ref
         else add_function_constraint u cand ref
     | Pair (xc, yc, _), Pair (xr, yr, _) ->
@@ -323,10 +334,16 @@ let unify_values (u : unifier)
         | NotUnified -> NotUnified
         | Equal -> unify u yc yr
         | Unified u ->
-            begin match unify u yc yr with
-            | NotUnified -> NotUnified
-            | Equal -> Unified u
-            | Unified u -> Unified u
+            let res_u =
+              List.concat (
+                List.filter_map (fun u ->
+                  match unify u yc yr with
+                  | NotUnified -> None
+                  | Equal -> Some [u]
+                  | Unified u -> Some u) u)
+            in begin match res_u with
+            | [] -> NotUnified
+            | _ -> Unified res_u
             end
         end
     | Constructor (nc, cc, vc), Constructor (nr, cr, vr) ->
@@ -351,10 +368,16 @@ let unify_values (u : unifier)
               begin match Ast.FieldMap.find_opt f cs with
               | None -> NotUnified
               | Some vc ->
-                  begin match unify u vc vr with
-                  | NotUnified -> NotUnified
-                  | Equal -> Unified u
-                  | Unified u -> Unified u
+                  let res_u =
+                    List.concat (
+                      List.filter_map (fun u ->
+                        match unify u vc vr with
+                        | NotUnified -> None
+                        | Equal -> Some [u]
+                        | Unified u -> Some u) u)
+                  in begin match res_u with
+                  | [] -> NotUnified
+                  | _ -> Unified res_u
                   end
               end
           ) rs Equal
@@ -383,8 +406,8 @@ let unify_values (u : unifier)
           | Some list_c, Some list_r ->
               begin match unify u list_c list_r with
               | NotUnified -> NotUnified
-              | Equal -> Unified (Unifier.add c ref u)
-              | Unified u -> Unified (Unifier.add c ref u)
+              | Equal -> Unified [Unifier.add c ref u]
+              | Unified u -> Unified (List.map (Unifier.add c ref) u)
               end
           | _ -> NotUnified
           end
@@ -396,13 +419,13 @@ let unify_values (u : unifier)
     (* Note that neither variable has an existing binding as otherwise it would
      * have been replaced by evaluation *)
     | Unknown (Universal c, _), Unknown (Universal _, _) ->
-        Unified (Unifier.add c ref u)
+        Unified [Unifier.add c ref u]
     | Unknown (Existential e, _), Unknown (Universal i, t)
     | Unknown (Universal i, t), Unknown (Existential e, _) ->
-        Unified (Unifier.add e (Unknown (Universal i, t)) u)
+        Unified [Unifier.add e (Unknown (Universal i, t)) u]
     | Unknown (Universal _, _), _ | _, Unknown (Universal _, _) -> NotUnified
     | Unknown (Existential i, _), v | v, Unknown (Existential i, _) ->
-        Unified (Unifier.add i v u)
+        Unified [Unifier.add i v u]
 
     | Literal (_, _),
       (Pair (_, _, _) | Constructor (_, _, _) | Struct (_, _) | ListVal (_, _))
