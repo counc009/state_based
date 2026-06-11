@@ -27,6 +27,8 @@
  * reference can be instantiated to match values from the candidate.
  *)
 
+let ( let* ) = Option.bind
+
 module Interp = Modules.Target.TargetInterp
 module Ast = Modules.Target.Ast_Target
 
@@ -34,11 +36,14 @@ module Ast = Modules.Target.Ast_Target
 module Unifier : sig
   type t
   val empty : t
-  val find : int -> t -> Ast.value option
-  val add : int -> Ast.value -> t -> t
+
+  val eval : Ast.value -> t -> Ast.value
+  val add : int -> Ast.value -> t -> t option
+  val constrain : Ast.value -> Ast.constr -> t -> t option
 end 
 = struct
   module M = Map.Make(Int)
+  module VM = Interp.ValueMap
 
   (* This type is kinda nuanced, because we're using a Map which is immutable
    * but then wrapping it in a ref. The reason for this is that we want the
@@ -48,40 +53,183 @@ end
    * path compression, and since these don't change the observational behavior
    * of the Unifier, it is preferable to be able to record that compression
    * so we don't need to do it again later *)
-  type t = Ast.value M.t ref
+  type t = { map : Ast.value M.t ref; bools : bool VM.t;
+             constrs : (bool * Ast.value) VM.t }
 
-  let empty = ref M.empty
+  let empty = { map = ref M.empty; bools = VM.empty;
+                constrs = VM.empty }
 
-  let add k v u =
-    ref (M.update k
-      (function None -> Some v | Some _ -> failwith "Cannot re-unify a value")
-      !u)
+  (* Given a term fully evaluated under the map, check if we can evaluate
+   * further under the constraints *)
+  let eval_constraints v { bools; constrs; _ } =
+    match VM.find_opt v bools with
+    | Some b -> Ast.Literal (Bool b, Bool)
+    | None ->
+        match VM.find_opt v constrs with
+        | Some (which, x) ->
+            begin match Interp.type_of_val v with
+            | Named n -> Constructor (n, which, x)
+            | _ -> failwith "Value is constrained as Constructor but type is not Named"
+            end
+        | None -> v
 
-  (* find is the most difficult function because we must ensure that any
-   * unknown values that might be contained within the value in the map are
-   * replaced by the value they map to (if any). We then apply path compression
-   * to update each variable we encounter to its most recent value, which we do
-   * mutuably since it doesn't impact the observational behavior of the unifier
-   * and reduces the future need to traverse the map *)
-  let rec find k u =
-    match M.find_opt k !u with
-    | None -> None
-    | Some v ->
-        let rec subst (v : Ast.value) : Ast.value =
-          match v with
-          | Unknown ((Loop i | Universal i | Existential i), _) ->
-              begin match find i u with
-              | None -> v
-              | Some v -> v
+  let rec eval (v : Ast.value) ({ map; _ } as u) =
+    match v with
+    | Unknown ((Loop i | Universal i | Existential i), _) ->
+        begin match M.find_opt i !map with
+        (* We don't need to use eval_constraints because we never put variables
+         * into bools or constrs, we would just put the constraints directly
+         * into the map *)
+        | None -> v
+        | Some v -> let v = eval v u in map := M.add i v !map; v
+        end
+    (* We don't bother to eval_constraints on literals, since they should never
+     * appear *)
+    | Literal (_, _) -> v
+    | Function (f, v, t) ->
+        let new_v = eval v u
+        in let (_, _, f_def) = Ast.funcDef f
+        in let res =
+          match f_def new_v with
+          | Reduced w -> w
+          | Stuck -> Function (f, new_v, t)
+          | Err msg ->
+              failwith ("Unifier.eval encountered a function evaluation failure:" ^ msg)
+        in eval_constraints res u
+    (* Like with literals, a Pair itself never appears in a constraint because
+     * it is neither a bool nor a constructor *)
+    | Pair (x, y, t) -> Pair (eval x u, eval y u, t)
+    (* And again, a constructor value would never be put in the constraints *)
+    | Constructor (n, c, v) -> Constructor (n, c, eval v u)
+    | Struct (t, r) -> Struct (t, Ast.FieldMap.map (fun v -> eval v u) r)
+    | ListVal (n, v) -> eval_constraints (ListVal (n, eval v u)) u
+
+  (* If we attempt to add inconsistent information we return None *)
+  let add k v { map; bools; constrs } =
+    let error = ref false
+    in let res =
+      M.update k (function None -> Some v
+                  | Some _ -> error := true; Some v) !map
+    in if !error
+    then None
+    else
+      let map = ref res
+      in let* bools =
+        VM.fold (fun v b bools ->
+          let* bools = bools
+          in let v = eval v { map; bools; constrs = VM.empty }
+          in match Ast.asTruth v with
+          | Some c -> if b = c then Some bools else None
+          | _ ->
+              begin match VM.find_opt v bools with
+              | None -> Some (VM.add v b bools)
+              | Some c -> if b = c then Some bools else None
               end
-          | Literal (_, _) -> v
-          | Function (f, v, t) -> Function (f, subst v, t)
-          | Pair (x, y, t) -> Pair (subst x, subst y, t)
-          | Constructor (n, c, v) -> Constructor (n, c, subst v)
-          | Struct (t, fs) -> Struct (t, Ast.FieldMap.map subst fs)
-          | ListVal (t, v) -> ListVal (t, subst v)
-        in let v = subst v
-        in u := M.add k v !u; Some v
+        ) bools (Some VM.empty)
+      (* Because handling the constructors can result in more constraints we
+       * may also have to update the bools *)
+      in let* (constrs, bools) =
+        VM.fold (fun v (which, x) acc ->
+          let* (constrs, bools) = acc
+          in let v = eval v { map; bools; constrs }
+          in let x = eval x { map; bools; constrs }
+          in match v with
+          | Ast.Constructor (_, w, y) ->
+              if which <> w 
+              then None
+              (* We don't do an in-depth unification because that's very
+               * difficult and non-deterministic. Instead we just use a bool
+               * condition about their equality *)
+              else
+                let eqxy : Ast.value =
+                  Function (Equal (Interp.type_of_val x),
+                    Pair (x, y,
+                      Product (Interp.type_of_val x, Interp.type_of_val y)),
+                    Primitive Bool)
+                in let eq_eval = eval eqxy { map; bools; constrs }
+                in begin match Ast.asTruth eq_eval with
+                (* Already true, no need to do anything else *)
+                | Some true -> Some (constrs, bools)
+                | Some false -> None (* Cannot unify, so contradiction *)
+                | None ->
+                    begin match VM.find_opt eq_eval bools with
+                    | None -> Some (constrs, VM.add eq_eval true bools)
+                    | Some true -> Some (constrs, bools)
+                    | Some false -> None
+                    end
+                end
+          | _ ->
+              begin match VM.find_opt v constrs with
+              | None -> Some (VM.add v (which, x) constrs, bools)
+              | Some (w, y) ->
+                  if which <> w
+                  then None
+                  else 
+                    let eqxy : Ast.value =
+                      Function (Equal (Interp.type_of_val x),
+                        Pair (x, y,
+                          Product (Interp.type_of_val x, Interp.type_of_val y)),
+                        Primitive Bool)
+                    in let eq_eval = eval eqxy { map; bools; constrs }
+                    in begin match Ast.asTruth eq_eval with
+                    (* Already true, no need to do anything else *)
+                    | Some true -> Some (constrs, bools)
+                    | Some false -> None (* Cannot unify, so contradiction *)
+                    | None ->
+                        begin match VM.find_opt eq_eval bools with
+                        | None -> Some (constrs, VM.add eq_eval true bools)
+                        | Some true -> Some (constrs, bools)
+                        | Some false -> None
+                        end
+                    end
+              end
+        ) constrs (Some (VM.empty, bools))
+      in Some { map; bools; constrs }
+
+  (* We assume that v is fully evaluated under the current unifier *)
+  let constrain v (c : Ast.constr) ({ map; bools; constrs } as u) =
+    match v with
+    (* For unknowns we don't add the information to the constraints but rather
+     * put it directly into the map *)
+    | Ast.Unknown ((Loop i | Universal i | Existential i), t) ->
+        begin match c with
+        | IsBool b -> add i (Literal (Bool b, Bool)) u
+        | IsConstructor (which, x) ->
+            let n =
+              match t with
+              | Named n -> n
+              | _ -> failwith "Value is constrained to be a constructor but does not have Named type"
+            in add i (Constructor (n, which, x)) u
+        | IsEqual w -> add i w u
+        end
+    | _ ->
+      match c with
+      | IsBool b ->
+          Some { map; bools = VM.add v b bools; constrs }
+      | IsConstructor (which, x) ->
+          Some { map; bools; constrs = VM.add v (which, x) constrs }
+      | IsEqual w ->
+          (* IsEqual constraints are the one where there could already be a
+           * constraint about v and w, even though we assume both are fully
+           * evaluated since constraint will simply have the form equal(v, w)
+           * in the bools, so we would not find it in our search procedure.
+           * Thus we must check if this is consistent. *)
+          let err = ref false
+          in let tv = Interp.type_of_val v
+          in let tw = Interp.type_of_val w
+          in let tvw = Ast.Product (tv, tw)
+          in let twv = Ast.Product (tw, tv)
+          in let equal = Ast.equality_func tv
+          in let eqvw = Ast.Function (equal, Pair (v, w, tvw), Primitive Bool)
+          in let eqwv = Ast.Function (equal, Pair (w, v, twv), Primitive Bool)
+          in let add_binding = function
+            | None | Some true -> Some true
+            | Some false -> err := true; None
+          in let bools =
+            VM.update eqvw add_binding (VM.update eqwv add_binding bools)
+          in if !err
+          then None (* Inconsistent *)
+          else Some { map; bools; constrs }
 end
 
 type unifier = Unifier.t
@@ -176,57 +324,21 @@ let add_elems (elms: Interp.state Interp.ElementMap.t) (diff: state_diff) =
       in StateDiff (new_elems, attrs)
 *)
 
-let rec evaluate_val (u : unifier) (v : Ast.value) : Ast.value =
-  match v with
-  | Unknown ((Loop i | Universal i | Existential i), _) ->
-      begin match Unifier.find i u with
-      | None -> v
-      | Some v -> v
-      end
-  | Literal (_, _) -> v
-  | Function (f, v, t) ->
-      let new_v = evaluate_val u v
-      in let (_, _, f_def) = Ast.funcDef f
-      in begin match f_def new_v with
-      | Reduced w -> w
-      | Stuck -> Function (f, new_v, t)
-      | Err msg ->
-          failwith ("While substituting an unknown a function evaluation failed: " ^ msg)
-      end
-  | Pair (x, y, t) -> Pair (evaluate_val u x, evaluate_val u y, t)
-  | Constructor (n, c, v) -> Constructor (n, c, evaluate_val u v)
-  | Struct (t, r) -> Struct (t, Ast.FieldMap.map (fun v -> evaluate_val u v) r)
-  | ListVal (n, w) -> ListVal (n, evaluate_val u w)
-
 (* The evaluate_candidate function both evaluates the value and replaces all
  * Universal variables with Existential ones, because even the Universal values
  * in the candidate can be instantiated *)
-let rec evaluate_candidate (u : unifier) (v : Ast.value) : Ast.value =
-  match v with
-  | Unknown (Loop i, _) ->
-      begin match Unifier.find i u with
-      | None -> v
-      | Some v -> v
-      end
-  | Unknown ((Universal i | Existential i), t) ->
-      begin match Unifier.find i u with
-      | None -> Unknown (Existential i, t)
-      | Some v -> v
-      end
-  | Literal (_, _) -> v
-  | Function (f, v, t) ->
-      let new_v = evaluate_candidate u v
-      in let (_, _, f_def) = Ast.funcDef f
-      in begin match f_def new_v with
-      | Reduced w -> w
-      | Stuck -> Function (f, new_v, t)
-      | Err msg ->
-          failwith ("While substituting an unknown a function evaluation failed: " ^ msg)
-      end
-  | Pair (x, y, t) -> Pair (evaluate_candidate u x, evaluate_candidate u y, t)
-  | Constructor (n, c, v) -> Constructor (n, c, evaluate_candidate u v)
-  | Struct (t, r) -> Struct (t, Ast.FieldMap.map (evaluate_candidate u) r)
-  | ListVal (n, w) -> ListVal (n, evaluate_candidate u w)
+let evaluate_candidate (u : unifier) (v : Ast.value) : Ast.value =
+  let rec replace_universals (v : Ast.value) : Ast.value =
+    match v with
+    | Unknown ((Loop _ | Existential _), _) -> v
+    | Unknown (Universal i, t) -> Unknown (Existential i, t)
+    | Literal (_, _) -> v
+    | Function (f, v, t) -> Function (f, replace_universals v, t)
+    | Pair (x, y, t) -> Pair (replace_universals x, replace_universals y, t)
+    | Constructor (n, c, v) -> Constructor (n, c, replace_universals v)
+    | Struct (t, r) -> Struct (t, Ast.FieldMap.map replace_universals r)
+    | ListVal (n, v) -> ListVal (n, replace_universals v)
+  in Unifier.eval (replace_universals v) u
 
 let lookup_loop (loops : Interp.loop_info Interp.ValueMap.t) (id : int)
   : Ast.value option =
@@ -246,12 +358,63 @@ type unified =
   | Equal (* Already equal under the given unification, no additional constraints were needed *)
   | Unified of unifier list
 
+(* Given a list of options xs and a function f which determines how a value in
+ * xs in be satisfied, returns a unified result of NotUnified if no element of
+ * xs can be satisfied, Equal if any element of xs is already satisfied, and
+ * Unified u with all possibly satisfying unifications otherwise *)
+let map_unified (xs : 'a list) (f : 'a -> unified) : unified =
+  let rec map (xs : 'a list) : unified =
+    match xs with
+    | [] -> NotUnified
+    | x :: xs ->
+        match f x with
+        | NotUnified -> map xs
+        | Equal -> Equal
+        | Unified u ->
+            match map xs with
+            | NotUnified -> Unified u
+            | Equal -> Equal
+            | Unified u' -> Unified (u @ u')
+  in map xs
+
 (* Attempts to unify two values where at least one of them is an unreduced
  * function. If both are unreduced functions they either do not use the same
  * function or their arguments are not unifiable *)
-let add_function_constraint (_u : unifier) (cand : Ast.value) (ref : Ast.value)
-  : unified =
-  match cand, ref with
+let add_function_constraint
+  (unify : unifier -> Ast.value -> Ast.value -> unified) (u : unifier)
+  (cand : Ast.value) (ref : Ast.value) : unified =
+  let handle_cases (cases : Ast.result_constraint list list) : unified =
+    map_unified cases (fun conds ->
+      List.fold_left (fun acc (c : Ast.result_constraint) ->
+        let (v, w) =
+          match c with
+          | IsBool (v, b) -> (v, Ast.Literal (Bool b, Bool))
+          | IsConstructor (v, (which, w)) ->
+              let n =
+                match Interp.type_of_val v with
+                | Named n -> n
+                | _ -> failwith "Value is constrained to be constructor but not of Named type"
+              in (v, Ast.Constructor (n, which, w))
+          | IsEqual (v, w) -> (v, w)
+        in match acc with
+        | NotUnified -> NotUnified
+        | Equal -> unify u v w
+        | Unified u ->
+            let res_u =
+              List.concat (List.filter_map (fun u ->
+                match unify u v w with
+                | NotUnified -> None
+                | Equal -> Some [u]
+                | Unified u -> Some u) u)
+            in if List.is_empty res_u
+            then NotUnified
+            else Unified res_u
+      ) Equal conds)
+  in let add_constraint (v : Ast.value) (c : Ast.constr) : unified =
+    match Unifier.constrain v c u with
+    | None -> NotUnified
+    | Some u -> Unified [u]
+  in match cand, ref with
   (* Uninterpreted functions generally represent functions that cannot be
    * computed or determined. Therefore, the only way to be equal is for the two
    * values to invoke that same function with equal arguments. By our
@@ -262,36 +425,33 @@ let add_function_constraint (_u : unifier) (cand : Ast.value) (ref : Ast.value)
       (* Try reducing the constraint cand = ref, try both options for which
        * function we try to reduce in case one works while the other doesn't *)
       begin match Ast.reduceFuncConstraint fc vc (IsEqual ref) with
-      (* TODO: Maybe we actually need unified to allow us to return a set of
-       * possible unifiers. That would also fix an issue noted later on where
-       * f(x) and f(y) can be unified either by unifying x and y or by unifying
-       * f(x) and f(y) through this procedure. *)
-      | Reducible _cases -> failwith "TODO"
+      | Reducible cases -> handle_cases cases
       | Unreducible ->
           match Ast.reduceFuncConstraint fr vr (IsEqual cand) with
-          | Reducible _cases -> failwith "TODO"
-          | Unreducible -> failwith "TODO"
+          | Reducible cases -> handle_cases cases
+          | Unreducible -> add_constraint cand (IsEqual ref)
       end
-  | Function (f, v, _), Literal (Bool b, _)
-  | Literal (Bool b, _), Function (f, v, _) ->
+  | Function (f, v, t), Literal (Bool b, _)
+  | Literal (Bool b, _), Function (f, v, t) ->
       (* Try reducing the constraint f(v) = b *)
       begin match Ast.reduceFuncConstraint f v (IsBool b) with
-      | Reducible _cases -> failwith "TODO"
-      | Unreducible -> failwith "TODO"
+      | Reducible cases -> handle_cases cases
+      | Unreducible -> add_constraint (Function (f, v, t)) (IsBool b)
       end
-  | Function (f, v, _), Constructor (_, which, x)
-  | Constructor (_, which, x), Function (f, v, _) ->
+  | Function (f, v, t), Constructor (_, which, x)
+  | Constructor (_, which, x), Function (f, v, t) ->
       (* Try reducing the constraint f(v) = which(x) *)
       begin match Ast.reduceFuncConstraint f v (IsConstructor (which, x)) with
-      | Reducible _cases -> failwith "TODO"
-      | Unreducible -> failwith "TODO"
+      | Reducible cases -> handle_cases cases
+      | Unreducible ->
+          add_constraint (Function (f, v, t)) (IsConstructor (which, x))
       end
-  | Function (f, v, _), other
-  | other, Function (f, v, _) ->
+  | Function (f, v, t), other
+  | other, Function (f, v, t) ->
       (* Try reducing the constraint f(v) = other *)
       begin match Ast.reduceFuncConstraint f v (IsEqual other) with
-      | Reducible _cases -> failwith "TODO"
-      | Unreducible -> failwith "TODO"
+      | Reducible cases -> handle_cases cases
+      | Unreducible -> add_constraint (Function (f, v, t)) (IsEqual other)
       end
   | _, _ -> failwith "at least one argument to add_function_constraint must be a function"
 
@@ -300,7 +460,7 @@ let unify_values (u : unifier)
   (loops_ref : Interp.loop_info Interp.ValueMap.t)
   (cand : Ast.value) (ref : Ast.value) : unified =
   let cand = evaluate_candidate u cand
-  in let ref = evaluate_val u ref
+  in let ref = Unifier.eval ref u
   in let rec unify (u : unifier) (cand : Ast.value) (ref : Ast.value)
     : unified =
     match cand, ref with
@@ -322,13 +482,13 @@ let unify_values (u : unifier)
            *   just unify vc and vr directly or do whatever unifications u'
            *   contains. *)
           | Unified us ->
-              begin match add_function_constraint u cand ref with
+              begin match add_function_constraint unify u cand ref with
               | NotUnified -> Unified us
               | Equal -> Equal
               | Unified u' -> Unified (us @ u')
               end
-          | NotUnified -> add_function_constraint u cand ref
-        else add_function_constraint u cand ref
+          | NotUnified -> add_function_constraint unify u cand ref
+        else add_function_constraint unify u cand ref
     | Pair (xc, yc, _), Pair (xr, yr, _) ->
         begin match unify u xc xr with
         | NotUnified -> NotUnified
@@ -341,10 +501,9 @@ let unify_values (u : unifier)
                   | NotUnified -> None
                   | Equal -> Some [u]
                   | Unified u -> Some u) u)
-            in begin match res_u with
-            | [] -> NotUnified
-            | _ -> Unified res_u
-            end
+            in if List.is_empty res_u
+            then NotUnified
+            else Unified res_u
         end
     | Constructor (nc, cc, vc), Constructor (nr, cr, vr) ->
         if nc <> nr || cc <> cr
@@ -393,21 +552,29 @@ let unify_values (u : unifier)
             | Some lst -> Some (evaluate_candidate u lst)
             | None ->
                 match lookup_loop loops_ref c with
-                | Some lst -> Some (evaluate_val u lst)
+                | Some lst -> Some (Unifier.eval lst u)
                 | None -> None
           in let list_r =
             match lookup_loop loops_cand c with
             | Some lst -> Some (evaluate_candidate u lst)
             | None ->
                 match lookup_loop loops_ref c with
-                | Some lst -> Some (evaluate_val u lst)
+                | Some lst -> Some (Unifier.eval lst u)
                 | None -> None
           in begin match list_c, list_r with
           | Some list_c, Some list_r ->
               begin match unify u list_c list_r with
               | NotUnified -> NotUnified
-              | Equal -> Unified [Unifier.add c ref u]
-              | Unified u -> Unified (List.map (Unifier.add c ref) u)
+              | Equal ->
+                  begin match Unifier.add c ref u with
+                  | None -> NotUnified
+                  | Some u -> Unified [u]
+                  end
+              | Unified u ->
+                  let res_u = List.filter_map (Unifier.add c ref) u
+                  in if List.is_empty res_u
+                  then NotUnified
+                  else Unified res_u
               end
           | _ -> NotUnified
           end
@@ -419,13 +586,22 @@ let unify_values (u : unifier)
     (* Note that neither variable has an existing binding as otherwise it would
      * have been replaced by evaluation *)
     | Unknown (Universal c, _), Unknown (Universal _, _) ->
-        Unified [Unifier.add c ref u]
+        begin match Unifier.add c ref u with
+        | None -> NotUnified
+        | Some u -> Unified [u]
+        end
     | Unknown (Existential e, _), Unknown (Universal i, t)
     | Unknown (Universal i, t), Unknown (Existential e, _) ->
-        Unified [Unifier.add e (Unknown (Universal i, t)) u]
+        begin match Unifier.add e (Unknown (Universal i, t)) u with
+        | None -> NotUnified
+        | Some u -> Unified [u]
+        end
     | Unknown (Universal _, _), _ | _, Unknown (Universal _, _) -> NotUnified
     | Unknown (Existential i, _), v | v, Unknown (Existential i, _) ->
-        Unified [Unifier.add i v u]
+        begin match Unifier.add i v u with
+        | None -> NotUnified
+        | Some u -> Unified [u]
+        end
 
     | Literal (_, _),
       (Pair (_, _, _) | Constructor (_, _, _) | Struct (_, _) | ListVal (_, _))
@@ -447,7 +623,7 @@ let unify_values (u : unifier)
     | ListVal (_, _), Constructor (_, _, _) -> NotUnified
 
     | _, Function (_, _, _) | Function (_, _, _), _ ->
-        add_function_constraint u cand ref
+        add_function_constraint unify u cand ref
   in unify u cand ref
 
 (*
