@@ -626,6 +626,83 @@ let unify_values (u : unifier)
         add_function_constraint unify u cand ref
   in unify u cand ref
 
+let list_of_res (res : Interp.interp_res) : Interp.interp_state list =
+  let rec with_acc (res : Interp.interp_res) acc =
+    match res with
+    | Err _ -> acc
+    | Success s -> s :: acc
+    | Both (x, y) | Either (x, y) -> with_acc y (with_acc x acc)
+  in with_acc res []
+
+type interp_state_unifier =
+  { u : unifier; init : state_diff; final : state_diff }
+
+let find_satisfying (ref : Interp.interp_state) (cand : Interp.interp_res)
+  : interp_state_unifier list =
+  let unify_states (u : unifier) ref_loops cand_loops (ref : Interp.state)
+    (cand : Interp.state) (can_miss : bool) : (unifier * state_diff) list =
+    let rec unify (u : unifier) (ref : Interp.state) (cand : Interp.state)
+      : (unifier * state_diff) list option =
+      let State (ref_elems, ref_attrs) = ref
+      in let State (cand_elems, cand_attrs) = cand
+      (* Unifying attributes is straightforward *)
+      in let* (attrs_diff, u) =
+        Interp.AttributeMap.fold (fun attr ref_val acc ->
+          let* (cand_attrs, u) = acc
+          in match Interp.AttributeMap.find_opt attr cand_attrs with
+          | None ->
+              if can_miss then Some (cand_attrs, u) else None
+          | Some cand_val ->
+              let res =
+                List.concat_map (fun u ->
+                  match unify_values u cand_loops ref_loops cand_val ref_val with
+                  | NotUnified -> []
+                  | Equal -> [u]
+                  | Unified u -> u
+                ) u
+              in if List.is_empty res
+              then None
+              else Some (Interp.AttributeMap.remove attr cand_attrs, res)
+        ) ref_attrs (Some (Interp.AttributeMap.empty, [u]))
+      (* Unifying elements is more complicated because we can unify the values
+       * which are part of the element (TODO) *)
+      in None
+    in match unify u ref cand with
+    | None -> []
+    | Some res -> res
+  in let unify_interp_state (ref : Interp.interp_state)
+    (cand : Interp.interp_state) : interp_state_unifier list =
+    (* Setup our unifier by adding the constraints to it *)
+    let ref_loops = ref.loops
+    in let cand_loops = cand.loops
+    in let u =
+      let u = Unifier.empty
+      in let* u = Interp.ValueMap.fold (fun v b u ->
+        let* u = u
+        in Unifier.constrain v (IsBool b) u
+      ) ref.bools (Some u)
+      in let* u = Interp.ValueMap.fold (fun v b u ->
+        let* u = u
+        in Unifier.constrain v (IsBool b) u
+      ) cand.bools (Some u)
+      in let* u = Interp.ValueMap.fold (fun v (which, w) u ->
+        let* u = u
+        in Unifier.constrain v (IsConstructor (which, w)) u
+      ) ref.constrs (Some u)
+      in let* u = Interp.ValueMap.fold (fun v (which, w) u ->
+        let* u = u
+        in Unifier.constrain v (IsConstructor (which, w)) u
+      ) cand.constrs (Some u)
+      in Some u
+    in match u with
+    | None -> []
+    | Some u ->
+      List.fold_left (fun res (u, init) ->
+        List.fold_left (fun res (u, final) -> { u; init; final } :: res)
+          res (unify_states u ref_loops cand_loops ref.final cand.final false))
+        [] (unify_states u ref_loops cand_loops ref.init cand.init true)
+  in List.concat_map (unify_interp_state ref) (list_of_res cand)
+
 (*
 let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
   (cand: Interp.prg_type * Ast.value) : outcome list =
