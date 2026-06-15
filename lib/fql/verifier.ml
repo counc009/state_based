@@ -246,6 +246,28 @@ and state_diff =
 let diff_empty : state_diff =
   StateDiff (Interp.ElementMap.empty, Interp.AttributeMap.empty)
 
+let diff_add_elem (e : Interp.ElementMap.key) (d : state_diff)
+  (top : state_diff) : state_diff =
+  let StateDiff (elems, attrs) = top
+  in StateDiff (Interp.ElementMap.add e (false, Positive d) elems, attrs)
+
+let rec state_to_diff (s : Interp.state) =
+  let State (elems, attrs) = s
+  in StateDiff (
+      Interp.ElementMap.map (fun (b : Interp.element_result) ->
+        match b with
+        | Negated -> (true, Negated)
+        | Positive s -> (true, Positive (state_to_diff s))) elems,
+      attrs)
+
+(* We assume the differences are disjoint *)
+let add_diffs (x : state_diff) (y : state_diff) : state_diff =
+  let StateDiff (elems_x, attrs_x) = x
+  in let StateDiff (elems_y, attrs_y) = y
+  in StateDiff (
+      Interp.ElementMap.union (fun _ d _ -> Some d) elems_x elems_y,
+      Interp.AttributeMap.union (fun _ v _ -> Some v) attrs_x attrs_y)
+
 (*
 let rec state_to_diff (s : Interp.state) : state_diff =
   let State (elems, attrs) = s
@@ -353,10 +375,12 @@ let lookup_loop (loops : Interp.loop_info Interp.ValueMap.t) (id : int)
     loops
     None
 
-type unified =
+type ('e, 'u) unified_res =
   | NotUnified
-  | Equal (* Already equal under the given unification, no additional constraints were needed *)
-  | Unified of unifier list
+  | Equal of 'e
+  | Unified of 'u
+
+type unified = (unit, unifier list) unified_res
 
 (* Given a list of options xs and a function f which determines how a value in
  * xs in be satisfied, returns a unified result of NotUnified if no element of
@@ -369,11 +393,11 @@ let map_unified (xs : 'a list) (f : 'a -> unified) : unified =
     | x :: xs ->
         match f x with
         | NotUnified -> map xs
-        | Equal -> Equal
+        | Equal () -> Equal ()
         | Unified u ->
             match map xs with
             | NotUnified -> Unified u
-            | Equal -> Equal
+            | Equal () -> Equal ()
             | Unified u' -> Unified (u @ u')
   in map xs
 
@@ -398,18 +422,18 @@ let add_function_constraint
           | IsEqual (v, w) -> (v, w)
         in match acc with
         | NotUnified -> NotUnified
-        | Equal -> unify u v w
+        | Equal () -> unify u v w
         | Unified u ->
             let res_u =
               List.concat (List.filter_map (fun u ->
                 match unify u v w with
                 | NotUnified -> None
-                | Equal -> Some [u]
+                | Equal () -> Some [u]
                 | Unified u -> Some u) u)
             in if List.is_empty res_u
             then NotUnified
             else Unified res_u
-      ) Equal conds)
+      ) (Equal ()) conds)
   in let add_constraint (v : Ast.value) (c : Ast.constr) : unified =
     match Unifier.constrain v c u with
     | None -> NotUnified
@@ -465,12 +489,12 @@ let unify_values (u : unifier)
     : unified =
     match cand, ref with
     | Literal (c, _), Literal (r, _) ->
-        if c = r then Equal else NotUnified
+        if c = r then Equal () else NotUnified
     | Function (fc, vc, _), Function (fr, vr, _) ->
         if fc = fr
         then
           match unify u vc vr with
-          | Equal -> Equal
+          | Equal () -> Equal ()
           (* If vc and vr can be unified (but aren't already equal), we could
            * unify them or we could try to solve the function constraint, so
            * we try that too, what we do based on its return:
@@ -484,7 +508,7 @@ let unify_values (u : unifier)
           | Unified us ->
               begin match add_function_constraint unify u cand ref with
               | NotUnified -> Unified us
-              | Equal -> Equal
+              | Equal () -> Equal ()
               | Unified u' -> Unified (us @ u')
               end
           | NotUnified -> add_function_constraint unify u cand ref
@@ -492,14 +516,14 @@ let unify_values (u : unifier)
     | Pair (xc, yc, _), Pair (xr, yr, _) ->
         begin match unify u xc xr with
         | NotUnified -> NotUnified
-        | Equal -> unify u yc yr
+        | Equal () -> unify u yc yr
         | Unified u ->
             let res_u =
               List.concat (
                 List.filter_map (fun u ->
                   match unify u yc yr with
                   | NotUnified -> None
-                  | Equal -> Some [u]
+                  | Equal () -> Some [u]
                   | Unified u -> Some u) u)
             in if List.is_empty res_u
             then NotUnified
@@ -518,7 +542,7 @@ let unify_values (u : unifier)
         else Ast.FieldMap.fold (fun f vr res ->
           match res with
           | NotUnified -> NotUnified
-          | Equal ->
+          | Equal () ->
               begin match Ast.FieldMap.find_opt f cs with
               | None -> NotUnified
               | Some vc -> unify u vc vr
@@ -532,17 +556,17 @@ let unify_values (u : unifier)
                       List.filter_map (fun u ->
                         match unify u vc vr with
                         | NotUnified -> None
-                        | Equal -> Some [u]
+                        | Equal () -> Some [u]
                         | Unified u -> Some u) u)
                   in begin match res_u with
                   | [] -> NotUnified
                   | _ -> Unified res_u
                   end
               end
-          ) rs Equal
+          ) rs (Equal ())
     | ListVal (_, vc), ListVal (_, vr) -> unify u vc vr
     | Unknown (Loop c, _), Unknown (Loop r, _) ->
-        if c = r then Equal
+        if c = r then Equal ()
         else
           (* Because we've performed evaluation already variables in the
            * candidate and reference may not have originated from the same
@@ -565,7 +589,7 @@ let unify_values (u : unifier)
           | Some list_c, Some list_r ->
               begin match unify u list_c list_r with
               | NotUnified -> NotUnified
-              | Equal ->
+              | Equal () ->
                   begin match Unifier.add c ref u with
                   | None -> NotUnified
                   | Some u -> Unified [u]
@@ -634,6 +658,16 @@ let list_of_res (res : Interp.interp_res) : Interp.interp_state list =
     | Both (x, y) | Either (x, y) -> with_acc y (with_acc x acc)
   in with_acc res []
 
+let rec map_append (f : 'a -> 'b) (xs : 'a list) (ys : 'b list) : 'b list =
+  match xs with
+  | [] -> ys
+  | x :: xs -> f x :: map_append f xs ys
+
+let rec concat_map_append (f : 'a -> 'b list) (xs : 'a list) (ys : 'b list) =
+  match xs with
+  | [] -> ys
+  | x :: xs -> (f x) @ (concat_map_append f xs ys)
+
 type interp_state_unifier =
   { u : unifier; init : state_diff; final : state_diff }
 
@@ -657,16 +691,99 @@ let find_satisfying (ref : Interp.interp_state) (cand : Interp.interp_res)
                 List.concat_map (fun u ->
                   match unify_values u cand_loops ref_loops cand_val ref_val with
                   | NotUnified -> []
-                  | Equal -> [u]
+                  | Equal () -> [u]
                   | Unified u -> u
                 ) u
               in if List.is_empty res
               then None
               else Some (Interp.AttributeMap.remove attr cand_attrs, res)
-        ) ref_attrs (Some (Interp.AttributeMap.empty, [u]))
+        ) ref_attrs (Some (cand_attrs, [u]))
       (* Unifying elements is more complicated because we can unify the values
-       * which are part of the element (TODO) *)
-      in None
+       * which are part of the element *)
+      in let unified_elems =
+        List.concat_map (fun u ->
+          Interp.ElementMap.fold (fun (ref_elem, ref_val)
+              (ref_bind : Interp.element_result) acc ->
+            List.concat_map (fun (cand_elems, diff, u) ->
+              (* Search for any elements elem(X) in cand_elems and see if
+               * X can unify with ref_val. If so, handle whether the bindings
+               * are compatible.
+               * Options:
+               * - We find an element that exactly matches (i.e., unifies to
+               *   Equal) which either we return the diffs of or the nested
+               *   states do not unify.
+               * - We fine some (0+) elements that can be unified (i.e., unify
+               *   to Unified) in which case we try unifying the nested
+               *   states
+               * Returns a list of update candidate elements, an updated diff,
+               * and an updated unifier. *)
+              let res =
+                Interp.ElementMap.fold (fun (cand_elem, cand_val)
+                    (cand_bind : Interp.element_result) res ->
+                  match res with
+                  | NotUnified -> NotUnified
+                  | Equal res -> Equal res
+                  | Unified res ->
+                      if ref_elem <> cand_elem
+                      then Unified res
+                      else let new_elems =
+                        Interp.ElementMap.remove
+                          (cand_elem, cand_val) cand_elems
+                      in match
+                        unify_values u cand_loops ref_loops cand_val ref_val
+                      with
+                      | NotUnified -> Unified res
+                      | Equal () ->
+                          begin match ref_bind, cand_bind with
+                          | Negated, Negated -> Equal [(new_elems, diff, u)]
+                          | Positive ref_nested, Positive cand_nested ->
+                              let elem = (cand_elem, cand_val)
+                              in begin match unify u ref_nested cand_nested with
+                              | None -> NotUnified
+                              | Some nested_res ->
+                                  Equal (
+                                    List.map 
+                                      (fun (u, d) ->
+                                        (new_elems, 
+                                          diff_add_elem elem d diff, u))
+                                      nested_res)
+                              end
+                          | _, _ -> NotUnified
+                          end
+                      | Unified u ->
+                          begin match ref_bind, cand_bind with
+                          | Negated, Negated ->
+                              Unified
+                                (map_append 
+                                  (fun u -> (new_elems, diff, u)) u res)
+                          | Positive ref_nested, Positive cand_nested ->
+                              let res =
+                                concat_map_append (fun u ->
+                                  let elem = (cand_elem, cand_val)
+                                  in match unify u ref_nested cand_nested with
+                                  | None -> []
+                                  | Some nested_res ->
+                                      List.map (fun (u, d) ->
+                                        (new_elems,
+                                          diff_add_elem elem d diff, u))
+                                        nested_res
+                                ) u res
+                              in Unified res
+                          | _, _ -> Unified res
+                          end
+                ) cand_elems (Unified [])
+              in match res with
+              | NotUnified -> []
+              | Equal res | Unified res -> res
+            ) acc
+          ) ref_elems [(cand_elems, diff_empty, u)]
+        ) u
+      in if List.is_empty unified_elems
+      then None
+      else
+        Some (List.map (fun (elems_diff, diff, u) ->
+          (u, add_diffs diff (state_to_diff (State (elems_diff, attrs_diff))))
+        ) unified_elems)
     in match unify u ref cand with
     | None -> []
     | Some res -> res
