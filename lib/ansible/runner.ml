@@ -23,12 +23,7 @@ let interp_ansible sources ansible_src =
         Result.bind (Parser.parse_ansible ansible_src) (fun prg ->
           Result.bind (Semant.process_playbook prg ctx) (fun typed ->
             Result.bind (Codegen.codegen_playbook typed ctx) (fun stmt ->
-              match Target.string_of_res (interp stmt) with
-              | Error msg ->
-                  Ok (Printf.printf "\nInterpretation Failed:\n%s\n\n" msg)
-              | Ok msg ->
-                  Ok (Printf.printf "\nInterpretation Succeeded:\n%s\n\n" msg)
-            )))))
+              Ok (interp stmt))))))
 
 let ansible_debug sources ansible_src =
   Result.bind (Modules.Parser.parse_files sources) (fun parsed ->

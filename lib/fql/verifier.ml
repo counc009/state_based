@@ -747,12 +747,13 @@ type interp_res_unifier =
   | Right of interp_res_unifier
   | Both of interp_res_unifier * interp_res_unifier
   | Satisfied of Interp.interp_state * interp_state_unifier list
+  | Ignored (* The reference solution errored *)
 
 let unify_candidate (ref : Interp.interp_res) (cand : Interp.interp_res)
   : interp_res_unifier option =
   let rec unify (ref : Interp.interp_res) : interp_res_unifier option =
     match ref with
-    | Err _ -> None
+    | Err _ -> Some Ignored
     | Success ref ->
         let res = find_satisfying ref cand
         in if List.is_empty res

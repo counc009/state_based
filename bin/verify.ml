@@ -9,40 +9,78 @@ let anon_fun filename =
   else if !cnt = 1 then program := filename
   else failwith "Only expected two anonymous arguments"); cnt := !cnt + 1
 
+module Interp = Modules.Target.TargetInterp
+module Calc = Modules.Target.Ast_Target
+module Target = Modules.Target
+
+module Semant = Fql.Semant.Semant(Fql.Knowledge.Example)
+
 let arglist =
   [("--", Arg.Rest_all (fun fs -> module_defs := fs), "Ansible Module Definitions")]
+
+let interp p =
+  Interp.interpret p Interp.init_interp_state Calc.VariableMap.empty
+    (* continue -- should not continue, should always return *)
+    (fun _ _ -> Err "Ansible program reached end without return")
+    (* yield -- nothing to yield to *)
+    (fun _ _ _ -> Err "Ansible program yielded at top-level")
+    (* return -- great! *)
+    (fun s _ _ -> Success s)
+    (* raise -- exception raised *)
+    (fun _ _ (v, _) ->
+      match v with
+      | Literal (Except (_, exc, v), _) ->
+          Err (Printf.sprintf "Exception %s(%s)" exc
+            (Target.string_of_value v))
+      | _ -> Err "Unknown Exception")
 
 let () = Printf.printf "\n";
   Arg.parse arglist anon_fun usage_msg;
   let parsed =
     match Modules.Parser.parse_files !module_defs with
     | Error msg ->
-        Printf.printf "ERROR: While processing module definitions, encountered\n%s\n" msg
+        Printf.printf "ERROR: While parsing module definitions, encountered\n%s\n" msg
         ; exit 1
     | Ok parsed -> parsed
-  in let (types, env) = Modules.Codegen.codegen parsed
-  in let interpret_prg p =
-    let prg = Modules.Codegen.codegen_program p types env
-    in Modules.Target.TargetInterp.interpret prg (Primitive Unit)
+  in let ctx =
+    match Modules.Codegen.codegen parsed with
+    | Error msg ->
+        Printf.printf "ERROR: While lowering module definitions, encountered\n%s\n" msg
+        ; exit 2
+    | Ok ctx -> ctx
 
-  in let query_prg =
-    let ch = open_in !query
-    in let s = really_input_string ch (in_channel_length ch)
-    in let () = close_in ch
-    in Fql.Runner.codegen_query s
-  in let ansible_prg = Ansible.Parser.process_ansible !program types env
+  in let query =
+    let parsed =
+      let ch = open_in !query
+      in let s = really_input_string ch (in_channel_length ch)
+      in let () = close_in ch
+      in let lexbuf = Lexing.from_string s
+      in Fql.Parser.query Fql.Lexer.token lexbuf
+    in let stmt =
+      Result.bind (Semant.analyze_top parsed) (fun query ->
+        Result.bind (Fql.Codegen.codegen_query query) (fun query ->
+          Modules.Codegen.codegen_program query ctx))
+    in match stmt with
+    | Error msg ->
+        Printf.printf "ERROR: While lowering query, encountered\n%s\n" msg
+        ; exit 3
+    | Ok stmt -> stmt
 
-  in let query_interp = Result.map interpret_prg query_prg
-  in let ansible_interp = Result.map interpret_prg ansible_prg
+  in let ansible =
+    let stmt =
+      Result.bind (Ansible.Parser.parse_ansible !program) (fun prg ->
+        Result.bind (Ansible.Semant.process_playbook prg ctx) (fun typed ->
+          Ansible.Codegen.codegen_playbook typed ctx))
+    in match stmt with
+    | Error msg ->
+        Printf.printf "ERROR: While lowering Ansible, encountered\n%s\n" msg
+        ; exit 4
+    | Ok stmt -> stmt
 
-  in let query_res = match query_interp with Ok i -> i
-                     | Error msg -> Printf.printf "ERROR in query: %s\n" msg
-                                  ; exit 2
-  in let ansible_res = match ansible_interp with Ok i -> i
-                     | Error msg -> Printf.printf "ERROR in ansible: %s\n" msg
-                                  ; exit 3
+  in let query_interp = interp query
+  in let ansible_interp = interp ansible
 
-  in let res = Fql.Verifier.verify query_res ansible_res
-  in if Fql.Verifier.print_verification res
-  then exit 0
-  else exit 4
+  in let res = Fql.Verifier.unify_candidate query_interp ansible_interp
+  in match res with
+  | Some _ -> Printf.printf "VERIFIER\n"; exit 0
+  | None   -> Printf.printf "FAILED TO VERIFY\n"; exit 5

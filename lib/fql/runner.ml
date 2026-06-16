@@ -13,7 +13,7 @@ module Interp = Modules.Target.TargetInterp
 module Calc = Modules.Target.Ast_Target
 module Target = Modules.Target
 
-let interp_query sources query =
+let interp_query_string sources query =
   let interp p : Interp.interp_res =
     Interp.interpret p Interp.init_interp_state Calc.VariableMap.empty
       (* continue -- should not continue, should always return *)
@@ -34,3 +34,9 @@ let interp_query sources query =
         Result.bind (codegen_query query) (fun prg ->
           Result.bind (Modules.Codegen.codegen_program prg ctx) (fun prg ->
             Ok (interp prg)))))
+
+let interp_query sources file =
+  let ch = open_in file
+  in let s = really_input_string ch (in_channel_length ch)
+  in close_in ch
+  ; interp_query_string sources s

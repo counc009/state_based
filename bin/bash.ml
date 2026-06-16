@@ -1,3 +1,14 @@
+module Interp = Modules.Target.TargetInterp
+module Calc   = Modules.Target.Ast_Target
+module Target = Modules.Target
+
+let verify ref cand = Fql.Verifier.unify_candidate ref cand
+
+let print_verification res =
+  match res with
+  | Some _ -> Printf.printf "VERIFIED\n"
+  | None -> Printf.printf "FAILED TO VERIFY\n"
+
 let () =
   let files = List.filter_map
                 (fun x -> if Filename.extension x = ".util"
@@ -10,10 +21,34 @@ let () =
         Printf.printf "ERROR: While processing utility definitions, encounterd\n%s\n" msg
         ; exit 1
     | Ok parsed -> parsed
-  in let (types, env) = Modules.Codegen.codegen parsed
+  in let ctx =
+    match Modules.Codegen.codegen parsed with
+    | Error msg ->
+        Printf.printf "ERROR: While lowering utility definitions, encountered\n%s\n" msg
+        ; exit 2
+    | Ok ctx -> ctx
+
   in let interpret_prg p =
-    let prg = Modules.Codegen.codegen_program p types env
-    in Modules.Target.TargetInterp.interpret prg (Primitive Unit)
+    let prg =
+      match Modules.Codegen.codegen_program p ctx with
+      | Error msg ->
+          Printf.printf "ERROR: While lowering program, encountered\n%s\n" msg
+          ; exit 3
+      | Ok prg -> prg
+    in Interp.interpret prg Interp.init_interp_state Calc.VariableMap.empty
+      (* continue -- should not continue, should always return *)
+      (fun _ _ -> Err "Program reached end without return")
+      (* yield -- nothing to yield to *)
+      (fun _ _ _ -> Err "Program yielded at top-level")
+      (* return -- great! *)
+      (fun s _ _ -> Success s)
+      (* raise -- exception raised *)
+      (fun _ _ (v, _) ->
+        match v with
+        | Literal (Except (_, exc, v), _) ->
+            Err (Printf.sprintf "Exception %s(%s)" exc
+              (Target.string_of_value v))
+        | _ -> Err "Unknown Exception")
 
   in let query_prg =
     Modules.Parser.parse_stmts_string {|
@@ -53,14 +88,14 @@ let () =
   in let normal_res = interpret_prg normal_prg
   in let cat_res = interpret_prg cat_prg
 
-  in let res_fun = Fql.Verifier.verify query_res fun_res
-  in let res_normal = Fql.Verifier.verify query_res normal_res
-  in let res_cat = Fql.Verifier.verify query_res cat_res
+  in let res_fun = verify query_res fun_res
+  in let res_normal = verify query_res normal_res
+  in let res_cat = verify query_res cat_res
 
   in Printf.printf "Fun Script Result\n"
-   ; let _ = Fql.Verifier.print_verification res_fun
+   ; let _ = print_verification res_fun
   in Printf.printf "\n\nNormal Script Result\n"
-   ; let _ = Fql.Verifier.print_verification res_normal
+   ; let _ = print_verification res_normal
   in Printf.printf "\n\nCat Script Result\n"
-   ; let _ = Fql.Verifier.print_verification res_cat
+   ; let _ = print_verification res_cat
   in ()
