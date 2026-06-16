@@ -251,13 +251,13 @@ let diff_add_elem (e : Interp.ElementMap.key) (d : state_diff)
   let StateDiff (elems, attrs) = top
   in StateDiff (Interp.ElementMap.add e (false, Positive d) elems, attrs)
 
-let rec state_to_diff (s : Interp.state) =
+let rec diff_of_state (s : Interp.state) =
   let State (elems, attrs) = s
   in StateDiff (
       Interp.ElementMap.map (fun (b : Interp.element_result) ->
         match b with
         | Negated -> (true, Negated)
-        | Positive s -> (true, Positive (state_to_diff s))) elems,
+        | Positive s -> (true, Positive (diff_of_state s))) elems,
       attrs)
 
 (* We assume the differences are disjoint *)
@@ -267,84 +267,6 @@ let add_diffs (x : state_diff) (y : state_diff) : state_diff =
   in StateDiff (
       Interp.ElementMap.union (fun _ d _ -> Some d) elems_x elems_y,
       Interp.AttributeMap.union (fun _ v _ -> Some v) attrs_x attrs_y)
-
-(*
-let rec state_to_diff (s : Interp.state) : state_diff =
-  let State (elems, attrs) = s
-  in StateDiff (
-    Interp.ElementMap.map (fun s -> (true, elem_to_diff s)) elems,
-    attrs)
-and elem_to_diff (s : Interp.element_result) =
-  match s with
-  | Negated -> Negated
-  | Positive s -> Positive (state_to_diff s)
-*)
-
-(*
-type outcome = { m: unifier; constraints: unit; assumptions: state_diff;
-                 actions: state_diff }
-
-let is_empty (d: state_diff) : bool =
-  match d with
-  | StateDiff (elems, attrs) -> Interp.ElementMap.is_empty elems
-                             && Interp.AttributeMap.is_empty attrs
-
-let add_attr (a: Ast.attribute) (d: state_diff) (diff: state_diff) =
-  match diff with
-  | StateDiff (elms, ats) ->
-      StateDiff (elms, Interp.AttributeMap.add a (None, d) ats)
-
-let add_elem e (d: state_diff) (diff: state_diff) : state_diff =
-  match diff with
-  | StateDiff (elms, ats) ->
-      StateDiff (Interp.ElementMap.add e (false, d) elms, ats)
-
-let rec add_state_to_diff (d: state_diff) (s: Interp.state) : state_diff =
-  match d, s with
-  | StateDiff (elems_d, attrs_d), State (elems_s, attrs_s) ->
-      let new_elems =
-        Interp.ElementMap.merge (fun _ state_d state_s ->
-          match state_d, state_s with
-          | None, None -> None
-          | Some d, None -> Some d
-          | None, Some s -> Some (true, state_to_diff s)
-          | Some (b, d), Some s -> Some (b, add_state_to_diff d s))
-        elems_d elems_s
-      in let new_attrs =
-        Interp.AttributeMap.merge (fun _ res_d res_s ->
-          match res_d, res_s with
-          | None, None -> None
-          | Some d, None -> Some d
-          | None, Some (v, s) -> Some (Some v, state_to_diff s)
-          | Some (_, d), Some (v, s) -> Some (Some v, add_state_to_diff d s))
-        attrs_d attrs_s
-      in StateDiff (new_elems, new_attrs)
-
-let add_attrs (ats: (Ast.value * Interp.state) Interp.AttributeMap.t)
-              (diff: state_diff) : state_diff =
-  match diff with
-  | StateDiff (elems, attrs) ->
-      let new_attrs = Interp.AttributeMap.merge (fun _ diff attr ->
-        match diff, attr with
-        | None, None -> None
-        | Some d, None -> Some d
-        | None, Some (v, s) -> Some (Some v, state_to_diff s)
-        | Some (_, d), Some (v, s) -> Some (Some v, add_state_to_diff d s))
-        attrs ats
-      in StateDiff (elems, new_attrs)
-
-let add_elems (elms: Interp.state Interp.ElementMap.t) (diff: state_diff) =
-  match diff with
-  | StateDiff (elems, attrs) ->
-      let new_elems = Interp.ElementMap.merge (fun _ diff elem ->
-        match diff, elem with
-        | None, None -> None
-        | Some d, None -> Some d
-        | None, Some s -> Some (true, state_to_diff s)
-        | Some (b, d), Some s -> Some (b, add_state_to_diff d s))
-        elems elms
-      in StateDiff (new_elems, attrs)
-*)
 
 (* The evaluate_candidate function both evaluates the value and replaces all
  * Universal variables with Existential ones, because even the Universal values
@@ -782,7 +704,7 @@ let find_satisfying (ref : Interp.interp_state) (cand : Interp.interp_res)
       then None
       else
         Some (List.map (fun (elems_diff, diff, u) ->
-          (u, add_diffs diff (state_to_diff (State (elems_diff, attrs_diff))))
+          (u, add_diffs diff (diff_of_state (State (elems_diff, attrs_diff))))
         ) unified_elems)
     in match unify u ref cand with
     | None -> []
