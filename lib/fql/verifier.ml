@@ -742,213 +742,38 @@ let find_satisfying (ref : Interp.interp_state) (cand : Interp.interp_res)
         [] (unify_states u ref_loops cand_loops ref.init cand.init true)
   in List.concat_map (unify_interp_state ref) (list_of_res cand)
 
-(*
-let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
-  (cand: Interp.prg_type * Ast.value) : outcome list =
-  let (ref, ref_val) = ref
-  in let (cand, cand_val) = cand
-  (* unify_values returns None if it cannot unify the values (under the current
-   * unifier m) and returns Some (m', b) if it can unify them by assuming the
-   * unifier m' and b is true if m' = m and false otherwise (i.e., at this
-   * point the unification is unconditional). *)
-  in let rec unify_values (rv: Ast.value) (cv: Ast.value) (m : unifier)
-    : (unifier * bool) option =
-    let matched =
-      match rv, cv with
-      | Literal (r, _), Literal (c, _) when r = c -> Some (m, true)
-      | Function (f, v, _), Function (g, w, _) when f = g -> unify_values v w m
-      | Pair (x, y, _), Pair (a, b, _) ->
-          Option.bind (unify_values x a m) (fun (m, u1) ->
-            Option.bind (unify_values y b m) (fun (m, u2) ->
-              Some (m, u1 && u2)))
-      | Constructor (n, b, v), Constructor (p, c, w) when n = p && b = c ->
-          unify_values v w m
-      | Struct (_, r), Struct (_, t) ->
-          (* By checking that they have equal cardinality, and then ensuring
-           * that each binding in r is also a binding in s we ensure they have
-           * the same set of bindings *)
-          if Ast.FieldMap.cardinal r <> Ast.FieldMap.cardinal t then None
-          else Ast.FieldMap.fold (fun f v m ->
-            Option.bind m (fun (m, u1) ->
-              Option.bind (Ast.FieldMap.find_opt f t) (fun w ->
-                Option.bind (unify_values v w m) (fun (m, u2) ->
-                  Some (m, u1 && u2)))))
-            r
-            (Some (m, true))
-      | ListVal (_, v), ListVal (_, w) -> unify_values v w m
-      | Unknown (Loop i, _), Unknown (Loop j, _) ->
-          begin match unifier_find i m with
-          | Some (Unknown v) -> if v = j then Some (m, true) else None
-          | Some (Value _) -> None
-          | None ->
-              let loop_ref =
-                Interp.ValueMap.fold
-                  (fun v l r -> match r with Some r -> Some r
-                    | None -> match l with
-                      | Interp.AllUnknown n | LastKnown (n, _)
-                        -> if n = i then Some v else None
-                      | AllKnown _ -> None)
-                  ref.loops
-                  None
-              in let loop_cand =
-                Interp.ValueMap.fold
-                  (fun v l r -> match r with Some r -> Some r
-                    | None -> match l with
-                      | Interp.AllUnknown n | LastKnown (n, _)
-                        -> if n = j then Some v else None
-                      | AllKnown _ -> None)
-                  cand.loops
-                  None
-              in match loop_ref, loop_cand with
-              (* If we didn't find one, that's an error. Fail to unify *)
-              | None, _ | _, None -> None
-              | Some v, Some w ->
-                  Option.bind (unify_values v w m) (fun (m, _) ->
-                    Some (unifier_add i (Unknown j) m, false))
-          end
-      | Unknown (Val i, _), Unknown (Val j, _) ->
-          begin match unifier_find i m with
-          | Some (Unknown v) -> if v = j then Some (m, true) else None
-          | Some (Value _) -> None
-          (* Note that we can unify a universal variable to variable since it
-           * remains universal. As seen below we can't unify universals to
-           * particular values *)
-          | None -> Some (unifier_add i (Unknown j) m, false)
-          end
-      | Unknown (Val _, _), Unknown (Loop _, _)
-        | Unknown (Loop _, _), Unknown (Val _, _) -> None
-      | Unknown (Val i, _), _ ->
-          begin match unifier_find i m with
-          | Some (Unknown _) -> None (* Handled this case above *)
-          | Some (Value v) ->
-              if evaluate_val v m = evaluate_val cv m
-              then Some (m, true) else None
-          | None -> if IntSet.mem i m.universals then None
-                    else Some (unifier_add i (Value cv) m, false)
-          end
-      (* Variables in the candidate can be constrained to a particular value
-       * for instance the reference may assume a particular value for the OS
-       * while the candidate may just the variable without matching on it.
-       * While technically all variables in the candidate are universal, what
-       * we're tracking through m.universals is the variables that can't be
-       * constrained to a particular value *)
-      | _, Unknown (Val i, _) ->
-          begin match unifier_find i m with
-          | Some (Unknown _) -> None (* Handled this case above *)
-          | Some (Value v) ->
-              if evaluate_val v m = evaluate_val rv m
-              then Some (m, true) else None
-          | None -> if IntSet.mem i m.universals then None
-                    else Some (unifier_add i (Value rv) m, false)
-          end
-      | _, _ -> None
-    in match matched with
-    | Some res -> Some res
-    (* If we failed to unify from above, we can try to unify by evaluation *)
-    | None -> if evaluate_val rv m = evaluate_val cv m then Some (m, true)  
-              else None
-  (* When we unify states we need to know whether we are unifying an input or
-   * not since the candidate is not required to make all the assumptions the
-   * reference does but must perform all the actions the reference does. *)
-  in let rec unify_states (ref: Interp.state) (cand: Interp.state) 
-    (input: bool) (m: unifier) : (unifier * state_diff) list =
-    match ref, cand with
-    | State (elems_r, attrs_r), State (elems_c, attrs_c) ->
-        (* Unifying attributes is easy since we just need to find the same
-         * attribute and unify their values and states *)
-        let unified_attrs =
-          Interp.AttributeMap.fold (fun attr (v_r, s_r) res ->
-            List.fold_left (fun res (m, attrs_c, diff) ->
-              match Interp.AttributeMap.find_opt attr attrs_c with
-              (* A missing attribute is allowed for the input only *)
-              | None -> if input then (m, attrs_c, diff) :: res else res
-              | Some (v_c, s_c) ->
-                  match unify_values v_r v_c m with
-                  | None -> res
-                  | Some (m, _) ->
-                      let new_attrs_c = Interp.AttributeMap.remove attr attrs_c
-                      in List.fold_left (fun res (m, d) ->
-                        if is_empty d then (m, new_attrs_c, diff) :: res
-                        else (m, new_attrs_c, add_attr attr d diff) :: res
-                      ) res (unify_states s_r s_c input m)
-            ) [] res
-          ) attrs_r [(m, attrs_c, empty_diff)]
-        (* Unifying elements is much harder since it requires unifying
-         * expressions and there may be multiple ways to unify elements
-         *)
-        in let unified_elems =
-          List.concat_map (fun (m, attrs, diff) ->
-            (* Add any remaining attributes from the candidate to the diff *)
-            let diff = add_attrs attrs diff
-            in Interp.ElementMap.fold (fun elem_r s_r res ->
-              List.fold_left (fun res (m, elems_c, diff) ->
-                let (matched_unconditional, res) =
-                  Interp.ElementMap.fold (fun elem_c s_c (uncond, res) ->
-                    let (el_r, v_r, b_r) = elem_r
-                    in let (el_c, v_c, b_c) = elem_c
-                    (* TODO: Should we just ignore if the bool is different?
-                     * it seems we should maybe instead track when the pos/neg
-                     * differ and they unify and indicate that as non-unifying?
-                     *)
-                    in if el_r <> el_c || b_r <> b_c then (uncond, res)
-                    else match unify_values v_r v_c m with
-                    | None -> (uncond, res)
-                    | Some (m, u) ->
-                        let new_elems_c = Interp.ElementMap.remove elem_c elems_c
-                        in (uncond || u,
-                        List.fold_left (fun res (m, d) ->
-                          if is_empty d then (m, new_elems_c, diff) :: res
-                          else (m, new_elems_c, add_elem elem_c d diff) :: res
-                        ) res (unify_states s_r s_c input m))
-                  ) elems_c (false, res)
-                in if input && not matched_unconditional
-                then (m, elems_c, diff) :: res
-                else res
-              ) [] res
-            ) elems_r [(m, elems_c, diff)]
-          ) unified_attrs
-        in List.map (fun (m, elems, diff) -> (m, add_elems elems diff))
-                    unified_elems
-  in let unify_constraints (m: unifier) : (unifier * unit) option =
-    (* To check the constraints, we first check that under the unifier m the
-     * constraints don't simplify to a contradiction. Then, we identify if
-     * the candidate has constraints not present in the reference and record
-     * those *)
-    let res_bools =
-      Interp.ValueMap.fold (fun v b res -> Option.bind res (fun (m, bools_c) ->
-        let v = evaluate_val v m
-        in match v with
-        | Literal (Bool c, _) when c <> b -> None
-        (* This constraint has become trivial and so it doesn't have a match in
-         * the candidate *)
-        | Literal (Bool c, _) when c = b -> Some (m, bools_c)
-        (* TODO: This should try to find a matching constraint in bools_c *)
-        | _ -> Some (m, bools_c)
-      )) ref.bools (Some (m, cand.bools))
-    (* TODO: Handle constructor constraints. *)
-    in Option.bind res_bools (fun (m, _) -> Some (m, ()))
-  in let unify_prgs (m: unifier) =
-    (* To unify we do the following:
-     * 1) Unify the initial states (collecting additional assumptions the
-     *    candidate makes)
-     * 2) Unify the final states (collecting additional actions performed by
-     *    the candidate)
-     * 3) Unify the boolean and constructor constraints/verify that they are
-     *    consistent with the substitutions
-     *)
-    List.fold_left (fun res (m, assumptions) ->
-      List.fold_left (fun res (m, actions) ->
-        match unify_constraints m with
-        | None -> res
-        | Some (m, constrs) -> { m = m; constraints = constrs;
-                                 assumptions = assumptions; actions = actions }
-                               :: res
-      ) res (unify_states ref.final cand.final false m)
-    ) [] (unify_states ref.init cand.init true m)
-  in match unify_values ref_val cand_val (new_unifier universals) with
-  | None -> []
-  | Some (m, _) -> unify_prgs m
+type interp_res_unifier =
+  | Left of interp_res_unifier
+  | Right of interp_res_unifier
+  | Both of interp_res_unifier * interp_res_unifier
+  | Satisfied of Interp.interp_state * interp_state_unifier list
 
+let unify_candidate (ref : Interp.interp_res) (cand : Interp.interp_res)
+  : interp_res_unifier option =
+  let rec unify (ref : Interp.interp_res) : interp_res_unifier option =
+    match ref with
+    | Err _ -> None
+    | Success ref ->
+        let res = find_satisfying ref cand
+        in if List.is_empty res
+        then None
+        else Some (Satisfied (ref, res))
+    | Both (left, right) ->
+        let* left = unify left
+        in let* right = unify right
+        in Some (Both (left, right))
+    | Either (left, right) ->
+        begin match unify left with
+        | Some left -> Some (Left left)
+        | None ->
+            begin match unify right with
+            | Some right -> Some (Right right)
+            | None -> None
+            end
+        end
+  in unify ref
+
+(*
 (* Removes attributes that are just an unknown value from a state diff, this is
  * useful for cleaning up attributes in the initial states that happen to be
  * accessed in the ansible but not the query
