@@ -6,8 +6,8 @@ let verify ref cand = Fql.Verifier.unify_candidate ref cand
 
 let print_verification res =
   match res with
-  | Some _ -> Printf.printf "VERIFIED\n"
-  | None -> Printf.printf "FAILED TO VERIFY\n"
+  | Fql.Verifier.Failed -> Printf.printf "FAILED TO VERIFY\n"
+  | _ -> Printf.printf "VERIFIED\n"
 
 let () =
   let files = List.filter_map

@@ -60,7 +60,7 @@ let () =
     in let _ = print_interp impl_res
 
     in match Fql.Verifier.unify_candidate query_res impl_res with
-    | Some _ -> Printf.printf "VERIFIED\n"
-    | None -> Printf.printf "FAILED TO VERIFY\n"; exit 5
+    | Failed -> Printf.printf "FAILED TO VERIFY\n"; exit 5
+    | _ -> Printf.printf "VERIFIED\n"
 
   in verify "toggle_polling.calc"

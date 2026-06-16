@@ -82,5 +82,5 @@ let () = Printf.printf "\n";
 
   in let res = Fql.Verifier.unify_candidate query_interp ansible_interp
   in match res with
-  | Some _ -> Printf.printf "VERIFIED\n"; exit 0
-  | None   -> Printf.printf "FAILED TO VERIFY\n"; exit 5
+  | Failed -> Printf.printf "FAILED TO VERIFY\n"; exit 5
+  | _ -> Printf.printf "VERIFIED\n"; exit 0

@@ -757,30 +757,30 @@ type interp_res_unifier =
   | Right of interp_res_unifier
   | Both of interp_res_unifier * interp_res_unifier
   | Satisfied of Interp.interp_state * interp_state_unifier list
-  | Ignored (* The reference solution errored *)
+  | Trivial (* The reference solution errored *)
+  | Failed
 
 let unify_candidate (ref : Interp.interp_res) (cand : Interp.interp_res)
-  : interp_res_unifier option =
-  let rec unify (ref : Interp.interp_res) : interp_res_unifier option =
+  : interp_res_unifier =
+  let rec unify (ref : Interp.interp_res) : interp_res_unifier =
     match ref with
-    | Err _ -> Some Ignored
+    | Err _ -> Trivial
     | Success ref ->
         let res = find_satisfying ref cand
         in if List.is_empty res
-        then None
-        else Some (Satisfied (ref, res))
+        then Failed
+        else Satisfied (ref, res)
     | Both (left, right) ->
-        let* left = unify left
-        in let* right = unify right
-        in Some (Both (left, right))
+        begin match unify left, unify right with
+        | Failed, _ | _, Failed -> Failed
+        | left, right -> Both (left, right)
+        end
     | Either (left, right) ->
-        begin match unify left with
-        | Some left -> Some (Left left)
-        | None ->
-            begin match unify right with
-            | Some right -> Some (Right right)
-            | None -> None
-            end
+        begin match unify left, unify right with
+        | Failed, Failed | Failed, Trivial | Trivial, Failed -> Failed
+        | Trivial, Trivial -> Trivial
+        | (Failed | Trivial), right -> Right right
+        | left, _ -> Left left
         end
   in unify ref
 
