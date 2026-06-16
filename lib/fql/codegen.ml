@@ -934,9 +934,7 @@ let codegen_act (a : Ast.act) (env : env)
       let^ (path, sys, env) = codegen_path dest.path env
       in let^ (config, env) = codegen_file_desc (fs (Id "^dst") sys) dest env
       in let^ (str, env) =
-        let^ (str, env) =
-          codegen_value str Target.String env (fun s -> Target.StringLit s)
-        in Ok (Target.BinaryExp (str, StringLit "\\n", Concat), env)
+        codegen_value str Target.String env (fun s -> Target.StringLit s)
       in let write =
         Target.LetStmt ("^dst", path)
         :: match position with
@@ -948,13 +946,13 @@ let codegen_act (a : Ast.act) (env : env)
             LetStmt ("c", FuncExp (Id "get_file_content", [Id "^dst"; sys]))
             :: Assign (Field (fs (Id "^dst") sys, "fs_type"),
                 EnumExp (Id "file_type", None, "file",
-                  [BinaryExp (str, Id "c", Concat)]))
+                  [FuncExp (Id "concat_line", [str; Id "c"])]))
             :: config
         | Bottom ->
             LetStmt ("c", FuncExp (Id "get_file_content", [Id "^dst"; sys]))
             :: Assign (Field (fs (Id "^dst") sys, "fs_type"),
                 EnumExp (Id "file_type", None, "file",
-                  [BinaryExp (Id "c", str, Concat)]))
+                  [FuncExp (Id "concat_line", [Id "c"; str])]))
             :: config
       in Ok (write, env)
 

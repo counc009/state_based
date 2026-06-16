@@ -704,7 +704,9 @@ let find_satisfying (ref : Interp.interp_state) (cand : Interp.interp_res)
                 ) cand_elems (Unified [])
               in match res with
               | NotUnified -> []
-              | Equal res | Unified res -> res
+              | Equal res -> res
+              | Unified res ->
+                  if can_miss then (cand_elems, diff, u) :: res else res
             ) acc
           ) ref_elems [(cand_elems, diff_empty, u)]
         ) u
