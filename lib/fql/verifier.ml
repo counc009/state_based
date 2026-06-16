@@ -531,14 +531,22 @@ let unify_values (u : unifier)
     (* Universal variables can only be unified with other universals *)
     (* Note that neither variable has an existing binding as otherwise it would
      * have been replaced by evaluation *)
-    | Unknown (Universal c, _), Unknown (Universal _, _) ->
-        begin match Unifier.add c ref u with
+    | Unknown (Universal c, _), Unknown (Universal r, _) ->
+        if c = r then Equal ()
+        else begin match Unifier.add c ref u with
         | None -> NotUnified
         | Some u -> Unified [u]
         end
     | Unknown (Existential e, _), Unknown (Universal i, t)
     | Unknown (Universal i, t), Unknown (Existential e, _) ->
-        begin match Unifier.add e (Unknown (Universal i, t)) u with
+        if i = e then Equal ()
+        else begin match Unifier.add e (Unknown (Universal i, t)) u with
+        | None -> NotUnified
+        | Some u -> Unified [u]
+        end
+    | Unknown (Existential c, _), Unknown (Existential r, _) ->
+        if c = r then Equal ()
+        else begin match Unifier.add c ref u with
         | None -> NotUnified
         | Some u -> Unified [u]
         end
