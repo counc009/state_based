@@ -231,7 +231,7 @@ let codegen_value (v : Typed.value) (env : play_env)
         end
     | Float (f, t) ->
         begin match t with
-        | Int -> k (Target.Literal (Float f), Primitive Float)
+        | Float -> k (Target.Literal (Float f), Primitive Float)
         | _ -> 
             Error (Printf.sprintf "Codegen Error: Float cannot have type %s"
                     (Semant.string_of_itype t))

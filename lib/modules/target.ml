@@ -296,6 +296,21 @@ module rec Ast_Target : Ast_Defs
     | Cases (nm, Cons ((_, s), ts)) -> (s, Named (Cases (nm, ts)))
   let structTyDef fs = fs
 
+  let regex_replace : Re.re = Re.compile (Re.Posix.re {|\\[sS]|})
+
+  let compile_regex (s : string) : Re.re option =
+    let replace_special (g : Re.Group.t) : string =
+      match Re.Group.get g 0 with
+      | "\\s" -> "[ \t\n\r]"
+      | "\\S" -> "[^ \t\n\r]"
+      | _ -> failwith "Error in compiling regex"
+    in try 
+      Some (
+        Re.compile (
+          Re.Posix.re (Re.replace regex_replace ~f:replace_special s)))
+    with Re.Posix.Parse_error ->
+      None
+
   let funcDef = function
     | Proj (true, s, t)  -> (Product (s, t), s,
                              fun (v : value) ->
@@ -588,12 +603,15 @@ module rec Ast_Target : Ast_Defs
         Primitive String,
         fun v -> match v with
         | Pair (Literal (String regex, _), Literal (String body, _), _) ->
-            let regex = Re.compile (Re.Posix.re regex)
-            in let lines = String.split_on_char '\n' body
-            in let new_lines =
-              List.filter (fun s -> not (Re.execp regex s)) lines
-            in let new_s = String.concat "\n" new_lines
-            in Reduced (Literal (String new_s, String))
+            begin match compile_regex regex with
+            | None -> Err "Invalid regex"
+            | Some regex ->
+                let lines = String.split_on_char '\n' body
+                in let new_lines =
+                  List.filter (fun s -> not (Re.execp regex s)) lines
+                in let new_s = String.concat "\n" new_lines
+                in Reduced (Literal (String new_s, String))
+            end
         | _ -> Stuck)
     | ReplaceLastMatchingExpand -> (
       Product (Primitive String, Product (Primitive String, Primitive String)),
@@ -602,15 +620,18 @@ module rec Ast_Target : Ast_Defs
         | Pair (Literal (String regex, _),
             Pair (Literal (String line, _),
               Literal (String body, _), _), _) ->
-            let regex = Re.compile (Re.Posix.re regex)
-            in let lines = String.split_on_char '\n' body
-            in let update_line (l : string) =
-              match Re.exec_opt regex l with
-              | None -> None
-              | Some g -> Some (subst_pattern line g)
-            in let new_lines = update_last update_line lines
-            in let new_s = String.concat "\n" new_lines
-            in Reduced (Literal (String new_s, String))
+            begin match compile_regex regex with
+            | None -> Err "Invalid regex"
+            | Some regex ->
+                let lines = String.split_on_char '\n' body
+                in let update_line (l : string) =
+                  match Re.exec_opt regex l with
+                  | None -> None
+                  | Some g -> Some (subst_pattern line g)
+                in let new_lines = update_last update_line lines
+                in let new_s = String.concat "\n" new_lines
+                in Reduced (Literal (String new_s, String))
+            end
         | _ -> Stuck)
     | ReplaceLastMatching -> (
       Product (Primitive String, Product (Primitive String, Primitive String)),
@@ -619,15 +640,18 @@ module rec Ast_Target : Ast_Defs
         | Pair (Literal (String regex, _),
             Pair (Literal (String line, _),
               Literal (String body, _), _), _) ->
-            let regex = Re.compile (Re.Posix.re regex)
-            in let lines = String.split_on_char '\n' body
-            in let update_line (l : string) =
-              if Re.execp regex l
-              then Some line
-              else None
-            in let new_lines = update_last update_line lines
-            in let new_s = String.concat "\n" new_lines
-            in Reduced (Literal (String new_s, String))
+            begin match compile_regex regex with
+            | None -> Err "Invalid regex"
+            | Some regex ->
+                let lines = String.split_on_char '\n' body
+                in let update_line (l : string) =
+                  if Re.execp regex l
+                  then Some line
+                  else None
+                in let new_lines = update_last update_line lines
+                in let new_s = String.concat "\n" new_lines
+                in Reduced (Literal (String new_s, String))
+            end
         | _ -> Stuck)
     | InsertNearMatching -> (
         Product (
@@ -644,148 +668,157 @@ module rec Ast_Target : Ast_Defs
             Pair (Literal (String regex, _),
               Pair (Literal (String line, _),
                 Literal (String body, _), _), _), _) ->
-            let regex = Re.compile (Re.Posix.re regex)
-            in let lines = String.split_on_char '\n' body
-            in begin match loc with
-            (* before_first *)
-            | Constructor (_, true, _) ->
-                let update_line (l : string) =
-                  if Re.execp regex l
-                  then Some (line ^ "\n" ^ l)
-                  else None
-                in let new_lines = update_first update_line lines
-                in let new_s = String.concat "\n" new_lines
-                in Reduced (Literal (String new_s, String))
-            (* before_last *)
-            | Constructor (_, false, Constructor (_, true, _)) ->
-                let update_line (l : string) =
-                  if Re.execp regex l
-                  then Some (line ^ "\n" ^ l)
-                  else None
-                in let new_lines = update_last update_line lines
-                in let new_s = String.concat "\n" new_lines
-                in Reduced (Literal (String new_s, String))
-            (* after_first *)
-            | Constructor (_, false, Constructor (_, false, Constructor (_, true, _))) ->
-                let update_line (l : string) =
-                  if Re.execp regex l
-                  then Some (l ^ "\n" ^ line)
-                  else None
-                in let new_lines = update_first update_line lines
-                in let new_s = String.concat "\n" new_lines
-                in Reduced (Literal (String new_s, String))
-            (* after_last *)
-            | Constructor (_, false, Constructor (_, false, Constructor (_, false, _))) ->
-                let update_line (l : string) =
-                  if Re.execp regex l
-                  then Some (l ^ "\n" ^ line)
-                  else None
-                in let new_lines = update_last update_line lines
-                in let new_s = String.concat "\n" new_lines
-                in Reduced (Literal (String new_s, String))
-            | _ -> Stuck
+            begin match compile_regex regex with
+            | None -> Err "Invalid regex"
+            | Some regex ->
+                let lines = String.split_on_char '\n' body
+                in begin match loc with
+                (* before_first *)
+                | Constructor (_, true, _) ->
+                    let update_line (l : string) =
+                      if Re.execp regex l
+                      then Some (line ^ "\n" ^ l)
+                      else None
+                    in let new_lines = update_first update_line lines
+                    in let new_s = String.concat "\n" new_lines
+                    in Reduced (Literal (String new_s, String))
+                (* before_last *)
+                | Constructor (_, false, Constructor (_, true, _)) ->
+                    let update_line (l : string) =
+                      if Re.execp regex l
+                      then Some (line ^ "\n" ^ l)
+                      else None
+                    in let new_lines = update_last update_line lines
+                    in let new_s = String.concat "\n" new_lines
+                    in Reduced (Literal (String new_s, String))
+                (* after_first *)
+                | Constructor (_, false, Constructor (_, false, Constructor (_, true, _))) ->
+                    let update_line (l : string) =
+                      if Re.execp regex l
+                      then Some (l ^ "\n" ^ line)
+                      else None
+                    in let new_lines = update_first update_line lines
+                    in let new_s = String.concat "\n" new_lines
+                    in Reduced (Literal (String new_s, String))
+                (* after_last *)
+                | Constructor (_, false, Constructor (_, false, Constructor (_, false, _))) ->
+                    let update_line (l : string) =
+                      if Re.execp regex l
+                      then Some (l ^ "\n" ^ line)
+                      else None
+                    in let new_lines = update_last update_line lines
+                    in let new_s = String.concat "\n" new_lines
+                    in Reduced (Literal (String new_s, String))
+                | _ -> Stuck
+                end
             end
         | _ -> Stuck)
     | RegexLineMatches -> (Product (Primitive String, Primitive String),
         Primitive Bool,
         fun v -> match v with
         | Pair (Literal (String regex, _), body, _) ->
-            let regexp = Re.compile (Re.Posix.re regex)
-            in let rec compute : value -> value eval = function
-              | Literal (String body, _) ->
-                  let lines = String.split_on_char '\n' body
-                  in let matched = List.exists (Re.execp regexp) lines
-                  in Reduced (Literal (Bool matched, Bool))
-              | Function (ConcatLine, Pair (x, y, _), _) ->
-                  begin match compute x, compute y with
-                  | Reduced (Literal (Bool true, _)), _ 
-                  | _, Reduced (Literal (Bool true, _)) ->
-                      Reduced (Literal (Bool true, Bool))
-                  | Reduced (Literal (Bool false, _)),
-                    Reduced (Literal (Bool false, _)) ->
-                      Reduced (Literal (Bool false, Bool))
-                  | _, _ -> Stuck
-                  end
-              | Function (RemoveMatchingLines,
-                  Pair (Literal (String remregex, _), _, _), _) ->
-                  if remregex = regex || remregex = regex ^ ".*"
-                      || remregex = regex ^ ".*$"
-                  then Reduced (Literal (Bool false, Bool))
-                  else Stuck
-              | Function (ReplaceLastMatching,
-                  Pair (Literal (String upregex, _),
-                    Pair (Literal (String line, _), _, _), _), _) ->
-                  if upregex = regex || upregex = regex ^ ".*"
-                      || upregex = regex ^ ".*$"
-                  then
-                    if Re.execp regexp line
-                    then Reduced (Literal (Bool true, Bool))
-                    else Stuck
-                  else Stuck
-              | Function (InsertNearMatching,
-                  Pair (_, Pair (_, Pair (line, body, _), _), _), _) ->
-                  begin match compute line, compute body with
-                  | Reduced (Literal (Bool true, _)), _ 
-                  | _, Reduced (Literal (Bool true, _)) ->
-                      Reduced (Literal (Bool true, Bool))
-                  | Reduced (Literal (Bool false, _)),
-                    Reduced (Literal (Bool false, _)) ->
-                      Reduced (Literal (Bool false, Bool))
-                  | _, _ -> Stuck
-                  end
-              | _ -> Stuck
-            in compute body
+            begin match compile_regex regex with
+            | None -> Err "Invalid regex"
+            | Some regexp ->
+                let rec compute : value -> value eval = function
+                  | Literal (String body, _) ->
+                      let lines = String.split_on_char '\n' body
+                      in let matched = List.exists (Re.execp regexp) lines
+                      in Reduced (Literal (Bool matched, Bool))
+                  | Function (ConcatLine, Pair (x, y, _), _) ->
+                      begin match compute x, compute y with
+                      | Reduced (Literal (Bool true, _)), _ 
+                      | _, Reduced (Literal (Bool true, _)) ->
+                          Reduced (Literal (Bool true, Bool))
+                      | Reduced (Literal (Bool false, _)),
+                        Reduced (Literal (Bool false, _)) ->
+                          Reduced (Literal (Bool false, Bool))
+                      | _, _ -> Stuck
+                      end
+                  | Function (RemoveMatchingLines,
+                      Pair (Literal (String remregex, _), _, _), _) ->
+                      if remregex = regex || remregex = regex ^ ".*"
+                          || remregex = regex ^ ".*$"
+                      then Reduced (Literal (Bool false, Bool))
+                      else Stuck
+                  | Function (ReplaceLastMatching,
+                      Pair (Literal (String upregex, _),
+                        Pair (Literal (String line, _), _, _), _), _) ->
+                      if upregex = regex || upregex = regex ^ ".*"
+                          || upregex = regex ^ ".*$"
+                      then
+                        if Re.execp regexp line
+                        then Reduced (Literal (Bool true, Bool))
+                        else Stuck
+                      else Stuck
+                  | Function (InsertNearMatching,
+                      Pair (_, Pair (_, Pair (line, body, _), _), _), _) ->
+                      begin match compute line, compute body with
+                      | Reduced (Literal (Bool true, _)), _ 
+                      | _, Reduced (Literal (Bool true, _)) ->
+                          Reduced (Literal (Bool true, Bool))
+                      | Reduced (Literal (Bool false, _)),
+                        Reduced (Literal (Bool false, _)) ->
+                          Reduced (Literal (Bool false, Bool))
+                      | _, _ -> Stuck
+                      end
+                  | _ -> Stuck
+                in compute body
+            end
         | _ -> Stuck)
     | GetLastLineMatch -> (Product (Primitive String, Primitive String),
         Primitive String,
         fun v -> match v with
         | Pair (Literal (String regex, _), body, _) ->
-            let regexp = Re.compile (Re.Posix.re regex)
-            in let rec compute : value -> value eval = function
-              | Literal (String body, _) ->
-                  let lines = String.split_on_char '\n' body
-                  in begin match List.find_opt (Re.execp regexp) lines with
-                  | None -> Err "No matching line"
-                  | Some l -> Reduced (Literal (String l, String))
-                  end
-              | Function (ConcatLine, Pair (x, y, _), _) ->
-                  begin match compute y with
-                  | Reduced res -> Reduced res
-                  | Err "No matching line" -> compute x
+            begin match compile_regex regex with
+            | None -> Err "Invalid regex"
+            | Some regexp ->
+                let rec compute : value -> value eval = function
+                  | Literal (String body, _) ->
+                      let lines = String.split_on_char '\n' body
+                      in begin match List.find_opt (Re.execp regexp) lines with
+                      | None -> Err "No matching line"
+                      | Some l -> Reduced (Literal (String l, String))
+                      end
+                  | Function (ConcatLine, Pair (x, y, _), _) ->
+                      begin match compute y with
+                      | Reduced res -> Reduced res
+                      | Err "No matching line" -> compute x
+                      | _ -> Stuck
+                      end
+                  | Function (RemoveMatchingLines,
+                      Pair (Literal (String remregex, _), _, _), _) ->
+                      if remregex = regex || remregex = regex ^ ".*"
+                          || remregex = regex ^ ".*$"
+                      then Err "No matching line"
+                      else Stuck
+                  | Function (ReplaceLastMatching,
+                      Pair (Literal (String upregex, _),
+                        Pair (Literal (String line, _), _, _), _), _) ->
+                      if upregex = regex || upregex = regex ^ ".*"
+                          || upregex = regex ^ ".*$"
+                      then
+                        if Re.execp regexp line
+                        then Reduced (Literal (String line, String))
+                        else Stuck
+                      else Stuck
+                  | Function (InsertNearMatching,
+                      Pair (
+                        Constructor (_, false,
+                          Constructor (_, false,
+                            Constructor (_, false, _))),
+                        Pair (Literal (String sregex, _),
+                          Pair (Literal (String line, _), _, _), _), _), _) ->
+                      if sregex = regex || sregex = regex ^ ".*"
+                          || sregex = regex ^ ".*$"
+                      then
+                        if Re.execp regexp line
+                        then Reduced (Literal (String line, String))
+                        else Stuck
+                      else Stuck
                   | _ -> Stuck
-                  end
-              | Function (RemoveMatchingLines,
-                  Pair (Literal (String remregex, _), _, _), _) ->
-                  if remregex = regex || remregex = regex ^ ".*"
-                      || remregex = regex ^ ".*$"
-                  then Err "No matching line"
-                  else Stuck
-              | Function (ReplaceLastMatching,
-                  Pair (Literal (String upregex, _),
-                    Pair (Literal (String line, _), _, _), _), _) ->
-                  if upregex = regex || upregex = regex ^ ".*"
-                      || upregex = regex ^ ".*$"
-                  then
-                    if Re.execp regexp line
-                    then Reduced (Literal (String line, String))
-                    else Stuck
-                  else Stuck
-              | Function (InsertNearMatching,
-                  Pair (
-                    Constructor (_, false,
-                      Constructor (_, false,
-                        Constructor (_, false, _))),
-                    Pair (Literal (String sregex, _),
-                      Pair (Literal (String line, _), _, _), _), _), _) ->
-                  if sregex = regex || sregex = regex ^ ".*"
-                      || sregex = regex ^ ".*$"
-                  then
-                    if Re.execp regexp line
-                    then Reduced (Literal (String line, String))
-                    else Stuck
-                  else Stuck
-              | _ -> Stuck
-            in compute body
+                in compute body
+            end
         | _ -> Stuck)
     | CanBecome -> (Product (Primitive String, Primitive String),
         Primitive Bool,

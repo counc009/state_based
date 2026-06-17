@@ -155,7 +155,7 @@ let rec etype_of_itype (t : itype) : (etype, string) result =
   | Int -> Ok Int
   | Float -> Ok Float
   | Bool -> Ok Bool
-  | StringLike -> Error "Cannot convert string-like to an etype"
+  | StringLike -> Ok String
   | String -> Ok String
   | Path -> Ok Path
   | Enum (nm, cs) -> Ok (Enum (nm, cs))
@@ -301,6 +301,34 @@ module Coalesce = struct
     | Struct ts ->
         let^ res_ts = smap_res ctype_of_itype ts
         in Ok (Struct res_ts)
+end
+
+(* Some string coercion utilities, because Ansible is very weak on type safety
+ * and our YAML parser makes anything quoted a string while Ansible does not
+ * agree.
+ * The definition of bools is from https://yaml.org/type/bool.html *)
+module SC = struct
+  let is_int s = Option.is_some (int_of_string_opt s)
+  let is_float s = Option.is_some (float_of_string_opt s)
+  let is_bool s =
+    match s with
+    | "y"   | "Y"   | "yes" | "Yes" | "YES" | "true"  | "True"  | "TRUE"
+    | "on"  | "On"  | "ON"
+    | "n"   | "N"   | "no"  | "No"  | "NO"  | "false" | "False" | "FALSE"
+    | "off" | "Off" | "OFF" -> true
+    | _ -> false
+
+  let to_int = int_of_string
+  let to_float = float_of_string
+  let to_bool s =
+    match s with
+    | "y"   | "Y"   | "yes" | "Yes" | "YES" | "true"  | "True"  | "TRUE"
+    | "on"  | "On"  | "ON"
+      -> true
+    | "n"   | "N"   | "no"  | "No"  | "NO"  | "false" | "False" | "FALSE"
+    | "off" | "Off" | "OFF"
+      -> false
+    | _ -> failwith "Not a boolean"
 end
 
 let coalesce_var (v : var_type) : (etype, string) result =
@@ -449,6 +477,16 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
           | (StringLike | String | Path), Path -> Ok (String (s, Path))
           | StringLike, Enum (nm, cs) -> Ok (String (s, Enum (nm, cs)))
 
+          (* If you quote stuff in the YAML, our parser will make them strings
+           * but they can still be interpreted as integers, floats, and bools
+           * in Ansible, so we have to handle some coercions *)
+          | StringLike, Int when SC.is_int s ->
+              Ok (Int (SC.to_int s, Int))
+          | StringLike, Float when SC.is_float s ->
+              Ok (Float (SC.to_float s, Float))
+          | StringLike, Bool when SC.is_bool s ->
+              Ok (Bool (SC.to_bool s, Bool))
+
           | Enum (n, _), Enum (m, _) when n = m -> Ok (String (s, t))
 
           | _, SingleOrList c ->
@@ -477,6 +515,8 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
           : (Typed.value, string) result =
           match t, c with
           | Float, Float -> Ok (Float (f, Float))
+          | Float, Int when Float.is_integer f ->
+              Ok (Int (Int.of_float f, Int))
           | Float, String -> Ok (String (string_of_float f, String))
           | Float, Path -> Ok (String (string_of_float f, Path))
 
@@ -807,7 +847,7 @@ let type_value (v : Parsed.value) (t : etype option) (env : play_env)
             match nm with
             | "ansible_os_family" -> infer (Fact "os_family")
             | "ansible_distribution" -> infer (Fact "distribution")
-            | "ansible_user_id" -> infer (Fact "user_id")
+            | "ansible_user_id" | "ansible_user" -> infer (Fact "user_id")
             | "ansible_user_gid" -> infer (Fact "user_gid")
             | _ -> Error ("Undefined variable " ^ nm)
         end
@@ -970,7 +1010,7 @@ let type_value (v : Parsed.value) (t : etype option) (env : play_env)
         begin match nm with
         | "os_family" -> Ok (Fact (OSFamily, String))
         | "distribution" -> Ok (Fact (Distribution, String))
-        | "user_id" -> Ok (Fact (UserID, String))
+        | "user_id" | "user" -> Ok (Fact (UserID, String))
         | "user_gid" -> Ok (Fact (GroupID, String))
         | _ -> Error (Printf.sprintf "Unknown Ansible fact %s" nm)
         end
