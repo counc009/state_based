@@ -213,7 +213,9 @@ module Example : KB = struct
                 Ok [{ name = "python3-numpy"; pkg_manager = Apt };
                     { name = "numpy"; pkg_manager = Pip None }]
             | Some RedHat | Some RedHatFamily ->
-                Ok [{ name = "numpy"; pkg_manager = Pip None }]
+                Ok [{ name = "numpy"; pkg_manager = Pip None };
+                    { name = "numpy"; pkg_manager = Dnf };
+                    { name = "python3-numpy"; pkg_manager = Dnf }]
         end
     | [Str "bash"] -> Ok [{ name = "bash"; pkg_manager = System }]
     | [Str "zsh"] -> Ok [{ name = "zsh"; pkg_manager = System }]
