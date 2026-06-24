@@ -1,4 +1,5 @@
-struct find_result { failed: bool, changed: bool, files: list stat_res }
+struct find_result {
+  failed: bool, changed: bool, files: list stat_res, matched: int }
 
 enum find_file_type { any, directory, file, link }
 
@@ -102,5 +103,5 @@ module ansible.builtin.find aka find -> find_result {
     assert false;
   };
 
-  return find_result { failed: false, changed: false, files: files };
+  return find_result { failed: false, changed: false, files: files, matched: len(files) };
 }

@@ -27,6 +27,7 @@ type 't func    = Proj           of bool * 't * 't   (* true = 1, false = 2 *)
                 | ConcatLine
                 | Equal          of 't
                 | Append         of 't (* Type of list elements *)
+                | ListLength     of 't (* Type of list elements *)
                 | AddInt
                 | AddFloat
                 | SubInt
@@ -289,6 +290,20 @@ module rec Ast_Target : Ast_Defs
         Constructor (listTy, false, Pair (hd, append_lists et tl y, pairTy))
     | _ -> Function (Append et, Pair (x, y, Product (et, Named (List et))), Named (List et))
 
+  let list_length v : value eval =
+    let rec len (v : value) : int option =
+      match v with
+      | Constructor (_, true, _) -> (* Nil *) Some 0
+      | Constructor (_, false, Pair (_, tl, _)) ->
+          begin match len tl with
+          | None -> None
+          | Some n -> Some (n + 1)
+          end
+      | _ -> None
+    in match len v with
+    | Some n -> Reduced (Literal (Int n, Int))
+    | None -> Stuck
+
   let namedTyDef : namedTy -> typ * typ = function
     | List t -> (Primitive Unit, Product (t, Named (List t)))
     | Option t -> (Primitive Unit, t)
@@ -389,6 +404,7 @@ module rec Ast_Target : Ast_Defs
         fun v -> match v with
           | Pair (x, y, _) -> Reduced (append_lists et x y)
           | _ -> Stuck)
+    | ListLength et -> (Named (List et), Primitive Int, list_length)
     | AddInt -> (Product (Primitive Int, Primitive Int), Primitive Int,
         fun v -> match v with
           | Pair (Literal (Int x, _), Literal (Int y, _), _)
@@ -1018,6 +1034,7 @@ let rec string_of_value (v : Ast_Target.value) : string =
       | ConcatLine                -> "concat_line(" ^ string_of_value arg ^ ")"
       | Equal _                   -> "equal(" ^ string_of_value arg ^ ")"
       | Append _                  -> "append(" ^ string_of_value arg ^ ")"
+      | ListLength _              -> "len(" ^ string_of_value arg ^ ")"
       | AddInt                    -> "add(" ^ string_of_value arg ^ ")"
       | AddFloat                  -> "add(" ^ string_of_value arg ^ ")"
       | SubInt                    -> "sub(" ^ string_of_value arg ^ ")"
@@ -1126,6 +1143,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | ConcatLine                -> "concat_line"
         | Equal _                   -> "equal"
         | Append _                  -> "append"
+        | ListLength _              -> "len"
         | AddInt                    -> "add"
         | AddFloat                  -> "add"
         | SubInt                    -> "sub"

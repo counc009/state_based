@@ -3,69 +3,56 @@
 
 module TargetAst = Target.Ast_Target
 
-let lookup_builtin (nm : string) 
-  : ((TargetAst.typ * TargetAst.typ * TargetAst.funct),
+(* Explanation of return type:
+ * - Error msg - indicates that nm is not a built-in function
+ * - Ok func_info - indicates that nm is a built-in function.
+ *   If func_info arg_ty is
+ *   + Error msg - indicates that the function does not work on an argument of
+ *     type arg_ty
+ *   + Ok (res_ty, func) - indicates that the function does work on the
+ *     argument type and will produce a res_ty and can be compiled to func
+ * This definition allows us to check for the existance of a built-in before
+ * compiling the argument but still handle polymorphic built-in functions *)
+let lookup_builtin (nm : string)
+  : (TargetAst.typ -> (TargetAst.typ * TargetAst.funct, string) result, 
       string) result =
-  match nm with
-  | "cons_path" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef ConsPath
-      in Ok (arg_ty, res_ty, Target.ConsPath)
-  | "path_of_string" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef PathOfString
-      in Ok (arg_ty, res_ty, Target.PathOfString)
-  | "string_of_path" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef StringOfPath
-      in Ok (arg_ty, res_ty, Target.StringOfPath)
-  | "ends_with_dir" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef EndsWithDir
-      in Ok (arg_ty, res_ty, Target.EndsWithDir)
-  | "base_name" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef BaseName
-      in Ok (arg_ty, res_ty, Target.BaseName)
-  | "path_from" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef PathFrom
-      in Ok (arg_ty, res_ty, Target.PathFrom)
-  | "add_ext" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef AddExt
-      in Ok (arg_ty, res_ty, Target.AddExt)
-  | "norm_path" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef NormalizePath
-      in Ok (arg_ty, res_ty, Target.NormalizePath)
-  | "can_become" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef CanBecome
-      in Ok (arg_ty, res_ty, Target.CanBecome)
-  | "to_lower" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef ToLower
-      in Ok (arg_ty, res_ty, Target.ToLower)
-  | "substring" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef Substring
-      in Ok (arg_ty, res_ty, Target.Substring)
-  | "string_of_int" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef StringOfInt
-      in Ok (arg_ty, res_ty, Target.StringOfInt)
-  | "concat_line" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef ConcatLine
-      in Ok (arg_ty, res_ty, Target.ConcatLine)
-  | "regex_of_literal" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef RegexOfLiteral
-      in Ok (arg_ty, res_ty, Target.RegexOfLiteral)
-  | "remove_matching_lines" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef RemoveMatchingLines
-      in Ok (arg_ty, res_ty, Target.RemoveMatchingLines)
-  | "replace_last_matching_expand" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef ReplaceLastMatchingExpand
-      in Ok (arg_ty, res_ty, Target.ReplaceLastMatchingExpand)
-  | "replace_last_matching" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef ReplaceLastMatching
-      in Ok (arg_ty, res_ty, Target.ReplaceLastMatching)
-  | "insert_line_matching" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef InsertNearMatching
-      in Ok (arg_ty, res_ty, Target.InsertNearMatching)
-  | "line_matches_regex" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef RegexLineMatches
-      in Ok (arg_ty, res_ty, Target.RegexLineMatches)
-  | "last_line_matching" ->
-      let (arg_ty, res_ty, _) = TargetAst.funcDef GetLastLineMatch
-      in Ok (arg_ty, res_ty, Target.GetLastLineMatch)
+
+  let with_arg_ty (argTy : TargetAst.typ) resTy func ty =
+    if argTy = ty
+    then Ok (resTy, func)
+    else Error ("Incorrect type for function " ^ nm)
+
+  in let from_target func =
+    let (arg_ty, res_ty, _) = TargetAst.funcDef func
+    in Ok (with_arg_ty arg_ty res_ty func)
+
+  in match nm with
+  | "add_ext"               -> from_target Target.AddExt
+  | "base_name"             -> from_target Target.BaseName
+  | "can_become"            -> from_target Target.CanBecome
+  | "concat_line"           -> from_target Target.ConcatLine
+  | "cons_path"             -> from_target Target.ConsPath
+  | "ends_with_dir"         -> from_target Target.EndsWithDir
+  | "insert_line_matching"  -> from_target Target.InsertNearMatching
+  | "last_line_matching"    -> from_target Target.GetLastLineMatch
+  | "line_matches_regex"    -> from_target Target.RegexLineMatches
+  | "norm_path"             -> from_target Target.NormalizePath
+  | "path_from"             -> from_target Target.PathFrom
+  | "path_of_string"        -> from_target Target.PathOfString
+  | "regex_of_literal"      -> from_target Target.RegexOfLiteral
+  | "remove_matching_lines" -> from_target Target.RemoveMatchingLines
+  | "replace_last_matching" -> from_target Target.ReplaceLastMatching
+  | "replace_last_matching_expand"
+                            -> from_target Target.ReplaceLastMatchingExpand
+  | "string_of_int"         -> from_target Target.StringOfInt
+  | "string_of_path"        -> from_target Target.StringOfPath
+  | "substring"             -> from_target Target.Substring
+  | "to_lower"              -> from_target Target.ToLower
+
+  | "len" ->
+      Ok begin function
+      | Named (List e) -> Ok (Primitive Int, Target.ListLength e)
+      | _ -> Error ("Incorrect type for function len")
+      end
 
   | _ -> Error ("Undefined name " ^ nm)
