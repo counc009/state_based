@@ -8,7 +8,7 @@ module type AnnotatorType = sig
   type mod_info
 end
   
-type unary  = Not | Neg | Lower
+type unary  = Not | Neg | Lower | Basename
 type binary = Add | Sub | Mul | Pow | Div | Mod
             | And | Or
             | Neq | Eq | Lt | Gt | Le | Ge

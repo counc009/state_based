@@ -599,6 +599,16 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
                   in Ok (Typed.List ([res_v], List (Typed.typeof res_v)))
               | _ -> type_error "J" String t
             in handle_type t
+        | Basename -> (* Always produces a path can add a coercion *)
+            let rec handle_type (t : etype) : (Typed.value, string) result =
+              match t with
+              | Path -> Ok (Unary ((v, Basename), Path))
+              | String -> Ok (ReAnnt (Unary ((v, Basename), Path), String))
+              | SingleOrList t ->
+                  let^ res_v = handle_type t
+                  in Ok (Typed.List ([res_v], List (Typed.typeof res_v)))
+              | _ -> type_error "J2" Path t
+            in handle_type t
         end
     | Binary ((lhs, op, rhs), c) ->
         begin match op with
@@ -869,6 +879,9 @@ let type_value (v : Parsed.value) (t : etype option) (env : play_env)
         | Lower ->
             let^ v_typed = coerce_value res_v String
             in Ok (Typed.Unary ((v_typed, Lower), String))
+        | Basename ->
+            let^ v_typed = coerce_value res_v Path
+            in Ok (Typed.Unary ((v_typed, Basename), Path))
         end
     | Binary (lhs, op, rhs) ->
         let^ res_lhs = infer lhs

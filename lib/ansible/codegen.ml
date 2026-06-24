@@ -303,6 +303,12 @@ let codegen_value (v : Typed.value) (env : play_env)
         | Lower, _ ->
             Error (Printf.sprintf "Codegen Error: Lower cannot have type %s"
                     (Semant.string_of_itype t))
+        | Basename, Path ->
+            let$ (e, _) = codegen v
+            in k (Target.Function (BaseName, e), Primitive Path)
+        | Basename, _ ->
+            Error (Printf.sprintf "Codegen Error: Basename cannot have type %s"
+                    (Semant.string_of_itype t))
         end
     | Binary ((lhs, op, rhs), t) ->
         begin match op, t with

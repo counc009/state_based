@@ -438,9 +438,15 @@ let rec jinja_to_value (j : Jtypes.ast) : (Ast.value, string) result =
     | ApplyExpr (IdentExpr "lower", [(None, arg)]) ->
         let^ arg = jexpr_to_value arg
         in Ok (Ast.Unary (arg, Lower))
+    | ApplyExpr (IdentExpr "basename", [(None, arg)]) ->
+        let^ arg = jexpr_to_value arg
+        in Ok (Ast.Unary (arg, Basename))
     | TestOpExpr (ex, IdentExpr "success") ->
         let^ ex = jexpr_to_value ex
         in Ok (Ast.Dot (ex, "success"))
+    | TestOpExpr (ex, IdentExpr "changed") ->
+        let^ ex = jexpr_to_value ex
+        in Ok (Ast.Dot (ex, "changed"))
     | TestOpExpr (IdentExpr var, IdentExpr "defined") ->
         Ok (Ast.VarDefined var)
     | InOpExpr (lhs, ListExpr lst) ->
