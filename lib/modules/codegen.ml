@@ -1003,12 +1003,11 @@ let process_expr (e : Ast.expr) (types : type_env) (globals : global_env)
                               res_k))))
             | Some _ -> Error (nm ^ " is not a function")
             | None ->
-                let^ (arg_typ, ret_typ, func) = Builtins.lookup_builtin nm
+                let^ func_info = Builtins.lookup_builtin nm
                 in process (ProductExp args) locals is_mod (fun a ->
                     as_expr a (fun (e, t) ->
-                      if t <> arg_typ
-                      then Error ("Incorrect type for function " ^ nm)
-                      else k (Expr (Function (func, e), ret_typ))))
+                      let^ (ret_typ, func) = func_info t
+                      in k (Expr (Function (func, e), ret_typ))))
             end
         | _ -> Error "Invalid function expression"
         end
