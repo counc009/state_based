@@ -735,29 +735,33 @@ let coerce_value (v : Typed.value) (t : etype) : (Typed.value, string) result =
         in Ok (Typed.Ternary ((cond, thn_coerce, els_coerce),
                               Typed.typeof thn_coerce))
     | Record (vs, c) ->
-        begin match t with
-        | Struct ts ->
-            let^ (vs_coerced, fs) =
-              let rec helper (vs : (string * Typed.value) list)
-                (ts : etype StringMap.t) =
-                match vs with
-                | [] ->
-                    if StringMap.is_empty ts
-                    then Ok ([], StringMap.empty)
-                    else type_error "S" c t
-                | (f, v) :: vs ->
-                    let^ ty_f =
-                      match StringMap.find_opt f ts with
-                      | None -> type_error "T" c t
-                      | Some t -> Ok t
-                    in let^ res_v = coerce v ty_f
-                    in let^ (res_vs, fs) = helper vs (StringMap.remove f ts)
-                    in Ok ((f, res_v) :: res_vs,
-                           StringMap.add f (Typed.typeof res_v) fs)
-              in helper vs ts
-            in Ok (Typed.Record (vs_coerced, Struct fs))
-        | _ -> type_error "U" c t
-        end
+        let rec handle_type (t : etype) =
+          match t with
+          | Struct ts ->
+              let^ (vs_coerced, fs) =
+                let rec helper (vs : (string * Typed.value) list)
+                  (ts : etype StringMap.t) =
+                  match vs with
+                  | [] ->
+                      if StringMap.is_empty ts
+                      then Ok ([], StringMap.empty)
+                      else type_error "S" c t
+                  | (f, v) :: vs ->
+                      let^ ty_f =
+                        match StringMap.find_opt f ts with
+                        | None -> type_error "T" c t
+                        | Some t -> Ok t
+                      in let^ res_v = coerce v ty_f
+                      in let^ (res_vs, fs) = helper vs (StringMap.remove f ts)
+                      in Ok ((f, res_v) :: res_vs,
+                             StringMap.add f (Typed.typeof res_v) fs)
+                in helper vs ts
+              in Ok (Typed.Record (vs_coerced, Struct fs))
+          | SingleOrList t ->
+              let^ res = handle_type t
+              in Ok (Typed.List ([res], List (Typed.typeof res)))
+          | _ -> type_error "U" c t
+        in handle_type t
     | ReAnnt (v, c) ->
         begin match can_coerce c t with
         | None -> type_error "V" c t
