@@ -40,6 +40,13 @@ module Unifier : sig
   val eval : Ast.value -> t -> Ast.value
   val add : int -> Ast.value -> t -> t option
   val constrain : Ast.value -> Ast.constr -> t -> t option
+
+  type merged_bool = { t : int list; f : int list }
+  type merged_constr =
+    { l : (int * Ast.value) list; r : (int * Ast.value) list }
+  type merged = { bools : merged_bool Interp.ValueMap.t;
+                  constrs : merged_constr Interp.ValueMap.t }
+  val merge : t list -> merged
 end 
 = struct
   module M = Map.Make(Int)
@@ -230,6 +237,51 @@ end
           in if !err
           then None (* Inconsistent *)
           else Some { map; bools; constrs }
+
+  (* Utilities for merging the constraints from multiple unifiers into a single
+   * data-structure *)
+  type merged_bool = { t : int list; f : int list }
+  type merged_constr =
+    { l : (int * Ast.value) list; r : (int * Ast.value) list }
+  type merged = { bools : merged_bool VM.t; constrs : merged_constr VM.t }
+
+  let empty_merged : merged = { bools = VM.empty; constrs = VM.empty }
+
+  let merge (xs : t list) : merged =
+    let add_unifier (u : t) (i : int) (acc : merged) =
+      let m_bools =
+        VM.fold (fun v u_bind m_bools ->
+          VM.update v (fun m_bind ->
+            match m_bind with
+            | None ->
+                if u_bind
+                then Some { t = [i]; f = [] }
+                else Some { t = []; f = [i] }
+            | Some { t; f } ->
+                Some { t = if u_bind then i :: t else t;
+                       f = if u_bind then f else i :: f }
+          ) m_bools
+        ) u.bools acc.bools
+      in let m_constrs =
+        VM.fold (fun v (u_which, u_val) m_constrs ->
+          VM.update v (fun m_bind ->
+            match m_bind with
+            | None ->
+                if u_which
+                then Some { l = [(i, u_val)]; r = [] }
+                else Some { l = []; r = [(i, u_val)] }
+            | Some { l; r } ->
+                Some { l = if u_which then (i, u_val) :: l else l;
+                       r = if u_which then r else (i, u_val) :: r }
+          ) m_constrs
+        ) u.constrs acc.constrs
+      in { bools = m_bools; constrs = m_constrs }
+    in let rec merge (xs : t list) (i : int) (acc : merged) =
+      match xs with
+      | [] -> acc
+      | u :: xs ->
+          merge xs (i + 1) (add_unifier u i acc)
+    in merge xs 0 empty_merged
 end
 
 type unifier = Unifier.t
@@ -783,6 +835,204 @@ let unify_candidate (ref : Interp.interp_res) (cand : Interp.interp_res)
         | left, _ -> Left left
         end
   in unify ref
+
+(* A merged diff compresses many diffs together (where each diff is assigned
+ * some unique integer). For elements we track the merged nested diff and a
+ * list of unique integers that have that element as positive and negative AS
+ * PART OF THE DIFF.
+ * For attributes, we track the values it can have and the unique integers for
+ * the diffs those values came from *)
+type elem_merged = { diff : merged_diff; pos : int list; neg : int list }
+and merged_diff =
+  MergedDiff of elem_merged Interp.ElementMap.t
+              * (int list Interp.ValueMap.t) Interp.AttributeMap.t
+
+let empty_merged_diff =
+  MergedDiff (Interp.ElementMap.empty, Interp.AttributeMap.empty)
+
+(* Fully evaluates all expressions in a state diff *)
+let rec eval_state_diff (d : state_diff) (u : unifier) : state_diff option =
+  let StateDiff (elems, attrs) = d
+  in let attrs = Interp.AttributeMap.map (fun v -> Unifier.eval v u) attrs
+  in let* elems =
+    Interp.ElementMap.fold (fun (elem, v) (part, bind) res ->
+      let* res = res
+      in let v = Unifier.eval v u
+      in let res_bind = Interp.ElementMap.find_opt (elem, v) res
+      in let* new_bind =
+        match res_bind, bind with
+        | None, Negated -> Some (part, Negated)
+        | None, Positive d ->
+            let* res = eval_state_diff d u
+            in Some (part, Positive res)
+        | Some (p, Negated), Negated -> Some (p && part, Negated)
+        | Some (_, Negated), Positive _ -> None
+        | Some (_, Positive _), Negated -> None
+        | Some (p, Positive res), Positive d ->
+            let* d = eval_state_diff d u
+            in Some (p && part, Positive (add_diffs res d))
+      in Some (Interp.ElementMap.add (elem, v) new_bind res)
+    ) elems (Some Interp.ElementMap.empty)
+  in Some (StateDiff (elems, attrs))
+
+let merge_state_diffs (diffs : state_diff list) : merged_diff =
+  let rec add_diff (d : state_diff) (i : int) (acc : merged_diff) =
+    let StateDiff (d_elems, d_attrs) = d
+    in let MergedDiff (m_elems, m_attrs) = acc
+    in let m_elems =
+      Interp.ElementMap.fold (fun elem (is_part, d_bind) m_elems ->
+        match d_bind with
+        | Negated ->
+            Interp.ElementMap.update elem (fun m_bind ->
+              match m_bind with
+              | None -> Some { diff = empty_merged_diff; pos = [];
+                              neg = if is_part then [i] else [] }
+              | Some { diff; pos; neg } -> Some { diff; pos;
+                              neg = if is_part then i :: neg else neg }
+            ) m_elems
+        | Positive d_nested ->
+            Interp.ElementMap.update elem (fun m_bind ->
+              match m_bind with
+              | None -> Some { diff = add_diff d_nested i empty_merged_diff;
+                               pos = if is_part then [i] else []; neg = [] }
+              | Some { diff; pos; neg } -> 
+                  Some { diff = add_diff d_nested i diff;
+                        pos = if is_part then i :: pos else pos; neg }
+            ) m_elems
+      ) d_elems m_elems
+    in let m_attrs =
+      Interp.AttributeMap.fold (fun attr d_val m_attrs ->
+        Interp.AttributeMap.update attr (fun m_bind ->
+          match m_bind with
+          | None -> Some (Interp.ValueMap.singleton d_val [i])
+          | Some vals ->
+              Some (Interp.ValueMap.update d_val (fun m_cnt ->
+                match m_cnt with
+                | None -> Some [i]
+                | Some ns -> Some (i :: ns)) vals)
+        ) m_attrs
+      ) d_attrs m_attrs
+    in MergedDiff (m_elems, m_attrs)
+  in let rec merge (diffs : state_diff list) (i : int) (acc : merged_diff) =
+    match diffs with
+    | [] -> acc
+    | d :: diffs ->
+        merge diffs (i + 1) (add_diff d i acc)
+  in merge diffs 0 empty_merged_diff
+
+type merged_unifier =
+  { constraints : Unifier.merged; inits : merged_diff; finals : merged_diff }
+
+let merge_interp_state_unifiers (xs : interp_state_unifier list)
+  : merged_unifier option =
+  let constraints = Unifier.merge (List.map (fun x -> x.u) xs)
+  in let (inits, finals) =
+    let rec eval_states (xs : interp_state_unifier list) =
+      match xs with
+      | [] -> ([], [])
+      | x :: xs ->
+          match eval_state_diff x.init x.u, eval_state_diff x.final x.u with
+          | Some init, Some final ->
+              let (inits, finals) = eval_states xs
+              in (init :: inits, final :: finals)
+          | _, _ -> eval_states xs
+    in eval_states xs
+  in if List.is_empty inits
+  then None
+  else Some { constraints; inits = merge_state_diffs inits;
+              finals = merge_state_diffs finals }
+
+type merged_res =
+  | Both      of merged_res * merged_res
+  | Satisfied of { base : Interp.state; diff : merged_unifier }
+
+type 'a merging_res =
+  | Failed | Trivial | Success of 'a
+
+let rec merge_interp_res_unifier (r : interp_res_unifier)
+  : merged_res merging_res =
+  match r with
+  | Failed -> Failed
+  | Trivial -> Trivial
+  | Left r | Right r -> merge_interp_res_unifier r
+  | Both (x, y) ->
+      begin match merge_interp_res_unifier x, merge_interp_res_unifier y with
+      | Failed, _ | _, Failed -> Failed
+      | Trivial, res | res, Trivial -> res
+      | Success x, Success y -> Success (Both (x, y))
+      end
+  | Satisfied (base, unifiers) ->
+      begin match merge_interp_state_unifiers unifiers with
+      | None -> Failed
+      | Some diff -> Success (Satisfied { base = base.init; diff })
+      end
+
+let string_of_merged_diff (d : merged_diff) : string =
+  let rec inner_string_of_merged_diff if_empty lhs rhs (d : merged_diff) =
+    let MergedDiff (elems, attrs) = d
+    in Modules.Target.string_of_list if_empty lhs ", " rhs (fun s -> s)
+      (List.map (fun (((elem, _), v), (m : elem_merged)) ->
+        let el = elem ^ "(" ^ Modules.Target.string_of_value v ^ ")"
+        in let which =
+          let pos = String.concat ", " (List.map string_of_int m.pos)
+          in let neg = String.concat ", " (List.map string_of_int m.neg)
+          in match List.is_empty m.pos, List.is_empty m.neg with
+          | true, true -> ""
+          | true, false -> " [ " ^ pos ^ " : pos ]"
+          | false, true -> " [ " ^ neg ^ " : neg ]"
+          | false, false -> " [ " ^ pos ^ " : pos | " ^ neg ^ " : neg ]"
+        in let nested = inner_string_of_merged_diff "" ": < " " >" m.diff
+        in el ^ which ^ " " ^ nested
+        ) (Interp.ElementMap.to_list elems)
+        @
+        List.map (fun ((attr, _), vs) ->
+          let str_vs = 
+            Modules.Target.string_of_list "[]" "[ " " | " " ]" (fun s -> s)
+              (List.map (fun (v, ns) ->
+                (Modules.Target.string_of_list "" "" ", " "" string_of_int ns)
+                ^ ": " ^ Modules.Target.string_of_value v
+              ) (Interp.ValueMap.to_list vs))
+          in attr ^ " = " ^ str_vs
+        ) (Interp.AttributeMap.to_list attrs))
+  in inner_string_of_merged_diff "<>" "< " " >" d
+
+let string_of_unifier_merged (m : Unifier.merged) : string =
+  String.concat " " (
+    Interp.ValueMap.fold (fun v (b : Unifier.merged_bool) res ->
+      let str_v = Modules.Target.string_of_value v
+      in let str_t = String.concat ", " (List.map string_of_int b.t)
+      in let str_f = String.concat ", " (List.map string_of_int b.f)
+      in begin match List.is_empty b.t, List.is_empty b.f with
+      | true, true -> str_v ^ " = [ ]"
+      | true, false -> str_v ^ " = [ " ^ str_f ^ " : false ]"
+      | false, true -> str_v ^ " = [ " ^ str_t ^ " : true ]"
+      | false, false ->
+          str_v ^ " = [ " ^ str_t ^ " : true | " ^ str_f ^ " : false ]"
+      end :: res
+    ) m.bools []
+    @
+    Interp.ValueMap.fold (fun v (c : Unifier.merged_constr) res ->
+      let str_v = Modules.Target.string_of_value v
+      in let opts =
+        List.map (fun (i, v) ->
+          string_of_int i ^ " : L(" ^ Modules.Target.string_of_value v ^ ")"
+        ) c.l
+        @
+        List.map (fun (i, v) ->
+          string_of_int i ^ " : R(" ^ Modules.Target.string_of_value v ^ ")"
+        ) c.r
+      in (str_v ^ " = [ " ^ String.concat " | " opts ^ " ]") :: res
+    ) m.constrs [])
+
+let rec string_of_merged_res (r : merged_res) : string =
+  match r with
+  | Both (x, y) -> string_of_merged_res x ^ "\n" ^ string_of_merged_res y
+  | Satisfied { base; diff } ->
+      Printf.sprintf "%s assuming %s and [ %s ] performing %s"
+        (Modules.Target.string_of_state base)
+        (string_of_merged_diff diff.inits)
+        ("? diff.constraints")
+        (string_of_merged_diff diff.finals)
 
 (*
 (* Removes attributes that are just an unknown value from a state diff, this is
