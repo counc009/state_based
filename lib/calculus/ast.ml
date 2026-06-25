@@ -90,6 +90,10 @@ module type Ast_Defs = sig
             | Return   of expr
             | Yield    of expr (* yield for a foreach statement *)
             | Pass (* do nothing *)
+  
+  (* A definition of type equality, because using = is not reliable given that
+   * struct types will (generally) involve maps *)
+  val typeEq : typ -> typ -> bool
 
   (* Definitions for the parameterized components *)
   val namedTyDef : namedTy -> typ * typ

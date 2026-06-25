@@ -25,13 +25,15 @@ module Interp(Ast : Ast.Ast_Defs) = struct
 
   type env = (value * typ) VariableMap.t
 
+  exception TypeError of funct * typ * typ
+
   let rec eval_expr (e : expr) (env : env) : (value * typ, string) result =
     match e with
     | Function (f, exp) ->
         Result.bind (eval_expr exp env) (fun (v, t) ->
           let (argTy, retTy, interp) = funcDef f
-          in if t <> argTy
-            then Error "Type error, argument type mismatch"
+          in if not (typeEq t argTy)
+            then raise (TypeError (f, argTy, t)) (* Error "Type error, argument type mismatch" *)
             else
               match interp v with
               | Reduced w -> Ok (w, retTy)
@@ -57,7 +59,7 @@ module Interp(Ast : Ast.Ast_Defs) = struct
   let construct_equals v w : (value, string) result =
     let tv = type_of_val v
     in let tw = type_of_val w
-    in if tv <> tw
+    in if not (typeEq tv tw)
       then Error "Type error, cannot equate values of different types"
       else
         let equals = equality_func tv

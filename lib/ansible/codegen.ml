@@ -172,20 +172,19 @@ let rec codegen_coerce (ty : Target.typ) (need : Semant.itype)
                             (f, c) :: coercions,
                             true)
           ) ns (Ok (StringMap.empty, [], false))
-        in begin match any_coerced with
-        | false -> Ok ((Struct res_ts : Target.typ), None)
-        | true ->
-            Ok ((Struct res_ts : Target.typ),
-                Some (fun e k ->
-                  List.fold_left (fun k (f, coerce) new_struct ->
-                    coerce (Function (ReadField (res_ts, f), e) : Target.expr)
-                      (fun e_field ->
-                        k (Function (AddField (res_ts, f),
-                            Pair (new_struct, e_field)) : Target.expr))
-                  ) k coercions
-                  (Target.Function (EmptyStruct res_ts, Literal (Unit ())))
-            ))
-        end
+        in if not any_coerced
+        then Ok ((Struct res_ts : Target.typ), None)
+        else
+          Ok ((Struct res_ts : Target.typ),
+              Some (fun e k ->
+                List.fold_left (fun k (f, coerce) new_struct ->
+                  coerce (Function (ReadField (ts, f), e) : Target.expr)
+                    (fun e_field ->
+                      k (Function (AddField (res_ts, f),
+                          Pair (new_struct, e_field)) : Target.expr))
+                ) k coercions
+                (Target.Function (EmptyStruct res_ts, Literal (Unit ())))
+          ))
 
   (* Promote single values to a list *)
   | t, List n ->

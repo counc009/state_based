@@ -213,6 +213,24 @@ module rec Ast_Target : Ast_Defs
             | Yield    of expr
             | Pass
 
+  let rec typeEq x y =
+    match x, y with
+    | Primitive x, Primitive y -> x = y
+    | Product (x1, x2), Product (y1, y2) -> typeEq x1 y1 && typeEq x2 y2
+    | Named (List x), Named (List y) -> typeEq x y
+    | Named (Option x), Named (Option y) -> typeEq x y
+    | Named (Cases (xn, xs)), Named (Cases (yn, ys)) when xn = yn ->
+        let rec list2_eq xs ys =
+          match xs, ys with
+          | LastTwo ((xn1, x1), (xn2, x2)), LastTwo ((yn1, y1), (yn2, y2)) ->
+              xn1 = yn1 && xn2 = yn2 && typeEq x1 y1 && typeEq x2 y2
+          | Cons ((xn, x), xs), Cons ((yn, y), ys) ->
+              xn = yn && typeEq x y && list2_eq xs ys
+          | _, _  -> false
+        in list2_eq xs ys
+    | Struct xs, Struct ys -> StringMap.equal typeEq xs ys
+    | _, _ -> false
+
   type values_equal_res = Yes | No | Unsure
   let rec values_equal x y : values_equal_res =
     match x, y with

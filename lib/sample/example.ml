@@ -87,6 +87,8 @@ module rec Calc : Ast_Defs
             | Yield    of expr (* yield for a foreach statement *)
             | Pass
 
+  let typeEq = (=)
+
   let namedTyDef : namedTy -> typ * typ = function
     | List t -> (Primitive Unit, Product (t, Named (List t)))
 
