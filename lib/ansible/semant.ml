@@ -51,7 +51,7 @@ type play_env = var_type StringMap.t
 module Parsed = Ast.Parsed
 
 module Typed = struct
-  type facts = OSFamily | Distribution | UserID | GroupID
+  type facts = OSFamily | Distribution | UserID | GroupID | PkgMgr
 
   include Ast.Ast(struct
     type 'a anntd = 'a * itype
@@ -863,6 +863,7 @@ let type_value (v : Parsed.value) (t : etype option) (env : play_env)
             | "ansible_distribution" -> infer (Fact "distribution")
             | "ansible_user_id" | "ansible_user" -> infer (Fact "user_id")
             | "ansible_user_gid" -> infer (Fact "user_gid")
+            | "ansible_pkg_mgr" -> infer (Fact ("pkg_mgr"))
             | _ -> Error ("Undefined variable " ^ nm)
         end
     | Unary (v, op) ->
@@ -1029,6 +1030,7 @@ let type_value (v : Parsed.value) (t : etype option) (env : play_env)
         | "distribution" -> Ok (Fact (Distribution, String))
         | "user_id" | "user" -> Ok (Fact (UserID, String))
         | "user_gid" -> Ok (Fact (GroupID, String))
+        | "pkg_mgr" -> Ok (Fact (PkgMgr, String))
         | _ -> Error (Printf.sprintf "Unknown Ansible fact %s" nm)
         end
     | Ternary (cond, thn, els) ->
@@ -1199,6 +1201,23 @@ let rec process_task (t : Parsed.task) (ctx : Context.context) (env : play_env)
           else StringMap.add register { inferred = t; uses = new type_stack } 
                               loop_env
         in Ok (Typed.Module m, res_env)
+    | SetFact vs ->
+        let^ () =
+          (* TODO: I don't know that a loop, register, changed_when, or
+           * failed_when on set_fact makes sense, but not sure *)
+          match loop, register, changed_when, failed_when, notify with
+          | None, "_", None, None, [] -> Ok ()
+          | _, _, _, _, _ -> Error "Flags loop, register, changed_when, failed_when, or notify not supported set_fact module"
+        in let^ new_vs =
+          map_res (fun (nm, v) ->
+            let^ new_v = type_value v None loop_env
+            in Ok (nm, new_v)) vs
+        in let new_env =
+          List.fold_left (fun env (nm, v) ->
+            StringMap.add nm
+              { inferred = Typed.typeof v; uses = new type_stack } env)
+            loop_env new_vs
+        in Ok (Typed.SetFact new_vs, new_env)
     | Block { tasks; rescue; always } ->
         let^ () =
           match loop with

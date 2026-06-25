@@ -512,6 +512,25 @@ let codegen_value (v : Typed.value) (env : play_env)
         | GroupID, _ ->
             Error (Printf.sprintf "Codegen Error: GroupID Fact cannot have type %s"
                     (Semant.string_of_itype t))
+        | PkgMgr, String ->
+            let tmp = new_tmp ()
+            in let^ cont = k (Target.Variable tmp, Primitive String)
+            in Ok (Target.Seq (
+                    Seq (
+                      Get ("@os", env_attr "os_family" (Primitive String)),
+                      Cond (Function (Equal (Primitive String),
+                          Pair (Variable "@os", Literal (String "Debian"))),
+                        Assign (tmp, Literal (String "apt")),
+                        Cond (Function (Equal (Primitive String),
+                            Pair (Variable "@os", Literal (String "RedHat"))),
+                          Assign (tmp, Literal (String "dnf")),
+                          Assign (tmp, Literal (String "unknown"))
+                        )
+                    )),
+                    cont))
+        | PkgMgr, _ ->
+            Error (Printf.sprintf "Codegen Error: PkgMgr Fact cannot have type %s"
+                    (Semant.string_of_itype t))
         end
     | Ternary ((cond, thn, els), _) ->
         let tmp = new_tmp ()
@@ -754,6 +773,17 @@ let codegen_become (become : bool) (become_user : string) (body : Target.stmt)
       body
     ])
 
+let codegen_vars (play_env : play_env) (vs : (string * Typed.value) list) =
+  let rec codegen (vs : (string * Typed.value) list) =
+    match vs with
+    | [] -> Ok Target.Pass
+    | (nm, v) :: tl ->
+        let$ (e, t) = codegen_value v play_env
+        in let () = Hashtbl.add play_env nm t
+        in let^ rest = codegen tl
+        in Ok (Target.Seq (Assign (nm, e), rest))
+  in codegen vs
+
 let rec codegen_task (t : Typed.task) (extra_notify : Target.expr list)
   (env : play_env) (ctx : Context.context) : (Target.stmt, string) result =
   let^ body =
@@ -807,6 +837,11 @@ let rec codegen_task (t : Typed.task) (extra_notify : Target.expr list)
         ))
       in codegen_mod_use m t.condition t.loop t.register t.ignore_errors
           t.failed_when env ctx (Some do_notify)
+    (* We just generate assignments to the facts as that seems to mostly work.
+     * If these can also be accessed via the ansible_facts dictionary then that
+     * might require some additional work to support but we leave that to the
+     * future (TODO) *)
+    | SetFact vs -> codegen_vars env vs
     | Block b ->
       (* notify is (as of the last few years it seems) allowed on blocks, and
        * it seems to behave as if that notify was added to each task in the
@@ -904,16 +939,7 @@ let codegen_handler (h : Typed.handler) (env : play_env) (ctx : Context.context)
 let codegen_play (p : Typed.play) (ctx : Context.context)
   : (Target.stmt, string) result =
   let play_env = Hashtbl.create 10
-  in let^ var_setup =
-    let rec codegen_vars (vs : (string * Typed.value) list) =
-      match vs with
-      | [] -> Ok Target.Pass
-      | (nm, v) :: tl ->
-          let$ (e, t) = codegen_value v play_env
-          in let () = Hashtbl.add play_env nm t
-          in let^ rest = codegen_vars tl
-          in Ok (Target.Seq (Assign (nm, e), rest))
-    in codegen_vars p.vars
+  in let^ var_setup = codegen_vars play_env p.vars
   (* Note: This scould probably be done with a fold_left and just reversing the
    * order of the Seq but that feels like premature optimization. *)
   in let^ handlers_run =

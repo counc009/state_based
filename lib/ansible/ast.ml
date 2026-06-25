@@ -42,6 +42,7 @@ module Ast(A : AnnotatorType) = struct
 
   type task_body =
     | Module of mod_use
+    | SetFact of (string * value) list
     | Block  of block
 
   and block = {

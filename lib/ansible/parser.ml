@@ -32,6 +32,7 @@ class mod_result name =
 
 type task_body =
   | Module of Ast.mod_use
+  | SetFact of (string * Ast.value) list
   | Block  of {
       tasks: Ast.task list option;
       rescue: Ast.task list option;
@@ -42,6 +43,7 @@ let coerce_task_body (t : task_body option) : (Ast.task_body, string list) resul
   match t with
   | None -> Error ["no task body"]
   | Some (Module m) -> Ok (Module m)
+  | Some (SetFact vs) -> Ok (SetFact vs)
   | Some (Block { tasks = None; _ }) -> Error ["no task body"]
   | Some (Block { tasks = Some tasks; rescue; always }) ->
       Ok (Block { tasks = tasks; rescue = rescue; always = always })
@@ -98,8 +100,24 @@ class task_result =
       | Some (Module c) -> errors <-
         Printf.sprintf "Multiple modules specified: %s and %s" c.mod_info m.mod_info
         :: errors
+      | Some (SetFact _) -> errors <-
+        Printf.sprintf "Multiple modules specified: ansible.builtin.set_fact and %s" m.mod_info
+        :: errors
       | Some (Block _) -> errors <-
         Printf.sprintf "Task contains both block and module %s" m.mod_info
+        :: errors
+
+    method add_set_fact vs =
+      match body with
+      | None -> body <- Some (SetFact vs)
+      | Some (Module c) -> errors <-
+        Printf.sprintf "Multiple module specified: %s and ansible.builtin.set_fact" c.mod_info
+        :: errors
+      | Some (SetFact _) -> errors <-
+        Printf.sprintf "Multiple module specified: ansible.builtin.set_fact and ansible.builtin.set_fact"
+        :: errors
+      | Some (Block _) -> errors <-
+        Printf.sprintf "Task contains both block and module ansible.builtin.set_fact"
         :: errors
 
     method add_block ts =
@@ -108,6 +126,9 @@ class task_result =
           body <- Some (Block { tasks = Some ts; rescue = None; always = None })
       | Some (Module c) -> errors <-
         Printf.sprintf "Task contains both block and module %s" c.mod_info
+        :: errors
+      | Some (SetFact _) -> errors <-
+        Printf.sprintf "Task contains both block and module ansible.builtin.set_fact"
         :: errors
       | Some (Block b) ->
           match b.tasks with
@@ -122,6 +143,9 @@ class task_result =
       | Some (Module c) -> errors <-
           Printf.sprintf "Task contains rescue and module %s" c.mod_info
           :: errors
+      | Some (SetFact _) -> errors <-
+        Printf.sprintf "Task contains rescue and module ansible.builtin.set_fact"
+        :: errors
       | Some (Block b) ->
           match b.rescue with
           | None ->
@@ -135,6 +159,9 @@ class task_result =
       | Some (Module c) -> errors <-
           Printf.sprintf "Task contains always and module %s" c.mod_info
           :: errors
+      | Some (SetFact _) -> errors <-
+        Printf.sprintf "Task contains always and module ansible.builtin.set_fact"
+        :: errors
       | Some (Block b) ->
           match b.always with
           | None ->
@@ -637,6 +664,8 @@ let rec process_task (y : Yaml.value) : (Ast.task, string) result =
             Result.map task#add_rescue (process_tasks v)
         | "always" ->
             Result.map task#add_always (process_tasks v)
+        | "ansible.builtin.set_fact" | "set_fact" ->
+            Result.map task#add_set_fact (process_vars v)
         | _ ->
             Result.map task#add_module (process_module_use field v))
       in Result.map_error (String.concat "\n") task#to_task
