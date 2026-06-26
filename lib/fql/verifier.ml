@@ -978,8 +978,8 @@ let string_of_merged_diff (d : merged_diff) : string =
           in let neg = String.concat ", " (List.map string_of_int m.neg)
           in match List.is_empty m.pos, List.is_empty m.neg with
           | true, true -> ""
-          | true, false -> " [ " ^ pos ^ " : pos ]"
-          | false, true -> " [ " ^ neg ^ " : neg ]"
+          | false, true -> " [ " ^ pos ^ " : pos ]"
+          | true, false -> " [ " ^ neg ^ " : neg ]"
           | false, false -> " [ " ^ pos ^ " : pos | " ^ neg ^ " : neg ]"
         in let nested = inner_string_of_merged_diff "" ": < " " >" m.diff
         in el ^ which ^ " " ^ nested
