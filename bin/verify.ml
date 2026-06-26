@@ -81,6 +81,11 @@ let () = Printf.printf "\n";
   in let ansible_interp = interp ansible
 
   in let res = Fql.Verifier.unify_candidate query_interp ansible_interp
-  in match res with
+  in let merged = Fql.Verifier.merge_interp_res_unifier res
+
+  in match merged with
   | Failed -> Printf.printf "FAILED TO VERIFY\n"; exit 5
-  | _ -> Printf.printf "VERIFIED\n"; exit 0
+  | Trivial -> Printf.printf "QUERY WAS TRIVIAL\n"; exit 6
+  | Success m ->
+      Printf.printf "VERIFIED\n%s\n" (Fql.Verifier.string_of_merged_res m);
+      exit 0

@@ -997,7 +997,7 @@ let string_of_merged_diff (d : merged_diff) : string =
   in inner_string_of_merged_diff "<>" "< " " >" d
 
 let string_of_unifier_merged (m : Unifier.merged) : string =
-  String.concat " " (
+  String.concat ", " (
     Interp.ValueMap.fold (fun v (b : Unifier.merged_bool) res ->
       let str_v = Modules.Target.string_of_value v
       in let str_t = String.concat ", " (List.map string_of_int b.t)
@@ -1031,7 +1031,7 @@ let rec string_of_merged_res (r : merged_res) : string =
       Printf.sprintf "%s assuming %s and [ %s ] performing %s"
         (Modules.Target.string_of_state base)
         (string_of_merged_diff diff.inits)
-        ("? diff.constraints")
+        (string_of_unifier_merged diff.constraints)
         (string_of_merged_diff diff.finals)
 
 (*

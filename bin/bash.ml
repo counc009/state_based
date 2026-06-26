@@ -4,9 +4,9 @@ module Target = Modules.Target
 
 let verify ref cand = Fql.Verifier.unify_candidate ref cand
 
-let print_verification res =
+let print_verification (res : Fql.Verifier.interp_res_unifier) =
   match res with
-  | Fql.Verifier.Failed -> Printf.printf "FAILED TO VERIFY\n"
+  | Failed -> Printf.printf "FAILED TO VERIFY\n"
   | _ -> Printf.printf "VERIFIED\n"
 
 let () =

@@ -981,6 +981,24 @@ module rec Ast_Target : Ast_Defs
     (* TODO: Support some reductions involving Concat, ConcatLine, ConsPath,
      * and AddExt (where possible) at least when constrained to be given
      * literals *)
+    | ConcatLine, IsEqual (Function (ConcatLine, Pair (vx, vy, _), _)) ->
+        begin match v with
+        | Pair (x, y, _) ->
+            begin match x, vx, y, vy with
+            | Literal (String x, _), Literal (String vx, _), _, _
+              when not (String.contains x '\n' || String.contains vx '\n')
+                -> if x = vx
+                   then Reducible [[ IsEqual (y, vy) ]]
+                   else Reducible []
+            | _, _, Literal (String y, _), Literal (String vy, _)
+              when not (String.contains y '\n' || String.contains vy '\n')
+                -> if y = vy
+                   then Reducible [[ IsEqual (x, vx) ]]
+                   else Reducible []
+            | _, _, _, _ -> Unreducible
+            end
+        | _ -> Unreducible
+        end
     | _, _ -> Unreducible
 end
 
