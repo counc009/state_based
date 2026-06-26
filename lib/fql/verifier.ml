@@ -298,10 +298,19 @@ and state_diff =
 let diff_empty : state_diff =
   StateDiff (Interp.ElementMap.empty, Interp.AttributeMap.empty)
 
+let diff_is_empty (d : state_diff) : bool =
+  let StateDiff (elems, attrs) = d
+  in Interp.ElementMap.is_empty elems && Interp.AttributeMap.is_empty attrs
+
 let diff_add_elem (e : Interp.ElementMap.key) (d : state_diff)
   (top : state_diff) : state_diff =
-  let StateDiff (elems, attrs) = top
-  in StateDiff (Interp.ElementMap.add e (false, Positive d) elems, attrs)
+  (* Since the element is not part of the diff, if d is empty we just omit the
+   * element *)
+  if diff_is_empty d
+  then top
+  else
+    let StateDiff (elems, attrs) = top
+    in StateDiff (Interp.ElementMap.add e (false, Positive d) elems, attrs)
 
 let rec diff_of_state (s : Interp.state) =
   let State (elems, attrs) = s

@@ -999,6 +999,36 @@ module rec Ast_Target : Ast_Defs
             end
         | _ -> Unreducible
         end
+    | ConcatLine, 
+      IsEqual (Function (ReplaceLastMatching,
+                Pair (_, Pair (Literal (String rep, _), orig, _), _), _))
+        when not (String.contains rep '\n') ->
+      begin match v with
+      | Pair (x, y, _) ->
+          (* concat_line(X, Y) <> replace_last_matching(R, W, X) since the left
+           * contains all of X and something new at the end while the right
+           * contains part of X with W replaced (this holds as long as W does
+           * not contain a new line since then we can prove the number of lines
+           * will not match)
+           * Similarly for concat_line(Y, X) *)
+          if x = orig || y = orig
+          then Reducible []
+          else Unreducible
+      | _ -> Unreducible
+      end
+    | ReplaceLastMatching,
+      IsEqual (Function (ReplaceLastMatching,
+              Pair (Literal (String regex, _), Pair (repr, orig, _), _), _)) ->
+      begin match v with
+      | Pair (Literal (String re, _), Pair (w, s, _), _) ->
+          if w <> repr || s <> orig
+          then Unreducible
+          else if re = regex || (re ^ ".*") = regex || (re ^ ".*^") = regex
+               || re = (regex ^ ".*") || re = (regex ^ ".*^")
+          then Reducible [[]]
+          else Unreducible
+      | _ -> Unreducible
+      end
     | _, _ -> Unreducible
 end
 
