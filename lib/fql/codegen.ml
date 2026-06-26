@@ -8,10 +8,19 @@ let ( let$ ) r f = r f
 
 type typ = Target.typ
 
+type os = Debian | Ubuntu | RedHat | DebianBased | RedHatBased
+
+module OSSet = struct
+  include Set.Make(struct
+    type t = os
+    let compare = Stdlib.compare
+  end)
+end
+
 type env = {
   unknowns: typ StringMap.t;
   users: StringSet.t;
-  os: StringSet.t option
+  os: OSSet.t option
 }
 
 let env_empty : env = {
@@ -34,10 +43,10 @@ let add_unknown (env : env) (nm : string) (ty : typ) : (env, string) result =
 let add_user (env : env) (nm : string) : env =
   { unknowns = env.unknowns; users = StringSet.add nm env.users; os = env.os }
 
-let add_os (env : env) (nm : string) : env =
+let add_os (env : env) (os : os) : env =
   { unknowns = env.unknowns; users = env.users;
-    os = match env.os with None -> Some (StringSet.singleton nm)
-         | Some cur -> Some (StringSet.add nm cur) }
+    os = match env.os with None -> Some (OSSet.singleton os)
+         | Some cur -> Some (OSSet.add os cur) }
 
 let codegen_value (v : ParseTree.value) (ty : typ) (env : env)
   (from_str : string -> Target.expr) : (Target.expr * env, string) result =
@@ -230,7 +239,7 @@ let codegen_condition (c: Ast.cond) (thn : Target.stmt list)
                 StringLit "Debian",
                 Eq)) :: thn,
             els),
-            add_os env "Debian")
+            add_os env Debian)
       | RedHat -> Ok (
           IfThenElse (
             BinaryExp (
@@ -243,7 +252,7 @@ let codegen_condition (c: Ast.cond) (thn : Target.stmt list)
                 StringLit "RedHat",
                 Eq)) :: thn,
             els),
-            add_os env "RedHat")
+            add_os env RedHat)
       | Ubuntu -> Ok (
           IfThenElse (
             BinaryExp (
@@ -256,7 +265,7 @@ let codegen_condition (c: Ast.cond) (thn : Target.stmt list)
                 StringLit "Debian",
                 Eq)) :: thn,
             els),
-            add_os env "Debian")
+            add_os env Debian)
       | DebianFamily -> Ok (
           IfThenElse (
             BinaryExp (
@@ -265,7 +274,7 @@ let codegen_condition (c: Ast.cond) (thn : Target.stmt list)
               Eq),
             thn,
             els),
-            add_os env "Debian")
+            add_os env DebianBased)
       | RedHatFamily -> Ok (
           IfThenElse (
             BinaryExp (
@@ -274,7 +283,7 @@ let codegen_condition (c: Ast.cond) (thn : Target.stmt list)
               Eq),
             thn,
             els),
-            add_os env "RedHat")
+            add_os env RedHatBased)
       end
   (* For file and directory exists we check the existance of the file-system
    * object and if it exists we assert it is a file/directory since normally
@@ -980,12 +989,37 @@ let codegen_query (q : Ast.query) : (Target.stmt list, string) result =
      * solutions that are expected to work on multiple operating systems *)
     :: begin let os_families =
       match env.os with
-      | None -> ["Debian"; "RedHat"]
-      | Some os -> StringSet.elements os
+      | None -> [Debian; RedHat]
+      | Some os -> OSSet.elements os
+    in let check_os (os : os) : Target.expr =
+      let check_family (nm : string) : Target.expr =
+        BinaryExp (
+          Field (FuncExp (Id "env", []), "os_family"),
+          StringLit nm, Eq)
+      in let check_dist (nm : string) : Target.expr =
+        BinaryExp (
+          Field (FuncExp (Id "env", []), "os_distribution"),
+          StringLit nm, Eq)
+      in let e_and x y : Target.expr = BinaryExp (x, y, And)
+      in let e_or x y : Target.expr = BinaryExp (x, y, Or)
+      in match os with
+      | Debian ->
+          e_and (check_family "Debian") (check_dist "Debian")
+      | Ubuntu ->
+          e_and (check_family "Debian") (check_dist "Ubuntu")
+      | RedHat ->
+          e_and (check_family "RedHat") (check_dist "RedHat")
+      (* TODO: When we support more OSes, update these but fine to just check
+       * the ones we support since we're just saying it needs to work at least
+       * on those *)
+      | DebianBased ->
+          e_and (check_family "Debian")
+            (e_or (check_dist "Debian") (check_dist "Ubuntu"))
+      | RedHatBased ->
+          e_and (check_family "RedHat") (check_dist "RedHat")
     in Assert (List.fold_left (fun cond os ->
         Target.BinaryExp (
-          BinaryExp (Field (FuncExp (Id "env", []), "os_family"), 
-                     StringLit os, Eq),
+          check_os os,
           cond,
           Or)
       ) (BoolLit false) os_families)
