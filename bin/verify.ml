@@ -87,5 +87,15 @@ let () = Printf.printf "\n";
   | Failed -> Printf.printf "FAILED TO VERIFY\n"; exit 5
   | Trivial -> Printf.printf "QUERY WAS TRIVIAL\n"; exit 6
   | Success m ->
-      Printf.printf "VERIFIED\n%s\n" (Fql.Verifier.string_of_merged_res m);
-      exit 0
+      let () = Printf.printf "VERIFIED\n"
+      in let rec print_res (r : Fql.Verifier.merged_res) : unit =
+        match r with
+        | Both (x, y) -> print_res x; print_string "\n"; print_res y
+        | Satisfied { base; diff } ->
+            Ocolor_format.printf "@{<cyan>%s@} @{<red>assuming@} @{<orange>%s@} @{<red>and@} @{<orange>%s@} @{<red>performing@} @{<green>%s@}"
+              (Modules.Target.string_of_state base)
+              (Fql.Verifier.string_of_merged_diff diff.inits)
+              (Fql.Verifier.string_of_unifier_merged diff.constraints)
+              (Fql.Verifier.string_of_merged_diff diff.finals)
+      in let () = print_res m
+      in print_string "\n"; exit 0
