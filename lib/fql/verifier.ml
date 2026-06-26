@@ -930,7 +930,8 @@ let merge_state_diffs (diffs : state_diff list) : merged_diff =
   in merge diffs 0 empty_merged_diff
 
 type merged_unifier =
-  { constraints : Unifier.merged; inits : merged_diff; finals : merged_diff }
+  { branches : int; constraints : Unifier.merged;
+    inits : merged_diff; finals : merged_diff }
 
 let merge_interp_state_unifiers (xs : interp_state_unifier list)
   : merged_unifier option =
@@ -948,7 +949,8 @@ let merge_interp_state_unifiers (xs : interp_state_unifier list)
     in eval_states xs
   in if List.is_empty inits
   then None
-  else Some { constraints; inits = merge_state_diffs inits;
+  else Some { branches = List.length inits; constraints;
+              inits = merge_state_diffs inits;
               finals = merge_state_diffs finals }
 
 type merged_res =
@@ -1037,8 +1039,9 @@ let rec string_of_merged_res (r : merged_res) : string =
   match r with
   | Both (x, y) -> string_of_merged_res x ^ "\n" ^ string_of_merged_res y
   | Satisfied { base; diff } ->
-      Printf.sprintf "%s assuming %s and [ %s ] performing %s"
+      Printf.sprintf "%s { %d branch } assuming %s and [ %s ] performing %s"
         (Modules.Target.string_of_state base)
+        diff.branches
         (string_of_merged_diff diff.inits)
         (string_of_unifier_merged diff.constraints)
         (string_of_merged_diff diff.finals)

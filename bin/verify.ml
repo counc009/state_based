@@ -92,8 +92,9 @@ let () = Printf.printf "\n";
         match r with
         | Both (x, y) -> print_res x; print_string "\n"; print_res y
         | Satisfied { base; diff } ->
-            Ocolor_format.printf "@{<cyan>%s@} @{<red>assuming@} @{<orange>%s@} @{<red>and@} @{<orange>%s@} @{<red>performing@} @{<green>%s@}"
+            Ocolor_format.printf "@{<cyan>%s@} @{<yellow>{ %d branch }@} @{<red>assuming@} @{<orange>%s@} @{<red>and@} @{<orange>%s@} @{<red>performing@} @{<green>%s@}"
               (Modules.Target.string_of_state base)
+              diff.branches
               (Fql.Verifier.string_of_merged_diff diff.inits)
               (Fql.Verifier.string_of_unifier_merged diff.constraints)
               (Fql.Verifier.string_of_merged_diff diff.finals)

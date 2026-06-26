@@ -565,19 +565,42 @@ module rec Ast_Target : Ast_Defs
           | _ -> Stuck)
     | ConsPath -> (Product (Primitive Path, Primitive Path),
                    Primitive Path,
-        fun v -> match v with
+        let rec process (v : value) : value eval =
+          match v with
           | Pair (Literal (Path p, _), Literal (Path q, _), _)
             -> if String.ends_with ~suffix:"/" p
                then Reduced (Literal (Path (p ^ q), Path))
                else Reduced (Literal (Path (p ^ "/" ^ q), Path))
-          | _ -> Stuck)
+          | Pair (Function (ConsPath, Pair (x, y, t), _), z, _) ->
+              begin match process (Pair (y, z, t)) with
+              | Err msg -> Err msg
+              | Reduced rhs ->
+                  Reduced (Function (ConsPath, Pair (x, rhs, t),
+                    Primitive Path))
+              | Stuck ->
+                  Reduced (Function (ConsPath, Pair (x,
+                    Function (ConsPath, Pair (y, z, t), Primitive Path), t),
+                    Primitive Path))
+              end
+          | _ -> Stuck
+        in process)
     | PathOfString -> (Primitive String, Primitive Path,
         fun v -> match v with
           | Literal (String s, _) -> Reduced (Literal (Path s, Path))
+          | Function (Concat, Pair (Literal (String p, _), q, _), _) ->
+              if String.ends_with ~suffix:"/" p
+              then
+                Reduced (Function (ConsPath, 
+                  Pair (Literal (Path p, Path),
+                    Function (PathOfString, q, Primitive Path),
+                    Product (Primitive Path, Primitive Path)), Primitive Path))
+              else Stuck
+          | Function (StringOfPath, p, _) -> Reduced p
           | _ -> Stuck)
     | StringOfPath -> (Primitive Path, Primitive String,
         fun v -> match v with
           | Literal (Path s, _) -> Reduced (Literal (String s, String))
+          | Function (PathOfString, s, _) -> Reduced s
           | _ -> Stuck)
     | EndsWithDir -> (Primitive Path, Primitive Bool,
         fun v -> match v with
@@ -1027,6 +1050,79 @@ module rec Ast_Target : Ast_Defs
                || re = (regex ^ ".*") || re = (regex ^ ".*^")
           then Reducible [[]]
           else Unreducible
+      | _ -> Unreducible
+      end
+    | ConsPath, IsEqual (Literal (Path p, _)) ->
+      begin match v with
+      | Pair (Literal (Path x, _), y, _) ->
+          let lenx = String.length x
+          in let lenp = String.length p
+          in if lenx = lenp
+          then
+            if x = p
+            then Reducible [[IsEqual (y, Literal (Path "", Path))]]
+            else Reducible []
+          else if lenx < lenp
+          then
+            if String.starts_with ~prefix:x p
+            then
+              let rem = String.sub p lenx (lenp - lenx)
+              in Reducible [[IsEqual (y, Literal (Path rem, Path))]]
+            else Reducible []
+          else (* lenp < lenx : false because x ^ z <> p if len(x) < len(p) *)
+            Reducible []
+      | _ -> Unreducible
+      end
+    | ConsPath, IsEqual (Function (ConsPath, Pair (x, y, t), _)) ->
+      begin match v, x with
+      | Pair (Literal (Path p, _), q, _), Literal (Path x, _) ->
+          let lenp = String.length p
+          in let lenx = String.length x
+          in if lenp = lenx
+          then
+            if p = x
+            then Reducible [[IsEqual (q, y)]]
+            else Reducible []
+          else if lenp < lenx
+          then
+            if String.starts_with ~prefix:p x
+            then
+              let rem = String.sub x lenp (lenx - lenp)
+              in let remval : value = Literal (Path rem, Path)
+              in let right : value =
+                Function (ConsPath, Pair (remval, y, t), Primitive Path)
+              in Reducible [[IsEqual (q, right)]]
+            else Reducible []
+          else (* lenx < lenp *)
+            if String.starts_with ~prefix:x p
+            then
+              let rem = String.sub p lenx (lenp - lenx)
+              in let remval : value = Literal (Path rem, Path)
+              in let left : value =
+                Function (ConsPath, Pair (remval, q, t), Primitive Path)
+              in Reducible [[IsEqual (left, y)]]
+            else Reducible []
+      | _ -> Unreducible
+      end
+    | PathFrom, IsEqual (Literal (Path "", _)) ->
+      begin match v with
+      | Pair (x, y, _) -> Reducible [[IsEqual (x, y)]]
+      | _ -> Unreducible
+      end
+    | PathFrom, IsEqual x ->
+      begin match v with
+      | Pair (v, w, _) when x = w ->
+          Reducible [[IsEqual (v, Literal (Path "", Path))]]
+      | _ -> Unreducible
+      end
+    | BaseName, IsEqual (Literal (Path "", _)) ->
+        Reducible [[IsEqual (v, Literal (Path "", Path))]]
+    | EndsWithDir, IsBool b ->
+      begin match v with
+      | Function (ConsPath, Pair (_, p, _), _) ->
+          Reducible [[IsBool (Function (EndsWithDir, p, Primitive Bool), b)]]
+      | Function (PathFrom, Pair (_, p, _), _) ->
+          Reducible [[IsBool (Function (EndsWithDir, p, Primitive Bool), b)]]
       | _ -> Unreducible
       end
     | _, _ -> Unreducible
