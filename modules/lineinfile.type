@@ -163,7 +163,7 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
         if !create {
           return lineinfile_result { failed: true, changed: false };
         } else {
-          let result = line;
+          let result = line ^ "\n";
 
           if provided validate {
             if validate_contents(validate, result) {}

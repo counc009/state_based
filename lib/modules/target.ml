@@ -405,6 +405,10 @@ module rec Ast_Target : Ast_Defs
               if p = "" || String.ends_with ~suffix:"\n" p
               then p
               else p ^ "\n"
+            in let q =
+              if q = "" || String.ends_with ~suffix:"\n" q
+              then q
+              else q ^ "\n"
             in Reduced (Literal (String (p ^ q), String))
         | Pair (Literal (String "", _), q, _) -> Reduced q
         | Pair (p, Literal (String "", _), _) -> Reduced p
@@ -1052,6 +1056,17 @@ module rec Ast_Target : Ast_Defs
           else Unreducible
       | _ -> Unreducible
       end
+    | ReplaceLastMatching, IsEqual (Literal (String s, _)) ->
+        (* If replace_last_matching(regex, repr, str) is equal to a single
+         * line, then that line needs to be equal to repr or str *)
+        if not (String.contains s '\n')
+        then
+          match v with
+          | Pair (_, Pair (repr, orig, _), _) ->
+              Reducible [ [IsEqual (repr, Literal (String s, String))]
+                        ; [IsEqual (orig, Literal (String s, String))] ]
+          | _ -> Unreducible
+        else Unreducible
     | ConsPath, IsEqual (Literal (Path p, _)) ->
       begin match v with
       | Pair (Literal (Path x, _), y, _) ->
@@ -1117,6 +1132,10 @@ module rec Ast_Target : Ast_Defs
       end
     | BaseName, IsEqual (Literal (Path "", _)) ->
         Reducible [[IsEqual (v, Literal (Path "", Path))]]
+    | BaseName, IsEqual (Literal (Path p, _)) ->
+        if String.starts_with ~prefix:"/" p
+        then Reducible [[IsEqual (v, Literal (Path "/", Path))]]
+        else Unreducible
     | EndsWithDir, IsBool b ->
       begin match v with
       | Function (ConsPath, Pair (_, p, _), _) ->
