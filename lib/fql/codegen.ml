@@ -989,7 +989,7 @@ let codegen_query (q : Ast.query) : (Target.stmt list, string) result =
      * solutions that are expected to work on multiple operating systems *)
     :: begin let os_families =
       match env.os with
-      | None -> [Debian; RedHat]
+      | None -> [DebianBased; RedHatBased]
       | Some os -> OSSet.elements os
     in let check_os (os : os) : Target.expr =
       let check_family (nm : string) : Target.expr =
