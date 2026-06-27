@@ -25,6 +25,7 @@ type 't func    = Proj           of bool * 't * 't   (* true = 1, false = 2 *)
                 | BoolAnd
                 | Concat
                 | ConcatLine
+                | RemoveLastLine
                 | Equal          of 't
                 | Append         of 't (* Type of list elements *)
                 | ListLength     of 't (* Type of list elements *)
@@ -412,6 +413,18 @@ module rec Ast_Target : Ast_Defs
             in Reduced (Literal (String (p ^ q), String))
         | Pair (Literal (String "", _), q, _) -> Reduced q
         | Pair (p, Literal (String "", _), _) -> Reduced p
+        | _ -> Stuck)
+    | RemoveLastLine -> (Primitive String, Primitive String,
+        fun v -> match v with
+        | Literal (String s, _) ->
+            let lines = String.split_on_char '\n' s
+            in let rec front (xs : 'a list) : 'a list =
+              match xs with
+              | [] | [_] -> []
+              | x :: xs -> x :: front xs
+            in let new_lines = front lines
+            in let new_s = String.concat "\n" new_lines
+            in Reduced (Literal (String new_s, String))
         | _ -> Stuck)
     | Equal t -> (Product (t, t), Primitive Bool,
         fun v -> match v with
@@ -1067,6 +1080,26 @@ module rec Ast_Target : Ast_Defs
                         ; [IsEqual (orig, Literal (String s, String))] ]
           | _ -> Unreducible
         else Unreducible
+    | ReplaceLastMatching, 
+      IsEqual (Function (ConcatLine, Pair (x, Literal (String y, _), _), _)) ->
+      (* if replace_last_matching(regex, repr, s) = concat_line(x, y)
+       * then if y matches regex it must be equal to repr
+       * and x = remove_last_line(s) *)
+      if not (String.contains y '\n')
+      then
+        match v with
+        | Pair (Literal (String regex, _), Pair (repr, orig, _), _) ->
+            begin match compile_regex regex with
+            | None -> Unreducible
+            | Some regex ->
+                if Re.execp regex y
+                then Reducible [[ IsEqual (repr, Literal (String y, String));
+                    IsEqual (x, 
+                      Function (RemoveLastLine, orig, Primitive String)) ]]
+                else Unreducible
+            end
+        | _ -> Unreducible
+      else Unreducible
     | ConsPath, IsEqual (Literal (Path p, _)) ->
       begin match v with
       | Pair (Literal (Path x, _), y, _) ->
@@ -1213,6 +1246,7 @@ let rec string_of_value (v : Ast_Target.value) : string =
       | BoolAnd                   -> "and(" ^ string_of_value arg ^ ")"
       | Concat                    -> "concat(" ^ string_of_value arg ^ ")"
       | ConcatLine                -> "concat_line(" ^ string_of_value arg ^ ")"
+      | RemoveLastLine            -> "remove_line(" ^ string_of_value arg ^ ")"
       | Equal _                   -> "equal(" ^ string_of_value arg ^ ")"
       | Append _                  -> "append(" ^ string_of_value arg ^ ")"
       | ListLength _              -> "len(" ^ string_of_value arg ^ ")"
@@ -1322,6 +1356,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | BoolAnd                   -> "and"
         | Concat                    -> "concat"
         | ConcatLine                -> "concat_line"
+        | RemoveLastLine            -> "remove_line"
         | Equal _                   -> "equal"
         | Append _                  -> "append"
         | ListLength _              -> "len"
