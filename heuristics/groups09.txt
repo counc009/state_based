@@ -1,0 +1,3 @@
+Debian:root,sudo,www-data,aaron,foo
+Ubuntu:root,sudo,www-data,aaron,foo
+RedHat:root,wheel,aaron,foo

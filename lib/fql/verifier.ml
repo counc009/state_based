@@ -817,6 +817,7 @@ type interp_res_unifier =
   | Left of interp_res_unifier
   | Right of interp_res_unifier
   | Both of interp_res_unifier * interp_res_unifier
+  | Either of interp_res_unifier * interp_res_unifier
   | Satisfied of Interp.interp_state * interp_state_unifier list
   | Trivial (* The reference solution errored *)
   | Failed
@@ -841,7 +842,8 @@ let unify_candidate (ref : Interp.interp_res) (cand : Interp.interp_res)
         | Failed, Failed | Failed, Trivial | Trivial, Failed -> Failed
         | Trivial, Trivial -> Trivial
         | (Failed | Trivial), right -> Right right
-        | left, _ -> Left left
+        | left, (Failed | Trivial) -> Left left
+        | left, right -> Either (left, right)
         end
   in unify ref
 
@@ -955,6 +957,7 @@ let merge_interp_state_unifiers (xs : interp_state_unifier list)
 
 type merged_res =
   | Both      of merged_res * merged_res
+  | Either    of merged_res * merged_res
   | Satisfied of { base : Interp.state; diff : merged_unifier }
 
 type 'a merging_res =
@@ -971,6 +974,11 @@ let rec merge_interp_res_unifier (r : interp_res_unifier)
       | Failed, _ | _, Failed -> Failed
       | Trivial, res | res, Trivial -> res
       | Success x, Success y -> Success (Both (x, y))
+      end
+  | Either (x, y) ->
+      begin match merge_interp_res_unifier x, merge_interp_res_unifier y with
+      | (Failed | Trivial), res | res, (Failed | Trivial) -> res
+      | Success x, Success y -> Success (Either (x, y))
       end
   | Satisfied (base, unifiers) ->
       begin match merge_interp_state_unifiers unifiers with
@@ -1037,7 +1045,8 @@ let string_of_unifier_merged (m : Unifier.merged) : string =
 
 let rec string_of_merged_res (r : merged_res) : string =
   match r with
-  | Both (x, y) -> string_of_merged_res x ^ "\n" ^ string_of_merged_res y
+  | Both (x, y) | Either (x, y) ->
+      string_of_merged_res x ^ "\n" ^ string_of_merged_res y
   | Satisfied { base; diff } ->
       Printf.sprintf "%s { %d branch } assuming %s and [ %s ] performing %s"
         (Modules.Target.string_of_state base)

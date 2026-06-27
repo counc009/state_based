@@ -1,0 +1,5 @@
+Debian:e_apt:git,python3-numpy,zsh
+Ubuntu:e_apt:git,python3-numpy,zsh
+Ubuntu:e_pip:numpy,zsh
+RedHat:e_dnf:git,numpy,python3-numpy,zsh
+RedHat:e_pip:numpy,zsh

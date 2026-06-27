@@ -1,7 +1,11 @@
-let usage_msg = "runner <query> <ansible program> -- <module definitions>"
+let usage_msg = "runner [--users <src_file>] [--groups <src_file>] <query> <ansible program> -- <module definitions>"
 let query = ref ""
 let program = ref ""
 let module_defs = ref []
+
+let users_src = ref ""
+let groups_src = ref ""
+let packages_src = ref ""
 
 let cnt = ref 0
 let anon_fun filename =
@@ -16,7 +20,53 @@ module Target = Modules.Target
 module Semant = Fql.Semant.Semant(Fql.Knowledge.Example)
 
 let arglist =
-  [("--", Arg.Rest_all (fun fs -> module_defs := fs), "Ansible Module Definitions")]
+  [("--", Arg.Rest_all (fun fs -> module_defs := fs), "Ansible Module Definitions");
+   ("--users", Arg.Set_string users_src, "Validate users from a source file which is a comma-separated list of names or has lines of the form <distribution>:<comma-separated names>");
+   ("--groups", Arg.Set_string groups_src, "Validate groups from a source file which is a comma-separated list of names or has lines of the form <distribution>:<comma-separated names>");
+   ("--pkgs", Arg.Set_string packages_src, "Validate packages from a source file which is a comma-separated list of names or has lines of the form <distribution>:<package manager>:<comma-separated names>") ]
+
+type ('a, 'b) info_file_res =
+  | All      of 'b
+  | Specific of ('a * 'b) list
+
+let parse_opts (opts : string) : Fql.Heuristics.StringSet.t =
+  Fql.Heuristics.string_set (String.split_on_char ',' opts)
+
+let parse_dist_line (parts : string list)
+  : string * Fql.Heuristics.StringSet.t =
+  match parts with
+  | [] -> failwith "invalid dist option format: no dist specified"
+  | [dist; opts] -> (dist, parse_opts opts)
+  | _ -> failwith "invalid dist option format: multiple colons in line"
+
+let parse_pkgs_line (parts : string list)
+  : (string * string) * Fql.Heuristics.StringSet.t =
+  match parts with
+  | [dist; pkgmgr; opts] -> ((dist, pkgmgr), parse_opts opts)
+  | _ -> failwith "invalid pkgmgr option format: expected exactly two colons per line"
+
+let parse_info_file (extract : string -> 'b) (split : string list -> 'a * 'b)
+  (file : string) : ('a, 'b) info_file_res =
+  let input = open_in file
+  in let lines = In_channel.input_lines input
+  in let () = close_in input
+
+  in match lines with
+  | [] -> All (extract "")
+  | [l] ->
+      begin match String.split_on_char ':' l with
+      | [] -> failwith "split_on_char returns non-empty list"
+      | [opts] -> All (extract opts)
+      | parts -> Specific [split parts]
+      end
+  | lines ->
+      Specific (List.map 
+        (fun line -> split (String.split_on_char ':' line))
+        lines)
+
+let parse_dist_file = parse_info_file parse_opts parse_dist_line
+
+let parse_pkgs_file = parse_info_file parse_opts parse_pkgs_line
 
 let interp p =
   Interp.interpret p Interp.init_interp_state Calc.VariableMap.empty
@@ -33,6 +83,46 @@ let interp p =
           Err (Printf.sprintf "Exception %s(%s)" exc
             (Target.string_of_value v))
       | _ -> Err "Unknown Exception")
+
+let validate_heuristics res : bool =
+  begin
+    if !users_src = "" then true
+    else
+      let user_info = parse_dist_file !users_src
+      in match user_info with
+      | All users ->
+          Fql.Heuristics.valid_users users None res
+      | Specific specs ->
+          List.for_all (fun (dist, users) ->
+            Fql.Heuristics.valid_users users (Some dist) res
+          ) specs
+  end
+  &&
+  begin
+    if !groups_src = "" then true
+    else
+      let group_info = parse_dist_file !groups_src
+      in match group_info with
+      | All groups ->
+          Fql.Heuristics.valid_groups groups None res
+      | Specific specs ->
+          List.for_all (fun (dist, groups) ->
+            Fql.Heuristics.valid_groups groups (Some dist) res
+          ) specs
+  end
+  &&
+  begin
+    if !packages_src = "" then true
+    else
+      let pkg_info = parse_pkgs_file !packages_src
+      in match pkg_info with
+      | All pkgs ->
+          Fql.Heuristics.valid_packages pkgs None res
+      | Specific specs ->
+          List.for_all (fun (which, pkgs) ->
+            Fql.Heuristics.valid_packages pkgs (Some which) res
+          ) specs
+  end
 
 let () = Printf.printf "\n";
   Arg.parse arglist anon_fun usage_msg;
@@ -87,16 +177,20 @@ let () = Printf.printf "\n";
   | Failed -> Printf.printf "FAILED TO VERIFY\n"; exit 5
   | Trivial -> Printf.printf "QUERY WAS TRIVIAL\n"; exit 6
   | Success m ->
-      let () = Printf.printf "VERIFIED\n"
-      in let rec print_res (r : Fql.Verifier.merged_res) : unit =
-        match r with
-        | Both (x, y) -> print_res x; print_string "\n"; print_res y
-        | Satisfied { base; diff } ->
-            Ocolor_format.printf "@{<cyan>%s@} @{<yellow>{ %d branch }@} @{<red>assuming@} @{<orange>%s@} @{<red>and@} @{<orange>%s@} @{<red>performing@} @{<green>%s@}"
-              (Modules.Target.string_of_state base)
-              diff.branches
-              (Fql.Verifier.string_of_merged_diff diff.inits)
-              (Fql.Verifier.string_of_unifier_merged diff.constraints)
-              (Fql.Verifier.string_of_merged_diff diff.finals)
-      in let () = print_res m
-      in print_string "\n"; exit 0
+      if validate_heuristics m
+      then 
+        let () = Printf.printf "VERIFIED\n"
+        in let rec print_res (r : Fql.Verifier.merged_res) : unit =
+          match r with
+          | Both (x, y) | Either (x, y) ->
+              print_res x; print_string "\n"; print_res y
+          | Satisfied { base; diff } ->
+              Ocolor_format.printf "@{<cyan>%s@} @{<yellow>{ %d branch }@} @{<red>assuming@} @{<orange>%s@} @{<red>and@} @{<orange>%s@} @{<red>performing@} @{<green>%s@}"
+                (Modules.Target.string_of_state base)
+                diff.branches
+                (Fql.Verifier.string_of_merged_diff diff.inits)
+                (Fql.Verifier.string_of_unifier_merged diff.constraints)
+                (Fql.Verifier.string_of_merged_diff diff.finals)
+        in let () = print_res m
+        in print_string "\n"; exit 0
+      else print_string "HEURISTICS REJECTED\n"; exit 7
