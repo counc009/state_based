@@ -178,7 +178,9 @@ module Example : KB = struct
         begin match ctx.os with
         | None -> Error "Condition 'reboot required' requires particular OS"
         | Some Debian | Some Ubuntu | Some DebianFamily ->
-            Ok (FileExists (remote_path "/var/run/reboot-required"))
+            Ok (FileExists (
+              remote_path_options 
+                ["/var/run/reboot-required"; "/run/reboot-required"]))
         | Some RedHat | Some RedHatFamily ->
             Error "Condition 'reboot required' not supported for RedHat"
         end
