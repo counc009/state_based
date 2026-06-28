@@ -7,6 +7,7 @@ let users_src = ref ""
 let groups_src = ref ""
 let packages_src = ref ""
 let files_src = ref ""
+let reboot_hosts = ref ""
 
 let cnt = ref 0
 let anon_fun filename =
@@ -27,7 +28,8 @@ let arglist =
    ("--users", Arg.Set_string users_src, "Validate users from a source file which is a comma-separated list of names or has lines of the form <distribution>:<comma-separated names>");
    ("--groups", Arg.Set_string groups_src, "Validate groups from a source file which is a comma-separated list of names or has lines of the form <distribution>:<comma-separated names>");
    ("--pkgs", Arg.Set_string packages_src, "Validate packages from a source file which is a comma-separated list of names or has lines of the form <distribution>:<package manager>:<comma-separated names>");
-   ("--files", Arg.Set_string files_src, "Validate files from ???") ]
+   ("--files", Arg.Set_string files_src, "Validate files from a source file which is a comma-separated list of paths or has lines of the form <distribution>:<controller/remote>:<comma-separated paths of files that exist>:<comma-separated paths of files that do not exist>");
+  ("--reboot", Arg.Set_string reboot_hosts, "Validate that no reboots occur unless specified for systems in the hosts specified ") ]
 
 type ('a, 'b) info_file_res =
   | All      of 'b
@@ -169,6 +171,11 @@ let validate_heuristics res : bool =
           List.for_all (fun (where, (pos, neg)) ->
             Fql.Heuristics.valid_files pos neg (Some where) res
           ) specs
+  end
+  &&
+  begin
+    if !reboot_hosts = "" then true
+    else Fql.Heuristics.valid_reboot !reboot_hosts res
   end
 
 let () = Printf.printf "\n";

@@ -27,6 +27,18 @@ let get_dist (s : Interp.state) : string option =
       end
   | _ -> None
 
+(* Returns the values of an attribute in the environment (if found) *)
+let get_env_attr (s : Verifier.merged_diff) (attr : string) (ty : Target.typ)
+  : int list Interp.ValueMap.t option =
+  let MergedDiff (elems, _) = s
+  in let env =
+    (("env", Target.Primitive Unit), Target.Literal (Unit (), Unit))
+  in match Interp.ElementMap.find_opt env elems with
+  | None -> None
+  | Some { diff; _ } ->
+      let MergedDiff (_, attrs) = diff
+      in Interp.AttributeMap.find_opt (attr, ty) attrs
+
 (* Check that the users that are assumed to be present in r actually are
  * present given the set of users that exist, only checks the branches where
  * the os_distribution (in the query) matches if one is specified, this allows for
@@ -221,6 +233,51 @@ let valid_files (exist : StringSet.t) (not_exist: StringSet.t)
               | _ -> true
               end
           ) elems
+    | Both (x, y) -> validate_res x && validate_res y
+    | Either (x, y) -> validate_res x || validate_res y
+  in validate_res r
+
+(* Checks that the diff does not contain a reboot of the system, meaning it
+ * cannot reboot the system unless the query does as well.
+ * Because we are checking that we do not perform a certain action, another
+ * way a program could satisfy this is by assuming that we don't run the play
+ * at all by assuming the hostname is not included in the hosts; to avoid not
+ * rejecting a program because of this assumption, we only need the reboot to
+ * occur on the branches where we don't assume the host is excluded *)
+let valid_reboot (hosts : string) (r : Verifier.merged_res) : bool =
+  let rec validate_res (r : Verifier.merged_res) : bool =
+    match r with
+    | Satisfied { diff = { branches; constraints = { bools; _ }; 
+                           inits; finals }; _ } ->
+        let not_excluded =
+          let all_set = int_range branches
+          in match get_env_attr inits "hostname" (Primitive String) with
+          | None -> all_set
+          | Some vs ->
+              Interp.ValueMap.fold (fun hostname ns res ->
+                let host_included =
+                  Target.Function (HostIncluded,
+                    Pair (hostname,
+                      Literal (String hosts, String),
+                      Product (Primitive String, Primitive String)),
+                    Primitive Bool)
+                in match Interp.ValueMap.find_opt host_included bools with
+                | None -> res
+                | Some { f; _ } -> 
+                    IntSet.diff res 
+                      (IntSet.inter (IntSet.of_list ns) (IntSet.of_list f))
+              ) vs all_set
+        in begin match get_env_attr finals "last_reboot" (Primitive Int) with
+        | None -> true
+        | Some vs ->
+            let which_set =
+              Interp.ValueMap.fold (fun _ ns set ->
+                IntSet.union set (IntSet.of_list ns))
+                vs IntSet.empty
+            in if IntSet.subset not_excluded which_set
+            then false
+            else true
+        end
     | Both (x, y) -> validate_res x && validate_res y
     | Either (x, y) -> validate_res x || validate_res y
   in validate_res r
