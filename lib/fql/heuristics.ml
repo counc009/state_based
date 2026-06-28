@@ -218,7 +218,7 @@ let valid_files (exist : StringSet.t) (not_exist: StringSet.t)
                   else false
               (* Since we reject files unless we know they exist/do not exist we
                * also reject mysterious files *)
-              | _ -> false
+              | _ -> true
               end
           ) elems
     | Both (x, y) -> validate_res x && validate_res y
