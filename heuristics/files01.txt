@@ -1,0 +1,3 @@
+Debian:remote:/srv:/srv/www
+Ubuntu:remote:/srv:/srv/www
+RedHat:remote:/srv:/srv/www

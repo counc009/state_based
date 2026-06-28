@@ -1,0 +1,3 @@
+Debian:remote:/ansible:
+Ubuntu:remote:/ansible:
+RedHat:remote:/ansible:

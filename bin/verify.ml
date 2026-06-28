@@ -6,6 +6,7 @@ let module_defs = ref []
 let users_src = ref ""
 let groups_src = ref ""
 let packages_src = ref ""
+let files_src = ref ""
 
 let cnt = ref 0
 let anon_fun filename =
@@ -19,54 +20,87 @@ module Target = Modules.Target
 
 module Semant = Fql.Semant.Semant(Fql.Knowledge.Example)
 
+module StringSet = Fql.Heuristics.StringSet
+
 let arglist =
   [("--", Arg.Rest_all (fun fs -> module_defs := fs), "Ansible Module Definitions");
    ("--users", Arg.Set_string users_src, "Validate users from a source file which is a comma-separated list of names or has lines of the form <distribution>:<comma-separated names>");
    ("--groups", Arg.Set_string groups_src, "Validate groups from a source file which is a comma-separated list of names or has lines of the form <distribution>:<comma-separated names>");
-   ("--pkgs", Arg.Set_string packages_src, "Validate packages from a source file which is a comma-separated list of names or has lines of the form <distribution>:<package manager>:<comma-separated names>") ]
+   ("--pkgs", Arg.Set_string packages_src, "Validate packages from a source file which is a comma-separated list of names or has lines of the form <distribution>:<package manager>:<comma-separated names>");
+   ("--files", Arg.Set_string files_src, "Validate files from ???") ]
 
 type ('a, 'b) info_file_res =
   | All      of 'b
   | Specific of ('a * 'b) list
 
-let parse_opts (opts : string) : Fql.Heuristics.StringSet.t =
-  Fql.Heuristics.string_set (String.split_on_char ',' opts)
+let parse_opts (opts : string) : StringSet.t =
+  match String.split_on_char ',' opts with
+  | [] | [""] -> StringSet.empty
+  | lst -> Fql.Heuristics.string_set lst
 
-let parse_dist_line (parts : string list)
-  : string * Fql.Heuristics.StringSet.t =
-  match parts with
-  | [] -> failwith "invalid dist option format: no dist specified"
-  | [dist; opts] -> (dist, parse_opts opts)
-  | _ -> failwith "invalid dist option format: multiple colons in line"
-
-let parse_pkgs_line (parts : string list)
-  : (string * string) * Fql.Heuristics.StringSet.t =
-  match parts with
-  | [dist; pkgmgr; opts] -> ((dist, pkgmgr), parse_opts opts)
-  | _ -> failwith "invalid pkgmgr option format: expected exactly two colons per line"
-
-let parse_info_file (extract : string -> 'b) (split : string list -> 'a * 'b)
-  (file : string) : ('a, 'b) info_file_res =
+let parse_info_file (single : string list -> ('a, 'b) info_file_res)
+  (multi : string list -> 'a * 'b) (file : string)
+  : ('a, 'b) info_file_res =
   let input = open_in file
   in let lines = In_channel.input_lines input
   in let () = close_in input
 
   in match lines with
-  | [] -> All (extract "")
-  | [l] ->
-      begin match String.split_on_char ':' l with
-      | [] -> failwith "split_on_char returns non-empty list"
-      | [opts] -> All (extract opts)
-      | parts -> Specific [split parts]
-      end
+  | [] -> single []
+  | [l] -> single (String.split_on_char ':' l)
   | lines ->
       Specific (List.map 
-        (fun line -> split (String.split_on_char ':' line))
+        (fun line -> multi (String.split_on_char ':' line))
         lines)
 
-let parse_dist_file = parse_info_file parse_opts parse_dist_line
+let parse_dist_file = 
+  let single (parts : string list) =
+    match parts with
+    | [] | [""] -> All StringSet.empty
+    | [opts] -> All (parse_opts opts)
+    | [dist; opts] -> Specific [(dist, parse_opts opts)]
+    | _ -> failwith (Printf.sprintf "invalid dist option format: %s" 
+              (String.concat ":" parts))
+  in let multi (parts : string list) : string * StringSet.t =
+    match parts with
+    | [dist; opts] -> (dist, parse_opts opts)
+    | _ -> failwith (Printf.sprintf "invalid dist option format: %s" 
+              (String.concat ":" parts))
+  in parse_info_file single multi
 
-let parse_pkgs_file = parse_info_file parse_opts parse_pkgs_line
+let parse_pkgs_file =
+  let single (parts : string list) =
+    match parts with
+    | [] | [""] -> All StringSet.empty
+    | [opts] -> All (parse_opts opts)
+    | [dist; pkgmgr; opts] -> Specific [((dist, pkgmgr), parse_opts opts)]
+    | _ -> failwith (Printf.sprintf "invalid pkgmgr option format: %s"
+              (String.concat ":" parts))
+  in let multi (parts : string list) =
+    match parts with
+    | [dist; pkgmgr; opts] -> ((dist, pkgmgr), parse_opts opts)
+    | _ -> failwith (Printf.sprintf "invalid pkgmgr option format: %s"
+              (String.concat ":" parts))
+  in parse_info_file single multi
+
+let parse_files_file =
+  let single (parts : string list) =
+    match parts with
+    | [] | [""] -> All (StringSet.empty, StringSet.empty)
+    | [pos; neg] -> All (parse_opts pos, parse_opts neg)
+    | [dist; sys; pos; neg] ->
+        Specific [((dist, if sys = "remote" then true else false),
+                   (parse_opts pos, parse_opts neg))]
+    | _ -> failwith (Printf.sprintf "invalid file option format: %s"
+              (String.concat ":" parts))
+  in let multi (parts : string list) =
+    match parts with
+    | [dist; sys; pos; neg] ->
+        ((dist, if sys = "remote" then true else false),
+         (parse_opts pos, parse_opts neg))
+    | _ -> failwith (Printf.sprintf "invalid file option format: %s"
+              (String.concat ":" parts))
+  in parse_info_file single multi
 
 let interp p =
   Interp.interpret p Interp.init_interp_state Calc.VariableMap.empty
@@ -121,6 +155,19 @@ let validate_heuristics res : bool =
       | Specific specs ->
           List.for_all (fun (which, pkgs) ->
             Fql.Heuristics.valid_packages pkgs (Some which) res
+          ) specs
+  end
+  &&
+  begin
+    if !files_src = "" then true
+    else
+      let files_info = parse_files_file !files_src
+      in match files_info with
+      | All (pos, neg) ->
+        Fql.Heuristics.valid_files pos neg None res
+      | Specific specs ->
+          List.for_all (fun (where, (pos, neg)) ->
+            Fql.Heuristics.valid_files pos neg (Some where) res
           ) specs
   end
 

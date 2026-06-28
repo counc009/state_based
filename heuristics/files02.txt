@@ -1,0 +1,3 @@
+Debian:remote:/etc/profile,/etc/bash.bashrc:/etc/profile.d/custom.sh
+Ubuntu:remote:/etc/profile,/etc/bash.bashrc:/etc/profile.d/custom.sh
+RedHat:remote:/etc/profile:/etc/bash.bashrc,/etc/profile.d/custom.sh

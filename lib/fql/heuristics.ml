@@ -171,3 +171,56 @@ let valid_packages (packages : StringSet.t) (pkgmgr : (string * string) option)
     | Both (x, y) -> validate_res x && validate_res y
     | Either (x, y) -> validate_res x || validate_res y
   in validate_res r
+
+(* Checks that extra files that are assumed to exist do. Where specifies the OS
+ * distribution and is true if referencing a remote file and false for a file
+ * on the controller *)
+let valid_files (exist : StringSet.t) (not_exist: StringSet.t)
+  (where : (string * bool) option) (r : Verifier.merged_res) : bool =
+  let rec validate_res (r : Verifier.merged_res) : bool =
+    match r with
+    | Satisfied { base; diff = { branches; inits; _}; _ } ->
+        let dist_matches =
+          match where with
+          | None -> true
+          | Some (dist, _) ->
+              match get_dist base with
+              | Some d -> d = dist
+              | None -> false
+        in if not dist_matches
+        then true
+        else
+          let all_set = int_range branches
+          in let MergedDiff (elems, _) = inits
+          in Interp.ElementMap.for_all (fun ((elem, _), arg) binding ->
+            (* If they either all assume it exists or all assume it doesn't, we
+             * review that assumption *)
+            let (all_pos, all_neg) =
+              let { Verifier.pos; neg; _ } = binding
+              in let pos_set = IntSet.of_list pos
+              in let neg_set = IntSet.of_list neg
+              in (IntSet.equal pos_set all_set, IntSet.equal neg_set all_set)
+            in if (not all_pos && not all_neg) || elem <> "fs"
+            then true
+            else
+              begin match arg with
+              | Pair (Literal (Path p, _), Constructor (_, which, _), _) ->
+                  let sys_match =
+                    match where with
+                    | None -> true
+                    | Some (_, sys) -> sys = which
+                  in if not sys_match
+                  then true
+                  else if all_pos && StringSet.mem p exist
+                  then true
+                  else if all_neg && StringSet.mem p not_exist
+                  then true
+                  else (Printf.printf "HEURISTIC REJECTING FILE %s on %s\n" p (if which then "remote" else "controller"); false)
+              (* Since we reject files unless we know they exist/do not exist we
+               * also reject mysterious files *)
+              | _ -> false
+              end
+          ) elems
+    | Both (x, y) -> validate_res x && validate_res y
+    | Either (x, y) -> validate_res x || validate_res y
+  in validate_res r

@@ -1,0 +1,6 @@
+Debian:remote:/scratch/file.txt,/home/user:/home/user/data.txt
+Ubuntu:remote:/scratch/file.txt,/home/user:/home/user/data.txt
+RedHat:remote:/scratch/file.txt,/home/user:/home/user/data.txt
+Debian:local::
+Ubuntu:local::
+RedHat:local::

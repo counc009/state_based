@@ -1,0 +1,6 @@
+Debian:controller:/backup:/backup/*.war
+Debian:remote:/tmp:
+Ubuntu:controller:/backup:/backup/*.war
+Ubuntu:remote:/tmp:
+RedHat:controller:/backup:/backup/*.war
+RedHat:remote:/tmp:
