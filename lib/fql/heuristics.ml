@@ -237,6 +237,26 @@ let valid_files (exist : StringSet.t) (not_exist: StringSet.t)
     | Either (x, y) -> validate_res x || validate_res y
   in validate_res r
 
+let get_not_excluded (hosts: string) (branches : int) inits
+  (bools : Verifier.Unifier.merged_bool Interp.ValueMap.t) =
+  let all_set = int_range branches
+  in match get_env_attr inits "hostname" (Primitive String) with
+  | None -> all_set
+  | Some vs ->
+      Interp.ValueMap.fold (fun hostname ns res ->
+        let host_included =
+          Target.Function (HostIncluded,
+            Pair (hostname,
+              Literal (String hosts, String),
+              Product (Primitive String, Primitive String)),
+            Primitive Bool)
+        in match Interp.ValueMap.find_opt host_included bools with
+        | None -> res
+        | Some { f; _ } -> 
+            IntSet.diff res 
+              (IntSet.inter (IntSet.of_list ns) (IntSet.of_list f))
+      ) vs all_set
+
 (* Checks that the diff does not contain a reboot of the system, meaning it
  * cannot reboot the system unless the query does as well.
  * Because we are checking that we do not perform a certain action, another
@@ -249,24 +269,7 @@ let valid_reboot (hosts : string) (r : Verifier.merged_res) : bool =
     match r with
     | Satisfied { diff = { branches; constraints = { bools; _ }; 
                            inits; finals }; _ } ->
-        let not_excluded =
-          let all_set = int_range branches
-          in match get_env_attr inits "hostname" (Primitive String) with
-          | None -> all_set
-          | Some vs ->
-              Interp.ValueMap.fold (fun hostname ns res ->
-                let host_included =
-                  Target.Function (HostIncluded,
-                    Pair (hostname,
-                      Literal (String hosts, String),
-                      Product (Primitive String, Primitive String)),
-                    Primitive Bool)
-                in match Interp.ValueMap.find_opt host_included bools with
-                | None -> res
-                | Some { f; _ } -> 
-                    IntSet.diff res 
-                      (IntSet.inter (IntSet.of_list ns) (IntSet.of_list f))
-              ) vs all_set
+        let not_excluded = get_not_excluded hosts branches inits bools
         in begin match get_env_attr finals "last_reboot" (Primitive Int) with
         | None -> true
         | Some vs ->
@@ -278,6 +281,40 @@ let valid_reboot (hosts : string) (r : Verifier.merged_res) : bool =
             then false
             else true
         end
+    | Both (x, y) -> validate_res x && validate_res y
+    | Either (x, y) -> validate_res x || validate_res y
+  in validate_res r
+
+(* Checks that the diff does not contain any writes to files (i.e., it does not
+ * write to any files not written to by the query. *)
+let valid_writes (hosts : string) (r : Verifier.merged_res) : bool =
+  let rec validate_res (r : Verifier.merged_res) : bool =
+    match r with
+    | Satisfied { diff = { branches; constraints = { bools; _ };
+                           inits; finals }; _ } ->
+      let not_excluded = get_not_excluded hosts branches inits bools
+      in let MergedDiff (elems, _) = finals
+      in Interp.ElementMap.for_all (fun ((elem, _), _)
+        { Verifier.diff = MergedDiff (_, attrs); _ } ->
+        if elem <> "fs"
+        then true
+        else
+          let write =
+            let fs_type =
+              Interp.AttributeMap.filter 
+                (fun (attr, _) _ -> attr = "fs_type") attrs
+            in Interp.AttributeMap.choose_opt fs_type
+          in match write with
+          | None -> (* Not written *) true
+          | Some (_, vs) ->
+              let do_write =
+                Interp.ValueMap.fold (fun _ ns write ->
+                  IntSet.union write (IntSet.of_list ns))
+                  vs IntSet.empty
+              in if IntSet.subset not_excluded do_write
+              then false
+              else true
+      ) elems
     | Both (x, y) -> validate_res x && validate_res y
     | Either (x, y) -> validate_res x || validate_res y
   in validate_res r

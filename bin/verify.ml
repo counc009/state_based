@@ -1,4 +1,4 @@
-let usage_msg = "runner [--users <src_file>] [--groups <src_file>] [--files <src_file>] [--reboot <hosts>] <query> <ansible program> -- <module definitions>"
+let usage_msg = "runner [--users <src_file>] [--groups <src_file>] [--files <src_file>] [--reboot <hosts>] [--writes <hosts>] <query> <ansible program> -- <module definitions>"
 let query = ref ""
 let program = ref ""
 let module_defs = ref []
@@ -8,6 +8,7 @@ let groups_src = ref ""
 let packages_src = ref ""
 let files_src = ref ""
 let reboot_hosts = ref ""
+let write_hosts = ref ""
 
 let cnt = ref 0
 let anon_fun filename =
@@ -29,7 +30,8 @@ let arglist =
    ("--groups", Arg.Set_string groups_src, "Validate groups from a source file which is a comma-separated list of names or has lines of the form <distribution>:<comma-separated names>");
    ("--pkgs", Arg.Set_string packages_src, "Validate packages from a source file which is a comma-separated list of names or has lines of the form <distribution>:<package manager>:<comma-separated names>");
    ("--files", Arg.Set_string files_src, "Validate files from a source file which is a comma-separated list of paths or has lines of the form <distribution>:<controller/remote>:<comma-separated paths of files that exist>:<comma-separated paths of files that do not exist>");
-  ("--reboot", Arg.Set_string reboot_hosts, "Validate that no reboots occur unless specified for systems in the hosts specified ") ]
+  ("--reboot", Arg.Set_string reboot_hosts, "Validate that no reboots occur  on systems in the specified hosts unless the query reboots as well");
+  ("--writes", Arg.Set_string write_hosts, "Validate that no file writes occur on systems in the specified hosts unless the query writes to that file") ]
 
 type ('a, 'b) info_file_res =
   | All      of 'b
@@ -176,6 +178,11 @@ let validate_heuristics res : bool =
   begin
     if !reboot_hosts = "" then true
     else Fql.Heuristics.valid_reboot !reboot_hosts res
+  end
+  &&
+  begin
+    if !write_hosts = "" then true
+    else Fql.Heuristics.valid_writes !write_hosts res
   end
 
 let () = Printf.printf "\n";
