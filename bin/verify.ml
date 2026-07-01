@@ -1,4 +1,4 @@
-let usage_msg = "runner [--users <src_file>] [--groups <src_file>] <query> <ansible program> -- <module definitions>"
+let usage_msg = "runner [--users <src_file>] [--groups <src_file>] [--files <src_file>] [--reboot <hosts>] <query> <ansible program> -- <module definitions>"
 let query = ref ""
 let program = ref ""
 let module_defs = ref []

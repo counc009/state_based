@@ -265,7 +265,7 @@ let codegen_condition (c: Ast.cond) (thn : Target.stmt list)
                 StringLit "Debian",
                 Eq)) :: thn,
             els),
-            add_os env Debian)
+            add_os env Ubuntu)
       | DebianFamily -> Ok (
           IfThenElse (
             BinaryExp (
@@ -868,10 +868,14 @@ let codegen_act (a : Ast.act) (env : env)
                   EnumExp (Id "file_type", None, "file", [Id "r"]))
               ])
             :: []);
-          (* Option 2, just add it to the end of the file *)
-          Target.Assign (Field (fs path sys, "fs_type"),
+          (* Option 2, just add it to the end of the file (we can also add
+           * other stuff, like a block) *)
+          let addition =
+            Target.GenExistential (String,
+              fun nm -> FuncExp (Id "contains_line", [Id "^line"; Id nm]))
+          in Target.Assign (Field (fs path sys, "fs_type"),
             EnumExp (Id "file_type", None, "file", [
-              FuncExp (Id "concat_line", [Id "c"; Id "^line"])
+              FuncExp (Id "concat_line", [Id "c"; addition])
             ]))
         ]
       in Ok (

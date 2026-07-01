@@ -1,0 +1,81 @@
+struct blockinfile_result { failed: bool, changed: bool }
+
+enum blockinfile_state { absent, present }
+
+module ansible.builtin.blockinfile aka blockinfile -> blockinfile_result {
+  (path aka dest, destfile, name : path)
+  (block: string = "")
+  (state : blockinfile_state = blockinfile_state::present)
+
+  # FIXME!! The start is supposed to be # but the MDL parser fails because it
+  # just replaces comments via regex
+  (marker : string = "@ {mark} ANSIBLE MANAGED BLOCK")
+  (marker_begin : string = "BEGIN")
+  (marker_end : string = "END")
+
+  (backup: bool = false)
+  (create: bool = false)
+
+  [group: string] [owner: string] [mode: string]
+  [validate: string]
+
+  let acting_state = state;
+  if block == "" { acting_state = blockinfile_state::absent; }
+
+  let success = false;
+  let content = "";
+
+  let path = norm_path(path);
+
+  if exists fs(path, file_system::remote) {
+    match fs(path, file_system::remote).fs_type {
+      file_type::file(c) => { success = true; content = c; }
+    }
+
+    if success && backup {
+      fs(backup_name(path, get_time()), file_system::remote).fs_type
+        = file_type::file(content);
+    }
+  } else {
+    success = create;
+  }
+
+  if !success {
+    return blockinfile_result { failed: true, changed: false };
+  }
+
+  let result = content;
+  let changed = false;
+
+  let block_begin = string_subst(marker, "{mark}", marker_begin);
+  let block_end = string_subst(marker, "{mark}", marker_end);
+
+  match acting_state {
+    blockinfile_state::absent => {
+      if find_block(block_begin, block_end, content) {
+        result = remove_block(block_begin, block_end, content);
+        changed = true;
+      }
+    }
+    blockinfile_state::present => {
+      let full_block =
+        concat_line(concat_line(block_begin, block), block_end);
+
+      if find_block(block_begin, block_end, content) {
+        result = replace_block(block_begin, block_end, content, full_block);
+        changed = true;
+      } else {
+        // TODO: Support insertafter/insertbefore, for now since we're not we
+        // just insert at the end of the file
+        result = concat_line(content, full_block);
+        changed = true;
+      }
+    }
+  }
+
+  if changed {
+    fs(path, file_system::remote).fs_type = file_type::file(result);
+  }
+
+  return blockinfile_result { failed: false, changed: changed };
+}

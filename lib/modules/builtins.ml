@@ -32,7 +32,9 @@ let lookup_builtin (nm : string)
   | "can_become"            -> from_target Target.CanBecome
   | "concat_line"           -> from_target Target.ConcatLine
   | "cons_path"             -> from_target Target.ConsPath
+  | "contains_line"         -> from_target Target.ContainsLine
   | "ends_with_dir"         -> from_target Target.EndsWithDir
+  | "find_block"            -> from_target Target.FindBlock
   | "insert_line_matching"  -> from_target Target.InsertNearMatching
   | "last_line_matching"    -> from_target Target.GetLastLineMatch
   | "line_matches_regex"    -> from_target Target.RegexLineMatches
@@ -40,12 +42,15 @@ let lookup_builtin (nm : string)
   | "path_from"             -> from_target Target.PathFrom
   | "path_of_string"        -> from_target Target.PathOfString
   | "regex_of_literal"      -> from_target Target.RegexOfLiteral
+  | "remove_block"          -> from_target Target.RemoveBlock
   | "remove_matching_lines" -> from_target Target.RemoveMatchingLines
+  | "replace_block"         -> from_target Target.ReplaceBlock
   | "replace_last_matching" -> from_target Target.ReplaceLastMatching
   | "replace_last_matching_expand"
                             -> from_target Target.ReplaceLastMatchingExpand
   | "string_of_int"         -> from_target Target.StringOfInt
   | "string_of_path"        -> from_target Target.StringOfPath
+  | "string_subst"          -> from_target Target.StringSubst
   | "substring"             -> from_target Target.Substring
   | "to_lower"              -> from_target Target.ToLower
 

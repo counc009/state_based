@@ -1,5 +1,7 @@
 open Calculus.Ast
 
+let ( let* ) = Option.bind
+
 (* A 'a list2 is a list with at least two elements *)
 type 'a list2 = LastTwo of 'a * 'a | Cons of 'a * 'a list2
 type 'a list' = Nil | Singleton of 'a | List of 'a list2
@@ -25,6 +27,7 @@ type 't func    = Proj           of bool * 't * 't   (* true = 1, false = 2 *)
                 | BoolAnd
                 | Concat
                 | ConcatLine
+                | ContainsLine
                 | RemoveLastLine
                 | Equal          of 't
                 | Append         of 't (* Type of list elements *)
@@ -47,6 +50,7 @@ type 't func    = Proj           of bool * 't * 't   (* true = 1, false = 2 *)
                 | LeFloat
                 | ToLower
                 | Substring
+                | StringSubst
                 | StringOfInt
                 | StringOfFloat
                 | StringOfBool
@@ -68,6 +72,10 @@ type 't func    = Proj           of bool * 't * 't   (* true = 1, false = 2 *)
                 | InsertNearMatching
                 | RegexLineMatches
                 | GetLastLineMatch
+                (* Operations related to marked blocks (i.e., blockinfile) *)
+                | FindBlock
+                | RemoveBlock
+                | ReplaceBlock
                 (* Functions for Ansible *)
                 | CanBecome
                 | HostIncluded
@@ -414,6 +422,17 @@ module rec Ast_Target : Ast_Defs
         | Pair (Literal (String "", _), q, _) -> Reduced q
         | Pair (p, Literal (String "", _), _) -> Reduced p
         | _ -> Stuck)
+    | ContainsLine -> (Product (Primitive String, Primitive String),
+        Primitive Bool,
+        fun v -> match v with
+        | Pair (Literal (String line, _), Literal (String text, _), _) ->
+            let res =
+              String.starts_with ~prefix:(line ^ "\n") text
+              || String.ends_with ~suffix:("\n" ^ line) text
+              || line = text
+              || String.includes ~affix:("\n" ^ line ^ "\n") text
+            in Reduced (Literal (Bool res, Bool))
+        | _ -> Stuck)
     | RemoveLastLine -> (Primitive String, Primitive String,
         fun v -> match v with
         | Literal (String s, _) ->
@@ -559,6 +578,15 @@ module rec Ast_Target : Ast_Defs
               with Invalid_argument _ ->
                 Reduced (Literal (String "", String))
               end
+        | _ -> Stuck)
+    | StringSubst -> (Product (Primitive String,
+                        Product (Primitive String, Primitive String)),
+                      Primitive String,
+        fun v -> match v with
+        | Pair (Literal (String str, _),
+            Pair (Literal (String pat, _), Literal (String repr, _), _), _) ->
+              Reduced (Literal (String (
+                String.replace_all ~sub:pat ~by:repr str), String))
         | _ -> Stuck)
     | StringOfInt -> (Primitive Int, Primitive String,
         fun v -> match v with
@@ -894,6 +922,105 @@ module rec Ast_Target : Ast_Defs
                 in compute body
             end
         | _ -> Stuck)
+    | FindBlock -> (Product (Primitive String,
+                      Product (Primitive String, Primitive String)),
+        Primitive Bool,
+        fun v -> match v with
+        | Pair (Literal (String begin_line, _),
+            Pair (Literal (String end_line, _),
+              Literal (String content, _), _), _) ->
+            let res =
+              let* idx_start =
+                if String.starts_with ~prefix:(begin_line ^ "\n") content
+                then Some 0
+                else String.find_first ~sub:("\n" ^ begin_line ^ "\n") content
+              in match String.find_first ~sub:("\n" ^ end_line ^ "\n")
+                        ~start:idx_start content
+              with
+              | None ->
+                  if String.ends_with ~suffix:("\n" ^ end_line) content
+                  then Some ()
+                  else None
+              | Some _ -> Some ()
+            in begin match res with
+            | Some () -> Reduced (Literal (Bool true, Bool))
+            | None -> Reduced (Literal (Bool false, Bool))
+            end
+        | _ -> Stuck)
+    | RemoveBlock -> (Product (Primitive String,
+                      Product (Primitive String, Primitive String)),
+        Primitive String,
+        fun v -> match v with
+        | Pair (Literal (String begin_line, _),
+            Pair (Literal (String end_line, _),
+              Literal (String content, _), _), _) ->
+            let res =
+              let* idx_start =
+                if String.starts_with ~prefix:(begin_line ^ "\n") content
+                then Some 0
+                else String.find_first ~sub:("\n" ^ begin_line ^ "\n") content
+              in let* idx_end =
+                match String.find_first ~sub:("\n" ^ end_line ^ "\n")
+                        ~start:idx_start content
+                with
+                | None ->
+                    if String.ends_with ~suffix:("\n" ^ end_line) content
+                    then Some (String.length content)
+                    else None
+                | Some idx -> Some (idx + String.length end_line + 2)
+              in let pre =
+                String.sub content 0 idx_start
+              in let post =
+                if idx_end >= String.length content
+                then ""
+                else 
+                  String.sub content idx_end (String.length content - idx_end)
+              in if pre <> "" && post <> ""
+              then Some (pre ^ "\n" ^ post)
+              else Some (pre ^ post)
+            in begin match res with
+            | None -> Reduced (Literal (String content, String))
+            | Some res -> Reduced (Literal (String res, String))
+            end
+        | _ -> Stuck)
+    | ReplaceBlock -> (Product (Primitive String,
+                        Product (Primitive String,
+                          Product (Primitive String, Primitive String))),
+        Primitive String,
+        fun v -> match v with
+        | Pair (Literal (String begin_line, _),
+            Pair (Literal (String end_line, _),
+              Pair (Literal (String content, _),
+                Literal (String replacement, _), _), _), _) ->
+            let res =
+              let* idx_start =
+                if String.starts_with ~prefix:(begin_line ^ "\n") content
+                then Some 0
+                else String.find_first ~sub:("\n" ^ begin_line ^ "\n") content
+              in let* idx_end =
+                match String.find_first ~sub:("\n" ^ end_line ^ "\n")
+                        ~start:idx_start content
+                with
+                | None ->
+                    if String.ends_with ~suffix:("\n" ^ end_line) content
+                    then Some (String.length content)
+                    else None
+                | Some idx -> Some (idx + String.length end_line + 2)
+              in let pre =
+                if idx_start = 0
+                then ""
+                else String.sub content 0 idx_start ^ "\n"
+              in let post =
+                if idx_end >= String.length content
+                then ""
+                else "\n" ^
+                  String.sub content idx_end (String.length content - idx_end)
+              in Some (pre ^ replacement ^ post)
+            in begin match res with
+            | None -> Reduced (Literal (String content, String))
+            | Some res -> Reduced (Literal (String res, String))
+            end
+        | _ -> Stuck)
     | CanBecome -> (Product (Primitive String, Primitive String),
         Primitive Bool,
         fun v -> match v with
@@ -1035,7 +1162,12 @@ module rec Ast_Target : Ast_Defs
                 -> if y = vy
                    then Reducible [[ IsEqual (x, vx) ]]
                    else Reducible []
-            | _, _, _, _ -> Unreducible
+            | _, _, _, _ ->
+                if x = vx 
+                then Reducible [[ IsEqual (y, vy) ]]
+                else if y = vy
+                then Reducible [[ IsEqual (x, vx) ]]
+                else Unreducible
             end
         | _ -> Unreducible
         end
@@ -1052,6 +1184,21 @@ module rec Ast_Target : Ast_Defs
            * will not match)
            * Similarly for concat_line(Y, X) *)
           if x = orig || y = orig
+          then Reducible []
+          else Unreducible
+      | _ -> Unreducible
+      end
+    | ConcatLine,
+      IsEqual (Function (ReplaceBlock,
+                Pair (_, Pair (_, Pair (orig, _, _), _), _), _)) ->
+      begin match v with
+      | Pair (x, _, _) ->
+          (* concat_line(X, Y) <> ReplaceBlock(B, E, X, Z) because the
+           * right-hand side never adds anything to the end it only updates X.
+           * Technically maybe there's some wild cases where the contents of
+           * the block include markers and Y is an end marker, but that's
+           * unreasonable in my view. *)
+          if x = orig
           then Reducible []
           else Unreducible
       | _ -> Unreducible
@@ -1246,6 +1393,7 @@ let rec string_of_value (v : Ast_Target.value) : string =
       | BoolAnd                   -> "and(" ^ string_of_value arg ^ ")"
       | Concat                    -> "concat(" ^ string_of_value arg ^ ")"
       | ConcatLine                -> "concat_line(" ^ string_of_value arg ^ ")"
+      | ContainsLine              -> "contains_line(" ^ string_of_value arg ^ ")"
       | RemoveLastLine            -> "remove_line(" ^ string_of_value arg ^ ")"
       | Equal _                   -> "equal(" ^ string_of_value arg ^ ")"
       | Append _                  -> "append(" ^ string_of_value arg ^ ")"
@@ -1268,6 +1416,7 @@ let rec string_of_value (v : Ast_Target.value) : string =
       | LeFloat                   -> "le(" ^ string_of_value arg ^ ")"
       | ToLower                   -> "to_lower(" ^ string_of_value arg ^ ")"
       | Substring                 -> "substring(" ^ string_of_value arg ^ ")"
+      | StringSubst               -> "string_subst(" ^ string_of_value arg ^ ")"
       | StringOfInt               -> "string_of_int(" ^ string_of_value arg ^ ")"
       | StringOfFloat             -> "string_of_float(" ^ string_of_value arg ^ ")"
       | StringOfBool              -> "string_of_bool(" ^ string_of_value arg ^ ")"
@@ -1287,6 +1436,9 @@ let rec string_of_value (v : Ast_Target.value) : string =
       | InsertNearMatching        -> "insert_line_matching(" ^ string_of_value arg ^ ")"
       | RegexLineMatches          -> "line_matches_regex(" ^ string_of_value arg ^ ")"
       | GetLastLineMatch          -> "last_line_matching(" ^ string_of_value arg ^ ")"
+      | FindBlock                 -> "find_block(" ^ string_of_value arg ^ ")"
+      | RemoveBlock               -> "remove_block(" ^ string_of_value arg ^")"
+      | ReplaceBlock              -> "replace_block(" ^ string_of_value arg ^")"
       | CanBecome                 -> "can_become(" ^ string_of_value arg ^ ")"
       | HostIncluded              -> "host_included(" ^ string_of_value arg ^ ")"
       | Uninterpreted (nm, _, _)  -> nm ^ "(" ^ string_of_value arg ^ ")"
@@ -1356,6 +1508,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | BoolAnd                   -> "and"
         | Concat                    -> "concat"
         | ConcatLine                -> "concat_line"
+        | ContainsLine              -> "contains_line"
         | RemoveLastLine            -> "remove_line"
         | Equal _                   -> "equal"
         | Append _                  -> "append"
@@ -1378,6 +1531,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | LeFloat                   -> "le"
         | ToLower                   -> "to_lower"
         | Substring                 -> "substring"
+        | StringSubst               -> "string_subst"
         | StringOfInt               -> "string_of_int"
         | StringOfFloat             -> "string_of_float"
         | StringOfBool              -> "string_of_bool"
@@ -1397,6 +1551,9 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | InsertNearMatching        -> "insert_line_matching"
         | RegexLineMatches          -> "line_matches_regex"
         | GetLastLineMatch          -> "last_line_matching"
+        | FindBlock                 -> "find_block"
+        | RemoveBlock               -> "remove_block"
+        | ReplaceBlock              -> "replace_block"
         | CanBecome                 -> "can_become"
         | HostIncluded              -> "host_included"
         | GenExcept (_, e)          -> "except_" ^ e
