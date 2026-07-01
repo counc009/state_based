@@ -1148,9 +1148,20 @@ module rec Ast_Target : Ast_Defs
     (* TODO: Support some reductions involving Concat, ConcatLine, ConsPath,
      * and AddExt (where possible) at least when constrained to be given
      * literals *)
-    | ConcatLine, IsEqual (Function (ConcatLine, Pair (vx, vy, _), _)) ->
-        begin match v with
-        | Pair (x, y, _) ->
+    | ConcatLine, IsEqual r ->
+        begin match v, r with
+        | Pair (x, o, _), y when x = y ->
+            Reducible [[ IsEqual (o, Literal (String "", String)) ]]
+        | Pair (o, x, _), y when x = y ->
+            Reducible [[ IsEqual (o, Literal (String "", String)) ]]
+        | Pair (x, y, _), Literal (String s, _)
+          when not (String.contains s '\n') ->
+            Reducible [
+              [ IsEqual (x, Literal (String "", String))
+              ; IsEqual (y, Literal (String s, String)) ];
+              [ IsEqual (y, Literal (String "", String))
+              ; IsEqual (x, Literal (String s, String)) ] ]
+        | Pair (x, y, _), Function (ConcatLine, Pair (vx, vy, _), _) ->
             begin match x, vx, y, vy with
             | Literal (String x, _), Literal (String vx, _), _, _
               when not (String.contains x '\n' || String.contains vx '\n')
@@ -1169,14 +1180,10 @@ module rec Ast_Target : Ast_Defs
                 then Reducible [[ IsEqual (x, vx) ]]
                 else Unreducible
             end
-        | _ -> Unreducible
-        end
-    | ConcatLine, 
-      IsEqual (Function (ReplaceLastMatching,
-                Pair (_, Pair (Literal (String rep, _), orig, _), _), _))
-        when not (String.contains rep '\n') ->
-      begin match v with
-      | Pair (x, y, _) ->
+        | Pair (x, y, _),
+          Function (ReplaceLastMatching,
+            Pair (_, Pair (Literal (String rep, _), orig, _), _), _)
+            when not (String.contains rep '\n') ->
           (* concat_line(X, Y) <> replace_last_matching(R, W, X) since the left
            * contains all of X and something new at the end while the right
            * contains part of X with W replaced (this holds as long as W does
@@ -1186,13 +1193,9 @@ module rec Ast_Target : Ast_Defs
           if x = orig || y = orig
           then Reducible []
           else Unreducible
-      | _ -> Unreducible
-      end
-    | ConcatLine,
-      IsEqual (Function (ReplaceBlock,
-                Pair (_, Pair (_, Pair (orig, _, _), _), _), _)) ->
-      begin match v with
-      | Pair (x, _, _) ->
+        | Pair (x, _, _),
+          Function (ReplaceBlock,
+            Pair (_, Pair (_, Pair (orig, _, _), _), _), _) ->
           (* concat_line(X, Y) <> ReplaceBlock(B, E, X, Z) because the
            * right-hand side never adds anything to the end it only updates X.
            * Technically maybe there's some wild cases where the contents of
@@ -1201,8 +1204,8 @@ module rec Ast_Target : Ast_Defs
           if x = orig
           then Reducible []
           else Unreducible
-      | _ -> Unreducible
-      end
+        | _, _ -> Unreducible
+        end
     | ReplaceLastMatching,
       IsEqual (Function (ReplaceLastMatching,
               Pair (Literal (String regex, _), Pair (repr, orig, _), _), _)) ->
