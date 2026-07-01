@@ -75,6 +75,9 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
             } else {
               if insertafter == "EOF" {
                 result = concat_line(content, line);
+              } else if insertafter == "BOF" {
+                // This is not a documented feature but is present in the code
+                result = concat_line(line, content);
               } else if line_matches_regex(insertafter, content) {
                 result = insert_line_matching(firstmatch ? insert_loc::after_first : insert_loc::after_last,
                                      insertafter, line, content);
@@ -103,6 +106,8 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
           } else {
             if insertafter == "EOF" {
               result = concat_line(content, line);
+            } else if insertafter == "BOF" {
+              result = concat_line(line, content);
             } else if line_matches_regex(insertafter, content) {
               result = insert_line_matching(firstmatch ? insert_loc::after_first : insert_loc::after_last,
                                    insertafter, line, content);
@@ -126,6 +131,8 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
           } else {
             if insertafter == "EOF" {
               result = concat_line(content, line);
+            } else if insertafter == "BOF" {
+              result = concat_line(line, content);
             } else if line_matches_regex(insertafter, content) {
               result = insert_line_matching(firstmatch ? insert_loc::after_first : insert_loc::after_last,
                                    insertafter, line, content);

@@ -28,6 +28,7 @@ type 't func    = Proj           of bool * 't * 't   (* true = 1, false = 2 *)
                 | Concat
                 | ConcatLine
                 | ContainsLine
+                | RepeatLine
                 | RemoveLastLine
                 | Equal          of 't
                 | Append         of 't (* Type of list elements *)
@@ -432,6 +433,15 @@ module rec Ast_Target : Ast_Defs
               || line = text
               || String.includes ~affix:("\n" ^ line ^ "\n") text
             in Reduced (Literal (Bool res, Bool))
+        | _ -> Stuck)
+    | RepeatLine -> (Product (Primitive String, Primitive Int),
+        Primitive String,
+        fun v -> match v with
+        | Pair (Literal (String line, _), Literal (Int n, _), _) ->
+            let rec compute (n : int) : string =
+              if n <= 0 then ""
+              else line ^ "\n" ^ compute (n - 1)
+            in Reduced (Literal (String (compute n), String))
         | _ -> Stuck)
     | RemoveLastLine -> (Primitive String, Primitive String,
         fun v -> match v with
@@ -1173,6 +1183,19 @@ module rec Ast_Target : Ast_Defs
                 -> if y = vy
                    then Reducible [[ IsEqual (x, vx) ]]
                    else Reducible []
+            | Literal (String x, _), _, _, Literal (String vy, _)
+              when not (String.contains x '\n' || String.contains vy '\n')
+                -> if y = vx
+                   (* concat_line(X, Y) = concat_line(Y, X) is true (if X
+                    * doesn't contain any newlines) only if Y is lines that are
+                    * all equal to X *)
+                   then Reducible [[ IsEqual (y, 
+                    Function (RepeatLine,
+                      Pair (Literal (String x, String),
+                        Unknown (Existential (uid ()), Primitive Int),
+                        Product (Primitive String, Primitive Int)),
+                      Primitive String)) ]]
+                   else Unreducible
             | _, _, _, _ ->
                 if x = vx 
                 then Reducible [[ IsEqual (y, vy) ]]
@@ -1397,6 +1420,7 @@ let rec string_of_value (v : Ast_Target.value) : string =
       | Concat                    -> "concat(" ^ string_of_value arg ^ ")"
       | ConcatLine                -> "concat_line(" ^ string_of_value arg ^ ")"
       | ContainsLine              -> "contains_line(" ^ string_of_value arg ^ ")"
+      | RepeatLine                -> "repeat_line(" ^ string_of_value arg ^ ")"
       | RemoveLastLine            -> "remove_line(" ^ string_of_value arg ^ ")"
       | Equal _                   -> "equal(" ^ string_of_value arg ^ ")"
       | Append _                  -> "append(" ^ string_of_value arg ^ ")"
@@ -1512,6 +1536,7 @@ let rec string_of_expr (e : Ast_Target.expr) : string =
         | Concat                    -> "concat"
         | ConcatLine                -> "concat_line"
         | ContainsLine              -> "contains_line"
+        | RepeatLine                -> "repeat_line"
         | RemoveLastLine            -> "remove_line"
         | Equal _                   -> "equal"
         | Append _                  -> "append"
