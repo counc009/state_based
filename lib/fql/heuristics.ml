@@ -186,8 +186,9 @@ let valid_packages (packages : StringSet.t) (pkgmgr : (string * string) option)
 
 (* Checks that extra files that are assumed to exist do. Where specifies the OS
  * distribution and is true if referencing a remote file and false for a file
- * on the controller *)
-let valid_files (exist : StringSet.t) (not_exist: StringSet.t)
+ * on the controller. The strict variable determines whether we reject files
+ * whose paths are not literals *)
+let valid_files (exist : StringSet.t) (not_exist: StringSet.t) (strict : bool)
   (where : (string * bool) option) (r : Verifier.merged_res) : bool =
   let rec validate_res (r : Verifier.merged_res) : bool =
     match r with
@@ -228,9 +229,7 @@ let valid_files (exist : StringSet.t) (not_exist: StringSet.t)
                   else if all_neg && StringSet.mem p not_exist
                   then true
                   else false
-              (* Since we reject files unless we know they exist/do not exist we
-               * also reject mysterious files *)
-              | _ -> true
+              | _ -> not strict
               end
           ) elems
     | Both (x, y) -> validate_res x && validate_res y

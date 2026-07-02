@@ -9,6 +9,7 @@ let packages_src = ref ""
 let files_src = ref ""
 let reboot_hosts = ref ""
 let write_hosts = ref ""
+let strict_files = ref ""
 
 let cnt = ref 0
 let anon_fun filename =
@@ -30,8 +31,9 @@ let arglist =
    ("--groups", Arg.Set_string groups_src, "Validate groups from a source file which is a comma-separated list of names or has lines of the form <distribution>:<comma-separated names>");
    ("--pkgs", Arg.Set_string packages_src, "Validate packages from a source file which is a comma-separated list of names or has lines of the form <distribution>:<package manager>:<comma-separated names>");
    ("--files", Arg.Set_string files_src, "Validate files from a source file which is a comma-separated list of paths or has lines of the form <distribution>:<controller/remote>:<comma-separated paths of files that exist>:<comma-separated paths of files that do not exist>");
-  ("--reboot", Arg.Set_string reboot_hosts, "Validate that no reboots occur  on systems in the specified hosts unless the query reboots as well");
-  ("--writes", Arg.Set_string write_hosts, "Validate that no file writes occur on systems in the specified hosts unless the query writes to that file") ]
+   ("--strict-files", Arg.Set_string strict_files, "Validate files strictly");
+   ("--reboot", Arg.Set_string reboot_hosts, "Validate that no reboots occur  on systems in the specified hosts unless the query reboots as well");
+   ("--writes", Arg.Set_string write_hosts, "Validate that no file writes occur on systems in the specified hosts unless the query writes to that file") ]
 
 type ('a, 'b) info_file_res =
   | All      of 'b
@@ -168,10 +170,23 @@ let validate_heuristics res : bool =
       let files_info = parse_files_file !files_src
       in match files_info with
       | All (pos, neg) ->
-        Fql.Heuristics.valid_files pos neg None res
+        Fql.Heuristics.valid_files pos neg false None res
       | Specific specs ->
           List.for_all (fun (where, (pos, neg)) ->
-            Fql.Heuristics.valid_files pos neg (Some where) res
+            Fql.Heuristics.valid_files pos neg false (Some where) res
+          ) specs
+  end
+  &&
+  begin
+    if !strict_files = "" then true
+    else
+      let files_info = parse_files_file !strict_files
+      in match files_info with
+      | All (pos, neg) ->
+        Fql.Heuristics.valid_files pos neg true None res
+      | Specific specs ->
+          List.for_all (fun (where, (pos, neg)) ->
+            Fql.Heuristics.valid_files pos neg true (Some where) res
           ) specs
   end
   &&
