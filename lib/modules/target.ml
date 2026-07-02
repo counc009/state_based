@@ -1342,6 +1342,10 @@ module rec Ast_Target : Ast_Defs
         if String.starts_with ~prefix:"/" p
         then Reducible [[IsEqual (v, Literal (Path "/", Path))]]
         else Unreducible
+    (* base_name(p) does not contain a / while our definition of cons_path
+     * always does, thus they cannot be equal *)
+    | BaseName, IsEqual (Function (ConsPath, _, _)) -> Reducible []
+    | ConsPath, IsEqual (Function (BaseName, _, _)) -> Reducible []
     | EndsWithDir, IsBool b ->
       begin match v with
       | Function (ConsPath, Pair (_, p, _), _) ->

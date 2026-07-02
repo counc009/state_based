@@ -59,29 +59,24 @@ let valid_users (users : StringSet.t) (dist : string option)
         then 
           let all_set = int_range branches
           in let MergedDiff (elems, _) = inits
-          in Interp.ElementMap.for_all (fun ((elem, _), arg) binding ->
-            let (all_pos, all_neg) =
+          in let invalid_set =
+            Interp.ElementMap.fold (fun ((elem, _), arg) binding invalid ->
               let { Verifier.pos; neg; _ } = binding
-              in let pos_set = IntSet.of_list pos
-              in let neg_set = IntSet.of_list neg
-              in (IntSet.equal pos_set all_set, IntSet.equal neg_set all_set)
-            in match elem with
-            | "e_user" ->
-                begin match arg with
+              in if elem <> "e_user"
+              then invalid
+              else
+                match arg with
                 | Literal (String nm, _) ->
-                  if all_pos && not (StringSet.mem nm users)
-                  then false
-                  else if all_neg && StringSet.mem nm users
-                  then false
-                  else true
+                    if StringSet.mem nm users
+                    then IntSet.union invalid (IntSet.of_list neg)
+                    else IntSet.union invalid (IntSet.of_list pos)
                 (* If we don't know the value of the user, the conservative
                  * approach is to accept it. Could explore other options but
                  * this cause issues when dealing with files with unknown
                  * owners *)
-                | _ -> true
-                end
-            | _ -> true
-          ) elems
+                | _ -> invalid
+            ) elems IntSet.empty
+          in not (IntSet.equal all_set invalid_set)
         else true
     | Both (x, y) -> validate_res x && validate_res y
     | Either (x, y) -> validate_res x || validate_res y
@@ -103,25 +98,20 @@ let valid_groups (groups : StringSet.t) (dist : string option)
         then 
           let all_set = int_range branches
           in let MergedDiff (elems, _) = inits
-          in Interp.ElementMap.for_all (fun ((elem, _), arg) binding ->
-            let (all_pos, all_neg) =
+          in let invalid_set =
+            Interp.ElementMap.fold (fun ((elem, _), arg) binding invalid ->
               let { Verifier.pos; neg; _ } = binding
-              in let pos_set = IntSet.of_list pos
-              in let neg_set = IntSet.of_list neg
-              in (IntSet.equal pos_set all_set, IntSet.equal neg_set all_set)
-            in match elem with
-            | "e_group" ->
-                begin match arg with
+              in if elem <> "e_group"
+              then invalid
+              else 
+                match arg with
                 | Literal (String nm, _) ->
-                  if all_pos && not (StringSet.mem nm groups)
-                  then false
-                  else if all_neg && StringSet.mem nm groups
-                  then false
-                  else true
-                | _ -> true
-                end
-            | _ -> true
-          ) elems
+                    if StringSet.mem nm groups
+                    then IntSet.union invalid (IntSet.of_list neg)
+                    else IntSet.union invalid (IntSet.of_list pos)
+                | _ -> invalid
+            ) elems IntSet.empty
+          in not (IntSet.equal all_set invalid_set)
         else true
     | Both (x, y) -> validate_res x && validate_res y
     | Either (x, y) -> validate_res x || validate_res y
@@ -146,19 +136,15 @@ let valid_packages (packages : StringSet.t) (pkgmgr : (string * string) option)
         then true
         else
           let all_set = int_range branches
-          in let rec validate_diff (d : Verifier.merged_diff) : bool =
+          in let rec find_invalid
+              (d : Verifier.merged_diff) (invalid : IntSet.t) : IntSet.t =
             let MergedDiff (elems, _) = d
-            in Interp.ElementMap.for_all (fun ((elem, _), arg) binding ->
-              (* To install or uninstall the package it has to exist, so just
-               * need all branches to do something with the package *)
-              let all_install =
-                let { Verifier.pos; neg; _ } = binding
-                in IntSet.equal all_set 
-                    (IntSet.union (IntSet.of_list pos) (IntSet.of_list neg))
-              in if not all_install || elem <> "e_package"
-              then validate_diff binding.diff
+            in Interp.ElementMap.fold (fun ((elem, _), arg) binding invalid ->
+              let { Verifier.pos; neg; diff = nested } = binding
+              in if elem <> "e_package"
+              then find_invalid nested invalid
               else
-                begin match arg with
+                match arg with
                 | Literal (String nm, _) ->
                     let manager_matches =
                       match pkgmgr with
@@ -168,18 +154,21 @@ let valid_packages (packages : StringSet.t) (pkgmgr : (string * string) option)
                           in Interp.ElementMap.mem 
                               ((mgr, Primitive Unit), Literal (Unit (), Unit))
                               nested
-                    in if manager_matches
-                    then
-                      if StringSet.mem nm packages
-                      then true
-                      else false
-                    else true
+                    in if not manager_matches || StringSet.mem nm packages
+                    then invalid
+                    else
+                      IntSet.union
+                        (IntSet.union invalid (IntSet.of_list pos))
+                        (IntSet.of_list neg)
                 (* I don't know why we would be installing a mysterious
                  * package, so rejecting for now *)
-                | _ -> false
-                end
-            ) elems
-          in validate_diff finals
+                | _ -> 
+                    IntSet.union
+                      (IntSet.union invalid (IntSet.of_list pos))
+                      (IntSet.of_list neg)
+            ) elems invalid
+          in let invalid_set = find_invalid finals IntSet.empty
+          in not (IntSet.equal all_set invalid_set)
     | Both (x, y) -> validate_res x && validate_res y
     | Either (x, y) -> validate_res x || validate_res y
   in validate_res r
@@ -205,33 +194,56 @@ let valid_files (exist : StringSet.t) (not_exist: StringSet.t) (strict : bool)
         else
           let all_set = int_range branches
           in let MergedDiff (elems, _) = inits
-          in Interp.ElementMap.for_all (fun ((elem, _), arg) binding ->
-            (* If they either all assume it exists or all assume it doesn't, we
-             * review that assumption *)
-            let (all_pos, all_neg) =
+          in let invalid_set =
+            Interp.ElementMap.fold (fun ((elem, _), arg) binding invalid ->
               let { Verifier.pos; neg; _ } = binding
-              in let pos_set = IntSet.of_list pos
-              in let neg_set = IntSet.of_list neg
-              in (IntSet.equal pos_set all_set, IntSet.equal neg_set all_set)
-            in if (not all_pos && not all_neg) || elem <> "fs"
-            then true
-            else
-              begin match arg with
-              | Pair (Literal (Path p, _), Constructor (_, which, _), _) ->
-                  let sys_match =
-                    match where with
-                    | None -> true
-                    | Some (_, sys) -> sys = which
-                  in if not sys_match
-                  then true
-                  else if all_pos && StringSet.mem p exist
-                  then true
-                  else if all_neg && StringSet.mem p not_exist
-                  then true
-                  else false
-              | _ -> not strict
-              end
-          ) elems
+              in if elem <> "fs" || not (List.is_empty pos || List.is_empty neg)
+              then invalid
+              else
+                match arg with
+                | Pair (Literal (Path p, _), Constructor (_, which, _), _) ->
+                    let sys_match =
+                      match where with
+                      | None -> true
+                      | Some (_, sys) -> sys = which
+                    in if not sys_match
+                    then invalid
+                    else if StringSet.mem p exist
+                    then IntSet.union invalid (IntSet.of_list neg)
+                    else if StringSet.mem p not_exist
+                    then IntSet.union invalid (IntSet.of_list pos)
+                    else (* We don't know if the file exists or not *)
+                      (* If we have both positive and negative branches then
+                       * none of these branches are invalid, because the file
+                       * can be in either state and so there is some branch we
+                       * can use. But, if there are only positive or only
+                       * negative branches then those branches are invalid
+                       * because they rely on a file we shouldn't care about the
+                       * existance of. There's a temptation a say as long as
+                       * some other branch doesn't rely on this file then these
+                       * branches are not invalid, but that's only the case if
+                       * those other branches do not have their own invalid
+                       * file assumptions. For example, if branch 1 relies on
+                       * file a existing and branch 2 relies on file b existing
+                       * then the program is invalid if a and b are both
+                       * irrelevent because if neither exists neither branch
+                       * works. By adding the branches to the set here and then
+                       * checking at the end of all branches are collected, we
+                       * handle this appropriately. *)
+                      if List.is_empty pos
+                      then IntSet.union invalid (IntSet.of_list neg)
+                      else if List.is_empty neg
+                      then IntSet.union invalid (IntSet.of_list pos)
+                      else invalid
+                | _ ->
+                    if not strict
+                    then invalid
+                    else
+                      IntSet.union
+                        (IntSet.union invalid (IntSet.of_list pos))
+                        (IntSet.of_list neg)
+            ) elems IntSet.empty
+          in not (IntSet.equal all_set invalid_set)
     | Both (x, y) -> validate_res x && validate_res y
     | Either (x, y) -> validate_res x || validate_res y
   in validate_res r
@@ -293,27 +305,27 @@ let valid_writes (hosts : string) (r : Verifier.merged_res) : bool =
                            inits; finals }; _ } ->
       let not_excluded = get_not_excluded hosts branches inits bools
       in let MergedDiff (elems, _) = finals
-      in Interp.ElementMap.for_all (fun ((elem, _), _)
-        { Verifier.diff = MergedDiff (_, attrs); _ } ->
-        if elem <> "fs"
-        then true
-        else
-          let write =
-            let fs_type =
-              Interp.AttributeMap.filter 
-                (fun (attr, _) _ -> attr = "fs_type") attrs
-            in Interp.AttributeMap.choose_opt fs_type
-          in match write with
-          | None -> (* Not written *) true
-          | Some (_, vs) ->
-              let do_write =
-                Interp.ValueMap.fold (fun _ ns write ->
-                  IntSet.union write (IntSet.of_list ns))
-                  vs IntSet.empty
-              in if IntSet.subset not_excluded do_write
-              then false
-              else true
-      ) elems
+      in let invalid_set =
+        Interp.ElementMap.fold (fun ((elem, _), _)
+          { Verifier.diff = MergedDiff (_, attrs); _ } invalid ->
+            if elem <> "fs"
+            then invalid
+            else
+              let write =
+                let fs_type =
+                  Interp.AttributeMap.filter 
+                    (fun (attr, _) _ -> attr = "fs_type") attrs
+                in Interp.AttributeMap.choose_opt fs_type
+              in match write with
+              | None -> (* Not written *) invalid
+              | Some (_, vs) ->
+                  let do_write =
+                    Interp.ValueMap.fold (fun _ ns write ->
+                      IntSet.union write (IntSet.of_list ns))
+                      vs IntSet.empty
+                  in IntSet.union invalid do_write
+        ) elems IntSet.empty
+      in not (IntSet.subset not_excluded invalid_set)
     | Both (x, y) -> validate_res x && validate_res y
     | Either (x, y) -> validate_res x || validate_res y
   in validate_res r
