@@ -1,5 +1,6 @@
 ---
 - name: Apt test
+  hosts: all
 
   tasks:
   - name: Install firefox and chromium

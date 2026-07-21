@@ -2,7 +2,12 @@ let uid_count = ref 0
 let uid () = let x = !uid_count in uid_count := x + 1 ; x
 
 type uid = int
-type id = Loop of int | Val of int
+(* Unknown values are one of three things: loop variables, indicating they are
+ * all elements of some unevaluated list; universal variables, indicating they
+ * can take any value (derived from the initial state); or existential
+ * variables, indicating they just represent some particular
+ * unknown/unspecified value *)
+type id = Loop of int | Universal of int | Existential of int
 
 type 'a eval = Reduced of 'a
              | Stuck
@@ -34,11 +39,6 @@ module type Ast_Defs = sig
             | Literal   of literal
             | Variable  of variable
             | Pair      of expr * expr
-            (* Special expression, really intended for use as the return value
-             * of a loop
-             * Used to thread the environment from the loop body back into the
-             * interpreter *)
-            | Env
 
   type value = Unknown      of id * typ
              | Literal      of literal * primTy
@@ -56,28 +56,21 @@ module type Ast_Defs = sig
              | ListVal      of namedTy * value
   and record = value FieldMap.t
 
-  (* A qualifier is either an attribute or element with qualifiers on it or
-   * a negated element (which are not further qualified, as handling negations
-   * of qualified qualifiers is quite difficult; it also doesn't make sense to
-   * negate attributes) *)
-  type qual = Attribute   of attribute * expr * qual list
-            | Element     of element * expr * qual list
+  (* A qualifier is either an attribute (which has a value), an element (which
+   * may have nested state on it), or a negated element. *)
+  type qual = Attribute   of attribute * expr
+            | Element     of element * expr * qual option
             | NotElement  of element * expr
   type attr = AttrAccess  of attribute
-            | OnAttribute of attribute * attr
             | OnElement   of element * expr * attr
   type elem = Element     of element * expr
-            | NotElement  of element * expr
-            | OnAttribute of attribute * elem
             | OnElement   of element * expr * elem
 
-  (* All statements, other than branches and terminators, take an additional
-   * statement which is the "next" statement. This avoids having a Seq
-   * constructor which would be somewhat annoying to implement *)
-  type stmt = Action   of variable * action * expr * stmt
-            | Assign   of variable * expr * stmt
-            | Add      of qual * stmt
-            | Get      of variable * attr * stmt
+  type stmt = Seq      of stmt * stmt
+            | Action   of variable * action * expr
+            | Assign   of variable * expr
+            | Add      of qual
+            | Get      of variable * attr
             | Contains of elem * stmt * stmt
             | Cond     of expr * stmt * stmt
             | Match    of expr * variable (* value in constructor *)
@@ -85,12 +78,22 @@ module type Ast_Defs = sig
             | ForEach  of variable (* variable for result of for-each *)
                         * typ (* element type of the result *)
                         * expr * variable (* list and element var *)
-                        * stmt (* body: returns a value and the environment *)
-                        * stmt (* after *)
-            | Fail     of string
+                        * stmt (* body *)
+            | TryCatch of stmt (* body of try *)
+                        * variable * stmt (* exception name and handler *)
+                        * stmt (* finally body *)
+            (* Localize executes the given body and upon exit resets the
+             * specified element (which must be top-level) to the value it
+             * had before entry. *)
+            | Localize of element * expr * stmt
+            | Raise    of expr
             | Return   of expr
-
-  type env = (value * typ) VariableMap.t
+            | Yield    of expr (* yield for a foreach statement *)
+            | Pass (* do nothing *)
+  
+  (* A definition of type equality, because using = is not reliable given that
+   * struct types will (generally) involve maps *)
+  val typeEq : typ -> typ -> bool
 
   (* Definitions for the parameterized components *)
   val namedTyDef : namedTy -> typ * typ
@@ -114,30 +117,28 @@ module type Ast_Defs = sig
   val asTruth : value -> bool option
   val boolAsValue : bool -> value
 
+  (* Used to construct expressions that test equality of values of a given type *)
+  val equality_func : typ -> funct
+
   (* Used to handle loops
    * - isUnit determines whether a type is the unit type, which is needed to
    *   determine if a type is list-like
+   * - valUnit is a unit value
    * - listType produces the named type for a list of elements of the given type
    *)
   val isUnit : typ -> bool
+  val valUnit : value
   val listType : typ -> namedTy
-
-  (* Used to handle the special "Env" expression:
-   * - The envType is a primitive (the type of the Env expression)
-   * - The envLit is a literal constructed from an environment *)
-  val envType : typ
-  val envToVal : env -> value
-  val envFromVal : value -> env
 
   (* Many times constraints on function values can be simplified in some manner,
    * for instance (not v) = true is equivalent to v = false which is simpler
    * or (and x y) = true is equivalent to x = y = true. To enable such
    * simplifications we allow implementations to define how constraints on a
    * function can be simplified *)
-  type constr = IsBool of bool | IsConstructor of bool * (id * typ)
+  type constr = IsBool of bool | IsConstructor of bool * value | IsEqual of value
   type result_constraint = IsBool        of value * bool
-                         | IsConstructor of value * (bool * (id * typ))
-                         | IsEqual       of id * value
+                         | IsConstructor of value * (bool * value)
+                         | IsEqual       of value * value
   type func_constraints = Unreducible | Reducible of result_constraint list list
 
   val reduceFuncConstraint : funct -> value -> constr -> func_constraints

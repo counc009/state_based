@@ -1,0 +1,6 @@
+struct debug_res { failed: bool, changed: bool }
+
+module ansible.builtin.debug -> debug_res {
+  [msg : string]
+  return debug_res { failed : false, changed: false };
+}

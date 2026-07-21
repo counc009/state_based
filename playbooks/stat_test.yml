@@ -1,5 +1,6 @@
 ---
 - name: Stat a file on the system
+  hosts: all
   tasks:
   - name: Stat a file
     ignore_errors: true

@@ -1,5 +1,6 @@
 ---
 - name: Copy files test
+  hosts: all
 
   tasks:
   - name: Create the source file

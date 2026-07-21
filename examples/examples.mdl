@@ -1,0 +1,228 @@
+element foo(string)
+
+module example1 {
+  (nm : string)
+
+  touch foo(nm);
+}
+
+function example2(nm : string) -> bool {
+  touch foo(nm);
+  return true;
+}
+
+attribute bar(int)
+
+module example3 {
+  (nm : string)
+  [val : int = 0]
+
+  foo(nm).bar = val;
+}
+
+function example4(v : int, nm : string) -> bool {
+  foo(nm).bar = v;
+  return true;
+}
+
+attribute baz(int, float)
+
+module example5 -> bool {
+  (nm : string)
+  [i : int]
+  [f : float]
+
+  if provided i {
+    foo(nm).baz.0 = i;
+  }
+  if provided f {
+    foo(nm).baz.1 = f;
+  }
+
+  return true;
+}
+
+module example6 {
+  (nm : string)
+  [i : int]
+
+  if provided i {
+    (f : float)
+    foo(nm).baz = (i, f);
+  }
+}
+
+function example7(x : string, y: string, z : int) {
+  if exists foo(x).foo(y) {
+    foo(x).foo(y).bar = z;
+  } else {
+    foo(x).foo(y).baz = (z, 3.14);
+  }
+}
+
+struct data { i : int, f : float }
+
+attribute fiz(data)
+
+module example8 -> int {
+  (nm : string)
+  [i : int]
+  [f : float]
+
+  if provided i {
+    foo(nm).fiz.i = i;
+  }
+  if provided f {
+    foo(nm).fiz.f = f;
+  }
+
+  return foo(nm).fiz.i;
+}
+
+function example9(nm : string, i : int, f : float) {
+  foo(nm).fiz = data { i : i, f : f };
+}
+
+module exampleA {
+  (nm : string)
+  if ! (foo(nm).bar > 0) {
+    foo(nm).bar = 0;
+  }
+}
+
+element file(path)
+
+attribute contents(string)
+
+function exampleB(p : path) -> bool {
+  if exists file(p) {
+    clear file(p);
+    return true;
+  } else {
+    return false;
+  }
+}
+
+function exampleC(p : path) { clear file(p); }
+
+function exampleD(x : string, i : int) -> bool {
+  if foo(x).bar == i {
+    foo(x).bar = i + 1;
+    return true;
+  } else {
+    return false;
+  }
+}
+
+enum etest { easy, hard(int) }
+attribute z(etest)
+
+function exampleE(nm : string, i : int) -> bool {
+  match foo(nm).z {
+    etest::easy => { return false; }
+    etest::hard(j) => {
+      if i == j {
+        foo(nm).bar = j + 1;
+        return true;
+      } else {
+        return false;
+      }
+    }
+  }
+}
+
+function exampleF() {
+  assert foo("abc").bar == 3;
+  assert exists foo("xyz");
+  
+  touch foo("123");
+  assert exists foo("123");
+}
+
+function exampleG(xs : list string) -> bool {
+  for n in xs {
+    if exists foo(n) {} else { return false; }
+  }
+  return true;
+}
+
+attribute files(list path)
+
+function exampleH(p : path) {
+  for q in file(p).files {
+    if exists file(q) { clear file(q); } else { touch file(q); }
+  }
+}
+
+function exampleI(p : path) {
+  let missing = foreach q : file(p).files {
+    if exists file(q) { } else { yield cons_path(p, q); }
+  };
+
+  for q in missing {
+    touch file(q);
+  }
+}
+
+exception AnsibleError(string)
+exception OtherError()
+
+function exampleJ() -> bool {
+  raise AnsibleError("hi");
+}
+
+function exampleK(n: string) {
+  try {
+    if exists foo(n) {
+      if foo(n).bar == 3 {
+        foo(n).bar = 4;
+      } else {
+        raise OtherError();
+      }
+    } else {
+      raise AnsibleError(n ^ " missing");
+    }
+  } catch AnsibleError(msg) {
+    touch foo(msg);
+  } finally {
+    touch foo("xyz");
+  }
+}
+
+function exampleL() {
+  try {
+    exampleK("abc");
+  } catch OtherError() {
+    clear foo("xyz");
+  }
+}
+
+enum taz { a, b, c }
+
+function exampleM(x : taz) -> int {
+  match x {
+    taz::a => { return 0; }
+    taz::b => { return 1; }
+  }
+  return 2;
+}
+
+local element fd(int)
+local attribute count(int)
+local attribute other(int)
+
+function exampleN(f : int) {
+  fd(f).count = fd(f).count + 1;
+  count = count + f;
+}
+
+function exampleO(f : int) {
+  touch fd(f);
+  if fd(f).count < 0 {
+    count = 1;
+  } else if count > 0 {
+    count = 2;
+  } else {
+    count = 3;
+  }
+}

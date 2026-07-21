@@ -9,7 +9,7 @@
 (executable
  (public_name ansible-verify)
  (name verify)
- (libraries state_based))
+ (libraries ocolor state_based))
 
 (executable
  (public_name bash)

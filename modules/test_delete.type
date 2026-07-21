@@ -1,9 +1,14 @@
-struct delete_result { failed : bool }
+struct delete_result { failed : bool, changed: bool }
 
 module ansible.fake.delete -> delete_result {
   (dest: path)
 
-  clear fs(dest, file_system::remote);
+  let result = delete_result { failed: false, changed: false };
 
-  return delete_result { failed: false };
+  if exists fs(dest, file_system::remote) {
+    clear fs(dest, file_system::remote);
+    result.changed = true;
+  }
+
+  return result;
 }

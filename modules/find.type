@@ -1,4 +1,5 @@
-struct find_result { failed: bool, files: list stat_res }
+struct find_result {
+  failed: bool, changed: bool, files: list stat_res, matched: int }
 
 enum find_file_type { any, directory, file, link }
 
@@ -23,6 +24,10 @@ module ansible.builtin.find aka find -> find_result {
   let paths = file_glob(globs, file_type, file_system::remote);
 
   let files = foreach f : paths {
+    // We have this because other modules will normalize their paths before
+    // looking for them in the state and if we don't normalize here then
+    // those appear to be different files
+    let f = norm_path(f);
     match file_type {
       find_file_type::file => {
         assert exists fs(f, file_system::remote);
@@ -41,9 +46,6 @@ module ansible.builtin.find aka find -> find_result {
               # TODO: Should be user id number
               uid: fs(f, file_system::remote).owner };
           }
-          file_type::directory(_) => { assert false; }
-          file_type::hard(_) => { assert false; }
-          file_type::link(_) => { assert false; }
         }
       }
       find_file_type::directory => {
@@ -62,9 +64,6 @@ module ansible.builtin.find aka find -> find_result {
               # TODO: Should be user id number
               uid: fs(f, file_system::remote).owner };
           }
-          file_type::file(_) => { assert false; }
-          file_type::hard(_) => { assert false; }
-          file_type::link(_) => { assert false; }
         }
       }
       find_file_type::any => {
@@ -96,15 +95,13 @@ module ansible.builtin.find aka find -> find_result {
               # TODO: Should be user id number
               uid: fs(f, file_system::remote).owner };
           }
-          file_type::file(_) => { assert false; }
-          file_type::directory(_) => { assert false; }
-          file_type::hard(_) => { assert false; }
         }
       }
     }
-    // Still have to yield something since the "assert false" aren't terminators
-    yield stat_res {};
+    // If we reach here it's because the path is of a different kind
+    // than it must be (from how file_glob works), so we assert false
+    assert false;
   };
 
-  return find_result { failed: false, files: files };
+  return find_result { failed: false, changed: false, files: files, matched: len(files) };
 }

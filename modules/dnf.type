@@ -1,4 +1,4 @@
-struct dnf_result { failed: bool }
+struct dnf_result { failed: bool, changed: bool }
 
 enum dnf_state { absent, present, installed, removed, latest }
 
@@ -9,9 +9,9 @@ module ansible.builtin.dnf aka dnf, ansible.builtin.yum, yum -> dnf_result {
   [state : dnf_state = dnf_state::present]
   (update_cache aka update-cache : bool = false)
 
-  let res = dnf_result { failed: false };
+  let res = dnf_result { failed: false, changed: false };
 
-  if update_cache { e_dnf().cache_version = get_time(); }
+  if update_cache { e_dnf().cache_version = get_time(); res.changed = true; }
 
   if provided name {
     match state {
@@ -42,6 +42,8 @@ module ansible.builtin.dnf aka dnf, ansible.builtin.yum, yum -> dnf_result {
         }
       }
     }
+    // TODO: Only when change actually made
+    res.changed = true;
   }
 
   return res;

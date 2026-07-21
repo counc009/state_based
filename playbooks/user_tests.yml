@@ -1,5 +1,6 @@
 ---
 - name: Test user creation/deletetion/etc.
+  hosts: all
   tasks:
   - name: Create john user with home directory /john and zsh shell
     ansible.builtin.user:

@@ -11,7 +11,13 @@ type pattern = string * typ option * string * string list
 
 type expr = Id of string | BoolLit of bool  | IntLit of int | FloatLit of float
           | StringLit of string | PathLit of string | UnitExp
-          | GenUnknown of typ
+          | GenUniversal of typ
+          (* With an existential we can specify an expression that the value
+           * must satisfy to enforce properties about the value (i.e., to
+           * represent that it may have one of a number of possible values but
+           * is not an arbitrary value). The function takes in the variable
+           * name and returns the expression. *)
+          | GenExistential of typ * (string -> expr)
           | ProductExp of expr list
           | RecordExp of expr * (string * expr) list
           | FieldSetExp of expr * string * expr
@@ -34,21 +40,34 @@ and  stmt = VarDecls     of bool * (string * string list * typ * expr option) li
           | IfExists     of expr * stmt list * stmt list
           | IfThenElse   of expr * stmt list * stmt list
           | Match        of expr * (pattern * stmt list) list
+          | TryCatch     of stmt list
+                          * (string * string list * stmt list) option (* catch *)
+                          * stmt list (* finally *)
           | Clear        of expr
           | Touch        of expr
           | Assert       of expr
           | AssertExists of expr
           | Return       of expr
           | Yield        of expr
+          | Raise        of string * expr (* Exception name and argument *)
           | Assign       of expr * expr
           | LetStmt      of string * expr
+          | Localize     of stmt list
+          (* Useful for constructing programs, Seq allows us to combine two
+           * blocks but they are in the same environment, so Seq (x, y) behaves
+           * the same as x @ y *)
+          | Seq          of stmt list * stmt list
 
 type topLevel = Enum      of string * (string * typ list option) list
               | Struct    of string * (string * typ) list
               | Type      of string * typ
               | Uninterp  of string * typ list * typ
-              | Attribute of string * typ
-              | Element   of string * typ
+              (* For attributes and elements we record whether they are local,
+               * their name, and the type (of the value and argument,
+               * respectively) *)
+              | Attribute of bool * string * typ
+              | Element   of bool * string * typ
+              | Exception of string * typ
               | Function  of string * (string * typ) list * typ option * stmt list
               (* Name, aliases, return type, body *)
               | Module    of string list * string list list * typ option * stmt list

@@ -1,0 +1,3 @@
+Debian:controller::/home/user/index.html,/path/to/apache.conf,index.html
+Ubuntu:controller::/home/user/index.html,/path/to/apache.conf,index.html
+RedHat:controller::/home/user/index.html,/path/to/apache.conf,index.html

@@ -1,4 +1,4 @@
-struct apt_result { failed: bool, cache_updated: bool }
+struct apt_result { failed: bool, cache_updated: bool, changed: bool }
 
 enum apt_state { absent, build-dep, latest, present, fixed }
 
@@ -21,10 +21,11 @@ module ansible.builtin.apt aka apt -> apt_result {
 
   [upgrade: string] # TODO: Use enum and use value
 
-  let res = apt_result { failed: false, cache_updated: false };
+  let res = apt_result { failed: false, changed: false, cache_updated: false };
 
   if update_cache {
     e_apt().cache_version = get_time();
+    res.changed = true;
     res.cache_updated = true;
   }
 
@@ -58,6 +59,10 @@ module ansible.builtin.apt aka apt -> apt_result {
         assert false;
       }
     }
+    // TODO: Strictly speaking this is only true if it actually made a
+    // change, so if it was already absent/present (as appropriate) this would
+    // actually still be false
+    res.changed = true;
   }
 
   return res;

@@ -43,7 +43,7 @@ function copy_helper(
   }
 }
 
-struct copy_result { failed : bool }
+struct copy_result { failed : bool, changed : bool }
 
 module ansible.builtin.copy aka copy -> copy_result {
   (dest: path) (src: path | content: string)
@@ -66,11 +66,11 @@ module ansible.builtin.copy aka copy -> copy_result {
 
     if exists fs(src, loc) {
       let group = provided group ? group
-                : env().is_root  ? fs(src, loc).owner_group
-                                 : env().active_group;
+                : is_root        ? fs(src, loc).owner_group
+                                 : active_group;
       let owner = provided owner ? owner
-                : env().is_root  ? fs(src, loc).owner
-                                 : env().active_user;
+                : is_root        ? fs(src, loc).owner
+                                 : active_user;
 
       if ends_with_dir(dest) {
         # If src is a file, add it's base name, if it's a directory we copy
@@ -89,13 +89,13 @@ module ansible.builtin.copy aka copy -> copy_result {
               fs(dest, file_system::remote).owner = owner;
               fs(dest, file_system::remote).owner_group = group;
               fs(dest, file_system::remote).mode = mode;
-              return copy_result { failed: false };
+              return copy_result { failed: false, changed : true };
             } else {
-              return copy_result { failed: false };
+              return copy_result { failed: false, changed : false };
             }
           }
           file_type::directory(files) => {
-            let result = copy_result { failed: false };
+            let result = copy_result { failed: false, changed : false };
 
             let dest_files = list::<path>::nil;
             let dest_mode = provided directory_mode ? directory_mode
@@ -139,11 +139,12 @@ module ansible.builtin.copy aka copy -> copy_result {
             fs(dst, file_system::remote).owner = owner;
             fs(dst, file_system::remote).owner_group = group;
             fs(dst, file_system::remote).mode = dest_mode;
+            result.changed = true;
 
             return result;
           }
-          file_type::hard(_) => { return copy_result { failed: true }; }
-          file_type::link(_) => { return copy_result { failed: true }; }
+          file_type::hard(_) => { return copy_result { failed: true, changed: false }; }
+          file_type::link(_) => { return copy_result { failed: true, changed: false }; }
         }
       } else {
         let do_copy = force ? true
@@ -157,16 +158,16 @@ module ansible.builtin.copy aka copy -> copy_result {
           let dir_mode = provided directory_mode ? directory_mode
                                                  : mode_of_umask(env().umask);
           if copy_helper(dst, src, loc, group, owner, mode, dir_mode) {
-            return copy_result { failed: false };
+            return copy_result { failed: false, changed: true };
           } else {
-            return copy_result { failed: true };
+            return copy_result { failed: true, changed: false };
           }
         } else {
-          return copy_result { failed: false };
+          return copy_result { failed: false, changed: false };
         }
       }
     } else {
-      return copy_result { failed: true };
+      return copy_result { failed: true, changed: false };
     }
   } else {
     let do_copy = force ? true
@@ -179,11 +180,12 @@ module ansible.builtin.copy aka copy -> copy_result {
                  ? fs(dst, file_system::remote).mode
                : mode_of_umask(env().umask);
       fs(dst, file_system::remote).fs_type = file_type::file(content);
-      fs(dst, file_system::remote).owner_group = provided group ? group : env().active_group;
-      fs(dst, file_system::remote).owner = provided owner ? owner : env().active_user;
+      fs(dst, file_system::remote).owner_group = provided group ? group : active_group;
+      fs(dst, file_system::remote).owner = provided owner ? owner : active_user;
       fs(dst, file_system::remote).mode = mode;
+      return copy_result { failed: false, changed: true };
     }
 
-    return copy_result { failed: false };
+    return copy_result { failed: false, changed: false };
   }
 }

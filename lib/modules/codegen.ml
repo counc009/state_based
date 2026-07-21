@@ -1,4 +1,5 @@
-(* TODO: Fix error handling *)
+let ( let^ ) r f = Result.bind r f
+let ( let$ ) r f = r f
 
 type 'a list2 = 'a Target.list2
 
@@ -16,23 +17,13 @@ module UniqueMap = struct
   let find (key : string) (map : 'a t) : 'a option =
     Hashtbl.find_opt map key
 
-  let add (key : string) (value : 'a) (map : 'a t) : unit =
+  let add (key : string) (value : 'a) (map : 'a t) : (unit, string) result =
     match find key map with
-    | Some _ -> failwith (Printf.sprintf "key %s already defined" key)
-    | _ -> Hashtbl.add map key value
+    | Some _ -> Error (Printf.sprintf "key %s already defined" key)
+    | _ -> Ok (Hashtbl.add map key value)
+
+  let fold f (m : 'a t) x = Hashtbl.fold f m x
 end
-
-let array_foldr1 (arr : 'a array) (f : 'a -> 'a -> 'a) : 'a =
-  let rec process (i : int) : 'a =
-    if i + 1 = Array.length arr
-    then arr.(i)
-    else f arr.(i) (process (i+1))
-  in process 0
-
-let unwrap (x: ('a, string) result) : 'a =
-  match x with
-  | Ok y -> y
-  | Error msg -> failwith ("Error: " ^ msg)
 
 type 'a placeholder = 'a option ref
 
@@ -65,16 +56,26 @@ type module_info =
 
 type type_env = typ UniqueMap.t
 
-type env_entry = Attribute of string * typ
-               | Element of string * typ
-               | Uninterpreted of string * typ list * typ
-               (* Function has its argument type and then return type *)
-               | Function of string * Target.typ * typ * Target.stmt placeholder
-               | Module of module_info
-               (* Environment is used to create a multi-level environment to
-                * handle fully qualified names *)
-               | Environment of global_env
+type env_entry =
+  (* Attributes and Elements have whether they are local and then their name
+   * and type *)
+  | Attribute of bool * string * typ
+  | Element of bool * string * typ
+  | Uninterpreted of string * typ list * typ
+  (* Function has its argument type and then return type *)
+  | Function of string * Target.typ * typ * Target.stmt placeholder
+  | Module of module_info
+  (* Environment is used to create a multi-level environment to handle fully
+   * qualified names *)
+  | Environment of global_env
 and global_env = env_entry UniqueMap.t
+
+type except_env = typ UniqueMap.t
+
+type context =
+  { types: type_env
+  ; globals: global_env
+  ; excepts: Target.typ StringMap.t }
 
 (* Module environments reflect optional and required arguments and their state
  * so that we can determine when a variable must be provided
@@ -96,373 +97,6 @@ type local_env = local_entry StringMap.t
 let empty_local_env : local_env = StringMap.empty
 let empty_mod_env : mod_env = IntMap.empty
 
-(* process_type (unlike create_type) fails if a named type is not defined *)
-let rec process_type (t : Ast.typ) env : typ =
-  match t with
-  | Bool -> Bool
-  | Int -> Int
-  | Float -> Float
-  | String -> String
-  | Path -> Path
-  | Unit -> Unit
-  | Product ts -> Product (List.map (fun t -> process_type t env) ts)
-  | List t -> List (process_type t env)
-  | Option t -> Option (process_type t env)
-  | Named nm ->
-      match UniqueMap.find nm env with
-      | Some t -> t
-      | None -> failwith (Printf.sprintf "undefined type %s" nm)
-
-let rec extract_enum (t : typ) : (int * typ list) StringMap.t =
-  match t with
-  | Enum (_, res) -> res
-  | Option t ->
-      StringMap.of_list [("nothing", (0, [])); ("some", (1, [t]))]
-  | List t ->
-      StringMap.of_list [("nil", (0, [])); ("cons", (1, [t; List t]))]
-  | Placeholder { contents  = Some t } -> extract_enum t
-  | _ -> failwith "Not an enum type"
-
-let lookup_enum (tys : type_env) (nm : string) (ty_arg: Ast.typ option)
-  : (int * typ list) StringMap.t =
-  match ty_arg with
-  | None ->
-      (* An enum defined in the environment *)
-      begin match UniqueMap.find nm tys with
-      | None -> failwith "Undefined type"
-      | Some t -> extract_enum t
-      end
-  | Some t ->
-      (* Either a list::<t> or option::<t> *)
-      let t = process_type t tys
-      in match nm with
-      | "list" ->
-          StringMap.add "nil" (0, [])
-            (StringMap.add "cons" (1, [t; List t])
-              StringMap.empty)
-      | "option" ->
-          StringMap.add "nothing" (0, [])
-            (StringMap.add "some" (1, [t])
-              StringMap.empty)
-      | _ -> failwith "undefined type constructor"
-
-let lookup_struct (tys: type_env) (nm: string)
-  : (typ StringMap.t, string) result =
-  let rec extract_struct (t: typ) =
-    match t with
-    | Struct (_, struct_def) -> Ok struct_def
-    | Placeholder { contents = Some t } -> extract_struct t
-    | _ -> Error (Printf.sprintf "%s is not a struct type" nm)
-  in match UniqueMap.find nm tys with
-  | None -> Error (Printf.sprintf "%s is not a type" nm)
-  | Some t -> extract_struct t
-
-let rec add_modules (nm : string list) (t : env_entry) env : unit =
-  match nm with
-  | [] -> failwith "Empty module name"
-  | [n] -> UniqueMap.add n t env
-  | n :: tl ->
-      match UniqueMap.find n env with
-      | Some (Environment env) -> add_modules tl t env
-      | Some _ -> failwith "Name already exists"
-      | None ->
-          let new_env = UniqueMap.empty ()
-          in UniqueMap.add n (Environment new_env) env
-          ; add_modules tl t new_env
-
-let rec create_type (t : Ast.typ) env : typ =
-  match t with
-  | Bool -> Bool
-  | Int -> Int
-  | Float -> Float
-  | String -> String
-  | Path -> Path
-  | Unit -> Unit
-  | Product ts -> Product (List.map (fun t -> create_type t env) ts)
-  | List t -> List (create_type t env)
-  | Option t -> Option (create_type t env)
-  | Named nm ->
-      match UniqueMap.find nm env with
-      | Some t -> t
-      | None ->
-          let res = Placeholder (ref None)
-          in UniqueMap.add nm res env; res
-
-let create_types_option (ts : Ast.typ list option) env : typ list =
-  match ts with
-  | None -> []
-  | Some ts -> List.map (fun t -> create_type t env) ts
-
-let option_some (e : Target.expr) (t : Target.typ) : Target.expr =
-  Function (Constructor (false, Option t), e)
-
-let option_none (t : Target.typ) : Target.expr =
-  Function (Constructor (true, Option t), Literal (Unit ()))
-
-let process_type_option (t : Ast.typ option) env : typ =
-  match t with
-  | None -> Unit
-  | Some t -> process_type t env
-
-let process_module_for_args (body : Ast.stmt list) env
-  : string StringMap.t * Ast.typ StringMap.t * typ StringMap.t * typ StringMap.t =
-  let rec add_alias alias nm aliases =
-    match alias with
-    | [] -> aliases
-    | v :: tl ->
-        match StringMap.find_opt v aliases with
-        | None -> add_alias tl nm (StringMap.add v nm aliases)
-        | Some n ->
-            if n = nm then add_alias tl nm aliases
-            else failwith "variable already used as alias with different canonical name"
-  in let rec add_vars vars aliases ast_types var_types struct_def =
-    match vars with
-    | [] -> (aliases, ast_types, var_types, struct_def)
-    | (nm, alias, typ, _) :: tl ->
-        let ast_types = StringMap.add nm typ ast_types
-        in let typ = process_type typ env
-        in let var_types =
-          match StringMap.find_opt nm aliases with
-          | Some _ -> failwith "variable already used as alias"
-          | None ->
-              match StringMap.find_opt nm var_types with
-              | None -> StringMap.add nm typ var_types
-              | Some t ->
-                  if type_equality t typ then var_types
-                  else failwith "variable already used with incompatible types"
-        in let aliases = add_alias alias nm aliases
-        in let struct_def = StringMap.add nm (Option typ) struct_def
-        in add_vars tl aliases ast_types var_types struct_def
-  in let rec process (body : Ast.stmt list) aliases ast_types var_types struct_def =
-    match body with
-    | [] -> (aliases, ast_types, var_types, struct_def)
-    | VarDecls (_, vars) :: tl ->
-        let (aliases, ast_types, var_types, struct_def)
-          = add_vars vars aliases ast_types var_types struct_def
-        in process tl aliases ast_types var_types struct_def
-    | ForLoop (_, _, body) :: tl ->
-        let (aliases, ast_types, var_types, struct_def)
-          = process body aliases ast_types var_types struct_def
-        in process tl aliases ast_types var_types struct_def
-    | IfProvided (_, thn, els) :: tl | IfThenElse (_, thn, els) :: tl
-    | IfExists (_, thn, els) :: tl ->
-        let (aliases, ast_types, var_types, struct_def)
-          = process thn aliases ast_types var_types struct_def
-        in let (aliases, ast_types, var_types, struct_def)
-          = process els aliases ast_types var_types struct_def
-        in process tl aliases ast_types var_types struct_def
-    | Match (_, cases) :: tl ->
-        List.fold_left
-          (fun (aliases, ast_types, var_types, struct_def) (_, case)
-            -> process case aliases ast_types var_types struct_def)
-          (process tl aliases ast_types var_types struct_def)
-          cases
-    | _ :: tl -> process tl aliases ast_types var_types struct_def
-  in process body StringMap.empty StringMap.empty StringMap.empty StringMap.empty
-
-(* Convert an internal type into a target type *)
-let rec target_type (t : typ) : Target.typ =
-  match t with
-  | Bool -> Primitive Bool
-  | Int -> Primitive Int
-  | Float -> Primitive Float
-  | String -> Primitive String
-  | Path -> Primitive Path
-  | Unit -> Primitive Unit
-  | Option t -> Named (Option (target_type t))
-  | List t -> Named (List (target_type t))
-  | Product ts -> construct_prod ts
-  | Struct (_, fs) -> Struct (StringMap.map target_type fs)
-  | Enum (nm, cs) -> construct_cases nm cs
-  | Placeholder t ->
-      match !t with
-      | None -> failwith "Missing type definition"
-      | Some t -> target_type t
-and construct_prod (ts : typ list) : Target.typ =
-  match ts with
-  | [] -> Primitive Unit
-  | [t] -> target_type t
-  | t :: ts -> Product (target_type t, construct_prod ts)
-and construct_cases (enum_name : string) (cs : (int * typ list) StringMap.t)
-  : Target.typ =
-  let types : (string * typ list) array
-    = Array.make (StringMap.cardinal cs) ("", [])
-  in let ()
-    = List.iter
-        (fun (nm, (i, ts)) -> types.(i) <- (nm, ts))
-        (StringMap.to_list cs)
-  in if Array.length types = 0
-  then Primitive Unit
-  else if Array.length types = 1
-  then construct_prod (snd types.(0))
-  else Named (Cases (enum_name, build_cases (Array.to_list types)))
-and build_cases (cs : (string * typ list) list) : (string * Target.typ) list2 =
-  match cs with
-  | [] | _ :: [] -> failwith "expected at least two cases"
-  | (nm1, ts1) :: (nm2, ts2) :: [] ->
-      LastTwo ((nm1, construct_prod ts1), (nm2, construct_prod ts2))
-  | (nm, ts) :: cs -> Cons ((nm, construct_prod ts), build_cases cs)
-
-let rec to_list2 (xs : 'a list) : 'a list2 option =
-  match xs with
-  | [] | _ :: [] -> None
-  | x :: y :: [] -> Some (LastTwo (x, y))
-  | x :: xs ->
-      match to_list2 xs with
-      | Some xs -> Some (Cons (x, xs))
-      | None -> failwith "BUG in to_list2"
-
-(* get_enum_info takes the type environment, enum name, optional type argument
- * (which only applies to option and list) and constructor name and returns:
- * - Left (named, index, typ) if the type defines a multi-constructor enum and
- *   named is the named type defining this enum, index is the constructor's
- *   index, and typ the constructor's type
- * - Right typ if nm defines a single-constructor enum, and typ is the type
- *   of the constructor
- *)
-let get_enum_info (tys : type_env) (nm : string) (ty_arg : Ast.typ option)
-  (constr : string)
-  : (Target.namedTy * int * Target.typ, Target.typ) Either.t =
-  let rec extract_enum_info (t : typ)
-    : (Target.namedTy * int * Target.typ, Target.typ) Either.t =
-    match t with
-    | Enum (enum_name, constrs) ->
-        begin match StringMap.find_opt constr constrs with
-        | None -> failwith "Invalid constructor"
-        | Some (idx, tys) ->
-            if StringMap.cardinal constrs = 1
-            then Either.Right (target_type (Product tys))
-            else let cases : (string * Target.typ) Array.t
-              = Array.make (StringMap.cardinal constrs) ("", Target.Primitive Unit)
-            in StringMap.iter
-              (fun nm (idx, tys) -> cases.(idx) <- (nm, target_type (Product tys)))
-              constrs
-            ; match to_list2 (Array.to_list cases) with
-            | None -> failwith "enum does not have enough cases"
-            | Some cs -> Either.Left (Cases (enum_name, cs), idx, snd cases.(idx))
-        end
-    | Option t     ->
-        let typ = target_type t
-        in if constr = "nothing"
-        then Either.Left (Option typ, 0, Primitive Unit)
-        else if constr = "some"
-        then Either.Left (Option typ, 1, typ)
-        else failwith "Invalid constructor of option"
-    | List t       ->
-        let typ = target_type t
-        in if constr = "nil"
-        then Either.Left (List typ, 0, Primitive Unit)
-        else if constr = "cons"
-        then Either.Left (List typ, 1, Product (typ, Named (List typ)))
-        else failwith "Invalid constructor of list"
-    | Placeholder { contents = Some t } -> extract_enum_info t
-    | _ -> failwith "Not an enum type"
-  in match ty_arg with
-  | None ->
-      (* An enum defined in the environment *)
-      begin match UniqueMap.find nm tys with
-      | Some t -> extract_enum_info t
-      | None -> failwith ("undefined type " ^ nm)
-      end
-  | Some t ->
-      (* Either a list::<t> or option::<t> *)
-      let t = process_type t tys
-      in match nm with
-      | "list" -> extract_enum_info (List t)
-      | "option" -> extract_enum_info (Option t)
-      | _ -> failwith "undefined type constructor"
-
-(* get_module_info takes the environment and an expression representing the
- * module name and returns a tuple of the information that forms the target
- * action for the module, the module's argument types, the module's input
- * struct definition, the module's return type, and the alias map for the
- * module's arguments
- *)
-let get_module_info env (modul : Ast.expr)
-  : Target.action * Target.typ StringMap.t * Target.structTy * Target.typ * string StringMap.t =
-  let rec find_module env (modul : Ast.expr)
-    : (global_env, module_info) Either.t =
-    match modul with
-    | Id nm ->
-        begin match UniqueMap.find nm env with
-        | Some (Module mod_info) -> Either.Right mod_info
-        | Some (Environment env) -> Either.Left env
-        | Some _ -> failwith "expected module"
-        | None -> failwith "undefined name"
-        end
-    | Field (modul, nm) ->
-        begin match find_module env modul with
-        | Either.Right _ -> failwith "no such field"
-        | Either.Left env ->
-            match UniqueMap.find nm env with
-            | Some (Module mod_info) -> Either.Right mod_info
-            | Some (Environment env) -> Either.Left env
-            | Some _ -> failwith "expected module"
-            | None -> failwith "undefined name"
-        end
-    | _ -> failwith "expected module name"
-  in match find_module env modul with
-  | Either.Left _ -> failwith "expected module name"
-  | Either.Right mod_info ->
-      let arg_types = StringMap.map target_type mod_info.argument_types
-      in let struct_def = StringMap.map target_type mod_info.input_struct_def
-      in let action_info : Target.action =
-        (String.concat "." mod_info.name,
-         Struct struct_def,
-         target_type mod_info.out_type,
-         mod_info.body)
-      in (action_info, arg_types, struct_def, target_type mod_info.out_type,
-          mod_info.alias_map)
-
-(* construct_enum generates the constructors needed for an enum constructor
- * identified by the given named type and constructor index *)
-let construct_enum (enum : Target.namedTy) (idx : int) (e : Target.expr)
-  : Target.expr =
-  let rec construct_cases (enum_name : string) (cs : (string * Target.typ) list2)
-    (idx : int) : Target.expr =
-    match cs with
-    | LastTwo (_, _) ->
-        if idx = 0 then Function (Constructor (true, Cases (enum_name, cs)), e)
-        else if idx = 1 then Function (Constructor (false, Cases (enum_name, cs)), e)
-        else failwith "internal error: invalid index for enum"
-    | Cons (_, r) ->
-        if idx = 0 then Function (Constructor (true, Cases (enum_name, cs)), e)
-        else Function (Constructor (false, Cases (enum_name, cs)),
-                        construct_cases enum_name r (idx-1))
-  in match enum with
-  | List _ | Option _ ->
-      if idx = 0 then Function (Constructor (true, enum), e)
-      else if idx = 1 then Function (Constructor (false, enum), e)
-      else failwith "internal error: invalid index for list or option"
-  | Cases (enum_name, cs) -> construct_cases enum_name cs idx
-
-(* construct_product_read takes a product (Target) expression, the type of that
- * expression and an index and produces and expression that reads the desired
- * index *)
-let rec construct_product_read (e : Target.expr) (t : Target.typ) (i : int)
-  : Target.expr * Target.typ =
-  match t with
-  | Product (x, y) ->
-      if i = 0 then (Function (Proj (true, x, y), e), x)
-      else construct_product_read (Function (Proj (false, x, y), e)) y (i - 1)
-  | _ -> if i = 0 then (e, t) else failwith "not such field"
-
-(* The result of our internal expression processing *)
-type expr_result = JustExpr of Target.expr * Target.typ
-                 | JustAttr of (Target.attr -> Target.attr)
-                 | ExprOrAttr of (Target.expr * Target.typ)
-                               * (Target.attr -> Target.attr)
-
-let as_expr (e : expr_result) : (Target.expr * Target.typ, string) result =
-  match e with
-  | JustExpr (e, t) | ExprOrAttr ((e, t), _) -> Ok (e, t)
-  | _ -> Error "expected expression"
-
-let as_qual (e: expr_result) : (Target.attr -> Target.attr, string) result =
-  match e with
-  | JustAttr q | ExprOrAttr (_, q) -> Ok q
-  | _ -> Error "expected element"
-
 (* Generation of unique temporary names *)
 let tmp_counter : int ref = ref 0
 
@@ -481,143 +115,367 @@ let uniq () : int =
   in tmp_counter := n + 1
   ; n
 
-(* Given a module variable information, determines whether we now know that a
- * certain variable must be available, and if so extracts it and evaluates k
- * in an updated environment *)
-let update_module_var (info: bool * StringSet.t) input (locals: local_env)
-  (k : local_env -> (Target.stmt, 'a) result) : (Target.stmt, 'a) result =
-  let (required, vars) = info
-  in if required && StringSet.cardinal vars = 1
-  then
-    let var = StringSet.min_elt vars
-    in match StringMap.find_opt var locals with
-    | Some (ModuleVar (_, ty)) ->
-        let fresh_nm = fresh_var var
-        in let new_env = StringMap.add var (LocalVar (fresh_nm, ty)) locals
-        in Result.map (fun k: Target.stmt ->
-           Match (Function (ReadField (input, var), Variable "#input"), fresh_nm,
-                  Fail ("Variable " ^ var ^ " must be defined, but it isn't"),
-                  k)
-        ) (k new_env)
-    | _ -> k locals
-  else k locals
+(* Some helper functions *)
+let rec to_list2 (xs : 'a list) : 'a list2 option =
+  match xs with
+  | [] | _ :: [] -> None
+  | x :: y :: [] -> Some (LastTwo (x, y))
+  | x :: xs ->
+      match to_list2 xs with
+      | Some xs -> Some (Cons (x, xs))
+      | None -> failwith "INTERNAL ERROR in to_list2"
 
-(* Update the locals environment to reflect that the variable var (which is a
- * member of the module variables with ID mod_id and options options) exists
- * and has been assigned the unique name nm and has type typ *)
-let update_module_var_env (mod_id: int) (options: StringSet.t) (var: string)
-  (nm: string) (typ: Target.typ) (env: local_env) : local_env =
-  let rec helper (vars: string list) (env: local_env) : local_env =
-    match vars with
-    | [] -> env
-    | v :: tl ->
-        match StringMap.find_opt v env with
-        | None | Some (LocalVar _) -> helper tl env
-        | Some (ModuleVar (id, _)) -> if id <> mod_id then helper tl env
-                                      else helper tl (StringMap.remove v env)
-  in StringMap.add var (LocalVar (nm, typ))
-        (helper (StringSet.to_list options) env)
+let foreach_res (xs : 'a list) (f : 'a -> (unit, 'e) result)
+  : (unit, 'e) result =
+  let rec foreach (xs : 'a list) : (unit, 'e) result =
+    match xs with
+    | [] -> Ok ()
+    | x :: xs -> Result.bind (f x) (fun () -> foreach xs)
+  in foreach xs
 
-(* Given a list of names and a value and type constructs a target statement
- * which extracts fields and assigns them to the given names.
- * This is used since the calculus only allows single argument functions and
- * pattern matching. *)
-let rec generateVarInits (names : string list) (ty : Target.typ)
-    (exp : Target.expr) (locals : local_env)
-    (k : local_env -> (Target.stmt, string) result)
-    : (Target.stmt, string) result  =
-  match names with
-  | [] -> k locals
-  | [n] ->
-      let fresh_n = fresh_var n
-      in Result.bind (k (StringMap.add n (LocalVar (fresh_n, ty)) locals))
-         (fun rest -> Ok (Target.Assign (fresh_n, exp, rest)))
-  | n :: ns ->
-      match ty with
-      | Product (x, y) ->
-          let fresh_n = fresh_var n
-          in Result.bind
-              (generateVarInits ns y (Function (Proj (false, x, y), exp))
-                (StringMap.add n (LocalVar (fresh_n, x)) locals) k)
-            (fun rest ->
-              Ok (Target.Assign (fresh_n, Function (Proj (true, x, y), exp), rest)))
-      | _ -> failwith "Type error"
+let foreachs_res (xs : 'a list list) (f : 'a -> (unit, 'e) result)
+  : (unit, 'e) result =
+  let rec foreach (xs : 'a list) : (unit, 'e) result =
+    match xs with
+    | [] -> Ok ()
+    | x :: xs -> Result.bind (f x) (fun () -> foreach xs)
+  in let rec foreach_list (xs : 'a list list) : (unit, 'e) result =
+    match xs with
+    | [] -> Ok ()
+    | xs :: tl -> Result.bind (foreach xs) (fun () -> foreach_list tl)
+  in foreach_list xs
 
-let rec negate_qual (q : Target.qual) : Target.qual =
-  match q with
-  | Attribute (_, _, []) -> failwith "Cannot negate an attribute"
-  | Attribute (a, e, qs) -> Attribute (a, e, List.map negate_qual qs)
-  | Element (e, ex, []) -> NotElement (e, ex)
-  | Element (e, ex, qs) -> Element (e, ex, List.map negate_qual qs)
-  | NotElement (_, _) -> failwith "Cannot generate negated qual from front-end"
+let map_res (f : 'a -> ('b, 'e) result) (xs : 'a list) : ('b list, 'e) result =
+  let rec step (xs : 'a list) : ('b list, 'e) result =
+    match xs with
+    | [] -> Ok []
+    | x :: xs ->
+        Result.bind (f x) (fun y ->
+          Result.bind (step xs) (fun ys ->
+            Ok (y :: ys)))
+  in step xs
 
-(* As we process l-values we either have have a value (such as a variable or a
- * field access) or we have an attribute *)
-type lval_res =
-  (* For values we return the type of the value, an expression which evaluates
-   * its current value, and a continuation which builds the assignment to that
-   * value for a given expression being assigned and statement to follow *)
-  | LValue     of Target.typ * Target.expr
-                * (Target.expr -> (Target.stmt, string) result
-                               -> (Target.stmt, string) result)
-  (* For attributes, we return both the attribute as a qualifier with other
-   * elements/attributes following it and as the top-level attribute (which is
-   * a continuation expecting the value being assigned) *)
-  | LAttribute of ((Target.qual -> Target.qual) * (Target.attr -> Target.attr))
-                * (Target.typ * Target.expr * (Target.expr -> Target.qual))
-  | LElement   of (Target.qual -> Target.qual) * (Target.attr -> Target.attr)
+let mapi_res (f : int -> 'a -> ('b, 'e) result) (xs : 'a list)
+  : ('b list, 'e) result =
+  let rec step (xs : 'a list) (i : int) : ('b list, 'e) result =
+    match xs with
+    | [] -> Ok []
+    | x :: xs ->
+        Result.bind (f i x) (fun y ->
+          Result.bind (step xs (i + 1)) (fun ys ->
+            Ok (y :: ys)))
+  in step xs 0
 
+let flatmap_res (f : 'a -> ('b, 'e) result) (xs : 'a list list)
+  : ('b list, 'e) result =
+  let rec map (xs : 'a list) (acc : 'b list) : ('b list, 'e) result =
+    match xs with
+    | [] -> Ok acc
+    | x :: xs ->
+        let^ y = f x
+        in let^ ys = map xs acc
+        in Ok (y :: ys)
+  in let rec flatmap (xs : 'a list list) : ('b list, 'e) result =
+    match xs with
+    | [] -> Ok []
+    | xs :: tl -> Result.bind (flatmap tl) (fun acc -> map xs acc)
+  in flatmap xs
 
-type 'a processed = Default of 'a | Set of 'a
+let smap_map_res (f : 'a -> ('b, 'e) result) (m : 'a StringMap.t)
+  : ('b StringMap.t, 'e) result =
+  StringMap.fold (fun s x res -> Result.bind res (fun res ->
+    Result.bind (f x) (fun y ->
+      Ok (StringMap.add s y res))))
+    m
+    (Ok StringMap.empty)
 
-let of_processed (x : 'a processed) : 'a = match x with Default y | Set y -> y
+let array_foldr1 (arr : 'a array) (f : 'a -> 'b) (g : 'b -> 'b -> 'b) : 'b =
+  let rec process (i : int) : 'b =
+    if i + 1 = Array.length arr
+    then f arr.(i)
+    else g (f arr.(i)) (process (i+1))
+  in process 0
 
-let rec process_vars_codegen
-  (vars : (string * string list * Ast.typ * Ast.expr option) list)
-  : ((string * Ast.typ) list * (string * Ast.typ * Ast.expr) option, string) result =
-  match vars with
-  | [] -> Ok ([], None)
-  | (v, _, t, None) :: tl ->
-      Result.bind (process_vars_codegen tl)
-        (fun (vs, default) -> Ok ((v, t) :: vs, default))
-  | (v, _, t, Some d) :: tl ->
-      Result.bind (process_vars_codegen tl)
-        (fun (vs, default) ->
-          match default with
-          | None -> Ok ((v, t) :: vs, Some (v, t, d))
-          | Some _ -> Error "multiple default values specified")
+(* create_type (and its related functions) convert an Ast.typ into an internal
+ * typ, and if an unknown type name is encountered in the process will insert
+ * that type as a placeholder into the type_env. This helps address issues
+ * with cyclical types and avoids needing to properly order files as they are
+ * processed. *)
+let create_type (t : Ast.typ) (env : type_env) : (typ, string) result =
+  let rec create (t : Ast.typ) : (typ, string) result =
+    match t with
+    | Bool -> Ok Bool
+    | Int -> Ok Int
+    | Float -> Ok Float
+    | String -> Ok String
+    | Path -> Ok Path
+    | Unit -> Ok Unit
+    | Product ts ->
+        Result.bind (map_res create ts) (fun ts -> Ok (Product ts))
+    | List t ->
+        Result.bind (create t) (fun t -> Ok (List t))
+    | Option t ->
+        Result.bind (create t) (fun t -> Ok (Option t))
+    | Named nm ->
+        match UniqueMap.find nm env with
+        | Some t -> Ok t
+        | None ->
+            let res = Placeholder (ref None)
+            in Result.bind (UniqueMap.add nm res env) (fun () -> Ok res)
+  in create t
 
-(* Given the input's record type, a list of variables, and a statements for
- * found and not found cases, construct match statements that execute the
- * found code if exactly one of the variables is defined, the not found code
- * if none of the variables are defined, and produces a failure if multiple
- * variables are defined *)
-let generate_vars_check input (vars : (string * Ast.typ) list)
-  (found : (Target.stmt, 'a) result) (not_found : (Target.stmt, 'a) result)
-  : (Target.stmt, 'a) result =
-  let vars = List.map fst vars
-  in let rec helper vs need_var =
-    match vs with
-    | [] -> if need_var then not_found else found
-    | v :: tl ->
-        Result.bind (helper tl need_var)
-          (fun if_not ->
-            let if_some = if need_var then helper tl false
-              else Ok (Fail ("Only one of [" ^ String.concat ", " vars
-                             ^ "] should be provided"))
-            in Result.bind if_some
-            (fun if_some ->
-              Ok (Target.Match (
-                    Function (ReadField (input, v), Variable "#input"),
-                    "_",
-                    if_not,
-                    if_some
-            ))))
-  in helper vars true
+let create_types_option (ts : Ast.typ list option) (env : type_env)
+    : (typ list, string) result =
+  match ts with
+  | None -> Ok []
+  | Some ts -> map_res (fun t -> create_type t env) ts
 
-(* Given an enum name and possible type argument check that it matches a target
- * type that the scrutinee has been determined to have *)
-let pattern_type_matches (type_name, type_arg) (t: Target.typ) tys : bool =
+(* process_type, like create_type, converts an Ast.typ into an internal typ,
+ * but process_type is used once we have collected all types and so any
+ * unrecognized type name is an error *)
+let process_type (t : Ast.typ) (env : type_env) : (typ, string) result =
+  let rec process (t : Ast.typ) =
+    match t with
+    | Bool -> Ok Bool
+    | Int -> Ok Int
+    | Float -> Ok Float
+    | String -> Ok String
+    | Path -> Ok Path
+    | Unit -> Ok Unit
+    | Product ts ->
+        Result.bind (map_res process ts) (fun ts -> Ok (Product ts))
+    | List t ->
+        Result.bind (process t) (fun t -> Ok (List t))
+    | Option t ->
+        Result.bind (process t) (fun t -> Ok (Option t))
+    | Named nm ->
+        match UniqueMap.find nm env with
+        | Some t -> Ok t
+        | None -> Error (Printf.sprintf "undefined type %s" nm)
+  in process t
+
+let process_type_option (t : Ast.typ option) (env : type_env)
+  : (typ, string) result =
+  match t with
+  | None -> Ok Unit
+  | Some t -> process_type t env
+
+(* lower_type and its relatives convert an internal type into a target type *)
+let rec lower_type (t : typ) : (Target.typ, string) result =
+  match t with
+  | Bool -> Ok (Primitive Bool)
+  | Int -> Ok (Primitive Int)
+  | Float -> Ok (Primitive Float)
+  | String -> Ok (Primitive String)
+  | Path -> Ok (Primitive Path)
+  | Unit -> Ok (Primitive Unit)
+  | Option t ->
+      Result.bind (lower_type t) (fun t -> Ok (Target.Named (Option t)))
+  | List t ->
+      Result.bind (lower_type t) (fun t -> Ok (Target.Named (List t)))
+  | Product ts -> lower_types ts
+  | Struct (_, fs) ->
+      Result.bind (smap_map_res lower_type fs)
+        (fun fs : (Target.typ, string) result -> Ok (Struct fs))
+  | Enum (nm, cs) -> lower_sum nm cs
+  | Placeholder t ->
+      match !t with
+      | None -> Error "Missing type definition"
+      | Some t -> lower_type t
+and lower_types (ts : typ list) : (Target.typ, string) result =
+  match ts with
+  | [] -> Ok (Primitive Unit)
+  | [t] -> lower_type t
+  | t :: ts ->
+      let^ t = lower_type t
+      in let^ ts = lower_types ts
+      in Ok (Target.Product (t, ts))
+and lower_sum (enum_name : string) (cs : (int * typ list) StringMap.t)
+  : (Target.typ, string) result =
+  let types : (string * typ list) array
+    = Array.make (StringMap.cardinal cs) ("", [])
+  in let () =
+    List.iter
+      (fun (nm, (i, ts)) -> types.(i) <- (nm, ts))
+      (StringMap.to_list cs)
+  in if Array.length types = 0
+  then Ok (Primitive Unit)
+  else if Array.length types = 1
+  then lower_types (snd types.(0))
+  else
+    let rec lower_cases (cs : (string * typ list) list)
+      : ((string * Target.typ) list2, string) result =
+      match cs with
+      | [] | [_] -> Error "Internal Error: Expected at least two cases"
+      | (nm1, ts1) :: (nm2, ts2) :: [] ->
+          let^ ts1 = lower_types ts1
+          in let^ ts2 = lower_types ts2
+          in Ok (LastTwo ((nm1, ts1), (nm2, ts2)) : _ list2)
+      | (nm, ts) :: cs ->
+          let^ ts = lower_types ts
+          in let^ cs = lower_cases cs
+          in Ok (Cons ((nm, ts), cs) : _ list2)
+    in Result.bind (lower_cases (Array.to_list types)) (fun cs ->
+        Ok (Target.Named (Cases (enum_name, cs))))
+
+let lower_ast_typ (t : Ast.typ) (types : type_env)
+  : (Target.typ, string) result = Result.bind (process_type t types) lower_type
+
+(* Utilities for dealing with types and the type environment *)
+(* Extract the constructors from an enum type *)
+let rec extract_enum (t : typ)
+  : ((int * typ list) StringMap.t, string) result =
+  match t with
+  | Enum (_, res) -> Ok res
+  | Option t ->
+      Ok (StringMap.of_list [("nothing", (0, [])); ("some", (1, [t]))])
+  | List t ->
+      Ok (StringMap.of_list [("nil", (0, [])); ("cons", (1, [t; List t]))])
+  | Placeholder { contents = Some t } -> extract_enum t
+  | _ -> Error "Not an enum type"
+
+(* Return the constructors for a given enum type and type argument *)
+let lookup_enum (types : type_env) (nm : string) (ty_arg : Ast.typ option)
+  : ((int * typ list) StringMap.t, string) result =
+  match ty_arg with
+  | None ->
+      (* An enum defined in the environment *)
+      begin match UniqueMap.find nm types with
+      | None -> Error ("Undefined type " ^ nm)
+      | Some t -> extract_enum t
+      end
+  | Some t ->
+      (* Either a list::<t> or option::<t> *)
+      let^ t = process_type t types
+      in match nm with
+      | "list" ->
+          Ok (StringMap.of_list [("nil", (0, [])); ("cons", (1, [t; List t]))])
+      | "option" ->
+          Ok (StringMap.of_list [("nothing", (0, [])); ("some", (1, [t]))])
+      | _ -> Error ("Undefined type constructor " ^ nm)
+
+(* get_enum_info returns:
+ * - Left (named, index, typ) if the type defines a multi-constructor enum and
+ *   named is the named type defining this enum, index is the constructor's
+ *   index, and typ is the constructor's type.
+ * - Right (typ) if nm defines a single-constructor enum and typ is the type
+ *   of that constructor.
+ *)
+let get_enum_info (types : type_env) (nm : string) (ty_arg : Ast.typ option)
+  (constr : string)
+  : ((Target.namedTy * int * Target.typ, Target.typ) Either.t, string) result =
+  let rec extract_enum_info (t : typ) =
+    match t with
+    | Enum (enum_name, constrs) ->
+        begin match StringMap.find_opt constr constrs with
+        | None -> Error ("No constructor " ^ constr ^ " for enum " ^ nm)
+        | Some (idx, tys) ->
+            if StringMap.cardinal constrs = 1
+            then Result.bind (lower_type (Product tys))
+                  (fun t -> Ok (Either.Right t))
+            else let cases : (string * Target.typ) Array.t =
+              Array.make (StringMap.cardinal constrs)
+                ("", Target.Primitive Unit)
+            in let^ () =
+              StringMap.fold (fun nm (idx, tys) u ->
+                Result.bind u (fun () ->
+                  let^ t = lower_type (Product tys)
+                  in Ok (cases.(idx) <- (nm, t))))
+                constrs (Ok ())
+            in match to_list2 (Array.to_list cases) with
+            | None -> failwith "INTERNAL ERROR: enum lacks enough cases"
+            | Some cs ->
+                Ok (Either.Left (
+                  (Cases (enum_name, cs) : Target.namedTy),
+                  idx, snd cases.(idx)))
+        end
+    | Option t ->
+        let^ typ = lower_type t
+        in begin match constr with
+        | "nothing" -> Ok (Either.Left ((Option typ : Target.namedTy), 0, Target.Primitive Unit))
+        | "some"    -> Ok (Either.Left (Option typ, 1, typ))
+        | _ -> Error ("No constructor " ^ constr ^ " for option")
+        end
+    | List t ->
+        let^ typ = lower_type t
+        in begin match constr with
+        | "nil"  -> Ok (Either.Left ((List typ : Target.namedTy), 0, Target.Primitive Unit))
+        | "cons" -> Ok (Either.Left (List typ, 1, Product (typ, Named (List typ))))
+        | _ -> Error ("No constructor " ^ constr ^ " for list")
+        end
+    | Placeholder { contents = Some t } -> extract_enum_info t
+    | _ -> Error "Type is not an enum"
+
+  in match ty_arg with
+  | None ->
+      (* An enum defined in the environment *)
+      begin match UniqueMap.find nm types with
+      | Some t -> extract_enum_info t
+      | None -> Error ("Undefined type " ^ nm)
+      end
+  | Some t ->
+      (* Either a list<t> or option<t> *)
+      let^ t = process_type t types
+      in match nm with
+      | "list" -> extract_enum_info (List t)
+      | "option" -> extract_enum_info (Option t)
+      | _ -> Error ("Undefined type constructor " ^ nm)
+
+(* Return information for a given struct type *)
+let lookup_struct (types : type_env) (nm : string)
+  : (typ StringMap.t, string) result =
+  let rec extract_struct (t : typ) =
+    match t with
+    | Struct (_, struct_def) -> Ok struct_def
+    | Placeholder { contents = Some t } -> extract_struct t
+    | _ -> Error (Printf.sprintf "%s is not a struct type " nm)
+  in match UniqueMap.find nm types with
+  | None -> Error ("Undefined type " ^ nm)
+  | Some t -> extract_struct t
+
+let lookup_module_info (nm : Ast.expr) (globals : global_env)
+  : (Target.action * Target.typ StringMap.t * Target.structTy * Target.typ
+      * string StringMap.t, string) result =
+  let rec find_module (nm : Ast.expr)
+    : ((global_env, module_info) Either.t, string) result =
+    match nm with
+    | Id nm ->
+        begin match UniqueMap.find nm globals with
+        | Some (Module mod_info) -> Ok (Either.Right mod_info)
+        | Some (Environment env) -> Ok (Either.Left env)
+        | Some _ -> Error "Not a module"
+        | None   -> Error "Module name not defined"
+        end
+    | Field (nm, field) ->
+        let^ env = find_module nm
+        in begin match env with
+        | Either.Right _ -> Error "Module name not defined"
+        | Either.Left env ->
+            match UniqueMap.find field env with
+            | Some (Module mod_info) -> Ok (Either.Right mod_info)
+            | Some (Environment env) -> Ok (Either.Left env)
+            | Some _ -> Error "Not a module"
+            | None   -> Error "Module name not defined"
+        end
+    | _ -> Error "Not a module name"
+  in let^ res = find_module nm
+  in match res with
+  | Either.Left _ -> Error "Not a module"
+  | Either.Right mod_info ->
+      let^ arg_types = smap_map_res lower_type mod_info.argument_types
+      in let^ struct_def = smap_map_res lower_type mod_info.input_struct_def
+      in let^ out_ty = lower_type mod_info.out_type
+      in let action_info : Target.action =
+        (String.concat "." mod_info.name,
+         Struct struct_def,
+         out_ty,
+         mod_info.body)
+      in Ok (action_info, arg_types, struct_def, out_ty, mod_info.alias_map)
+
+(* Given an enum name and possible type argument, check that it matches a
+ * target type *)
+let pattern_type_matches (types : type_env) (type_name, type_arg)
+  (t : Target.typ) : bool =
   match type_arg with
   | None ->
       begin match t with
@@ -625,1226 +483,1627 @@ let pattern_type_matches (type_name, type_arg) (t: Target.typ) tys : bool =
       | _ -> false
       end
   | Some ty_arg ->
-      begin match t with
-      | Named (List t) when type_name = "list"
-          && target_type (process_type ty_arg tys) = t -> true
-      | Named (Option t) when type_name = "option"
-          && target_type (process_type ty_arg tys) = t -> true
+      match t with
+      | Named (List t) when type_name = "list" ->
+          begin match lower_ast_typ ty_arg types with
+          | Error _ -> false
+          | Ok ty -> ty = t
+          end
+      | Named (Option t) when type_name = "option" ->
+          begin match lower_ast_typ ty_arg types with
+          | Error _ -> false
+          | Ok ty -> ty = t
+          end
       | _ -> false
-      end
 
-(* Code regions in the module language may
- * 1. Not allow any return/yield statements in them (inside a loop)
- * 2. Allow a return of values of a particular type
- * 3. Allow a yield of values of a (potentially still unknown) type *)
-type return_type = NotAllowed | Return of Target.typ
-                 | Yield of Target.typ placeholder
+(* Code analysis *)
+let extract_module_args (body : Ast.stmt list) (types : type_env)
+  : (string StringMap.t * Ast.typ StringMap.t * typ StringMap.t
+      * typ StringMap.t, string) result =
+  let add_vars vars info =
+    let add_alias (alias : string) (nm : string) aliases =
+      match StringMap.find_opt alias aliases with
+      | None -> Ok (StringMap.add alias nm aliases)
+      | Some n ->
+          if n = nm then Ok aliases
+          else Error (Printf.sprintf
+              "Variable %s already used as alias for different canonical name"
+              alias)
+    in let add_aliases nms nm aliases =
+      List.fold_left (fun aliases alias -> Result.bind aliases (fun aliases -> 
+        add_alias alias nm aliases))
+        (Ok aliases) nms
+    in let add_var nm alias typ info =
+      let (aliases, ast_types, var_types, struct_def) = info
+      in let ast_types = StringMap.add nm typ ast_types
+      in let^ typ = process_type typ types
+      in let^ var_types =
+        match StringMap.find_opt nm aliases with
+        | Some _ ->
+            Error (Printf.sprintf "Variable %s already used as alias" nm)
+        | None ->
+            match StringMap.find_opt nm var_types with
+            | None -> Ok (StringMap.add nm typ var_types)
+            | Some t ->
+                if type_equality t typ then Ok var_types
+                else Error (Printf.sprintf
+                        "Variable %s already used with different type" nm)
+      in let^ aliases = add_aliases alias nm aliases
+      in let struct_def = StringMap.add nm (Option typ) struct_def
+      in Ok (aliases, ast_types, var_types, struct_def)
+    in List.fold_left (fun info (nm, alias, typ, _) ->
+        Result.bind info (fun info -> add_var nm alias typ info))
+        (Ok info) vars
+  in let rec extract_stmt (s : Ast.stmt) info =
+    match s with
+    | VarDecls (_, vars) -> add_vars vars info
+    | ForLoop (_, _, body) -> extract body info
+    | IfProvided (_, thn, els) | IfExists (_, thn, els)
+    | IfThenElse (_, thn, els) ->
+        let^ new_info = extract thn info in extract els new_info
+    | Match (_, cases) ->
+        List.fold_left (fun info (_, case) ->
+          Result.bind info (fun info -> extract case info))
+          (Ok info) cases
+    | TryCatch (body, catch, finally) ->
+        let^ info_body = extract body info
+        in let^ info_catch =
+          match catch with
+          | None -> Ok info_body
+          | Some (_, _, catch) -> extract catch info_body
+        in extract finally info_catch
+    | _ -> Ok info
+  and extract (body : Ast.stmt list) info =
+    match body with
+    | [] -> Ok info
+    | s :: tl ->
+        let^ new_info = extract_stmt s info in extract tl new_info
+  in extract body
+      (StringMap.empty, StringMap.empty, StringMap.empty, StringMap.empty)
 
-(* process_expr takes a continuation which takes an expression and produces a
- * statement and then returns a statement. The reason for this is that some
- * expressions in the Module language requires statmenets in the calculus and
- * so we may have to build statments as we process the expression. This setup
- * will be placed before the statement generated by the continuation which can
- * use the result of the expression *)
-let rec process_expr (e : Ast.expr) env tys locals (is_mod : mod_info option)
+(* Utilities for generating expressions *)
+let floatlit (f : float) : Target.expr = Literal (Float f)
+let intlit (i : int) : Target.expr = Literal (Int i)
+let stringlit (s : string) : Target.expr = Literal (String s)
+
+let option_some (e : Target.expr) (t : Target.typ) : Target.expr =
+  Function (Constructor (false, Option t), e)
+
+let option_none (t : Target.typ) : Target.expr =
+  Function (Constructor (true, Option t), Literal (Unit ()))
+
+let construct_enum (enum : Target.namedTy) (idx : int) (e : Target.expr)
+  : Target.expr =
+  match enum with
+  | List _ | Option _ ->
+      if idx = 0 then Function (Constructor (true, enum), e)
+      else if idx = 1 then Function (Constructor (false, enum), e)
+      else
+        failwith "INTERNAL ERROR: Invalid index for list or option constructor"
+  | Cases (enum_name, cs) ->
+      let rec construct_cases (cs : (string * Target.typ) list2) (idx : int)
+        : Target.expr =
+        match cs with
+        | LastTwo (_, _) ->
+            if idx = 0
+            then Function (Constructor (true, Cases (enum_name, cs)), e)
+            else if idx = 1
+            then Function (Constructor (false, Cases (enum_name, cs)), e)
+            else failwith "INTERNAL ERROR: Invalid index for enum constructor"
+        | Cons (_, r) ->
+            if idx = 0
+            then Function (Constructor (true, Cases (enum_name, cs)), e)
+            else Function (Constructor (false, Cases (enum_name, cs)),
+                  construct_cases r (idx - 1))
+      in construct_cases cs idx
+
+(* construct_product_read takes a product expression, its type, and an index
+ * and generates an expression to fetch the desired index *)
+let rec construct_product_read (e : Target.expr) (t : Target.typ) (i : int)
+  : (Target.expr * Target.typ, string) result =
+  match t with
+  | Product (x, y) ->
+      if i = 0
+      then Ok (Function (Proj (true, x, y), e), x)
+      else construct_product_read (Function (Proj (false, x, y), e)) y (i - 1)
+  | _ ->
+      if i = 0
+      then Ok (e, t)
+      else Error "No such field of product"
+
+(* construct_product_access takes a product type and an index and identifes
+ * the type of that index and produces functions that will read and write
+ * to that field *)
+let rec construct_product_access (t : Target.typ) (i : int)
+  : (Target.typ
+    * (Target.expr -> Target.expr) (* read *)
+    * (Target.expr -> Target.expr -> Target.expr) (* write prod val *),
+    string) result =
+  match t with
+  | Product (x, y) ->
+      if i = 0
+      then Ok (x, (fun p -> Function (Proj (true, x, y), p)),
+            (fun p e -> Pair (e, Function (Proj (false, x, y), p))))
+      else
+        let^ (t, read, write) = construct_product_access y (i - 1)
+        in Ok (t,
+            (fun p -> read (Function (Proj (false, x, y), p) : Target.expr)),
+            (fun p e ->
+              (Pair (Function (Proj (true, x, y), p),
+                write (Function (Proj (false, x, y), p) : Target.expr) e)
+                  : Target.expr)))
+  | _ ->
+      if i = 0
+      then Ok (t, (fun e -> e), (fun _p e -> e))
+      else Error "No such field of product"
+
+(* Utilities for dealing with elements, attributes, and qualifiers *)
+let rec negate_qual (q : Target.qual) : (Target.qual, string) result =
+  match q with
+  | Attribute (_, _) -> Error "Cannot negate an attribute"
+  | Element (e, ex, None) -> Ok (NotElement (e, ex))
+  | Element (e, ex, Some q) ->
+      Result.bind (negate_qual q)
+        (fun nq -> Ok (Element (e, ex, Some nq) : Target.qual))
+  | NotElement (e, ex) -> Ok (Element (e, ex, None))
+
+let rec qual_to_attr (q : Target.qual) : (Target.attr, string) result =
+  match q with
+  | Attribute (attr, _) -> Ok (AttrAccess attr)
+  | Element (_, _, None) -> Error "Not an attribute"
+  | Element (elem, e, Some q) ->
+      let^ attr = qual_to_attr q
+      in Ok (OnElement (elem, e, attr) : Target.attr)
+  | NotElement (_, _) -> Error "Not an attribute"
+
+let local_attr (a : Target.attr) : Target.attr =
+  OnElement (("#local", Primitive Unit), Literal (Unit ()), a)
+
+let local_qual (q : Target.qual) : Target.qual =
+  Element (("#local", Primitive Unit), Literal (Unit ()), Some q)
+
+(* Utilities for generating certain statements *)
+
+(* For exceptions, we have a special function we use to construct exception
+ * values *)
+let raise (exc : string) (e : Target.expr) (excepts : Target.typ StringMap.t)
+  : Target.stmt =
+  Raise (Function (GenExcept (excepts, exc), e))
+
+let fatal (msg : string) (excepts : Target.typ StringMap.t) : Target.stmt =
+  raise "!FATAL" (stringlit msg) excepts
+
+let rec generate_var_inits (names : string list) (ty : Target.typ)
+  (exp : Target.expr) (locals : local_env)
+  : (Target.stmt * local_env, string) result =
+  match names with
+  | [] -> Ok (Pass, locals)
+  | [n] ->
+      let fresh_n = fresh_var n
+      in let new_env = StringMap.add n (LocalVar (fresh_n, ty)) locals
+      in let setup = Target.Assign (fresh_n, exp)
+      in Ok (setup, new_env)
+  | n :: ns ->
+      match ty with
+      | Product (x, y) ->
+          let fresh_n = fresh_var n
+          in let new_env = StringMap.add n (LocalVar (fresh_n, x)) locals
+          in let setup_n =
+            Target.Assign (fresh_n, Function (Proj (true, x, y), exp))
+          in let snd : Target.expr = Target.Function (Proj (false, x, y), exp)
+          in Result.bind (generate_var_inits ns y snd new_env)
+            (fun (setup, locals) -> Ok (Target.Seq (setup_n, setup), locals))
+      | _ -> Error "Internal Type Error in generate_var_inits"
+
+let generate_vars_check (input : Target.typ StringMap.t)
+  (vars : (string * Target.typ) list) (not_found : Target.stmt)
+  (excepts : Target.typ StringMap.t): Target.stmt =
+
+  let vars = List.map fst vars
+
+  in let rec check_vars (vs : string list)
+    (found : Target.stmt) (not_found : Target.stmt)  : Target.stmt =
+    match vs with
+    | [] -> not_found
+    | v :: vs ->
+        Target.Match (
+          Function (ReadField (input, v), Variable "#input"),
+          "_",
+          check_vars vs found not_found,
+          check_vars vs 
+            (fatal ("Only one of [" ^ String.concat ", " vars 
+                   ^ "] should be provided") excepts)
+            found)
+
+  in check_vars vars Pass not_found
+
+(* Utilities for dealing with module arguments *)
+let update_module_var (decl_info : bool * StringSet.t) input
+  (locals : local_env) (excepts : Target.typ StringMap.t)
+  : local_env * Target.stmt =
+  let (required, vars) = decl_info
+  in if required && StringSet.cardinal vars = 1
+  then
+    let var = StringSet.min_elt vars
+    in match StringMap.find_opt var locals with
+    | Some (ModuleVar (_, ty)) ->
+        let fresh_nm = fresh_var var
+        in let new_env = StringMap.add var (LocalVar (fresh_nm, ty)) locals
+        in let load_var : Target.stmt =
+          Match (Function (ReadField (input, var), Variable "#input"),
+            fresh_nm,
+            fatal ("Variable " ^ var ^ " must be defined, but it isn't") excepts,
+            Pass)
+        in (new_env, load_var)
+    | _ -> (locals, Pass)
+  else (locals, Pass)
+
+(* Update the local environment to reflect that the variable var was chosen
+ * for a declaration that has other options *)
+let select_module_var (var : string) (mod_id : int) (options : StringSet.t)
+  (nm : string) (typ : Target.typ) (env : local_env) : local_env =
+
+  let rec remove_vars (vs : string list) (env : local_env) : local_env =
+    match vs with
+    | [] -> env
+    | v :: tl ->
+        remove_vars tl
+          (match StringMap.find_opt v env with
+          | None | Some (LocalVar _) -> env
+          | Some (ModuleVar (id, _)) ->
+              if id = mod_id
+              then StringMap.remove v env
+              else env)
+
+  in StringMap.add var (LocalVar (nm, typ))
+      (remove_vars (StringSet.to_list options) env)
+
+(* A p_elem (or partial element) represents part of an element as we process
+ * it from beginning (outermost) to end (innermost) *)
+type p_elem = {
+  as_elem : Target.elem option -> Target.elem;
+  as_qual : Target.qual option -> Target.qual;
+  as_attr : Target.attr -> Target.attr
+}
+
+let p_elem_top (is_local : bool) (el : Target.element) (ex : Target.expr)
+  : p_elem =
+  { as_elem = (fun o ->
+      match o with
+      | None   ->
+          if is_local
+          then OnElement (("#local", Primitive Unit), Literal (Unit ()),
+                  Element (el, ex))
+          else Element (el, ex)
+      | Some e ->
+          if is_local
+          then OnElement (("#local", Primitive Unit), Literal (Unit ()),
+                OnElement (el, ex, e))
+          else OnElement (el, ex, e))
+  ; as_qual = (fun o ->
+      if is_local
+      then Element (("#local", Primitive Unit), Literal (Unit ()),
+            Some (Element (el, ex, o)))
+      else Element (el, ex, o))
+  ; as_attr = (fun o ->
+      if is_local
+      then OnElement (("#local", Primitive Unit), Literal (Unit ()),
+            OnElement (el, ex, o))
+      else OnElement (el, ex, o)) }
+
+let p_elem_add (q : p_elem) (el : Target.element) (ex : Target.expr) : p_elem =
+  { as_elem = (fun o ->
+      match o with None   -> q.as_elem (Some (Element (el, ex)))
+                 | Some e -> q.as_elem (Some (OnElement (el, ex, e))))
+  ; as_qual = (fun o -> q.as_qual (Some (Element (el, ex, o))))
+  ; as_attr = (fun o -> q.as_attr (OnElement (el, ex, o))) }
+
+(* The result of our internal expression processing *)
+type expr_result = Expr  of Target.expr * Target.typ
+                 | Attr  of Target.attr * Target.typ
+                 | Elem  of p_elem
+
+let as_expr (r : expr_result)
   (k : Target.expr * Target.typ -> (Target.stmt, string) result)
   : (Target.stmt, string) result =
-  (* Our main helper function; it's continuation takes an "expr_result" which
-   * contains at least one of an expression and a function to produce an
-   * attribute; this is because of how we need to evaluate attributes. The
-   * possibility of both an expression and attribute is needed to handle
-   * attributes on attributes *)
-  let rec process (e : Ast.expr)
+  match r with
+  | Expr (e, t) -> k (e, t)
+  | Attr (a, t) ->
+      let tmp = temp_name ()
+      in Result.bind (k (Variable tmp, t)) (fun s ->
+        Ok (Target.Seq (Get (tmp, a), s)))
+  | Elem _ -> Error "Element cannot be converted to expression"
+
+(* process_expr converts an expr in the module lanugage into an expr_result,
+ * but returns a statement using the continuation k since some expressions
+ * in the Module language involved statements in the calculus (like reading
+ * attributes) *)
+let process_expr (e : Ast.expr) (types : type_env) (globals : global_env)
+  (excepts : Target.typ StringMap.t) (locals : local_env)
+  (is_mod : mod_info option)
+  (codegen_stmts : Ast.stmt list -> local_env -> Target.typ placeholder option
+      -> mod_info option -> (Target.stmt, string) result)
+  (k : expr_result -> (Target.stmt, string) result)
+  : (Target.stmt, string) result =
+
+  let rec process (e : Ast.expr) (locals : local_env)
+    (is_mod : mod_info option)
     (k : expr_result -> (Target.stmt, string) result)
     : (Target.stmt, string) result =
     match e with
-    | Id nm       ->
+    | Id nm ->
         begin match StringMap.find_opt nm locals with
-        | Some (LocalVar (name, typ)) -> k (JustExpr (Variable name, typ))
-        | Some (ModuleVar _) -> Error ("variable " ^ nm ^ " may not be provided")
-        | None -> Error ("undefined variable " ^ nm)
+        | Some (LocalVar (name, typ)) -> k (Expr (Variable name, typ))
+        | Some (ModuleVar _) ->
+            Error ("Variable " ^ nm ^ " may not be provided")
+        | None ->
+            (* If it's not a local, it could be a top-level attribute *)
+            match UniqueMap.find nm globals with
+            | Some (Attribute (is_local, nm, typ)) ->
+                let^ attr =
+                  Result.bind (lower_type typ) (fun t -> Ok (nm, t))
+                in if is_local
+                then k (Attr (local_attr (AttrAccess attr), snd attr))
+                else k (Attr (AttrAccess attr, snd attr))
+            | _ -> Error ("Variable " ^ nm ^ " is undefined")
         end
-    | BoolLit v   -> k (JustExpr (Literal (Bool v), Primitive Bool))
-    | IntLit v    -> k (JustExpr (Literal (Int v), Primitive Int))
-    | FloatLit v  -> k (JustExpr (Literal (Float v), Primitive Float))
-    | StringLit v -> k (JustExpr (Literal (String v), Primitive String))
-    | PathLit v   -> k (JustExpr (Literal (Path v), Primitive Path))
-    | UnitExp     -> k (JustExpr (Literal (Unit ()), Primitive Unit))
-    | GenUnknown t ->
-        let ty = target_type (process_type t tys)
-        in k (JustExpr (Function (GenUnknown ty, Literal (Unit ())), ty))
+    | BoolLit   v -> k (Expr (Literal (Bool v), Primitive Bool))
+    | IntLit    v -> k (Expr (Literal (Int v), Primitive Int))
+    | FloatLit  v -> k (Expr (Literal (Float v), Primitive Float))
+    | StringLit v -> k (Expr (Literal (String v), Primitive String))
+    | PathLit   v -> k (Expr (Literal (Path v), Primitive Path))
+    | UnitExp     -> k (Expr (Literal (Unit ()), Primitive Unit))
+    | GenUniversal t ->
+        let^ ty = lower_ast_typ t types
+        in k (Expr (Function (GenUniversal ty, Literal (Unit ())), ty))
+    | GenExistential (t, pred) ->
+        let^ ty = lower_ast_typ t types
+        in let tmp = temp_name ()
+        in let$ pred =
+          process (pred tmp)
+            (StringMap.add tmp (LocalVar (tmp, ty)) locals) is_mod
+        in let$ (cond, t) = as_expr pred
+        in if t <> Primitive Bool
+        then Error "Condition on GenExistential must be a boolean value"
+        else
+          let^ res_k = k (Expr (Variable tmp, ty))
+          (* The code we generate is
+           * <tmp> = GetExistential[ty]()
+           * if <cond> { <k tmp> }
+           * else { <fatal> } *)
+          in Ok (Target.Seq (
+            Assign (tmp, Function (GenExistential ty, Literal (Unit ()))),
+            Cond (cond, res_k,
+              fatal "assertion failed: existential" excepts)))
     | ProductExp es ->
         begin match es with
-        | [] -> k (JustExpr (Literal (Unit ()), Primitive Unit))
-        | [e] -> process e k
+        | [] -> k (Expr (Literal (Unit ()), Primitive Unit))
+        | [e] -> process e locals is_mod k
         | e :: es ->
-            process e
-              (fun e ->
-                Result.bind (as_expr e)
-                (fun (e, t) ->
-                  process (ProductExp es)
-                    (fun es ->
-                      Result.bind (as_expr es)
-                      (fun (es, ts) ->
-                        k (JustExpr (Pair (e, es), Product (t, ts)))))))
+            process e locals is_mod (fun e ->
+              as_expr e (fun (e, t) ->
+                process (ProductExp es) locals is_mod (fun es ->
+                  as_expr es (fun (es, ts) ->
+                    k (Expr (Pair (e, es), Product (t, ts)))))))
         end
     | RecordExp (nm, fields) ->
         begin match nm with
         | Id nm ->
-            Result.bind (lookup_struct tys nm)
-              (fun struct_def ->
-                let target_struct = StringMap.map target_type struct_def
-                in let init_struct : Target.expr
-                  = Function (EmptyStruct target_struct, Literal (Unit ()))
-                in let filled_struct : Target.expr -> (Target.stmt, string) result
-                  = List.fold_left
-                    (fun (k : Target.expr -> (Target.stmt, string) result)
-                         (field, expr) record ->
-                      if not (StringMap.mem field struct_def)
-                      then Error ("unexpected field " ^ field)
-                      else
-                        process expr
-                          (fun field_expr ->
-                            Result.bind (as_expr field_expr)
-                            (fun (e, t) ->
-                              if t <> StringMap.find field target_struct
-                              then Error ("incorrect type for field " ^ field)
-                              else
-                                  k (Function
-                                      (AddField (target_struct, field),
-                                       Pair (record, e))))))
-                    (fun e -> k (JustExpr (e, Struct target_struct)))
-                    fields
-                in filled_struct init_struct)
-        | _ -> Error "expected struct name"
+            let^ struct_def = lookup_struct types nm
+            in let^ target_struct = smap_map_res lower_type struct_def
+            in let init_struct : Target.expr =
+              Function (EmptyStruct target_struct, Literal (Unit ()))
+            in List.fold_left
+              (fun (k : Target.expr -> (Target.stmt, string) result)
+                   (field, expr) record ->
+                match StringMap.find_opt field target_struct with
+                | None -> Error ("No field " ^ field ^ " of type " ^ nm)
+                | Some ft ->
+                    process expr locals is_mod (fun e ->
+                      as_expr e (fun (e, t) ->
+                        if t <> ft
+                        then Error ("Incorrect type for field " ^ field)
+                        else
+                          k (Function (AddField (target_struct, field),
+                              Pair (record, e))))))
+              (fun e -> k (Expr (e, Struct target_struct)))
+              fields
+              init_struct
+        | _ -> Error "Expected a struct name"
         end
     | FieldSetExp (record, field, expr) ->
-        process record
-          (fun r ->
-            Result.bind (as_expr r)
-            (fun (e, t) ->
-              match t with
-              | Struct fields ->
-                  begin match StringMap.find_opt field fields with
-                  | Some ty ->
-                      process expr
-                        (fun a ->
-                          Result.bind (as_expr a)
-                          (fun (f, t) ->
-                            if t <> ty
-                            then Error ("incorrect type for field " ^ field)
-                            else
-                              k (JustExpr
-                                (Function
-                                  (AddField (fields, field),
-                                   Pair (e, f)),
-                                 Struct fields))))
-                  | None -> Error ("type does not have field " ^ field)
-                  end
-              | _ -> Error "type has no fields"))
+        process record locals is_mod (fun r ->
+          as_expr r (fun (r, rt) ->
+            match rt with
+            | Struct fields ->
+                begin match StringMap.find_opt field fields with
+                | Some ft ->
+                    process expr locals is_mod (fun e ->
+                      as_expr e (fun (e, t) ->
+                        if t <> ft
+                        then Error ("Incorrect type for field " ^ field)
+                        else
+                          k (Expr (Function (AddField (fields, field),
+                                    Pair (r, e)),
+                              Struct fields))))
+                | None -> Error ("Record does not have field " ^ field)
+                end
+            | _ -> Error "Expression is not a record"))
     | EnumExp (enum, type_arg, constr, args) ->
         begin match enum with
         | Id enum ->
-            begin match get_enum_info tys enum type_arg constr with
+            let^ enum_info = get_enum_info types enum type_arg constr
+            in begin match enum_info with
             | Either.Left (enum, idx, typ) ->
-                process (ProductExp args)
-                  (fun a -> Result.bind (as_expr a)
-                    (fun (e, t) ->
-                      if t <> typ
-                      then Error ("incorrect type for constructor " ^ constr)
-                      else
-                        k (JustExpr (construct_enum enum idx e, Named enum))))
-            | Either.Right typ -> process (ProductExp args)
-                (fun a -> Result.bind (as_expr a)
-                  (fun (e, t) ->
+                process (ProductExp args) locals is_mod (fun es ->
+                  as_expr es (fun (e, t) ->
                     if t <> typ
-                    then Error ("incorrect type for constructor " ^ constr)
-                    else k (JustExpr (e, t))))
+                    then Error ("Incorrect type for constructor " ^ constr)
+                    else
+                      k (Expr (construct_enum enum idx e, Named enum))))
+            | Either.Right typ ->
+                process (ProductExp args) locals is_mod (fun es ->
+                  as_expr es (fun (e, t) ->
+                    if t <> typ
+                    then Error ("Incorrect type for constructor " ^ constr)
+                    else k (Expr (e, t))))
             end
-        | _ -> Error "expected enum name"
+        | _ -> Error "Expected an enum name"
         end
     | FuncExp (func, args) ->
         begin match func with
+        | Field (q, nm) ->
+            begin match UniqueMap.find nm globals with
+            | Some (Element (_, nm, tys)) ->
+                let^ elem = Result.bind (lower_type tys) (fun t -> Ok (nm, t))
+                in process q locals is_mod (fun q ->
+                  match q with
+                  | Elem q ->
+                      process (ProductExp args) locals is_mod (fun a ->
+                        as_expr a (fun (e, t) ->
+                          if t <> snd elem
+                          then Error ("Incorrect type for element " ^ nm)
+                          else k (Elem (p_elem_add q elem e))))
+                  | _ -> Error "Can only access element on an element")
+            | Some _ -> Error (nm ^ " is not an element")
+            | None -> Error (nm ^ " is not defined")
+            end
         | Id nm ->
-            begin match UniqueMap.find nm env with
-            | Some (Element (nm, tys)) ->
-                let elem = (nm, target_type tys)
-                in process (ProductExp args)
-                  (fun a -> Result.bind (as_expr a)
-                    (fun (e, t) ->
+            begin match UniqueMap.find nm globals with
+            | Some (Element (is_local, nm, tys)) ->
+                let^ elem = Result.bind (lower_type tys) (fun t -> Ok (nm, t))
+                in process (ProductExp args) locals is_mod (fun a ->
+                    as_expr a (fun (e, t) ->
                       if t <> snd elem
-                      then Error ("incorrect type for element " ^ nm)
-                      else
-                        k (JustAttr (fun attr -> OnElement (elem, e, attr)))))
+                      then Error ("Incorrect type for element " ^ nm)
+                      else k (Elem (p_elem_top is_local elem e))))
             | Some (Uninterpreted (nm, in_tys, out_typ)) ->
-                let in_ty = target_type (Product in_tys)
-                and out_ty = target_type out_typ
-                in process (ProductExp args)
-                  (fun a -> Result.bind (as_expr a)
-                    (fun (e, t) ->
+                let^ in_ty = lower_type (Product in_tys)
+                in let^ out_ty = lower_type out_typ
+                in process (ProductExp args) locals is_mod (fun a ->
+                    as_expr a (fun (e, t) ->
                       if t <> in_ty
-                      then Error ("incorrect type for uninterpreted function " ^ nm)
-                      else
-                        k (JustExpr (
-                            Function (Uninterpreted (nm, in_ty, out_ty), e),
-                            out_ty))))
+                      then Error ("Incorrect type for uninterpreted function " ^ nm)
+                      else k (Expr (Function (
+                                Uninterpreted (nm, in_ty, out_ty), e), 
+                                out_ty))))
             | Some (Function (nm, arg_typ, ret_typ, body)) ->
                 (* Function calls are translated into statements because
                  * functions actually become actions in the calculus *)
-                let ret_ty = target_type ret_typ
-                and tmp = temp_name ()
-                in process (ProductExp args)
-                  (fun a -> Result.bind (as_expr a)
-                    (fun (e, t) ->
-                      if t <> arg_typ
-                      then Error ("incorrect type for function " ^ nm)
-                      else
-                        Result.bind (k (JustExpr (Variable tmp, ret_ty)))
-                        (fun res ->
-                         Ok (Target.Action (tmp,
-                                (nm, arg_typ, ret_ty, body), e, res)))))
-            | Some _ -> Error "expected function"
+                let^ ret_ty = lower_type ret_typ
+                in let tmp = temp_name ()
+                in process (ProductExp args) locals is_mod (fun a ->
+                  as_expr a (fun (e, t) ->
+                    if t <> arg_typ
+                    then Error ("Incorrect argument type for function " ^ nm)
+                    else
+                      let^ res_k = k (Expr (Variable tmp, ret_ty))
+                      in Ok (Target.Seq (
+                              Action (tmp, (nm, arg_typ, ret_ty, body), e),
+                              res_k))))
+            | Some _ -> Error (nm ^ " is not a function")
             | None ->
-                Result.bind
-                  (match nm with
-                  | "cons_path" ->
-                      let (arg_ty, res_ty, _) = Target.funcDef ConsPath
-                      in Ok (arg_ty, res_ty, TargetAst.ConsPath)
-                  | "path_of_string" ->
-                      let (arg_ty, res_ty, _) = Target.funcDef PathOfString
-                      in Ok (arg_ty, res_ty, TargetAst.PathOfString)
-                  | "string_of_path" ->
-                      let (arg_ty, res_ty, _) = Target.funcDef StringOfPath
-                      in Ok (arg_ty, res_ty, TargetAst.StringOfPath)
-                  | "ends_with_dir" ->
-                      let (arg_ty, res_ty, _) = Target.funcDef EndsWithDir
-                      in Ok (arg_ty, res_ty, TargetAst.EndsWithDir)
-                  | "base_name" ->
-                      let (arg_ty, res_ty, _) = Target.funcDef BaseName
-                      in Ok (arg_ty, res_ty, TargetAst.BaseName)
-                  | "path_from" ->
-                      let (arg_ty, res_ty, _) = Target.funcDef PathFrom
-                      in Ok (arg_ty, res_ty, TargetAst.PathFrom)
-                  | "add_ext" ->
-                      let (arg_ty, res_ty, _) = Target.funcDef AddExt
-                      in Ok (arg_ty, res_ty, TargetAst.AddExt)
-                  | "norm_path" ->
-                      let (arg_ty, res_ty, _) = Target.funcDef NormalizePath
-                      in Ok (arg_ty, res_ty, TargetAst.NormalizePath)
-                  | "can_escalate" ->
-                      let (arg_ty, res_ty, _) = Target.funcDef CanEscalate
-                      in Ok (arg_ty, res_ty, TargetAst.CanEscalate)
-                  | "to_lower" ->
-                      let (arg_ty, res_ty, _) = Target.funcDef ToLower
-                      in Ok (arg_ty, res_ty, TargetAst.ToLower)
-                  | "substring" ->
-                      let (arg_ty, res_ty, _) = Target.funcDef Substring
-                      in Ok (arg_ty, res_ty, TargetAst.Substring)
-                  | "string_of_int" ->
-                      let (arg_ty, res_ty, _) = Target.funcDef StringOfInt
-                      in Ok (arg_ty, res_ty, TargetAst.StringOfInt)
-                  | _ -> Error ("undefined name " ^ nm))
-                  (fun (arg_typ, ret_typ, func) ->
-                    process (ProductExp args)
-                      (fun a -> Result.bind (as_expr a)
-                        (fun (e, t) ->
-                          if t <> arg_typ
-                          then Error ("incorrect type for function " ^ nm)
-                          else k (JustExpr ( Function (func, e), ret_typ)))))
+                let^ func_info = Builtins.lookup_builtin nm
+                in process (ProductExp args) locals is_mod (fun a ->
+                    as_expr a (fun (e, t) ->
+                      let^ (ret_typ, func) = func_info t
+                      in k (Expr (Function (func, e), ret_typ))))
             end
-        | Field (qual, nm) ->
-            begin match UniqueMap.find nm env with
-            | Some (Element (nm, tys)) ->
-                let elem = (nm, target_type tys)
-                in process qual
-                  (fun q -> Result.bind (as_qual q)
-                    (fun qual ->
-                      process (ProductExp args)
-                        (fun a -> Result.bind (as_expr a)
-                          (fun (e, t) ->
-                            if t <> snd elem
-                            then Error "incorrect type on element"
-                            else k (JustAttr (fun attr
-                                  -> qual (OnElement (elem, e, attr))))))))
-            | Some _ -> Error "expected element"
-            | None -> Error "undefined name"
-            end
-        | _ -> Error "invalid function expression"
+        | _ -> Error "Invalid function expression"
         end
-      | ModuleExp (func, args) ->
-          let (mod_info, arg_types, record_def, ret_ty, aliases)
-            = get_module_info env func
-          and tmp = temp_name ()
-          in let init_input : Target.expr =
-            Function (EmptyStruct record_def, Literal (Unit ()))
-          in let assigned_args : (Ast.expr StringMap.t, string) result =
-            List.fold_left
-              (fun (args : (Ast.expr StringMap.t, string) result) (field, expr) ->
-                let canonical =
-                  match StringMap.find_opt field aliases with
-                  | Some nm -> nm
-                  | None -> field
-                in if not (StringMap.mem canonical record_def)
-                then Error ("unexpected argument " ^ canonical)
-                else Result.bind args
-                (fun args ->
-                  if StringMap.mem canonical args
-                  then Error ("multiple values for argument " ^ canonical)
-                  else Ok (StringMap.add canonical expr args)
-                )
-              )
-              (Ok StringMap.empty)
-              args
-          in Result.bind assigned_args
-          (fun assigned_args ->
-            let filled_args : Target.expr -> (Target.stmt, string) result =
-              StringMap.fold
-                (fun field ty (k : Target.expr -> (Target.stmt, string) result)
-                     record ->
-                  match StringMap.find_opt field assigned_args with
-                  | Some e ->
-                      process e
-                      (fun field_expr -> Result.bind (as_expr field_expr)
-                        (fun (e, t) ->
-                          if t <> ty
-                          then
-                            Error ("incorrect module argument type for " ^ field)
-                          else
-                            k (Function
-                                (AddField (record_def, field),
-                                Pair (record, option_some e ty)))))
-                  | None ->
-                      k (Function (AddField (record_def, field),
-                                   Pair (record, option_none ty))))
-                arg_types
-                (fun e ->
-                  Result.bind (k (JustExpr (Variable tmp, ret_ty)))
-                  (fun rest -> Ok (Target.Action (tmp, mod_info, e, rest))))
-            in filled_args init_input)
+    | ModuleExp (func, args) ->
+        let^ (mod_info, arg_types, record_def, ret_ty, aliases) =
+          lookup_module_info func globals
+        in let tmp = temp_name ()
+        in let init_input : Target.expr =
+          Function (EmptyStruct record_def, Literal (Unit ()))
+        in let^ assigned_args : Ast.expr StringMap.t =
+          List.fold_left (fun (args : (Ast.expr StringMap.t, string) result)
+            (field, expr) -> Result.bind args (fun args ->
+              let canonical =
+                match StringMap.find_opt field aliases with
+                | Some nm -> nm
+                | None -> field
+              in if not (StringMap.mem canonical record_def)
+              then Error ("Unexpected argument " ^ canonical)
+              else if StringMap.mem canonical args
+              then Error ("Multiple values for argument " ^ canonical)
+              else Ok (StringMap.add canonical expr args)))
+            (Ok StringMap.empty)
+            args
+        in StringMap.fold (fun field ty 
+            (k : Target.expr -> (Target.stmt, string) result) record ->
+              match StringMap.find_opt field assigned_args with
+              | Some e ->
+                  process e locals is_mod (fun e ->
+                    as_expr e (fun (e, t) ->
+                      if t <> ty
+                      then
+                        Error ("Incorrect type for module argument " ^ field)
+                      else
+                        k (Function (AddField (record_def, field),
+                            Pair (record, option_some e ty)))))
+              | None ->
+                  k (Function (AddField (record_def, field),
+                      Pair (record, option_none ty))))
+            arg_types
+            (fun e ->
+              let^ k = k (Expr (Variable tmp, ret_ty))
+              in Ok (Target.Seq (Action (tmp, mod_info, e), k)))
+            init_input
     | Field (lhs, field) ->
-        process lhs
-          (fun e ->
-            match e with
-            | JustExpr (e, t) ->
-                begin match t with
+        process lhs locals is_mod (fun e ->
+          match e with
+          | Elem elem ->
+              (* We must be accessing an attribute *)
+              begin match UniqueMap.find field globals with
+              | Some (Attribute (_, nm, typ)) ->
+                  let^ attr = 
+                    Result.bind (lower_type typ) (fun t -> Ok (nm, t))
+                  in k (Attr (elem.as_attr (AttrAccess attr), snd attr))
+              | Some _ -> Error (field ^ " is not an attribute")
+              | None -> Error ("Undefined attribute " ^ field)
+              end
+          (* Otherwise, we must be accessing a field from a record *)
+          | _ ->
+              as_expr e (fun (e, t) ->
+                match t with
                 | Struct fields ->
                     begin match StringMap.find_opt field fields with
                     | Some ty ->
-                        k (JustExpr
-                            (Function (ReadField (fields, field), e),
-                             ty))
-                    | None -> Error ("invalid field " ^ field)
+                        k (Expr (Function (ReadField (fields, field), e), ty))
+                    | None -> Error ("Record does not have field " ^ field)
                     end
-                | _ -> Error "does not have fields"
-                end
-            | JustAttr qual ->
-                begin match UniqueMap.find field env with
-                | Some (Attribute (nm, typ)) ->
-                    let attr = (nm, target_type typ)
-                    and tmp = temp_name ()
-                    in Result.map
-                      (fun rest -> Target.Get (tmp, qual (AttrAccess attr), rest))
-                      (k (ExprOrAttr (
-                              (Variable tmp, snd attr),
-                              fun a -> qual (OnAttribute (attr, a)))))
-                | Some _ -> Error "expected attribute"
-                | None -> Error ("undefined attribute " ^ field)
-                end
-            | ExprOrAttr ((e, t), qual) ->
-                (* If the left-hand side can either be an expression or an
-                 * attribute (say because it is an attribute access) we check
-                 * whether this field exists as an attribute and whether it
-                 * exists on the expression. If it exists on both, fail.
-                 * TODO: We should report a warning but treat this as an
-                 * attribute access *)
-                match UniqueMap.find field env with
-                | Some (Attribute (nm, typ)) ->
-                    (* Check whether the expression interpretation has this as
-                     * a field *)
-                    if match t with
-                       | Struct fields -> StringMap.mem field fields
-                       | _ -> false
-                    then
-                      Error "field is either a struct field or an attribute"
-                    else
-                      let attr = (nm, target_type typ)
-                      and tmp = temp_name ()
-                      in Result.map
-                        (fun rest -> Target.Get (tmp, qual (AttrAccess attr), rest))
-                        (k (ExprOrAttr (
-                                (Variable tmp, snd attr),
-                                fun a -> qual (OnAttribute (attr, a)))))
-                | _ ->
-                    (* Read a field from a struct *)
-                    match t with
-                    | Struct fields ->
-                        begin match StringMap.find_opt field fields with
-                        | Some ty ->
-                            k (JustExpr
-                                (Function (ReadField (fields, field), e),
-                                 ty))
-                        | None -> Error ("invalid field " ^ field)
-                        end
-                    | _ -> Error "does not have fields")
+                | _ -> Error "Expression is not a record"))
     | ProductField (lhs, idx) ->
-        process lhs
-          (fun e -> Result.bind (as_expr e)
-            (fun (e, t) ->
-              let (res, res_ty) = construct_product_read e t idx
-              in k (JustExpr (res, res_ty))))
+        process lhs locals is_mod (fun e ->
+          as_expr e (fun (e, t) ->
+            let^ (res, res_ty) = construct_product_read e t idx
+            in k (Expr (res, res_ty))))
     | UnaryExp (e, op) ->
-        process e
-          (fun e -> Result.bind (as_expr e)
-            (fun (e, t) ->
-              match op with
-              | Not ->
-                  if t <> Primitive Bool
-                  then Error "Incorrect type for negation"
-                  else k (JustExpr (Function (BoolNeg, e), Primitive Bool))
-              | _ -> Error "TODO: support unary negation"))
+        process e locals is_mod (fun e ->
+          as_expr e (fun (e, t) ->
+            match op with
+            | Not ->
+                if t <> Primitive Bool
+                then Error "Incorrect type for boolean not"
+                else k (Expr (Function (BoolNeg, e), Primitive Bool))
+            | Neg ->
+                match t with
+                | Primitive Int ->
+                    let neg : Target.expr =
+                      Function (SubInt, Pair (intlit 0, e))
+                    in k (Expr (neg, Primitive Int))
+                | Primitive Float ->
+                    let neg : Target.expr =
+                      Function (SubFloat, Pair (floatlit 0.0, e))
+                    in k (Expr (neg, Primitive Float))
+                | _ -> Error "Invalid type for negation"))
     | BinaryExp (lhs, rhs, op) ->
-        process lhs
-          (fun lhs -> Result.bind (as_expr lhs)
-            (fun (lhs, lhs_t) ->
-              process rhs
-                (fun rhs -> Result.bind (as_expr rhs)
-                  (fun (rhs, rhs_t) ->
-                    let op_info =
-                      match op with
-                      | Concat ->
-                          if lhs_t = Target.Primitive String
-                          && rhs_t = Target.Primitive String
-                          then Ok (Target.Primitive String, TargetAst.Concat)
-                          else Error "Incorrect type for concat"
-                      | Eq ->
-                          if lhs_t = rhs_t
-                          then Ok (Target.Primitive Bool, TargetAst.Equal lhs_t)
-                          else Error "Incompatible types for equality"
-                      | Append ->
-                          if lhs_t = rhs_t
-                          then
-                            match lhs_t with
-                            | Target.Named (List elem) ->
-                                Ok (lhs_t, TargetAst.Append elem)
-                            | _ -> Error "Expected list types for append"
-                          else Error "Incompatible types for append"
-                      | Add ->
-                          if lhs_t = rhs_t
-                          then
-                            match lhs_t with
-                            | Target.Primitive Int ->
-                                Ok (lhs_t, TargetAst.AddInt)
-                            | Target.Primitive Float ->
-                                Ok (lhs_t, TargetAst.AddFloat)
-                            | _ -> Error "Cannot add non-numeric types"
-                          else Error "Types for add must be same"
-                      | Or ->
-                          if lhs_t = Target.Primitive Bool
-                          && rhs_t = Target.Primitive Bool
-                          then Ok (Target.Primitive Bool, TargetAst.BoolOr)
-                          else Error "Incorrect type for boolean or"
-                      | And ->
-                          if lhs_t = Target.Primitive Bool
-                          && rhs_t = Target.Primitive Bool
-                          then Ok (Target.Primitive Bool, TargetAst.BoolAnd)
-                          else Error "Incorrect type for boolean or"
-                      | Le ->
-                          if lhs_t = rhs_t
-                          then
-                            match lhs_t with
-                            | Target.Primitive Int ->
-                                Ok (Target.Primitive Bool, TargetAst.LeInt)
-                            | Target.Primitive Float ->
-                                Ok (Target.Primitive Bool, TargetAst.LeFloat)
-                            | _ -> Error "Cannot compare non-numeric types"
-                          else Error "Types for le must be the same"
-                      | _ -> Error "TODO: support binary ops"
-                    in Result.bind op_info
-                    (fun (ret_typ, func) ->
-                      k (JustExpr (Function (func, Pair (lhs, rhs)), ret_typ)))))))
+        process lhs locals is_mod (fun lhs -> as_expr lhs (fun (lhs, lhs_t) ->
+          process rhs locals is_mod (fun rhs -> as_expr rhs (fun (rhs, rhs_t) ->
+            let^ (ret_type, f) =
+              let simple f (x : Target.expr) y : Target.expr =
+                Function (f, Pair (x, y))
+              in match op with
+              | Concat ->
+                  if lhs_t = Target.Primitive String
+                  && rhs_t = Target.Primitive String
+                  then Ok (Target.Primitive String, simple TargetAst.Concat)
+                  else Error "Incorrect type for concat"
+              | Eq ->
+                  if lhs_t = rhs_t
+                  then Ok (Target.Primitive Bool, simple (TargetAst.Equal lhs_t))
+                  else Error "Incompatible types for equality"
+              | Ne ->
+                  if lhs_t = rhs_t
+                  then Ok (Target.Primitive Bool,
+                            fun x y -> 
+                              Target.Function (TargetAst.BoolNeg,
+                                Function (TargetAst.Equal lhs_t,
+                                  Pair (x, y))))
+                  else Error "Incompatible types for inequality"
+              | Append ->
+                  if lhs_t = rhs_t
+                  then
+                    match lhs_t with
+                    | Target.Named (List elem) ->
+                        Ok (lhs_t, simple (TargetAst.Append elem))
+                    | _ -> Error "Expected list types for append"
+                  else Error "Incompatible types for append"
+              | Add ->
+                  if lhs_t = rhs_t
+                  then
+                    match lhs_t with
+                    | Target.Primitive Int ->
+                        Ok (lhs_t, simple TargetAst.AddInt)
+                    | Target.Primitive Float ->
+                        Ok (lhs_t, simple TargetAst.AddFloat)
+                    | _ -> Error "Cannot add non-numeric types"
+                  else Error "Types of add must be the same"
+              | Sub ->
+                  if lhs_t = rhs_t
+                  then
+                    match lhs_t with
+                    | Target.Primitive Int ->
+                        Ok (lhs_t, simple TargetAst.SubInt)
+                    | Target.Primitive Float ->
+                        Ok (lhs_t, simple TargetAst.SubFloat)
+                    | _ -> Error "Cannot subtract non-numeric types"
+                  else Error "Types of subtract must be the same"
+              | Mul ->
+                  if lhs_t = rhs_t
+                  then
+                    match lhs_t with
+                    | Target.Primitive Int ->
+                        Ok (lhs_t, simple TargetAst.MulInt)
+                    | Target.Primitive Float ->
+                        Ok (lhs_t, simple TargetAst.MulFloat)
+                    | _ -> Error "Cannot multiply non-numeric types"
+                  else Error "Types of multiply must be the same"
+              | Div ->
+                  if lhs_t = rhs_t
+                  then
+                    match lhs_t with
+                    | Target.Primitive Int ->
+                        Ok (lhs_t, simple TargetAst.DivInt)
+                    | Target.Primitive Float ->
+                        Ok (lhs_t, simple TargetAst.DivFloat)
+                    | _ -> Error "Cannot divide non-numeric types"
+                  else Error "Types of divide must be the same"
+              | Mod ->
+                  if lhs_t = rhs_t
+                  then
+                    match lhs_t with
+                    | Target.Primitive Int ->
+                        Ok (lhs_t, simple TargetAst.Modulo)
+                    | Target.Primitive Float ->
+                        Error "Cannot take the modulo of a float"
+                    | _ -> Error "Cannot modulo non-numeric types"
+                  else Error "Types of modulo must be ints"
+              | Or ->
+                  if lhs_t = Target.Primitive Bool
+                  && rhs_t = Target.Primitive Bool
+                  then Ok (Target.Primitive Bool, simple TargetAst.BoolOr)
+                  else Error "Types for or must be booleans"
+              | And ->
+                  if lhs_t = Target.Primitive Bool
+                  && rhs_t = Target.Primitive Bool
+                  then Ok (Target.Primitive Bool, simple TargetAst.BoolAnd)
+                  else Error "Types for and must be booleans"
+              | Lt ->
+                  if lhs_t = rhs_t
+                  then
+                    match lhs_t with
+                    | Target.Primitive Int ->
+                        Ok (Target.Primitive Bool, simple TargetAst.LtInt)
+                    | Target.Primitive Float ->
+                        Ok (Target.Primitive Bool, simple TargetAst.LtFloat)
+                    | _ -> Error "Cannot compare non-numeric types"
+                  else Error "Types for comparisons must be the same"
+              | Le ->
+                  if lhs_t = rhs_t
+                  then
+                    match lhs_t with
+                    | Target.Primitive Int ->
+                        Ok (Target.Primitive Bool, simple TargetAst.LeInt)
+                    | Target.Primitive Float ->
+                        Ok (Target.Primitive Bool, simple TargetAst.LeFloat)
+                    | _ -> Error "Cannot compare non-numeric types"
+                  else Error "Types for comparisons must be the same"
+              | Gt ->
+                  if lhs_t = rhs_t
+                  then
+                    match lhs_t with
+                    | Target.Primitive Int ->
+                        Ok (Target.Primitive Bool,
+                          fun x y -> (* x > y *)
+                            Target.Function (TargetAst.LtInt,
+                              Pair (y, x)))
+                    | Target.Primitive Float ->
+                        Ok (Target.Primitive Bool, 
+                          fun x y ->
+                            Target.Function (TargetAst.LtFloat,
+                              Pair (y, x)))
+                    | _ -> Error "Cannot compare non-numeric types"
+                  else Error "Types for comparisons must be the same"
+              | Ge ->
+                  if lhs_t = rhs_t
+                  then
+                    match lhs_t with
+                    | Target.Primitive Int ->
+                        Ok (Target.Primitive Bool,
+                          fun x y -> (* x >= y *)
+                            Target.Function (TargetAst.LeInt,
+                              Pair (y, x)))
+                    | Target.Primitive Float ->
+                        Ok (Target.Primitive Bool,
+                          fun x y ->
+                            Target.Function (TargetAst.LeFloat,
+                              Pair (y, x)))
+                    | _ -> Error "Cannot compare non-numeric types"
+                  else Error "Types for comparisons must be the same"
+              | LShift ->
+                  if lhs_t = Target.Primitive Int
+                  && rhs_t = Target.Primitive Int
+                  then Ok (Target.Primitive Int, simple TargetAst.LShift)
+                  else Error "Cannot shift non-integers"
+              | RShift ->
+                  if lhs_t = Target.Primitive Int
+                  && rhs_t = Target.Primitive Int
+                  then Ok (Target.Primitive Int, simple TargetAst.RShift)
+                  else Error "Cannot shift non-integers"
+            in k (Expr (f lhs rhs, ret_type))))))
     | CondExp (cond, thn, els) ->
-        process cond
-          (fun e -> Result.bind (as_expr e)
-            (fun (c, t) ->
-              if t <> Primitive Bool
-              then Error "non-boolean condition"
-              else
-                let tmp = temp_name ()
-                in Result.map
-                  (fun (thn, els) -> Target.Cond (c, thn, els))
-                  (let thn_type = ref (Error "failure compiling then branch")
-                  in let after = ref (Error "failure compiling then branch")
-                  in let thn_stmt =
-                    process thn (fun thn -> Result.bind (as_expr thn)
-                      (fun (thn, thn_t) ->
-                        thn_type := Ok thn_t
-                        ; after := k (JustExpr (Variable tmp, thn_t))
-                        ; Result.bind !after
-                          (fun after -> Ok (Target.Assign (tmp, thn, after)))))
-                  in let els_stmt =
-                    process els (fun els -> Result.bind (as_expr els)
-                      (fun (els, els_t) ->
-                        match !thn_type with
-                        | Ok thn_t ->
-                            if thn_t <> els_t
-                            then Error "types of ternary branches do not match"
-                            else Result.bind !after
-                              (fun after -> Ok (Target.Assign (tmp, els, after)))
-                        | Error _ -> Error "failure compiling then branch"))
-                  in match thn_stmt, els_stmt with
-                  | Ok thn, Ok els -> Ok (thn, els)
-                  | Error err, _ -> Error err
-                  | _, Error err -> Error err)))
+        process cond locals is_mod (fun c -> as_expr c (fun (c, t) ->
+          if t <> Primitive Bool
+          then Error "Condition must be a boolean value"
+          else
+            let tmp = temp_name ()
+            in let thn_type = ref (Target.Primitive Unit)
+            in let^ thn_stmt =
+              process thn locals is_mod (fun thn ->
+                as_expr thn (fun (thn, thn_t) ->
+                  thn_type := thn_t ; Ok (Target.Assign (tmp, thn))))
+            in let^ els_stmt =
+              process els locals is_mod (fun els ->
+                as_expr els (fun (els, els_t) ->
+                  if els_t <> !thn_type
+                  then Error "Types of ternary branches must match"
+                  else Ok (Target.Assign (tmp, els))))
+            in let^ res_k = k (Expr (Variable tmp, !thn_type))
+            in Ok (Target.Seq (Cond (c, thn_stmt, els_stmt), res_k))))
     | CondProvidedExp (var, thn, els) ->
         begin match is_mod with
-        | None -> Error "unexpected variable check"
+        | None -> Error "Module-style variable check in function"
         | Some (mod_env, input) ->
             match StringMap.find_opt var locals with
             | Some (LocalVar _) ->
-                Error ("expected a module variable on if-provided, but "
-                       ^ var ^ " is a local")
-            | None -> Error ("variable " ^ var ^ " is undefined")
+                Error ("Variable " ^ var ^ " is a local, not a module variable")
+            | None -> Error ("Variable " ^ var ^ " is undefined")
             | Some (ModuleVar (mod_id, typ)) ->
                 let (required, options) = IntMap.find mod_id mod_env
                 in let fresh_nm = fresh_var var
-                in let false_mod_info = (required, StringSet.remove var options)
-                in let false_mod_env = IntMap.add mod_id false_mod_info mod_env
-                in let false_locals = StringMap.remove var locals
-                in let true_locals
-                  = update_module_var_env mod_id options var fresh_nm typ locals
+                in let false_decl_info =
+                  (required, StringSet.remove var options)
+                in let false_mod_env =
+                  IntMap.add mod_id false_decl_info mod_env
+                in let (false_locals, false_start) =
+                  update_module_var false_decl_info input
+                    (StringMap.remove var locals) excepts
+                in let true_locals =
+                  select_module_var var mod_id options fresh_nm typ locals
+
                 in let tmp = temp_name ()
-                in update_module_var false_mod_info input false_locals
-                  (fun false_locals ->
-                    Result.map
-                      (fun (thn, els) -> Target.Match
-                        (Function (ReadField (input, var), Variable "#input"),
-                        fresh_nm, els, thn))
-                    (let thn_type = ref (Error "failure compiling then branch")
-                    in let after = ref (Error "failure compiling then branch")
-                    in let thn_stmt =
-                      process_expr thn env tys true_locals
-                        (Some (mod_env, input))
-                        (fun (thn, thn_t) ->
-                          thn_type := Ok thn_t
-                          ; after := k (JustExpr (Variable tmp, thn_t))
-                          ; Result.bind !after
-                            (fun after -> Ok (Target.Assign (tmp, thn, after))))
-                    in let els_stmt =
-                      process_expr els env tys false_locals
-                        (Some (false_mod_env, input))
-                        (fun (els, els_t) ->
-                          match !thn_type with
-                          | Ok thn_t ->
-                              if thn_t <> els_t
-                              then Error "types of ternary branches do not match"
-                              else Result.bind !after
-                                (fun after -> Ok (Target.Assign (tmp, els, after)))
-                          | Error _ -> Error "failure compiling then branch")
-                    in match thn_stmt, els_stmt with
-                    | Ok thn, Ok els -> Ok (thn, els)
-                    | Error err, _ -> Error err
-                    | _, Error err -> Error err))
+                in let thn_type = ref (Target.Primitive Unit)
+                in let^ thn_stmt =
+                  process thn true_locals is_mod (fun thn ->
+                    as_expr thn (fun (thn, thn_t) ->
+                      thn_type := thn_t ; Ok (Target.Assign (tmp, thn))))
+                in let^ els_stmt =
+                  process els false_locals (Some (false_mod_env, input))
+                  (fun els ->
+                    as_expr els (fun (els, els_t) ->
+                      if els_t <> !thn_type
+                      then Error "Types of ternary branches must match"
+                      else Ok (Target.Assign (tmp, els))))
+                in let^ res_k = k (Expr (Variable tmp, !thn_type))
+                in Ok (Target.Seq (
+                        Match (
+                          Function (ReadField (input, var), Variable "#input"),
+                          fresh_nm,
+                          Seq (false_start, els_stmt),
+                          thn_stmt),
+                        res_k))
         end
     | CondExistsExp (q, thn, els) ->
-        process_expr_as_elem q env tys locals is_mod
-          (fun elem ->
-            let tmp = temp_name ()
-            in Result.map
-              (fun (thn, els) -> Target.Contains (elem, thn, els))
-              (let thn_type = ref (Error "failure compiling then branch")
-              in let after = ref (Error "failure compiling then branch")
-              in let thn_stmt =
-                process thn (fun thn -> Result.bind (as_expr thn)
-                  (fun (thn, thn_t) ->
-                    thn_type := Ok thn_t
-                    ; after := k (JustExpr (Variable tmp, thn_t))
-                    ; Result.bind !after
-                      (fun after -> Ok (Target.Assign (tmp, thn, after)))))
-              in let els_stmt =
-                process els (fun els -> Result.bind (as_expr els)
-                  (fun (els, els_t) ->
-                    match !thn_type with
-                    | Ok thn_t ->
-                        if thn_t <> els_t
-                        then Error "types of ternary branches do not match"
-                        else Result.bind !after
-                          (fun after -> Ok (Target.Assign (tmp, els, after)))
-                    | Error _ -> Error "failure compiling then branch"))
-              in match thn_stmt, els_stmt with
-              | Ok thn, Ok els -> Ok (thn, els)
-              | Error err, _ -> Error err
-              | _, Error err -> Error err))
+        process q locals is_mod (fun q ->
+          match q with
+          | Expr (_, _) | Attr (_, _) -> Error "Not an element"
+          | Elem elem ->
+              let elem = elem.as_elem None
+              in let tmp = temp_name ()
+              in let thn_type = ref (Target.Primitive Unit)
+              in let^ thn_stmt =
+                process thn locals is_mod (fun thn ->
+                  as_expr thn (fun (thn, thn_t) ->
+                    thn_type := thn_t ; Ok (Target.Assign (tmp, thn))))
+              in let^ els_stmt =
+                process els locals is_mod (fun els ->
+                  as_expr els (fun (els, els_t) ->
+                    if els_t <> !thn_type
+                    then Error "Types of ternary branches must match"
+                    else Ok (Target.Assign (tmp, els))))
+              in let^ res_k = k (Expr (Variable tmp, !thn_type))
+              in Ok (Target.Seq (Contains (elem, thn_stmt, els_stmt), res_k)))
     | ForEachExp (var, lst, body) ->
-        process lst (fun lst -> Result.bind (as_expr lst)
-          (fun (lst, typ) ->
-            match typ with
-            | Named (List elem_ty) ->
-                let tmp = temp_name ()
-                in let res_ty = ref None
-                in let fresh_v = fresh_var var
-                in let body_env
-                  = StringMap.add var (LocalVar (fresh_v, elem_ty)) locals
-                in Result.bind
-                  (process_stmt body env tys body_env (Yield res_ty) is_mod
-                    (Error "Reached end of for-each without yield"))
-                  (fun body ->
-                    match !res_ty with
-                    | None -> Error "No result type found of for-each loop"
-                    | Some res_ty ->
-                        Result.bind
-                          (k (JustExpr (Variable tmp, Named (List res_ty))))
-                          (fun after ->
-                            Ok (Target.ForEach 
-                              (tmp, res_ty, lst, fresh_v, body, after))))
-            | _ -> Error "can only loop over lists"))
-  in process e (fun e -> Result.bind (as_expr e) k)
+        process lst locals is_mod (fun lst -> as_expr lst (fun (lst, typ) ->
+          match typ with
+          | Named (List elem_ty) ->
+              let tmp = temp_name ()
+              in let res_ty = ref None
+              in let fresh_v = fresh_var var
+              in let body_env =
+                StringMap.add var (LocalVar (fresh_v, elem_ty)) locals
+              in let^ body = codegen_stmts body body_env (Some res_ty) is_mod
+              in begin match !res_ty with
+              | None -> Error "No result type found for for-each expression"
+              | Some res_ty ->
+                  let^ k_res = k (Expr (Variable tmp, Named (List res_ty)))
+                  in Ok (Target.Seq (
+                      ForEach (tmp, res_ty, lst, fresh_v, body),
+                      k_res))
+              end
+          | _ -> Error "Can only loop over lists"))
 
-and process_expr_as_elem (e : Ast.expr) env tys locals
-  (is_mod : mod_info option) (k : Target.elem -> (Target.stmt, string) result)
-  : (Target.stmt, string) result =
-  let rec process_elem (q : Ast.expr) (e : Target.elem)
-    (k : Target.elem -> (Target.stmt, string) result)
-    : (Target.stmt, string) result =
-    match q with
-    | FuncExp (Id elem, args) ->
-        begin match UniqueMap.find elem env with
-        | Some (Element (nm, typ)) ->
-            let elem = (nm, target_type typ)
-            in process_expr (ProductExp args) env tys locals is_mod
-                (fun (expr, typ) ->
-                  if typ <> snd elem
-                  then Error ("incorrect type on element " ^ nm)
-                  else k (OnElement (elem, expr, e)))
-        | _ -> Error ("Invalid element " ^ elem)
-        end
-    | FuncExp (Field (qual, elem), args) ->
-        begin match UniqueMap.find elem env with
-        | Some (Element (nm, typ)) ->
-            let elem = (nm, target_type typ)
-            in process_expr (ProductExp args) env tys locals is_mod
-              (fun (expr, typ) ->
-                if typ <> snd elem
-                then Error ("incorrect type on element " ^ nm)
-                else process_elem qual (OnElement (elem, expr, e)) k)
-        | _ -> Error ("Invalid element " ^ elem)
-        end
-    | Field (qual, attr) ->
-        begin match UniqueMap.find attr env with
-        | Some (Attribute (nm, typ)) ->
-            let attr = (nm, target_type typ)
-            in process_elem qual (OnAttribute (attr, e)) k
-        | _ -> Error ("Invalid attribute " ^ attr)
-        end
-    | _ -> Error "Invalid qualifier"
-  in match e with
-  | FuncExp (Id elem, args) ->
-      begin match UniqueMap.find elem env with
-      | Some (Element (nm, typ)) ->
-          let elem = (nm, target_type typ)
-          in process_expr (ProductExp args) env tys locals is_mod
-              (fun (expr, typ) ->
-                if typ <> snd elem
-                then Error ("incorrect type on element " ^ nm)
-                else k (Element (elem, expr)))
-      | _ -> Error ("Invalid element " ^ elem)
-      end
-  | FuncExp (Field (qual, elem), args) ->
-      begin match UniqueMap.find elem env with
-      | Some (Element (nm, typ)) ->
-          let elem = (nm, target_type typ)
-          in process_expr (ProductExp args) env tys locals is_mod
-            (fun (expr, typ) ->
-              if typ <> snd elem
-              then Error ("incorrect type on element " ^ nm)
-              else process_elem qual (Element (elem, expr)) k)
-      | _ -> Error ("Invalid element " ^ elem)
-      end
-  | _ -> Error "Invalid qualifier"
+  in process e locals is_mod k
 
-and process_qual (e : Ast.expr) env tys locals (is_mod : mod_info option)
-  (q : Target.qual) (k : Target.qual -> (Target.stmt, string) result)
+(* codegen_expr takes a continuation which is given an expression (and its
+ * type) and produces a statement because some expressions in the Module
+ * language require statements in the Calculus and so we need to be able to
+ * build statements while comping expressions. *)
+let codegen_expr (e : Ast.expr) (types : type_env) (globals : global_env)
+  (excepts : Target.typ StringMap.t) (locals : local_env)
+  (is_mod : mod_info option)
+  (codegen_stmts : Ast.stmt list -> local_env -> Target.typ placeholder option
+      -> mod_info option -> (Target.stmt, string) result)
+  (k : Target.expr * Target.typ -> (Target.stmt, string) result)
   : (Target.stmt, string) result =
-  match e with
-  | FuncExp (Id elem, args) ->
-      begin match UniqueMap.find elem env with
-      | Some (Element (nm, typ)) ->
-          let elem = (nm, target_type typ)
-          in process_expr (ProductExp args) env tys locals is_mod
-              (fun (expr, typ) ->
-                if typ <> snd elem
-                then Error ("incorrect type in element " ^ nm)
-                else k (Element (elem, expr, [q])))
-      | _ -> Error ("Invalid element " ^ elem)
-      end
-  | FuncExp (Field (qual, elem), args) ->
-      begin match UniqueMap.find elem env with
-      | Some (Element (nm, typ)) ->
-          let elem = (nm, target_type typ)
-          in process_expr (ProductExp args) env tys locals is_mod
-            (fun (expr, typ) ->
-              if typ <> snd elem
-              then Error ("incorrect type in element " ^ nm)
-              else process_qual qual env tys locals is_mod
-                                (Element (elem, expr, [q])) k)
-      | _ -> Error ("Invalid element " ^ elem)
-      end
-  | Field (qual, attr) ->
-      begin match UniqueMap.find attr env with
-      | Some (Attribute (nm, typ)) ->
-          let attr = (nm, target_type typ)
-          (* By processing the current expression we produce the current value
-           * of the attribute *)
-          in process_expr e env tys locals is_mod
-            (fun (expr, _) ->
-              process_qual qual env tys locals is_mod
-                           (Attribute (attr, expr, [q])) k)
-      | _ -> Error ("Invalid attribute " ^ attr)
-      end
-  | _ -> Error "Invalid qualifier"
+  process_expr e types globals excepts locals is_mod codegen_stmts (fun e ->
+    as_expr e k)
 
-(* Process an expression for a clear statement (the final access is not an
-   attribute) *)
-and process_expr_as_qual (e : Ast.expr) env tys locals
-  (is_mod : mod_info option) (k : Target.qual -> (Target.stmt, string) result)
+let codegen_elem (e : Ast.expr) (types : type_env) (globals : global_env)
+  (excepts : Target.typ StringMap.t) (locals : local_env)
+  (is_mod : mod_info option)
+  (codegen_stmts : Ast.stmt list -> local_env -> Target.typ placeholder option
+      -> mod_info option -> (Target.stmt, string) result)
+  (k : Target.elem -> (Target.stmt, string) result)
   : (Target.stmt, string) result =
-  match e with
-  | FuncExp (Id elem, args) ->
-      begin match UniqueMap.find elem env with
-      | Some (Element (nm, typ)) ->
-          let elem = (nm, target_type typ)
-          in process_expr (ProductExp args) env tys locals is_mod
-              (fun (expr, typ) ->
-                if typ <> snd elem
-                then Error ("incorrect type on element " ^ nm)
-                else k (Element (elem, expr, [])))
-      | _ -> Error ("Invalid element " ^ elem)
-      end
-  | FuncExp (Field (qual, elem), args) ->
-      begin match UniqueMap.find elem env with
-      | Some (Element (nm, typ)) ->
-          let elem = (nm, target_type typ)
-          in process_expr (ProductExp args) env tys locals is_mod
-            (fun (expr, typ) ->
-              if typ <> snd elem
-              then Error ("incorrect type on element " ^ nm)
-              else process_qual qual env tys locals is_mod
-                                (Element (elem, expr, [])) k)
-      | _ -> Error ("Invalid element " ^ elem)
-      end
-  | _ -> Error "Invalid qualifier"
-
-and process_lval (e : Ast.expr) env tys locals (is_mod : mod_info option)
-  (assigned : Target.expr) (typ : Target.typ) (k : (Target.stmt, string) result)
-  : (Target.stmt, string) result =
-  let rec process (e : Ast.expr) (k : lval_res -> (Target.stmt, string) result)
-  : (Target.stmt, string) result =
+  process_expr e types globals excepts locals is_mod codegen_stmts (fun e ->
     match e with
+    | Elem elem -> k (elem.as_elem None)
+    | _ -> Error "Expression is not an element")
+
+let codegen_qual (e : Ast.expr) (types : type_env) (globals : global_env)
+  (excepts : Target.typ StringMap.t) (locals : local_env)
+  (is_mod : mod_info option)
+  (codegen_stmts : Ast.stmt list -> local_env -> Target.typ placeholder option
+      -> mod_info option -> (Target.stmt, string) result)
+  (k : Target.qual -> (Target.stmt, string) result)
+  : (Target.stmt, string) result =
+  process_expr e types globals excepts locals is_mod codegen_stmts (fun e ->
+    match e with
+    | Elem elem -> k (elem.as_qual None)
+    | _ -> Error "Expression is not an element")
+
+(* As we process an l-value (the left-hand side of an assignment), at any point
+ * what we have processed is either an element (that we'll construct a qual
+ * from so we can invoke Add) or a complete l-value (either a variable or an
+ * attribute).
+ * For l-values we'll produce the type we expect of the value and a function
+ * that generates a statement performing the assignment given either the
+ * expression to assign or a function which takes the current value (as an
+ * expression) and returns the new value.
+ *)
+type lval_result =
+  | Elem of (Target.qual -> (Target.stmt * Target.attr, string) result)
+  | LVal of Target.typ
+          * ((Target.expr, Target.expr -> Target.expr) Either.t
+              -> (Target.stmt, string) result)
+
+let codegen_assignment (lhs : Ast.expr) (types : type_env)
+  (globals : global_env) (excepts : Target.typ StringMap.t)
+  (locals : local_env) (is_mod : mod_info option)
+  (codegen_stmts : Ast.stmt list -> local_env -> Target.typ placeholder option
+      -> mod_info option -> (Target.stmt, string) result)
+  (rhs : Target.expr) (ty : Target.typ) : (Target.stmt, string) result =
+
+  let rec process_lval (l : Ast.expr) : (lval_result, string) result =
+    match l with
     | Id nm ->
-        (* Attributes are not supported on the top-level of the state, so an
-         * identifier must be a local variable *)
         begin match StringMap.find_opt nm locals with
-        | Some (LocalVar (var, typ)) ->
-            k (LValue (typ, Variable var,
-                       fun e -> Result.map (fun s -> Target.Assign (var, e, s))))
-        | Some _ -> Error ("variable " ^ nm ^ " may not be provided")
-        | None -> Error ("undefined variable " ^ nm)
+        | Some (LocalVar (v, typ)) ->
+            Ok (LVal (typ,
+              fun e ->
+                match e with
+                | Either.Left e -> Ok (Target.Assign (v, e))
+                | Either.Right f ->
+                    Ok (Target.Assign (v, f (Target.Variable v)))))
+        | Some (ModuleVar _) ->
+            Error ("Variable " ^ nm ^ " may not be provided")
+        | None ->
+            match UniqueMap.find nm globals with
+            | Some (Attribute (is_local, nm, typ)) ->
+                let^ attr = Result.bind (lower_type typ) (fun t -> Ok (nm, t))
+                in Ok (LVal (snd attr,
+                    fun e ->
+                      match e with
+                      | Either.Left e ->
+                          if is_local
+                          then
+                            Ok (Target.Add (local_qual (Attribute (attr, e))))
+                          else Ok (Target.Add (Attribute (attr, e)))
+                      | Either.Right f ->
+                          let tmp = temp_name ()
+                          in if is_local
+                          then Ok (Target.Seq (
+                            Target.Get (tmp, local_attr (AttrAccess attr)),
+                            Target.Add 
+                              (local_qual (Attribute (attr, f (Variable tmp))))
+                          ))
+                          else Ok (Target.Seq (
+                            Target.Get (tmp, AttrAccess attr),
+                            Target.Add (Attribute (attr, f (Variable tmp)))))))
+            | _ -> Error ("Variable " ^ nm ^ " is undefined")
         end
-    | Field (lhs, field) ->
-        process lhs
-          (fun res ->
-            match res with
-            | LValue (typ, exp, assign) ->
-                begin match typ with
-                | Struct fields ->
-                    begin match StringMap.find_opt field fields with
-                    | Some ty ->
-                        k (LValue (ty, Function (ReadField (fields, field), exp),
-                          fun e s ->
-                            assign
-                              (Function
-                                (AddField (fields, field),
-                                 Pair (exp, e)))
-                              s))
-                    | None -> Error ("does not have field " ^ field)
-                    end
-                | _ -> Error "has no fields"
-                end
-            | LAttribute ((as_qual, as_attr), (typ, expr, as_assign)) ->
-                let is_field =
-                  match typ with
-                  | Struct fields ->
-                      begin match StringMap.find_opt field fields with
-                      | Some ty -> Some (fields, ty)
-                      | _ -> None
-                      end
-                  | _ -> None
-                and is_attr =
-                  match UniqueMap.find field env with
-                  | Some (Attribute (nm, typ)) -> Some (nm, target_type typ)
-                  | _ -> None
-                in begin match is_field, is_attr with
-                | Some _, Some _ -> Error "ambiguous field or attribute"
-                | None, None -> Error "undefined field or attribute"
-                | Some (fields, field_ty), None ->
-                    k (LValue (field_ty,
-                               Function (ReadField (fields, field), expr),
-                               fun e -> Result.map (fun s -> Target.Add (as_assign e, s))))
-                | None, Some attr ->
-                    let tmp = temp_name ()
-                    in Result.bind (k (LAttribute (
-                        ((fun q
-                          -> as_qual (Attribute (attr, Variable tmp, [q]))),
-                         (fun a
-                          -> as_attr (OnAttribute (attr, a)))),
-                        (snd attr, Variable tmp,
-                         fun e -> as_qual (Attribute (attr, e, []))))))
-                    (fun rest ->
-                      Ok (Target.Get (tmp, as_attr (AttrAccess attr), rest)))
-                end
-            | LElement (as_qual, as_attr) ->
-                match UniqueMap.find field env with
-                | Some (Attribute (nm, typ)) ->
-                    let attr = (nm, target_type typ)
-                    and tmp = temp_name ()
-                    in Result.bind (k (LAttribute (
-                        ((fun q
-                          -> as_qual (Attribute (attr, Variable tmp, [q]))),
-                         (fun a
-                          -> as_attr (OnAttribute (attr, a)))),
-                        (snd attr, Variable tmp,
-                         fun e -> as_qual (Attribute (attr, e, []))))))
-                    (fun rest ->
-                      Ok (Target.Get (tmp, as_attr (AttrAccess attr), rest)))
-                | _ -> Error "expected attribute")
-    | ProductField (_lhs, _idx) -> Error "TODO: handle product field accesses"
     | FuncExp (Id elem, args) ->
-        begin match UniqueMap.find elem env with
-        | Some (Element (nm, typ)) ->
-            let elem = (nm, target_type typ)
-            in process_expr (ProductExp args) env tys locals is_mod
-              (fun (e, t) ->
-                if t <> snd elem
-                then Error ("incorrect type for element " ^ nm)
-                else Result.bind (k
-                        (LElement ((fun q -> Element (elem, e, [q])),
-                                  (fun a -> OnElement (elem, e, a)))))
-                (fun after -> Ok (Target.Add (Element (elem, e, []), after))))
-        | Some _ -> Error ("expected element, " ^ elem ^ " is not one")
-        | _ -> Error ("undefined name " ^ elem)
+        begin match UniqueMap.find elem globals with
+        | Some (Element (is_local, nm, typ)) ->
+            let^ elem = Result.bind (lower_type typ) (fun t -> Ok (nm, t))
+            in Ok (Elem (fun q ->
+                let attr = ref (Error "Unable to determine attribute")
+                in let^ assign =
+                  codegen_expr (ProductExp args) types globals excepts locals
+                    is_mod codegen_stmts (fun (e, t) ->
+                      if t <> snd elem
+                      then Error ("Incorrect type for element " ^ nm)
+                      else
+                        let qual : Target.qual =
+                          if is_local
+                          then local_qual (Element (elem, e, Some q))
+                          else Element (elem, e, Some q)
+                        in attr := qual_to_attr qual
+                         ; Ok (Target.Add qual))
+                in Result.bind (!attr) (fun attr -> Ok (assign, attr))))
+        | Some (Uninterpreted (_, _, _)) | Some (Function (_, _, _, _))
+            -> Error ("Cannot assign to a function call, " ^ elem
+                      ^ " not an element")
+        | Some _ -> Error (elem ^ " is not a function")
+        | None ->
+            let^ _ = Builtins.lookup_builtin elem
+            in Error ("Cannot assign to a function call, " ^ elem
+                      ^ " not an element")
         end
     | FuncExp (Field (lhs, elem), args) ->
-        begin match UniqueMap.find elem env with
-        | Some (Element (nm, typ)) ->
-          let elem = (nm, target_type typ)
-          in process lhs
-            (fun res ->
-              match res with
-              | LValue (_, _, _) -> Error "cannot access element on value"
-              | LAttribute ((as_qual, as_attr), _)
-              | LElement   (as_qual, as_attr) ->
-                  process_expr (ProductExp args) env tys locals is_mod
-                  (fun (e, t) ->
-                    if t <> snd elem
-                    then Error ("incorrect type for element " ^ nm)
-                    else Result.bind (k (LElement (
-                            (fun q -> as_qual (Element (elem, e, [q]))),
-                            (fun a -> as_attr (OnElement (elem, e, a))))))
-                    (fun after ->
-                      Ok (Target.Add (as_qual (Element (elem, e, [])), after)))
-                  ))
-        | Some _ -> Error ("expected element " ^ elem ^ " is not one")
-        | _ -> Error ("undefined name " ^ elem)
+        begin match UniqueMap.find elem globals with
+        | Some (Element (_, nm, typ)) ->
+            let^ elem = Result.bind (lower_type typ) (fun t -> Ok (nm, t))
+            in let^ lhs = process_lval lhs
+            in begin match lhs with
+            | Elem lhs -> Ok (Elem (fun q ->
+                let attr = ref (Error "Unable to determine attribute")
+                in let^ assign =
+                  codegen_expr (ProductExp args) types globals excepts locals
+                    is_mod codegen_stmts (fun (e, t) ->
+                      if t <> snd elem
+                      then Error ("Incorrect type for element " ^ nm)
+                      else
+                        let^ (stmt, q) =
+                          lhs (Target.Element (elem, e, Some q))
+                        in attr := Ok q; Ok stmt)
+                in Result.bind (!attr) (fun attr -> Ok (assign, attr))))
+            | LVal _ -> Error "Can only access element on an element"
+            end
+        | Some _ -> Error (elem ^ " is not an element")
+        | None -> Error (elem ^ " is not defined")
         end
-    | _ -> Error "invalid l-value"
-  in process e
-    (fun res ->
-      match res with
-      | LValue (t, _, assign) ->
-          if t <> typ
-          then Error "incorrect type in assignment"
-          else assign assigned k
-      | LAttribute (_, (t, _, attr)) ->
-          if t <> typ
-          then Error "incorrect type in assignment"
-          else Result.map (fun k -> Target.Add (attr assigned, k)) k
-      | LElement _ -> Error "expected l-value, found element")
+    | Field (lhs, field) ->
+        let^ lhs = process_lval lhs
+        in begin match lhs with
+        | Elem lhs -> (* We must be accessing an attribute *)
+            begin match UniqueMap.find field globals with
+            | Some (Attribute (_, nm, typ)) ->
+                let^ attr = Result.bind (lower_type typ) (fun t -> Ok (nm, t))
+                in Ok (LVal (snd attr,
+                    fun e ->
+                      match e with
+                      | Either.Left e ->
+                          let^ (stmt, _) = lhs (Attribute (attr, e)) in Ok stmt
+                      | Either.Right f ->
+                          let tmp = temp_name ()
+                          in let^ (assign, q) =
+                            lhs (Attribute (attr, f (Variable tmp)))
+                          in Ok (Target.Seq (Get (tmp, q), assign))))
+            | Some _ -> Error (field ^ " is not an attribute")
+            | None -> Error ("Undefined attribute " ^ field)
+            end
+        | LVal (ty, lhs) -> (* We must be accessing a record field *)
+            (* Modifying a record field always becomes reading the value
+             * and writing to a single field *)
+            match ty with
+            | Struct fields ->
+                begin match StringMap.find_opt field fields with
+                | Some ty ->
+                    Ok (LVal (ty, fun e ->
+                      match e with
+                      | Either.Left e ->
+                          lhs (Either.Right (fun r ->
+                            Target.Function (AddField (fields, field),
+                              Pair (r, e))))
+                      | Either.Right f ->
+                          lhs (Either.Right (fun r ->
+                            Target.Function (AddField (fields, field),
+                              Pair (r, 
+                                f (Function (ReadField (fields, field), r))))))))
+                | None -> Error ("Record does ont have field " ^ field)
+                end
+            | _ -> Error "L-value is not a record"
+        end
+    | ProductField (lhs, idx) ->
+        let^ lhs = process_lval lhs
+        in begin match lhs with
+        | Elem _ -> Error "L-value is not a tuple"
+        | LVal (ty, lhs) ->
+            let^ (ty, read, update) = construct_product_access ty idx
+            in Ok (LVal (ty, fun e ->
+              match e with
+              | Either.Left e -> lhs (Either.Right (fun p -> update p e))
+              | Either.Right f ->
+                  lhs (Either.Right (fun p -> update p (f (read p))))))
+        end
+    | _ -> Error "Invalid l-value"
 
-(* process_stmt's is_mod argument specifies whether variable declarations
- * and checks are allowed in the code or not, so this function can be used to
- * generate code for both functions and modules. *)
-(* The continuation (k) to these functions defines a statement that should come
- * at the end of the statements (such as the terminator for a loop or a return
- * for a unit-valued function). If it is not provided, reaching the end of
- * the list of statements will produce an error *)
-and process_stmt (s : Ast.stmt list) env tys locals (ret: return_type)
-  (is_mod : mod_info option) (k : (Target.stmt, string) result)
-  : (Target.stmt, string) result  =
-  match s with
-  | [] -> k
-  | VarDecls (required, vars) :: tl ->
-      begin match is_mod with
-      | None -> Error "unexpected variable check"
-      | Some (mod_env, input) ->
-          Result.bind (process_vars_codegen vars)
-          (fun (vars, default) ->
-          (* Any variable with a default is treated as required since it will
-           * always have a value *)
-          let var_info = (required || Option.is_some default,
-                          StringSet.of_list (List.map fst vars))
-          in let var_id = uniq ()
-          in let new_mod_env = IntMap.add var_id var_info mod_env
-          in let new_locals =
-            List.fold_left (fun env (var, typ) ->
-                  StringMap.add
-                    var
-                    (ModuleVar (var_id, target_type (process_type typ tys)))
-                    env)
-              locals vars
-          in let body = update_module_var var_info input new_locals
-            (fun locals ->
-              process_stmt tl env tys locals ret (Some (new_mod_env, input)) k)
-          in match default with
-          | None ->
-              generate_vars_check input vars body
-                (if required
-                then Ok (Fail ("One of the arguments ["
-                               ^ String.concat ", " (List.map fst vars)
-                               ^ "] is required"))
-                else body)
-          | Some (var, typ, value) ->
-              let typ = target_type (process_type typ tys)
-              in process_expr value env tys locals is_mod
-                (fun (value, ty) ->
-                  if ty <> typ then Error ("default for " ^ var ^ " has wrong type")
-                  else generate_vars_check input vars body
-                  (* If there's a default and none of the variables are provided,
-                   * set #input = #input[.var <- Some(value)] to initialize the
-                   * variable with a default value *)
-                  (Result.bind body
-                    (fun body ->
-                      Ok (Target.Assign ("#input",
-                        Function (AddField (input, var),
-                        Pair (Variable "#input", option_some value typ)),
-                        body))))
-                )
-          )
-      end
-  | ForLoop (v, l, b) :: tl ->
-      process_expr l env tys locals is_mod
-        (fun (lst, typ) ->
-          match typ with
-          | Named (List t) ->
-            let fresh_v = fresh_var v
-            in let body_env = StringMap.add v (LocalVar (fresh_v, t)) locals
-            in Result.bind
-              (process_stmt b env tys body_env NotAllowed is_mod
-                (* for-each must return a pair with the second element being
-                 * the environment, we have the first element just be unit *)
-                (Ok (Return (Pair (Literal (Unit ()), Env)))))
-              (fun body ->
-                Result.bind (process_stmt tl env tys locals ret is_mod k)
-                (fun after ->
-                  Ok (Target.ForEach ("_", Primitive Unit, lst, fresh_v, body, after))))
-          | _ -> Error "can only loop over lists")
-  | IfProvided (var, thn, els) :: tl ->
-      begin match is_mod with
-      | None -> Error "unexpected variable check"
-      | Some (mod_env, input) ->
-        let after = process_stmt tl env tys locals ret is_mod k
-        in match StringMap.find_opt var locals with
-        | Some (LocalVar _) ->
-            Error ("expected a module variable on if-provided, but "
-                   ^ var ^ " is a local")
-        | None -> Error ("variable " ^ var ^ " is undefined")
-        | Some (ModuleVar (mod_id, typ)) ->
-            let (required, options) = IntMap.find mod_id mod_env
-            in let fresh_nm = fresh_var var
-            in let false_mod_info = (required, StringSet.remove var options)
-            in let false_mod_env = IntMap.add mod_id false_mod_info mod_env
-            in let false_locals = StringMap.remove var locals
-            in let true_locals
-              = update_module_var_env mod_id options var fresh_nm typ locals
-            in Result.bind
-                (update_module_var false_mod_info input false_locals
-                  (fun locals ->
-                    process_stmt els env tys locals ret
-                      (Some (false_mod_env, input)) after))
-              (fun not_provided -> (* None = not provied = else case *)
-                Result.bind (process_stmt thn env tys true_locals ret
-                              (Some (mod_env, input)) after)
-                (fun if_provided ->
-                  Ok (Target.Match (
+  in let^ lhs = process_lval lhs
+  in match lhs with
+  | Elem _ -> Error "Cannot assign to element"
+  | LVal (t, f) ->
+      if t <> ty
+      then Error "Incorrect type in assignment"
+      else f (Either.Left rhs)
+
+let codegen_stmts (s : Ast.stmt list) (types : type_env) (globals : global_env)
+  (excepts : Target.typ StringMap.t) (locals : local_env) (ret : Target.typ)
+  (yield : Target.typ placeholder option) (is_mod : mod_info option)
+  (* A terminator to insert at the end of the stmts. *)
+  (term : (Target.stmt, string) result) : (Target.stmt, string) result =
+
+  let rec extract_module_args
+    (vars : (string * string list * Ast.typ * Ast.expr option) list)
+    : ((string * Target.typ) list * (string * Target.typ * Ast.expr) option,
+          string) result =
+    match vars with
+    | [] -> Ok ([], None)
+    | (v, _, t, None) :: tl ->
+        let^ t = lower_ast_typ t types
+        in let^ (vs, default) = extract_module_args tl
+        in Ok ((v, t) :: vs, default)
+    | (v, _, t, Some d) :: tl ->
+        let^ t = lower_ast_typ t types
+        in let^ (vs, default) = extract_module_args tl
+        in match default with
+        | None -> Ok ((v, t) :: vs, Some (v, t, d))
+        | Some _ -> Error "multiple default values specified for variable"
+
+  (* Only returns an updated environment and mod_info if the statement after
+   * it is reachable (i.e., s is not a terminator or all branches in it have
+   * terminators) *)
+  in let rec codegen_stmt (s : Ast.stmt) (locals : local_env)
+    (yield : Target.typ placeholder option) (is_mod : mod_info option)
+    : (Target.stmt * (local_env * mod_info option) option, string) result =
+    match s with
+    | VarDecls (required, vars) ->
+        begin match is_mod with
+        | None -> Error "Module-style variable declaration in function"
+        | Some (mod_env, input) ->
+            let^ (vars, default) = extract_module_args vars
+              (* Any declaration with a default is treated as required since it
+               * will always have a value *)
+            in let decl_info = (required || Option.is_some default,
+                                StringSet.of_list (List.map fst vars))
+            in let decl_id = uniq ()
+            in let new_mod_env = IntMap.add decl_id decl_info mod_env
+            in let locals_with_decl =
+              List.fold_left (fun env (var, typ) ->
+                StringMap.add var (ModuleVar (decl_id, typ)) env)
+                locals vars
+            in let (new_locals, var_read) =
+              update_module_var decl_info input locals_with_decl excepts
+            in let^ decl_check =
+              match default with
+              | None ->
+                  Ok (generate_vars_check input vars
+                    (if required
+                     then fatal ("One of the arguments ["
+                                ^ String.concat ", " (List.map fst vars)
+                                ^ "] is required") excepts
+                    else Pass) excepts)
+              | Some (var, typ, value) ->
+                  codegen_expr value types globals excepts locals is_mod
+                    stmts_expr (fun (value, ty) ->
+                      if ty <> typ
+                      then Error ("default for " ^ var ^ " has wrong type")
+                      else
+                        Ok (generate_vars_check input vars
+                            (Target.Assign ("#input",
+                              Function (AddField (input, var),
+                                Pair (Variable "#input",
+                                option_some value typ)))) excepts))
+            in Ok (Target.Seq (decl_check, var_read),
+                    Some (new_locals, Some (new_mod_env, input)))
+        end
+    | ForLoop (v, l, b) ->
+        let^ loop =
+          codegen_expr l types globals excepts locals is_mod stmts_expr
+          (fun (lst, typ) ->
+            match typ with
+            | Named (List t) ->
+                let fresh_v = fresh_var v
+                in let body_env = StringMap.add v (LocalVar (fresh_v, t)) locals
+                in Result.bind (codegen_stmts b body_env None is_mod)
+                  (fun (b, _) ->
+                    Ok (Target.ForEach ("_", Primitive Unit, lst, fresh_v, b)))
+          | _ -> Error "Can only loop over lists")
+        in Ok (loop, Some (locals, is_mod))
+    | IfProvided (var, thn, els) ->
+        begin match is_mod with
+        | None -> Error "Module-style variable check in function"
+        | Some (mod_env, input) ->
+            match StringMap.find_opt var locals with
+            | Some (LocalVar _) ->
+                Error ("Variable " ^ var ^ " is a local, not a module variable")
+            | None ->
+                Error ("Variable " ^ var ^ " is undefined")
+            | Some (ModuleVar (mod_id, typ)) ->
+                let (required, options) = IntMap.find mod_id mod_env
+                in let fresh_nm = fresh_var var
+                in let false_decl_info =
+                  (required, StringSet.remove var options)
+                in let false_mod_env =
+                  IntMap.add mod_id false_decl_info mod_env
+                in let (false_locals, false_start) =
+                  update_module_var false_decl_info input
+                    (StringMap.remove var locals) excepts
+                in let true_locals =
+                  select_module_var var mod_id options fresh_nm typ locals
+                in let^ (thn, thn_reach) =
+                  codegen_stmts thn true_locals yield is_mod
+                in let^ (els, els_reach) =
+                  codegen_stmts els false_locals yield
+                    (Some (false_mod_env, input))
+                in Ok (Target.Match (
                         Function (ReadField (input, var), Variable "#input"),
                         fresh_nm,
-                        not_provided,
-                        if_provided
+                        Seq (false_start, els), (* None *)
+                        thn (* Some *)
+                    ), if not thn_reach && not els_reach
+                        then None
+                        else Some (locals, is_mod))
+        end
+    | IfExists (q, thn, els) ->
+        let reachable = ref false
+        in let^ res =
+          codegen_elem q types globals excepts locals is_mod stmts_expr
+          (fun elem ->
+            let^ (thn, thn_reach) = codegen_stmts thn locals yield is_mod
+            in let^ (els, els_reach) = codegen_stmts els locals yield is_mod
+            in reachable := thn_reach || els_reach
+            ; Ok (Target.Contains (elem, thn, els)))
+        in Ok (res, if not !reachable then None else Some (locals, is_mod))
+    | IfThenElse (c, thn, els) ->
+        let reachable = ref false
+        in let^ res =
+          codegen_expr c types globals excepts locals is_mod stmts_expr
+          (fun (c, typ) ->
+            if typ <> Primitive Bool
+            then Error "Condition must be a boolean value"
+            else
+              let^ (thn, thn_reach) = codegen_stmts thn locals yield is_mod
+              in let^ (els, els_reach) = codegen_stmts els locals yield is_mod
+              in reachable := thn_reach || els_reach
+              ; Ok (Target.Cond (c, thn, els)))
+        in Ok (res, if not !reachable then None else Some (locals, is_mod))
+    | Match (e, cs) ->
+        (* First, we need to identify the type that we are matching over.
+         * We look at the first case for this, if there are none the match
+         * compiles into just evaluating the expression *)
+        begin match cs with
+        | [] ->
+            let^ res =
+              codegen_expr e types globals excepts locals is_mod stmts_expr
+                (fun _ -> Ok Pass)
+            in Ok (res, Some (locals, is_mod))
+        | ((type_name, type_arg, _, _), _) :: _ ->
+            let^ constructors = lookup_enum types type_name type_arg
+            in let cases =
+              Array.make (StringMap.cardinal constructors) None
+            in let reachable = ref false
+            in let^ () =
+              List.fold_left
+                (fun i ((typ, ty_arg, cons, vars), body) ->
+                  Result.bind i (fun () ->
+                    if typ <> type_name || ty_arg <> type_arg
+                    then Error "Mismatched types in match case"
+                    else
+                      match StringMap.find_opt cons constructors with
+                      | None ->
+                          Error ("No constructor " ^ cons ^ " for type " ^ typ)
+                      | Some (pos, args) ->
+                          match cases.(pos) with
+                          | Some _ ->
+                              Error ("Duplicate case " ^ cons ^ " in match")
+                          | None ->
+                              let^ typ = lower_types args
+                              in let^ (setup, case_env) =
+                                generate_var_inits vars typ
+                                  (Variable "#match") locals
+                              in let^ (body, body_reach) =
+                                codegen_stmts body case_env yield is_mod
+                              in reachable := !reachable || body_reach
+                              ; Ok ( cases.(pos) <-
+                                      Some (Target.Seq (setup, body)) )))
+                (Ok ()) cs
+            in let^ res =
+              codegen_expr e types globals excepts locals is_mod stmts_expr
+              (fun (e, t) ->
+                if pattern_type_matches types (type_name, type_arg) t
+                then
+                  Ok (Target.Seq (
+                    Target.Assign ("#match", e),
+                    array_foldr1 cases
+                      (fun case ->
+                        match case with
+                        | None -> reachable := true; Target.Pass
+                        | Some s -> s)
+                      (fun l r ->
+                        Target.Match (Variable "#match", "#match", l, r))
                   ))
-                )
-              )
-      end
-  | IfExists (q, thn, els) :: tl ->
-      let after = process_stmt tl env tys locals ret is_mod k
-      in process_expr_as_elem q env tys locals is_mod
-        (fun elem ->
-          Result.bind (process_stmt thn env tys locals ret is_mod after)
-          (fun thn_stmt ->
-            Result.bind (process_stmt els env tys locals ret is_mod after)
-            (fun els_stmt ->
-              Ok (Target.Contains (elem, thn_stmt, els_stmt)))))
-  | IfThenElse (c, thn, els) :: tl ->
-      let after = process_stmt tl env tys locals ret is_mod k
-      in process_expr c env tys locals is_mod
-          (fun (c, _) ->
-            Result.bind (process_stmt thn env tys locals ret is_mod after)
-            (fun thn_stmt ->
-              Result.bind (process_stmt els env tys locals ret is_mod after)
-              (fun els_stmt ->
-                Ok (Target.Cond (c, thn_stmt, els_stmt)))))
-  | Match (e, cs) :: tl ->
-      (* First, we need to identify the type that we are matching over. We look
-       * at the first case for this *)
-      begin match cs with
-      | [] ->
-          process_expr e env tys locals is_mod
-            (fun _ -> process_stmt tl env tys locals ret is_mod k)
-      | ((type_name, type_arg, _, _), _) :: _ ->
-          let after = process_stmt tl env tys locals ret is_mod k
-          in let constructors = lookup_enum tys type_name type_arg
-          in let cases
-            = Array.make (StringMap.cardinal constructors) (Default after)
-          in List.iter (* FIXME: Instead of panic this should return a result *)
-              (fun ((typ, ty_arg, cons, vars), body) ->
-                if typ <> type_name || ty_arg <> type_arg
-                then failwith "Mismatched types in match cases"
-                else let (pos, args) = StringMap.find cons constructors
-                in match cases.(pos) with
-                   | Default _ ->
-                      cases.(pos) <-
-                        Set (generateVarInits vars (construct_prod args)
-                                (Variable "#match") locals
-                                (fun locals ->
-                                  process_stmt body env tys locals ret is_mod
-                                               after))
-                   | Set _ -> failwith "Duplicate case")
-              cs
-          ; process_expr e env tys locals is_mod
-            (fun (e, t) ->
-              if pattern_type_matches (type_name, type_arg) t tys
-              then
-                Result.bind (array_foldr1 (Array.map of_processed cases)
-                  (fun l r -> Result.bind l
-                    (fun l -> Result.bind r
-                      (fun r ->
-                        Ok (Target.Match (Variable "#match", "#match", l, r))))))
-                  (fun cases -> Ok (Target.Assign ("#match", e, cases)))
-              else Error "incorrect type of scrutinee")
-      end
-  | Clear e :: tl ->
-      process_expr_as_qual e env tys locals is_mod
-        (fun q ->
-          Result.bind (process_stmt tl env tys locals ret is_mod k)
-            (fun after -> Ok (Target.Add (negate_qual q, after))))
-  | Touch e :: tl ->
-      process_expr_as_qual e env tys locals is_mod
-        (fun q ->
-          Result.bind (process_stmt tl env tys locals ret is_mod k)
-            (fun after -> Ok (Target.Add (q, after))))
-  | Assert e :: tl ->
-      process_expr e env tys locals is_mod
-        (fun (e, _) ->
-          Result.bind (process_stmt tl env tys locals ret is_mod k)
-            (fun rest -> Ok (Target.Cond (e, rest, Fail "assertion failed"))))
-  | AssertExists q :: tl ->
-      process_expr_as_elem q env tys locals is_mod
-        (fun elem ->
-          Result.bind (process_stmt tl env tys locals ret is_mod k)
-            (fun rest ->
-              Ok (Target.Contains (elem, rest, Fail "assertion failed"))))
-  | Return _ :: _ :: _ -> Error "Code after return"
-  | Return e :: [] ->
-      begin match ret with
-      | NotAllowed -> Error "Return not allowed inside loops"
-      | Yield _ -> Error "Return not allowed inside closure"
-      | Return ty ->
-          process_expr e env tys locals is_mod
-            (fun (e, t) -> if t = ty then Ok (Target.Return e)
-                           else Error "Mismatch in return type")
-      end
-  | Yield _ :: _ :: _ -> Error "Code after yield"
-  | Yield e :: [] ->
-      begin match ret with
-      | NotAllowed | Return _ -> Error "Yield not allowed in this location"
-      | Yield ty ->
-          process_expr e env tys locals is_mod
-            (fun (e, t) ->
-              match !ty with
-              | None -> ty := Some t; Ok (Target.Return (Pair (e, Env)))
-              | Some ty -> if t = ty then Ok (Target.Return (Pair (e, Env)))
-                           else Error "Mismatch in yield type")
-      end
-  | LetStmt (var, exp) :: tl ->
-      process_expr exp env tys locals is_mod
-        (fun (e, t) ->
-          let fresh_var = fresh_var var
-          in let locals = StringMap.add var (LocalVar (fresh_var, t)) locals
-          in Result.bind (process_stmt tl env tys locals ret is_mod k)
-            (fun rest -> Ok (Target.Assign (fresh_var, e, rest))))
-  | Assign (lhs, rhs) :: tl ->
-      (* Assign statements do not create new bindings (lets do that) and so
-       * everything can be evaluated under the same local environment *)
-      process_expr rhs env tys locals is_mod
-        (fun (e, t) ->
-          process_lval lhs env tys locals is_mod e t
-            (process_stmt tl env tys locals ret is_mod k))
+                else Error "Incorrect type of scrutinee")
+            in Ok (res, if not !reachable then None else Some (locals, is_mod))
+        end
+    | Clear e ->
+        let^ res =
+          codegen_qual e types globals excepts locals is_mod stmts_expr
+          (fun q ->
+            let^ nq = negate_qual q
+            in Ok (Target.Add nq))
+        in Ok (res, Some (locals, is_mod))
+    | Touch e ->
+        let^ res =
+          codegen_qual e types globals excepts locals is_mod stmts_expr
+            (fun q -> Ok (Target.Add q))
+        in Ok (res, Some (locals, is_mod))
+    | Assert e ->
+        let^ result =
+          codegen_expr e types globals excepts locals is_mod stmts_expr
+          (fun (e, t) ->
+            if t <> Primitive Bool
+            then Error "Condition must be a boolean value"
+            else
+              Ok (Target.Cond (e, Pass, fatal "assertion failed" excepts)))
+        in Ok (result, Some (locals, is_mod))
+    | AssertExists q ->
+        let^ result =
+          codegen_elem q types globals excepts locals is_mod stmts_expr
+          (fun elem ->
+            Ok (Target.Contains (elem, Pass, fatal "assertion failed" excepts)))
+        in Ok (result, Some (locals, is_mod))
+    | Return e ->
+        let^ result =
+          codegen_expr e types globals excepts locals is_mod stmts_expr
+          (fun (e, t) ->
+            if t <> ret
+            then Error "Mismatch in return type"
+            else Ok (Target.Return e))
+        in Ok (result, None)
+    | Yield e ->
+        begin match yield with
+        | None -> Error "Yield not allowed in this context"
+        | Some ty ->
+            let^ result =
+              codegen_expr e types globals excepts locals is_mod stmts_expr
+              (fun (e, t) ->
+                match !ty with
+                | None -> ty := Some t; Ok (Target.Yield e)
+                | Some ty ->
+                    if t <> ty
+                    then Error "Mismatch in yield type"
+                    else Ok (Target.Yield e))
+            in Ok (result, None)
+        end
+    | LetStmt (var, exp) ->
+        let fresh_var = fresh_var var
+        in let ty = ref (Target.Primitive Unit)
+        in let^ result =
+          codegen_expr exp types globals excepts locals is_mod stmts_expr
+          (fun (e, t) ->
+            ty := t; Ok (Target.Assign (fresh_var, e)))
+        in let new_locals =
+          StringMap.add var (LocalVar (fresh_var, !ty)) locals
+        in Ok (result, Some (new_locals, is_mod))
+    | Assign (lhs, rhs) ->
+        let^ result =
+          codegen_expr rhs types globals excepts locals is_mod stmts_expr
+          (fun (e, t) ->
+            codegen_assignment lhs types globals excepts locals is_mod
+              stmts_expr e t)
+        in Ok (result, Some (locals, is_mod))
+    | Raise (nm, exc) ->
+        let^ exc_typ =
+          match StringMap.find_opt nm excepts with
+          | None -> Error ("Undefined exception " ^ nm)
+          | Some t -> Ok t
+        in let^ result =
+          codegen_expr exc types globals excepts locals is_mod stmts_expr
+          (fun (e, t) ->
+            if t <> exc_typ
+            then Error ("Incorrect type for exception " ^ nm)
+            else Ok (raise nm e excepts))
+        in Ok (result, None)
+    | TryCatch (body, catch, finally) ->
+        let^ (body, body_reach) = codegen_stmts body locals yield is_mod
+        in let^ (catch, catch_reach) =
+          match catch with
+          | None -> Ok (Target.Raise (Variable "#catch"), true)
+          | Some (exc, vars, catch) ->
+              match StringMap.find_opt exc excepts with
+              | None -> Error ("Undefined exception " ^ exc)
+              | Some typ ->
+                  let^ (setup, body_locals) =
+                    generate_var_inits vars typ (Variable "#except") locals
+                  in let^ (catch, catch_reach) =
+                    codegen_stmts catch body_locals yield is_mod
+                  in Ok (
+                    Target.Match (
+                      Function (UnpackExcept (excepts, exc), Variable "#catch"),
+                      "#except",
+                      (* None, some other error *)
+                      Raise (Variable "#catch"),
+                      (* Some, this kind of error *)
+                      Seq (setup, catch)),
+                    catch_reach)
+        in let^ (finally, finally_reach) =
+          codegen_stmts finally locals yield is_mod
+        in Ok (Target.TryCatch (body, "#catch", catch, finally),
+            (* If the finally block always hits a terminator, the statement
+             * after the try-catch will never be reached. Otherwise, we only
+             * do not reach the statement after if the body always hits a
+             * terminator and the catch always hits one (since the body's
+             * terminator might be a raise that is caught by the body) *)
+            if not finally_reach || (not body_reach && not catch_reach)
+            then None
+            else Some (locals, is_mod))
+    | Localize body ->
+        let^ (body, body_reach) = codegen_stmts body locals yield is_mod
+        in Ok (Target.Localize 
+                (("#local", Primitive Unit), Literal (Unit ()), body),
+               if body_reach then Some (locals, is_mod) else None)
+    | Seq (fst, snd) ->
+        let^ (body, body_reach) = codegen_stmts_seq fst snd locals yield is_mod
+        in Ok (body, if body_reach then Some (locals, is_mod) else None)
 
-let codegen (files : Ast.topLevel list list) : type_env * global_env =
-  (* The first step of our code generation is to divide the top levels into a
-   * few groups: enums and structs; attributes, elements, and uninterpreted
-   * functions; and functions and modules.
-   * This order is used because we need to identify and process all types
-   * before we can process definitions without bodies, and then we can finally
-   * process definitions with bodies.
-   *)
-  let rec partition (fs : Ast.topLevel list list) =
-    match fs with
-    | [] -> ([], [], [])
-    | [] :: fs -> partition fs
-    | (t :: ts) :: fs ->
-        let (tys, dfs, fns) = partition (ts :: fs) in
-        match t with
-        | Enum _ | Struct _ | Type _ -> (t :: tys, dfs, fns)
-        | Uninterp _ | Attribute _ | Element _ -> (tys, t :: dfs, fns)
-        | Function _ | Module _ -> (tys, dfs, t :: fns)
+  (* The returned bool indicates whether control can continue after this list *)
+  and codegen_stmts (s : Ast.stmt list) (locals : local_env)
+    (yield : Target.typ placeholder option) (is_mod : mod_info option)
+    : (Target.stmt * bool, string) result =
+    match s with
+    | [] -> Ok (Pass, true)
+    | s :: tl ->
+        let^ (res_s, after) = codegen_stmt s locals yield is_mod
+        in match after with
+        | None ->
+            begin match tl with
+            | [] -> Ok (res_s, false)
+            | _ :: _ -> Error "Unreachable code"
+            end
+        | Some (new_locals, new_mod) ->
+            let^ (res_tl, res_reach) =
+              codegen_stmts tl new_locals yield new_mod
+            in Ok (Target.Seq (res_s, res_tl), res_reach)
 
-  in let add_type (nm : string) (t : typ) env =
-    match UniqueMap.find nm env with
-    | Some (Placeholder p) -> p := Some t
-    | _ -> UniqueMap.add nm t env
+  and codegen_stmts_seq (x : Ast.stmt list) (y : Ast.stmt list)
+    (locals : local_env) (yield : Target.typ placeholder option)
+    (is_mod : mod_info option) : (Target.stmt * bool, string) result =
+    match x with
+    | [] -> codegen_stmts y locals yield is_mod
+    | s :: tl ->
+        let^ (res_s, after) = codegen_stmt s locals yield is_mod
+        in match after with
+        | None ->
+            begin match tl, y with
+            | [], [] -> Ok (res_s, false)
+            | _, _ -> Error "Unreachable code"
+            end
+        | Some (new_locals, new_mod) ->
+            let^ (res_tl, res_reach) =
+              codegen_stmts_seq tl y new_locals yield new_mod
+            in Ok (Target.Seq (res_s, res_tl), res_reach)
 
-  in let rec create_types (ts : Ast.topLevel list) env =
-    match ts with
-    | [] -> ()
-    | Enum (nm, variants) :: tl ->
-        let variants =
-          StringMap.of_list
-            (List.mapi
-              (fun i (nm, ts) -> (nm, (i, create_types_option ts env)))
+  and stmts_expr (s : Ast.stmt list) (locals : local_env)
+    (yield : Target.typ placeholder option) (is_mod : mod_info option)
+    : (Target.stmt, string) result =
+    let^ (res, _) = codegen_stmts s locals yield is_mod
+    in Ok res
+
+  in let^ (res, reach_end) = codegen_stmts s locals yield is_mod
+  in if not reach_end
+    then Ok res
+    else Result.bind term (fun t -> Ok (Target.Seq (res, t)))
+
+(* Main driver function, given the result of parsing a bunch of files (hence a
+ * list of lists of top-levels), we produce return the context which contains
+ * types, globals, and exceptions defined by those files. *)
+let codegen (parsed : Ast.topLevel list list) : (context, string) result =
+  let types = UniqueMap.empty ()
+  in let globals = UniqueMap.empty ()
+  in let excepts = UniqueMap.empty ()
+
+  in let insert_type (nm : string) (t : typ) : (unit, string) result =
+    match UniqueMap.find nm types with
+    | Some (Placeholder p) -> Ok (p := Some t)
+    | _ -> UniqueMap.add nm t types
+
+  in let insert_module (nm : string list) (t : env_entry)
+    : (unit, string) result =
+    let rec insert (nm : string list) (env : global_env)
+      : (unit, string) result =
+      match nm with
+      | [] -> Error "Internal Error: empty module name"
+      | [n] -> UniqueMap.add n t env
+      | n :: tl ->
+          match UniqueMap.find n env with
+          | Some (Environment env) -> insert tl env
+          | Some _ -> Error "Prefix of module name already exists"
+          | None ->
+              let new_env = UniqueMap.empty ()
+              in let^ () = UniqueMap.add n (Environment new_env) env
+              in insert tl new_env
+    in insert nm globals
+
+  (* Helper functions, which add types (enums, records, and type aliases),
+   * definitions (attributes, elements, exceptions, and uninterpreted functions),
+   * and functions (both functions and modules) to the appropriate environments *)
+  in let add_type (t : Ast.topLevel) : (unit, string) result =
+    match t with
+    | Enum (nm, variants) ->
+        let^ variants =
+          Result.bind
+            (mapi_res
+              (fun i (nm, ts) ->
+                Result.bind (create_types_option ts types) (fun ts ->
+                  Ok (nm, (i, ts))))
               variants)
-        in add_type nm (Enum (nm, variants)) env; create_types tl env
-    | Struct (nm, fields) :: tl ->
-        let fields =
-          StringMap.of_list
-            (List.map (fun (nm, t) -> (nm, create_type t env)) fields)
-        in add_type nm (Struct (nm, fields)) env; create_types tl env
-    | Type (nm, typ) :: tl ->
-        let ty = create_type typ env
-        in add_type nm ty env; create_types tl env
-    | _ :: _ -> failwith "partitioning error"
+            (fun vs -> Ok (StringMap.of_list vs))
+        in insert_type nm (Enum (nm, variants))
+    | Struct (nm, fields) ->
+        let^ fields =
+          Result.bind
+            (map_res (fun (nm, t) ->
+              Result.bind (create_type t types) (fun t -> Ok (nm, t)))
+              fields)
+            (fun fs -> Ok (StringMap.of_list fs))
+        in insert_type nm (Struct (nm, fields))
+    | Type (nm, typ) ->
+        Result.bind (create_type typ types) (fun ty ->
+          insert_type nm ty)
+    | _ -> Ok ()
+  in let add_def (t : Ast.topLevel) : (unit, string) result =
+    match t with
+    | Uninterp (nm, in_tys, out_ty) ->
+        let^ in_tys = map_res (fun t -> process_type t types) in_tys
+        in let^ out_typ = process_type out_ty types
+        in UniqueMap.add nm (Uninterpreted (nm, in_tys, out_typ)) globals
+    | Attribute (is_local, nm, ty) ->
+        Result.bind (process_type ty types) (fun typ ->
+          UniqueMap.add nm (Attribute (is_local, nm, typ)) globals)
+    | Element (is_local, nm, ty) ->
+        Result.bind (process_type ty types) (fun typ ->
+          UniqueMap.add nm (Element (is_local, nm, typ)) globals)
+    | Exception (nm, ty) ->
+        Result.bind (process_type ty types) (fun typ ->
+          UniqueMap.add nm typ excepts)
+    | _ -> Ok ()
+  in let add_func (t : Ast.topLevel) : (_ option, string) result =
+    match t with
+    | Function (nm, args, ret, body) ->
+        let^ arg_tys = map_res (fun (_, t) -> process_type t types) args
+        in let^ ret_ty = process_type_option ret types
+        in let func_body = ref None
+        in let^ arg_ty = lower_types arg_tys
+        in let^ () =
+          UniqueMap.add nm (Function (nm, arg_ty, ret_ty, func_body)) globals
+        in Ok (Some (Either.Left (body, List.map fst args, arg_ty),
+                      ret_ty, func_body))
+    | Module (nm, alt_names, ret, body) ->
+        let^ (aliases, ast_types, var_types, struct_def) =
+          extract_module_args body types
+        in let^ ret_ty = process_type_option ret types
+        in let mod_body = ref None
+        in let mod_info : module_info =
+          { name = nm
+          ; alias_map = aliases
+          ; args = ast_types
+          ; argument_types = var_types
+          ; input_struct_def = struct_def
+          ; out_type = ret_ty
+          ; ret_type = (match ret with None -> Product [] | Some t -> t)
+          ; body = mod_body }
+        in let^ () = insert_module nm (Module mod_info)
+        in let^ () =
+          foreach_res alt_names (fun nm -> insert_module nm (Module mod_info))
+        in Ok (Some (Either.Right (body, struct_def), ret_ty, mod_body))
+    | _ -> Ok None
 
-  in let rec create_definitions (ts : Ast.topLevel list) types env =
-    match ts with
-    | [] -> ()
-    | Uninterp (nm, in_tys, out_ty) :: tl ->
-        let in_typs = List.map (fun t -> process_type t types) in_tys
-        and out_typ = process_type out_ty types
-        in UniqueMap.add nm (Uninterpreted (nm, in_typs, out_typ)) env
-        ; create_definitions tl types env
-    | Attribute (nm, ty) :: tl ->
-        let typ = process_type ty types
-        in UniqueMap.add nm (Attribute (nm, typ)) env
-        ; create_definitions tl types env
-    | Element (nm, ty) :: tl ->
-        let typ = process_type ty types
-        in UniqueMap.add nm (Element (nm, typ)) env
-        ; create_definitions tl types env
-    | _ :: _ -> failwith "partitioning error"
-
-  (* Handling functions takes two steps, we first collect type information for
-   * all functions and modules and then with those definitions in hand in the
-   * global environment, we actually process each function and module
-   * definition *)
-  in let rec create_functions (ts : Ast.topLevel list) types env =
-    match ts with
-    | [] -> []
-    | Function (nm, args, ret, body) :: tl ->
-        let arg_tys = List.map (fun (_, t) -> process_type t types) args
-        and ret_ty  = process_type_option ret types
-        and func_body = ref None
-        in let arg_ty = construct_prod arg_tys
-        in UniqueMap.add nm (Function (nm, arg_ty, ret_ty, func_body)) env
-        ; (Either.Left (body, List.map fst args, arg_ty), ret_ty, func_body)
-        :: create_functions tl types env
-    | Module (nm, alt_names, ret, body) :: tl ->
-        let (aliases, ast_types, var_types, struct_def)
-          = process_module_for_args body types
-        and ret_ty = process_type_option ret types
-        and mod_body = ref None
-        in let mod_info =
-          { name = nm;
-            alias_map = aliases;
-            args = ast_types;
-            argument_types = var_types;
-            input_struct_def = struct_def;
-            out_type = ret_ty;
-            ret_type = (match ret with None -> Product [] | Some t -> t);
-            body = mod_body }
-        in add_modules nm (Module mod_info) env
-        ; List.iter (fun nm -> add_modules nm (Module mod_info) env) alt_names
-        ; (Either.Right (body, struct_def), ret_ty, mod_body)
-        :: create_functions tl types env
-    | _ :: _ -> failwith "partitioning error"
-  in let rec process_functions ts env types =
-    match ts with
-    | [] -> ()
+  in let codegen_func (excepts : Target.typ StringMap.t) f
+    : (unit, string) result =
+    match f with
+    | None -> Ok ()
     (* Function body *)
-    | (Either.Left (body, args, arg_ty), ret_type, body_ref) :: tl ->
-        (* Because the calculus just has a single argument for everything we
-           generate code that reads each argument out of the initial argument
-           #input *)
+    | Some (Either.Left (body, args, arg_ty), ret_type, body_ref) ->
         let default_ret : (Target.stmt, string) result =
           if type_equality ret_type Unit
           then Ok (Return (Literal (Unit ())))
-          else Error ("Reached end of statements, missing terminator")
-        in
-        body_ref :=
-          Some (unwrap
-            (generateVarInits args arg_ty (Variable "#input")
-                empty_local_env
-                (fun locals ->
-                    process_stmt body env types locals
-                      (Return (target_type ret_type)) None default_ret)))
-        ; process_functions tl env types
+          else Error "Reached end of function without return"
+        (* Because the calculus only allows a single arguments for everything,
+         * we generate code that reads each argument out of the initial tuple
+         * passed in as the #input argument *)
+        in let^ (setup, locals) =
+          generate_var_inits args arg_ty (Variable "#input") empty_local_env
+        in let^ ret_type = lower_type ret_type
+        in let^ func_body =
+          codegen_stmts body types globals excepts locals ret_type None
+            None default_ret
+        in Ok (body_ref := Some (Target.Seq (setup, func_body)))
     (* Module body *)
-    | (Either.Right (body, input), ret_type, body_ref) :: tl ->
+    | Some (Either.Right (body, input), ret_type, body_ref) ->
         let default_ret : (Target.stmt, string) result =
           if type_equality ret_type Unit
           then Ok (Return (Literal (Unit ())))
-          else Error ("Reached end of statements, missing terminator")
-        in
-        body_ref :=
-          Some(unwrap(process_stmt body env types empty_local_env
-                (Return (target_type ret_type))
-                (Some (empty_mod_env, StringMap.map target_type input))
-                default_ret))
-        ; process_functions tl env types
+          else Error "Reached end of module without return"
+        in let^ ret_type = lower_type ret_type
+        in let^ input_type = smap_map_res lower_type input
+        in let^ func_body =
+          codegen_stmts body types globals excepts empty_local_env ret_type
+            None (Some (empty_mod_env, input_type)) default_ret
+        in Ok (body_ref := Some (func_body))
 
-  in let (tys, dfs, fns) = partition files
-  in let type_env = UniqueMap.empty ()
-  in let global_env : global_env = UniqueMap.empty ()
-  in create_types tys type_env
-  ; create_definitions dfs type_env global_env
-  ; process_functions (create_functions fns type_env global_env) global_env type_env
-  ; (type_env, global_env)
+  in let^ () = foreachs_res parsed add_type
+  in let^ () = foreachs_res parsed add_def
+  in let^ funcs = flatmap_res add_func parsed
+  in let^ excepts =
+    UniqueMap.fold (fun e t excepts -> Result.bind excepts (fun excepts ->
+      let^ typ = lower_type t
+      in Ok (StringMap.add e typ excepts)))
+      excepts
+      (Ok (StringMap.singleton "!FATAL" (Target.Primitive String)))
+  in let^ () = foreach_res funcs (codegen_func excepts)
+  in Ok { types = types; globals = globals; excepts = excepts }
 
-let codegen_program (body : Ast.stmt list) tys env : Target.stmt =
-  unwrap
-    (process_stmt body env tys empty_local_env (Return (Primitive Unit)) None
-        (Ok (Return (Literal (Unit ())))))
+(* Code-gen entry for an individual program given an existing context *)
+let codegen_program (body : Ast.stmt list) (c : context)
+  : (Target.stmt, string) result =
+  let^ res =
+    codegen_stmts body c.types c.globals c.excepts empty_local_env
+      (Primitive Unit) None None (Ok (Return (Literal (Unit ()))))
+  (* We insert a requirement that #local() exist since this is an element
+   * used by our compilation process and not having it exist can be a problem
+   * if we write a local before reading any. *)
+  in Ok (Target.Seq (
+      Contains (Element (("#local", Primitive Unit), Literal (Unit ())),
+        Pass,
+        fatal "assertion failed" c.excepts),
+      res))
 
-(* Looks up a module's definition given its name and a global environment
- * Returns None if it could not be found for any reason *)
-let find_module_def (name : string list) (env : global_env)
-  : module_info option =
+let find_module_def (name : string list) (ctx : context) : module_info option =
   let rec helper name entry =
     match name with
     | [] ->
@@ -1860,4 +2119,32 @@ let find_module_def (name : string list) (env : global_env)
             | Some entry -> helper name entry
             end
         | _ -> None
-  in helper name (Environment env)
+  in helper name (Environment ctx.globals)
+
+let find_function_body (name : string list) (c : context)
+  : (Target.stmt, string) result =
+  let rec helper name entry =
+    match name with
+    | [] ->
+        begin match entry with
+        | Module m ->
+            begin match !(m.body) with
+            | None -> Error "No body for module"
+            | Some s -> Ok s
+            end
+        | Function (_, _, _, s) ->
+            begin match !s with
+            | None -> Error "No body for function"
+            | Some s -> Ok s
+            end
+        | _ -> Error "Not a function"
+        end
+    | nm :: name ->
+        match entry with
+        | Environment env ->
+            begin match UniqueMap.find nm env with
+            | None -> Error "No such function"
+            | Some entry -> helper name entry
+            end
+        | _ -> Error "Not a function"
+  in helper name (Environment c.globals)

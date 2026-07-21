@@ -1,4 +1,7 @@
-type dest = Value of ParseTree.value | InHome of string * ParseTree.value
+module Target = Modules.Ast
+
+type value = Parsed of ParseTree.value | Target of Target.expr
+type dest = Absolute of value | InHome of string * value
 type path = Remote of dest | Controller of dest
 
 type paths = InPath   of path
@@ -6,16 +9,21 @@ type paths = InPath   of path
 
 type ansible_os = Debian | Ubuntu | RedHat | DebianFamily | RedHatFamily
 
+type gitRepoInfo = { repo: Target.expr; version: ParseTree.value option }
+
 (* For pip we optionally specify a virtual environment to install in *)
 type package_manager = System | Apt | Dnf | Pip of ParseTree.value option
 
-type pkg = { name: string; pkg_manager: package_manager }
+type pkg_spec = { name: string; pkg_manager: package_manager }
+type pkg = pkg_spec list
+
+type service = Target.expr
 
 type cond = CheckOs         of ansible_os
           | FileExists      of path
           | DirExists       of path
           | PkgInstalled    of pkg
-          | ServiceRunning  of string
+          | ServiceRunning  of service
 
 type perm = { mutable owner: bool; mutable group: bool; mutable other: bool }
 type file_perms = { read: perm option; write: perm option; exec: perm option;
@@ -33,9 +41,10 @@ type account_desc = User  of string
                   | Group of string
 
 
-type act = CloneGitRepo     of { repo: string; version: ParseTree.value option;
-                                 dest: file_desc }
-
+type act = CloneGitRepo of {
+            repo: Target.expr;
+            version: ParseTree.value option;
+            dest: file_desc }
          | CopyDir          of { src: path; dest: file_desc }
          | CopyFile         of { src: path; dest: file_desc }
          | CopyFiles        of { src: paths; dest: files_desc }
@@ -76,9 +85,9 @@ type act = CloneGitRepo     of { repo: string; version: ParseTree.value option;
          | SetFilesPerms    of { locs: paths; perms: file_perms }
          | SetShell         of { user: string; shell: path }
 
-         | StartService     of { name: string }
+         | StartService     of { name: service }
 
-         | StopService      of { name: string }
+         | StopService      of { name: service }
 
          | UninstallPkg     of { pkg: pkg }
 

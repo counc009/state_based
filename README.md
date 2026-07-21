@@ -25,17 +25,7 @@ or equivalently
 ```
 
 # TODO Tasks
-- Assert existance of users/groups used in various places (copy, file, etc.)
-- Fix unification to avoid unifying conflicting elements (i.e.,
-  fs("/etc/file.txt") and not fs("/etc/file.txt") in problem 13)
-
-- Code-gen handlers
-
 - (Later) Handle file modes
 - (Later) Fix file-system descriptions, at minimum glob should try to identify
   the base directory, and then use its path list
 - (Later) Improve handling of user home directory based paths
-- (Later) Unify/check-validity of constraints
-- (Later) Account for unification results when merging candidate diffs (in
-  particular, map unknowns to known values when possible and potentially map
-  back into unknowns from the reference)

@@ -1,4 +1,4 @@
-struct fetch_result { failed: bool }
+struct fetch_result { failed: bool, changed: bool }
 
 module ansible.builtin.fetch aka fetch -> fetch_result {
   (dest: path) (src: path)
@@ -21,10 +21,10 @@ module ansible.builtin.fetch aka fetch -> fetch_result {
             fs(dst, file_system::local).fs_type = file_type::file(c);
           }
         }
-        return fetch_result { failed: false };
+        return fetch_result { failed: false, changed: true };
       }
     }
   }
 
-  return fetch_result { failed: true };
+  return fetch_result { failed: true, changed: false };
 }

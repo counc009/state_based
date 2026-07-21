@@ -1,5 +1,3 @@
-element globals()
-
 element input(int)
 element output(int)
 
@@ -26,7 +24,6 @@ function digitalWrite(p: int, v: bool) {
 
 function program() {
   assert exists env();
-  assert exists globals();
 
   // We run the loop twice, first time to update globals and second time to
   // see what happens

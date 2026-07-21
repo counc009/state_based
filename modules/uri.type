@@ -1,0 +1,69 @@
+# The documentation says that if the response is JSON we always return that in
+# a json field of this struct, but that doesn't fit within the State Calculus's
+# type system so we do not support that feature at this time
+struct uri_result {
+  failed: bool,
+  changed: bool,
+  path: path,
+  status: int,
+  url: path }
+
+uninterpreted url_response(path, option (string, string)) -> int
+
+module ansible.builtin.uri aka uri -> uri_result {
+  (url: path)
+  [dest: path]
+  (status_code: list int = list::<int>::cons(200, list::<int>::nil()))
+  
+  # Ignored because it is described as "do not get a cached copy" rather than
+  # having to do with overwriting dest
+  (force : bool = false)
+
+  [group: string] [owner: string] [mode: string]
+
+  let login = option::<(string, string)>::nothing;
+  [url_username aka user: string]
+  if provided url_username {
+    [url_password aka password: string]
+    if provided url_password {
+      login = option::<(string, string)>::some((url_username, url_password));
+    } else {
+      login = option::<(string, string)>::some((url_username, ""));
+    }
+  }
+
+  let result = uri_result { failed: false, changed: false, url: url };
+
+  result.status = url_response(url, login);
+
+  let valid_code = false;
+  for code in status_code {
+    if code == result.status {
+      valid_code = true;
+    }
+  }
+  result.failed = !valid_code;
+
+  if provided dest {
+    # It's unclear from the documentation what happens if the return code is not 200
+    let dst = norm_path(dest);
+
+    if ends_with_dir(dest) {
+      let name = base_name(url); # I think, wording is "basename of the file on the remote server"
+      dst = cons_path(dst, name);
+    }
+
+
+    fs(dst, file_system::remote).fs_type
+      = file_type::file(download_url(url, login));
+    if provided group { fs(dst, file_system::remote).owner_group = group; }
+    if provided owner { fs(dst, file_system::remote).owner = owner; }
+    fs(dst, file_system::remote).mode
+      = provided mode ? mode : mode_of_umask(env().umask);
+
+    result.path = dst;
+    result.changed = true;
+  }
+
+  return result;
+}

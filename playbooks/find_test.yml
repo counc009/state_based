@@ -1,5 +1,6 @@
 ---
 - name: Find and fetch files from remote
+  hosts: all
   tasks:
   - name: Find files matching /tmp/*.txt
     ansible.builtin.find:

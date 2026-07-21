@@ -1,5 +1,6 @@
 ---
 - name: Test loops
+  hosts: all
   remote_user: aaron
 
   tasks:

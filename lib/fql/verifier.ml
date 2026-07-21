@@ -3,450 +3,1059 @@
  * interpretation (the result of interpreting the generated Ansible program) we
  * check whether the candidate matches the reference.
  *
- * To do this for the moment we verify that each input/output state pair in the
- * reference has a "matching" state pair in the candidate. To identify that a
- * pair matches we need 1) that the assumptions in the candidate's input state
- * are consistent with those in reference's input state [ideally we want the
- * candidate's input state to only include assumptions from the reference's
- * input state but if it has additional assumptions we record that to permit
- * better analysis] and 2) that the actions in the candidate's output state
- * include all those from the reference's output state [again, ideally it would
- * be exactly the actions in the reference's but we'll record additional
- * actions that are taken]
+ * Considering a single execution path through both programs (i.e., a
+ * particular initial/final state pair from each of the reference and candidate
+ * programs) we determine whether they "match" by checking 1) that the
+ * candidate's input state is consistent with the reference's (meaning any
+ * shared assumptions are the same but both are allowed additional assumptions
+ * that the other does not make) and 2) that the candidate's output state
+ * covers the reference's (meaning that any actions performed by the reference
+ * are also performed by the candidate but the candidate may perform other
+ * actions as well).
  *
- * Note that this process actually involves a unification-like piece since there
- * may be unknown values in the reference solution which is allowed to take a
- * particular value (rather than having to be an arbitrary value). We determine
- * which unknowns are allowed to be arbitrary values by checking that they do
- * not appear as attribute values in the initial state (since such unknowns are
- * an assumption about the initial state).
- * FIXME: I think ideally we would track whether each unknown is a forall or
- * existential unknown (where unknowns generated during interpretation would be
- * forall but those generated via the GenUnknown expression would be
- * existential). Having this would be useful for the task described below since
- * it could be used to have existential variables to describe the set of
- * possible behaviors where we only need one of them from the candidate.
+ * For considering the entirety of the programs' behaviors then we want to show
+ * that every behavior expected by the reference is satisfied by the candidate,
+ * meaning that there is some execution path of the candidate which matches the
+ * expected behavior, as described above. Now, not every behavior the reference
+ * can have is expected because existential variables can introduce options,
+ * such as different package names or paths that might be used. In these cases,
+ * just one of these options is required to be matched by the candidate.
  *
- * In the future (TODO) we would like to be able to be able to interpret formal
- * queries to produce a set of sets of input/output states where only one
- * member of each set needs to be satisfied (for instance members of the same
- * set might reflect different ways to update the sudoers file) but the basis
- * of that is still checking equivalence of pairs of states so the approach
- * described above is still the core of that algorithm.
+ * Now the matching process described above involves a unification-like process
+ * because any variables from the candidate can be instantiated to match
+ * variables or values in the reference) and existential variables in the
+ * reference can be instantiated to match values from the candidate.
  *)
+
+let ( let* ) = Option.bind
 
 module Interp = Modules.Target.TargetInterp
 module Ast = Modules.Target.Ast_Target
 
-module IntSet : Set.S with type elt = int = Set.Make(Int)
-module IntMap : Map.S with type key = int = Map.Make(Int)
+(* A Unifier maps variable numbers to values *)
+module Unifier : sig
+  type t
+  val empty : t
 
-(* Identify the universal variables *)
-let universal_vars ((p, _): (Interp.prg_type * Ast.value)) : IntSet.t =
-  let rec add_unknowns (v: Ast.value) s =
+  val eval : Ast.value -> t -> Ast.value
+  val add : int -> Ast.value -> t -> t option
+  val constrain : Ast.value -> Ast.constr -> t -> t option
+
+  type merged_bool = { t : int list; f : int list }
+  type merged_constr =
+    { l : (int * Ast.value) list; r : (int * Ast.value) list }
+  type merged = { bools : merged_bool Interp.ValueMap.t;
+                  constrs : merged_constr Interp.ValueMap.t }
+  val merge : t list -> merged
+end 
+= struct
+  module M = Map.Make(Int)
+  module VM = Interp.ValueMap
+
+  (* This type is kinda nuanced, because we're using a Map which is immutable
+   * but then wrapping it in a ref. The reason for this is that we want the
+   * Unifier to be observationally persistent, so if u is a unifier and then
+   * we assign m = add k v u, m is a unifier with k --> v while u has not
+   * changed, but find also performs some background work that is essentially
+   * path compression, and since these don't change the observational behavior
+   * of the Unifier, it is preferable to be able to record that compression
+   * so we don't need to do it again later *)
+  type t = { map : Ast.value M.t ref; bools : bool VM.t;
+             constrs : (bool * Ast.value) VM.t }
+
+  let empty = { map = ref M.empty; bools = VM.empty;
+                constrs = VM.empty }
+
+  (* Given a term fully evaluated under the map, check if we can evaluate
+   * further under the constraints *)
+  let eval_constraints v { bools; constrs; _ } =
+    match VM.find_opt v bools with
+    | Some b -> Ast.Literal (Bool b, Bool)
+    | None ->
+        match VM.find_opt v constrs with
+        | Some (which, x) ->
+            begin match Interp.type_of_val v with
+            | Named n -> Constructor (n, which, x)
+            | _ -> failwith "Value is constrained as Constructor but type is not Named"
+            end
+        | None -> v
+
+  let rec eval (v : Ast.value) ({ map; _ } as u) =
     match v with
-    | Unknown (Loop i, _) | Unknown (Val i, _) -> IntSet.add i s
-    | Literal (_, _) -> s
-    | Function (_, v, _) -> add_unknowns v s
-    | Pair (x, y, _) -> add_unknowns x (add_unknowns y s)
-    | Constructor (_, _, v) -> add_unknowns v s
-    | Struct (_, r) -> Ast.FieldMap.fold (fun _ -> add_unknowns) r s
-    | ListVal (_, v) -> add_unknowns v s
-  in let rec process_elems (elems : Interp.state Interp.ElementMap.t) s =
-    Interp.ElementMap.fold (fun _ -> process_state) elems s
-  and process_attrs
-    (attrs : (Ast.value * Interp.state) Interp.AttributeMap.t) s =
-    Interp.AttributeMap.fold
-      (fun _ ((v, state) : Ast.value * Interp.state) set ->
-        process_state state (add_unknowns v set))
-      attrs
-      s
-  and process_state (state: Interp.state) s =
-    let (elems, attrs) = match state with State (elsm, ats) -> (elsm, ats)
-    in process_elems elems (process_attrs attrs s)
-  in process_state p.init IntSet.empty
+    | Unknown ((Loop i | Universal i | Existential i), _) ->
+        begin match M.find_opt i !map with
+        (* We don't need to use eval_constraints because we never put variables
+         * into bools or constrs, we would just put the constraints directly
+         * into the map *)
+        | None -> v
+        | Some v -> let v = eval v u in map := M.add i v !map; v
+        end
+    (* We don't bother to eval_constraints on literals, since they should never
+     * appear *)
+    | Literal (_, _) -> v
+    | Function (f, v, t) ->
+        let new_v = eval v u
+        in let (_, _, f_def) = Ast.funcDef f
+        in let res =
+          match f_def new_v with
+          | Reduced w -> w
+          | Stuck -> Function (f, new_v, t)
+          | Err msg ->
+              failwith ("Unifier.eval encountered a function evaluation failure:" ^ msg)
+        in eval_constraints res u
+    (* Like with literals, a Pair itself never appears in a constraint because
+     * it is neither a bool nor a constructor *)
+    | Pair (x, y, t) -> Pair (eval x u, eval y u, t)
+    (* And again, a constructor value would never be put in the constraints *)
+    | Constructor (n, c, v) -> Constructor (n, c, eval v u)
+    | Struct (t, r) -> Struct (t, Ast.FieldMap.map (fun v -> eval v u) r)
+    | ListVal (n, v) -> eval_constraints (ListVal (n, eval v u)) u
 
-(* For the outcome of our verification we either decide the candidate is
- * incompatible with the reference (because it makes conflicting assumptions
- * or does not perform some necessary actions) or it is compatible though even
- * in that case we may report additional assumptions that are needed or
- * additional actions that were performed
- *)
-(*type outcome = Incompatible of unit
-             | Compatible   of unit*)
+  (* If we attempt to add inconsistent information we return None *)
+  let add k v { map; bools; constrs } =
+    let error = ref false
+    in let res =
+      M.update k (function None -> Some v
+                  | Some _ -> error := true; Some v) !map
+    in if !error
+    then None
+    else
+      let map = ref res
+      in let* bools =
+        VM.fold (fun v b bools ->
+          let* bools = bools
+          in let v = eval v { map; bools; constrs = VM.empty }
+          in match Ast.asTruth v with
+          | Some c -> if b = c then Some bools else None
+          | _ ->
+              begin match VM.find_opt v bools with
+              | None -> Some (VM.add v b bools)
+              | Some c -> if b = c then Some bools else None
+              end
+        ) bools (Some VM.empty)
+      (* Because handling the constructors can result in more constraints we
+       * may also have to update the bools *)
+      in let* (constrs, bools) =
+        VM.fold (fun v (which, x) acc ->
+          let* (constrs, bools) = acc
+          in let v = eval v { map; bools; constrs }
+          in let x = eval x { map; bools; constrs }
+          in match v with
+          | Ast.Constructor (_, w, y) ->
+              if which <> w 
+              then None
+              (* We don't do an in-depth unification because that's very
+               * difficult and non-deterministic. Instead we just use a bool
+               * condition about their equality *)
+              else
+                let eqxy : Ast.value =
+                  Function (Equal (Interp.type_of_val x),
+                    Pair (x, y,
+                      Product (Interp.type_of_val x, Interp.type_of_val y)),
+                    Primitive Bool)
+                in let eq_eval = eval eqxy { map; bools; constrs }
+                in begin match Ast.asTruth eq_eval with
+                (* Already true, no need to do anything else *)
+                | Some true -> Some (constrs, bools)
+                | Some false -> None (* Cannot unify, so contradiction *)
+                | None ->
+                    begin match VM.find_opt eq_eval bools with
+                    | None -> Some (constrs, VM.add eq_eval true bools)
+                    | Some true -> Some (constrs, bools)
+                    | Some false -> None
+                    end
+                end
+          | _ ->
+              begin match VM.find_opt v constrs with
+              | None -> Some (VM.add v (which, x) constrs, bools)
+              | Some (w, y) ->
+                  if which <> w
+                  then None
+                  else 
+                    let eqxy : Ast.value =
+                      Function (Equal (Interp.type_of_val x),
+                        Pair (x, y,
+                          Product (Interp.type_of_val x, Interp.type_of_val y)),
+                        Primitive Bool)
+                    in let eq_eval = eval eqxy { map; bools; constrs }
+                    in begin match Ast.asTruth eq_eval with
+                    (* Already true, no need to do anything else *)
+                    | Some true -> Some (constrs, bools)
+                    | Some false -> None (* Cannot unify, so contradiction *)
+                    | None ->
+                        begin match VM.find_opt eq_eval bools with
+                        | None -> Some (constrs, VM.add eq_eval true bools)
+                        | Some true -> Some (constrs, bools)
+                        | Some false -> None
+                        end
+                    end
+              end
+        ) constrs (Some (VM.empty, bools))
+      in Some { map; bools; constrs }
 
-type unification = Value of Ast.value | Unknown of int
+  (* We assume that v is fully evaluated under the current unifier *)
+  let constrain v (c : Ast.constr) ({ map; bools; constrs } as u) =
+    match v with
+    (* For unknowns we don't add the information to the constraints but rather
+     * put it directly into the map *)
+    | Ast.Unknown ((Loop i | Universal i | Existential i), t) ->
+        begin match c with
+        | IsBool b -> add i (Literal (Bool b, Bool)) u
+        | IsConstructor (which, x) ->
+            let n =
+              match t with
+              | Named n -> n
+              | _ -> failwith "Value is constrained to be a constructor but does not have Named type"
+            in add i (Constructor (n, which, x)) u
+        | IsEqual w -> add i w u
+        end
+    | _ ->
+      match c with
+      | IsBool b ->
+          Some { map; bools = VM.add v b bools; constrs }
+      | IsConstructor (which, x) ->
+          Some { map; bools; constrs = VM.add v (which, x) constrs }
+      | IsEqual w ->
+          (* IsEqual constraints are the one where there could already be a
+           * constraint about v and w, even though we assume both are fully
+           * evaluated since constraint will simply have the form equal(v, w)
+           * in the bools, so we would not find it in our search procedure.
+           * Thus we must check if this is consistent. *)
+          let err = ref false
+          in let tv = Interp.type_of_val v
+          in let tw = Interp.type_of_val w
+          in let tvw = Ast.Product (tv, tw)
+          in let twv = Ast.Product (tw, tv)
+          in let equal = Ast.equality_func tv
+          in let eqvw = Ast.Function (equal, Pair (v, w, tvw), Primitive Bool)
+          in let eqwv = Ast.Function (equal, Pair (w, v, twv), Primitive Bool)
+          in let add_binding = function
+            | None | Some true -> Some true
+            | Some false -> err := true; None
+          in let bools =
+            VM.update eqvw add_binding (VM.update eqwv add_binding bools)
+          in if !err
+          then None (* Inconsistent *)
+          else Some { map; bools; constrs }
 
-(* The unifier holds the following information that is necessary to properly
- * handle unifying expressions:
- * - map: maps an unknown to a value or other unknown it is unified with
- * - vmap: maps an unknown to the list of unknowns mapped to it, i.e. if
- *   vmap[i] = xs and j in xs then map[j] = Unknown i
- * - universals: the set of universal unknowns (i.e. unknowns that can only be
- *   unified with other unknowns). This is initialized as the unknowns
- *   appearing as attribute values in the reference's initial state and then
- *   may expand as unknowns are unified to universal unknowns.
- *)
-type unifier = { map: unification IntMap.t; vmap: int list IntMap.t;
-                 universals: IntSet.t }
+  (* Utilities for merging the constraints from multiple unifiers into a single
+   * data-structure *)
+  type merged_bool = { t : int list; f : int list }
+  type merged_constr =
+    { l : (int * Ast.value) list; r : (int * Ast.value) list }
+  type merged = { bools : merged_bool VM.t; constrs : merged_constr VM.t }
 
-let lmap_find (i: int) (map: 'a list IntMap.t) : 'a list =
-  match IntMap.find_opt i map with
-  | None -> []
-  | Some xs -> xs
+  let empty_merged : merged = { bools = VM.empty; constrs = VM.empty }
 
-let lmap_add (i: int) (x: 'a) (map: 'a list IntMap.t) : 'a list IntMap.t =
-  IntMap.update i 
-    (fun xs -> match xs with None -> Some [x] | Some xs -> Some (x :: xs))
-    map
+  let merge (xs : t list) : merged =
+    let add_unifier (u : t) (i : int) (acc : merged) =
+      let m_bools =
+        VM.fold (fun v u_bind m_bools ->
+          VM.update v (fun m_bind ->
+            match m_bind with
+            | None ->
+                if u_bind
+                then Some { t = [i]; f = [] }
+                else Some { t = []; f = [i] }
+            | Some { t; f } ->
+                Some { t = if u_bind then i :: t else t;
+                       f = if u_bind then f else i :: f }
+          ) m_bools
+        ) u.bools acc.bools
+      in let m_constrs =
+        VM.fold (fun v (u_which, u_val) m_constrs ->
+          VM.update v (fun m_bind ->
+            match m_bind with
+            | None ->
+                if u_which
+                then Some { l = [(i, u_val)]; r = [] }
+                else Some { l = []; r = [(i, u_val)] }
+            | Some { l; r } ->
+                Some { l = if u_which then (i, u_val) :: l else l;
+                       r = if u_which then r else (i, u_val) :: r }
+          ) m_constrs
+        ) u.constrs acc.constrs
+      in { bools = m_bools; constrs = m_constrs }
+    in let rec merge (xs : t list) (i : int) (acc : merged) =
+      match xs with
+      | [] -> acc
+      | u :: xs ->
+          merge xs (i + 1) (add_unifier u i acc)
+    in merge xs 0 empty_merged
+end
 
-let lmap_extend (i: int) (xs: 'a list) (map: 'a list IntMap.t)
-  : 'a list IntMap.t =
-  IntMap.update i
-    (fun ys -> match ys with None -> Some xs | Some ys -> Some (xs @ ys))
-    map
+type unifier = Unifier.t
 
-let new_unifier (universals: IntSet.t) : unifier =
-  { map = IntMap.empty; vmap = IntMap.empty; universals = universals }
+(* The result of comparing two diffent states, in particular subtracing one
+ * state from another *)
+type elem_diff = Negated | Positive of state_diff
+and state_diff =
+  (* bool for elements tracks if this element itself is part of the diff or if
+   * it only appears because of a nested diff *)
+  StateDiff of (bool * elem_diff) Interp.ElementMap.t
+             * Ast.value Interp.AttributeMap.t
 
-let unifier_find (i: int) (u: unifier) : unification option =
-  IntMap.find_opt i u.map
-
-let unifier_add (i: int) (v: unification) (u: unifier) : unifier =
-  let { map; vmap; universals } = u
-  (* We need to perform 2 updates to map: map i -> v and for any j such that
-   * j -> i we update it so that j -> v (in particular this means we use
-   * vmap[i] and update those variables' bindings to v *)
-  in { map = List.fold_left (fun map j -> IntMap.add j v map)
-                (IntMap.add i v map) (lmap_find i vmap);
-  (* For vmap, if v = Unknown k then we transfer vmap[i] to be part of vmap[k] *)
-       vmap = (match v with Unknown k -> lmap_extend k (lmap_find i vmap) vmap
-                         | Value _ -> vmap);
-  (* For universals, if v = Unknown k and i is universal, then k is now
-   * universal *)
-       universals =
-         if IntSet.mem i universals
-         then match v with Unknown k -> IntSet.add k universals
-                         | Value _ -> universals
-         else universals
-     }
-
-(* The bool in the elements records whether this element itself is part of the
- * diff or only present because of a diff on it *)
-type state_diff = StateDiff of (bool * state_diff) Interp.ElementMap.t
-                       * (Ast.value option * state_diff) Interp.AttributeMap.t
-type outcome = { m: unifier; constraints: unit; assumptions: state_diff;
-                 actions: state_diff }
-
-let is_empty (d: state_diff) : bool =
-  match d with
-  | StateDiff (elems, attrs) -> Interp.ElementMap.is_empty elems
-                             && Interp.AttributeMap.is_empty attrs
-
-let add_attr (a: Ast.attribute) (d: state_diff) (diff: state_diff) =
-  match diff with
-  | StateDiff (elms, ats) ->
-      StateDiff (elms, Interp.AttributeMap.add a (None, d) ats)
-
-let add_elem e (d: state_diff) (diff: state_diff) : state_diff =
-  match diff with
-  | StateDiff (elms, ats) ->
-      StateDiff (Interp.ElementMap.add e (false, d) elms, ats)
-
-let empty_diff : state_diff =
+let diff_empty : state_diff =
   StateDiff (Interp.ElementMap.empty, Interp.AttributeMap.empty)
 
-let rec state_to_diff (s: Interp.state) : state_diff =
-  match s with
-  | State (elems, attrs) ->
-      StateDiff (
-        Interp.ElementMap.map (fun s -> (true, state_to_diff s)) elems,
-        Interp.AttributeMap.map (fun (v, s) -> (Some v, state_to_diff s)) attrs
-      )
+let diff_is_empty (d : state_diff) : bool =
+  let StateDiff (elems, attrs) = d
+  in Interp.ElementMap.is_empty elems && Interp.AttributeMap.is_empty attrs
 
-let rec add_state_to_diff (d: state_diff) (s: Interp.state) : state_diff =
-  match d, s with
-  | StateDiff (elems_d, attrs_d), State (elems_s, attrs_s) ->
-      let new_elems =
-        Interp.ElementMap.merge (fun _ state_d state_s ->
-          match state_d, state_s with
-          | None, None -> None
-          | Some d, None -> Some d
-          | None, Some s -> Some (true, state_to_diff s)
-          | Some (b, d), Some s -> Some (b, add_state_to_diff d s))
-        elems_d elems_s
-      in let new_attrs =
-        Interp.AttributeMap.merge (fun _ res_d res_s ->
-          match res_d, res_s with
-          | None, None -> None
-          | Some d, None -> Some d
-          | None, Some (v, s) -> Some (Some v, state_to_diff s)
-          | Some (_, d), Some (v, s) -> Some (Some v, add_state_to_diff d s))
-        attrs_d attrs_s
-      in StateDiff (new_elems, new_attrs)
+let diff_add_elem (e : Interp.ElementMap.key) (d : state_diff)
+  (top : state_diff) : state_diff =
+  (* Since the element is not part of the diff, if d is empty we just omit the
+   * element *)
+  if diff_is_empty d
+  then top
+  else
+    let StateDiff (elems, attrs) = top
+    in StateDiff (Interp.ElementMap.add e (false, Positive d) elems, attrs)
 
-let add_attrs (ats: (Ast.value * Interp.state) Interp.AttributeMap.t)
-              (diff: state_diff) : state_diff =
-  match diff with
-  | StateDiff (elems, attrs) ->
-      let new_attrs = Interp.AttributeMap.merge (fun _ diff attr ->
-        match diff, attr with
-        | None, None -> None
-        | Some d, None -> Some d
-        | None, Some (v, s) -> Some (Some v, state_to_diff s)
-        | Some (_, d), Some (v, s) -> Some (Some v, add_state_to_diff d s))
-        attrs ats
-      in StateDiff (elems, new_attrs)
+let rec diff_of_state (s : Interp.state) =
+  let State (elems, attrs) = s
+  in StateDiff (
+      Interp.ElementMap.map (fun (b : Interp.element_result) ->
+        match b with
+        | Negated -> (true, Negated)
+        | Positive s -> (true, Positive (diff_of_state s))) elems,
+      attrs)
 
-let add_elems (elms: Interp.state Interp.ElementMap.t) (diff: state_diff) =
-  match diff with
-  | StateDiff (elems, attrs) ->
-      let new_elems = Interp.ElementMap.merge (fun _ diff elem ->
-        match diff, elem with
-        | None, None -> None
-        | Some d, None -> Some d
-        | None, Some s -> Some (true, state_to_diff s)
-        | Some (b, d), Some s -> Some (b, add_state_to_diff d s))
-        elems elms
-      in StateDiff (new_elems, attrs)
+(* We assume the differences are disjoint *)
+let add_diffs (x : state_diff) (y : state_diff) : state_diff =
+  let StateDiff (elems_x, attrs_x) = x
+  in let StateDiff (elems_y, attrs_y) = y
+  in StateDiff (
+      Interp.ElementMap.union (fun _ d _ -> Some d) elems_x elems_y,
+      Interp.AttributeMap.union (fun _ v _ -> Some v) attrs_x attrs_y)
 
-let rec evaluate_val (v: Ast.value) (m: unifier) : Ast.value =
-  match v with
-  | Unknown (Loop i, t) ->
-      begin match unifier_find i m with
-      | None -> v
-      (* This case should not occur *)
-      | Some (Value _) -> failwith "Cannot replace Loop unknown with value"
-      | Some (Unknown j) -> Unknown (Loop j, t)
-      end
-  | Unknown (Val i, t) ->
-      begin match unifier_find i m with
-      | None -> v
-      | Some (Value w) -> w
-      | Some (Unknown j) -> Unknown (Val j, t)
-      end
-  | Literal (_, _) -> v
-  | Function (f, v, t) ->
-      let new_v = evaluate_val v m
-      in let (_, _, f_def) = Ast.funcDef f
-      in begin match f_def new_v with
-      | Reduced w -> w
-      | Stuck -> Function (f, new_v, t)
-      | Err msg ->
-          (* FIXME *)
-          failwith ("While substituting an unknown a function evaluation failed: " ^ msg)
-      end
-  | Pair (x, y, t) -> Pair (evaluate_val x m, evaluate_val y m, t)
-  | Constructor (n, c, v) -> Constructor (n, c, evaluate_val v m)
-  | Struct (t, r) -> Struct (t, Ast.FieldMap.map (fun v -> evaluate_val v m) r)
-  | ListVal (n, w) -> ListVal (n, evaluate_val w m)
+(* The evaluate_candidate function both evaluates the value and replaces all
+ * Universal variables with Existential ones, because even the Universal values
+ * in the candidate can be instantiated *)
+let evaluate_candidate (u : unifier) (v : Ast.value) : Ast.value =
+  let rec replace_universals (v : Ast.value) : Ast.value =
+    match v with
+    | Unknown ((Loop _ | Existential _), _) -> v
+    | Unknown (Universal i, t) -> Unknown (Existential i, t)
+    | Literal (_, _) -> v
+    | Function (f, v, t) -> Function (f, replace_universals v, t)
+    | Pair (x, y, t) -> Pair (replace_universals x, replace_universals y, t)
+    | Constructor (n, c, v) -> Constructor (n, c, replace_universals v)
+    | Struct (t, r) -> Struct (t, Ast.FieldMap.map replace_universals r)
+    | ListVal (n, v) -> ListVal (n, replace_universals v)
+  in Unifier.eval (replace_universals v) u
 
-let unify_candidate (universals: IntSet.t) (ref: Interp.prg_type * Ast.value)
-  (cand: Interp.prg_type * Ast.value) : outcome list =
-  let (ref, ref_val) = ref
-  in let (cand, cand_val) = cand
-  (* unify_values returns None if it cannot unify the values (under the current
-   * unifier m) and returns Some (m', b) if it can unify them by assuming the
-   * unifier m' and b is true if m' = m and false otherwise (i.e., at this
-   * point the unification is unconditional). *)
-  in let rec unify_values (rv: Ast.value) (cv: Ast.value) (m : unifier)
-    : (unifier * bool) option =
-    let matched =
-      match rv, cv with
-      | Literal (r, _), Literal (c, _) when r = c -> Some (m, true)
-      | Function (f, v, _), Function (g, w, _) when f = g -> unify_values v w m
-      | Pair (x, y, _), Pair (a, b, _) ->
-          Option.bind (unify_values x a m) (fun (m, u1) ->
-            Option.bind (unify_values y b m) (fun (m, u2) ->
-              Some (m, u1 && u2)))
-      | Constructor (n, b, v), Constructor (p, c, w) when n = p && b = c ->
-          unify_values v w m
-      | Struct (_, r), Struct (_, t) ->
-          (* By checking that they have equal cardinality, and then ensuring
-           * that each binding in r is also a binding in s we ensure they have
-           * the same set of bindings *)
-          if Ast.FieldMap.cardinal r <> Ast.FieldMap.cardinal t then None
-          else Ast.FieldMap.fold (fun f v m ->
-            Option.bind m (fun (m, u1) ->
-              Option.bind (Ast.FieldMap.find_opt f t) (fun w ->
-                Option.bind (unify_values v w m) (fun (m, u2) ->
-                  Some (m, u1 && u2)))))
-            r
-            (Some (m, true))
-      | ListVal (_, v), ListVal (_, w) -> unify_values v w m
-      | Unknown (Loop i, _), Unknown (Loop j, _) ->
-          begin match unifier_find i m with
-          | Some (Unknown v) -> if v = j then Some (m, true) else None
-          | Some (Value _) -> None
-          | None ->
-              let loop_ref =
-                Interp.ValueMap.fold
-                  (fun v l r -> match r with Some r -> Some r
-                    | None -> match l with
-                      | Interp.AllUnknown n | LastKnown (n, _)
-                        -> if n = i then Some v else None
-                      | AllKnown _ -> None)
-                  ref.loops
-                  None
-              in let loop_cand =
-                Interp.ValueMap.fold
-                  (fun v l r -> match r with Some r -> Some r
-                    | None -> match l with
-                      | Interp.AllUnknown n | LastKnown (n, _)
-                        -> if n = j then Some v else None
-                      | AllKnown _ -> None)
-                  cand.loops
-                  None
-              in match loop_ref, loop_cand with
-              (* If we didn't find one, that's an error. Fail to unify *)
-              | None, _ | _, None -> None
-              | Some v, Some w ->
-                  Option.bind (unify_values v w m) (fun (m, _) ->
-                    Some (unifier_add i (Unknown j) m, false))
-          end
-      | Unknown (Val i, _), Unknown (Val j, _) ->
-          begin match unifier_find i m with
-          | Some (Unknown v) -> if v = j then Some (m, true) else None
-          | Some (Value _) -> None
-          (* Note that we can unify a universal variable to variable since it
-           * remains universal. As seen below we can't unify universals to
-           * particular values *)
-          | None -> Some (unifier_add i (Unknown j) m, false)
-          end
-      | Unknown (Val _, _), Unknown (Loop _, _)
-        | Unknown (Loop _, _), Unknown (Val _, _) -> None
-      | Unknown (Val i, _), _ ->
-          begin match unifier_find i m with
-          | Some (Unknown _) -> None (* Handled this case above *)
-          | Some (Value v) ->
-              if evaluate_val v m = evaluate_val cv m
-              then Some (m, true) else None
-          | None -> if IntSet.mem i m.universals then None
-                    else Some (unifier_add i (Value cv) m, false)
-          end
-      (* Variables in the candidate can be constrained to a particular value
-       * for instance the reference may assume a particular value for the OS
-       * while the candidate may just the variable without matching on it.
-       * While technically all variables in the candidate are universal, what
-       * we're tracking through m.universals is the variables that can't be
-       * constrained to a particular value *)
-      | _, Unknown (Val i, _) ->
-          begin match unifier_find i m with
-          | Some (Unknown _) -> None (* Handled this case above *)
-          | Some (Value v) ->
-              if evaluate_val v m = evaluate_val rv m
-              then Some (m, true) else None
-          | None -> if IntSet.mem i m.universals then None
-                    else Some (unifier_add i (Value rv) m, false)
-          end
-      | _, _ -> None
-    in match matched with
+let lookup_loop (loops : Interp.loop_info Interp.ValueMap.t) (id : int)
+  : Ast.value option =
+  Interp.ValueMap.fold (fun lst v res ->
+    match res with
     | Some res -> Some res
-    (* If we failed to unify from above, we can try to unify by evaluation *)
-    | None -> if evaluate_val rv m = evaluate_val cv m then Some (m, true)  
-              else None
-  (* When we unify states we need to know whether we are unifying an input or
-   * not since the candidate is not required to make all the assumptions the
-   * reference does but must perform all the actions the reference does. *)
-  in let rec unify_states (ref: Interp.state) (cand: Interp.state) 
-    (input: bool) (m: unifier) : (unifier * state_diff) list =
-    match ref, cand with
-    | State (elems_r, attrs_r), State (elems_c, attrs_c) ->
-        (* Unifying attributes is easy since we just need to find the same
-         * attribute and unify their values and states *)
-        let unified_attrs =
-          Interp.AttributeMap.fold (fun attr (v_r, s_r) res ->
-            List.fold_left (fun res (m, attrs_c, diff) ->
-              match Interp.AttributeMap.find_opt attr attrs_c with
-              (* A missing attribute is allowed for the input only *)
-              | None -> if input then (m, attrs_c, diff) :: res else res
-              | Some (v_c, s_c) ->
-                  match unify_values v_r v_c m with
-                  | None -> res
-                  | Some (m, _) ->
-                      let new_attrs_c = Interp.AttributeMap.remove attr attrs_c
-                      in List.fold_left (fun res (m, d) ->
-                        if is_empty d then (m, new_attrs_c, diff) :: res
-                        else (m, new_attrs_c, add_attr attr d diff) :: res
-                      ) res (unify_states s_r s_c input m)
-            ) [] res
-          ) attrs_r [(m, attrs_c, empty_diff)]
-        (* Unifying elements is much harder since it requires unifying
-         * expressions and there may be multiple ways to unify elements
-         *)
-        in let unified_elems =
-          List.concat_map (fun (m, attrs, diff) ->
-            (* Add any remaining attributes from the candidate to the diff *)
-            let diff = add_attrs attrs diff
-            in Interp.ElementMap.fold (fun elem_r s_r res ->
-              List.fold_left (fun res (m, elems_c, diff) ->
-                let (matched_unconditional, res) =
-                  Interp.ElementMap.fold (fun elem_c s_c (uncond, res) ->
-                    let (el_r, v_r, b_r) = elem_r
-                    in let (el_c, v_c, b_c) = elem_c
-                    (* TODO: Should we just ignore if the bool is different?
-                     * it seems we should maybe instead track when the pos/neg
-                     * differ and they unify and indicate that as non-unifying?
-                     *)
-                    in if el_r <> el_c || b_r <> b_c then (uncond, res)
-                    else match unify_values v_r v_c m with
-                    | None -> (uncond, res)
-                    | Some (m, u) ->
-                        let new_elems_c = Interp.ElementMap.remove elem_c elems_c
-                        in (uncond || u,
-                        List.fold_left (fun res (m, d) ->
-                          if is_empty d then (m, new_elems_c, diff) :: res
-                          else (m, new_elems_c, add_elem elem_c d diff) :: res
-                        ) res (unify_states s_r s_c input m))
-                  ) elems_c (false, res)
-                in if input && not matched_unconditional
-                then (m, elems_c, diff) :: res
-                else res
-              ) [] res
-            ) elems_r [(m, elems_c, diff)]
-          ) unified_attrs
-        in List.map (fun (m, elems, diff) -> (m, add_elems elems diff))
-                    unified_elems
-  in let unify_constraints (m: unifier) : (unifier * unit) option =
-    (* To check the constraints, we first check that under the unifier m the
-     * constraints don't simplify to a contradiction. Then, we identify if
-     * the candidate has constraints not present in the reference and record
-     * those *)
-    let res_bools =
-      Interp.ValueMap.fold (fun v b res -> Option.bind res (fun (m, bools_c) ->
-        let v = evaluate_val v m
-        in match v with
-        | Literal (Bool c, _) when c <> b -> None
-        (* This constraint has become trivial and so it doesn't have a match in
-         * the candidate *)
-        | Literal (Bool c, _) when c = b -> Some (m, bools_c)
-        (* TODO: This should try to find a matching constraint in bools_c *)
-        | _ -> Some (m, bools_c)
-      )) ref.bools (Some (m, cand.bools))
-    (* TODO: Handle constructor constraints. *)
-    in Option.bind res_bools (fun (m, _) -> Some (m, ()))
-  in let unify_prgs (m: unifier) =
-    (* To unify we do the following:
-     * 1) Unify the initial states (collecting additional assumptions the
-     *    candidate makes)
-     * 2) Unify the final states (collecting additional actions performed by
-     *    the candidate)
-     * 3) Unify the boolean and constructor constraints/verify that they are
-     *    consistent with the substitutions
-     *)
-    List.fold_left (fun res (m, assumptions) ->
-      List.fold_left (fun res (m, actions) ->
-        match unify_constraints m with
-        | None -> res
-        | Some (m, constrs) -> { m = m; constraints = constrs;
-                                 assumptions = assumptions; actions = actions }
-                               :: res
-      ) res (unify_states ref.final cand.final false m)
-    ) [] (unify_states ref.init cand.init true m)
-  in match unify_values ref_val cand_val (new_unifier universals) with
-  | None -> []
-  | Some (m, _) -> unify_prgs m
+    | None ->
+        match v with
+        | Interp.AllUnknown n | LastKnown (n, _) ->
+            if n = id then Some lst else None
+        | AllKnown _ -> None)
+    loops
+    None
 
+type ('e, 'u) unified_res =
+  | NotUnified
+  | Equal of 'e
+  | Unified of 'u
+
+type unified = (unit, unifier list) unified_res
+
+(* Given a list of options xs and a function f which determines how a value in
+ * xs in be satisfied, returns a unified result of NotUnified if no element of
+ * xs can be satisfied, Equal if any element of xs is already satisfied, and
+ * Unified u with all possibly satisfying unifications otherwise *)
+let map_unified (xs : 'a list) (f : 'a -> unified) : unified =
+  let rec map (xs : 'a list) : unified =
+    match xs with
+    | [] -> NotUnified
+    | x :: xs ->
+        match f x with
+        | NotUnified -> map xs
+        | Equal () -> Equal ()
+        | Unified u ->
+            match map xs with
+            | NotUnified -> Unified u
+            | Equal () -> Equal ()
+            | Unified u' -> Unified (u @ u')
+  in map xs
+
+(* Attempts to unify two values where at least one of them is an unreduced
+ * function. If both are unreduced functions they either do not use the same
+ * function or their arguments are not unifiable *)
+let add_function_constraint
+  (unify : unifier -> Ast.value -> Ast.value -> unified) (u : unifier)
+  (cand : Ast.value) (ref : Ast.value) : unified =
+  let handle_cases (cases : Ast.result_constraint list list) : unified =
+    map_unified cases (fun conds ->
+      List.fold_left (fun acc (c : Ast.result_constraint) ->
+        let (v, w) =
+          match c with
+          | IsBool (v, b) -> (v, Ast.Literal (Bool b, Bool))
+          | IsConstructor (v, (which, w)) ->
+              let n =
+                match Interp.type_of_val v with
+                | Named n -> n
+                | _ -> failwith "Value is constrained to be constructor but not of Named type"
+              in (v, Ast.Constructor (n, which, w))
+          | IsEqual (v, w) -> (v, w)
+        in match acc with
+        | NotUnified -> NotUnified
+        | Equal () -> unify u v w
+        | Unified u ->
+            let res_u =
+              List.concat (List.filter_map (fun u ->
+                match unify u v w with
+                | NotUnified -> None
+                | Equal () -> Some [u]
+                | Unified u -> Some u) u)
+            in if List.is_empty res_u
+            then NotUnified
+            else Unified res_u
+      ) (Equal ()) conds)
+  in let add_constraint (v : Ast.value) (c : Ast.constr) : unified =
+    match Unifier.constrain v c u with
+    | None -> NotUnified
+    | Some u -> Unified [u]
+  in match cand, ref with
+  (* Uninterpreted functions generally represent functions that cannot be
+   * computed or determined. Therefore, the only way to be equal is for the two
+   * values to invoke that same function with equal arguments. By our
+   * assumptions, this is not the case. *)
+  | Function (Uninterpreted (_, _, _), _, _), _
+  | _, Function (Uninterpreted (_, _, _), _, _) -> NotUnified
+  | Function (fc, vc, _), Function (fr, vr, _) ->
+      (* Try reducing the constraint cand = ref, try both options for which
+       * function we try to reduce in case one works while the other doesn't *)
+      begin match Ast.reduceFuncConstraint fc vc (IsEqual ref) with
+      | Reducible cases -> handle_cases cases
+      | Unreducible ->
+          match Ast.reduceFuncConstraint fr vr (IsEqual cand) with
+          | Reducible cases -> handle_cases cases
+          | Unreducible -> add_constraint cand (IsEqual ref)
+      end
+  | Function (f, v, t), Literal (Bool b, _)
+  | Literal (Bool b, _), Function (f, v, t) ->
+      (* Try reducing the constraint f(v) = b *)
+      begin match Ast.reduceFuncConstraint f v (IsBool b) with
+      | Reducible cases -> handle_cases cases
+      | Unreducible -> add_constraint (Function (f, v, t)) (IsBool b)
+      end
+  | Function (f, v, t), Constructor (_, which, x)
+  | Constructor (_, which, x), Function (f, v, t) ->
+      (* Try reducing the constraint f(v) = which(x) *)
+      begin match Ast.reduceFuncConstraint f v (IsConstructor (which, x)) with
+      | Reducible cases -> handle_cases cases
+      | Unreducible ->
+          add_constraint (Function (f, v, t)) (IsConstructor (which, x))
+      end
+  | Function (f, v, t), other
+  | other, Function (f, v, t) ->
+      (* Try reducing the constraint f(v) = other *)
+      begin match Ast.reduceFuncConstraint f v (IsEqual other) with
+      | Reducible cases -> handle_cases cases
+      | Unreducible -> add_constraint (Function (f, v, t)) (IsEqual other)
+      end
+  | _, _ -> failwith "at least one argument to add_function_constraint must be a function"
+
+let unify_values (u : unifier)
+  (loops_cand : Interp.loop_info Interp.ValueMap.t)
+  (loops_ref : Interp.loop_info Interp.ValueMap.t)
+  (cand : Ast.value) (ref : Ast.value) : unified =
+  let cand = evaluate_candidate u cand
+  in let ref = Unifier.eval ref u
+  in let rec unify (u : unifier) (cand : Ast.value) (ref : Ast.value)
+    : unified =
+    match cand, ref with
+    | Literal (c, _), Literal (r, _) ->
+        if c = r then Equal () else NotUnified
+    | Function (fc, vc, _), Function (fr, vr, _) ->
+        if fc = fr
+        then
+          match unify u vc vr with
+          | Equal () -> Equal ()
+          (* If vc and vr can be unified (but aren't already equal), we could
+           * unify them or we could try to solve the function constraint, so
+           * we try that too, what we do based on its return:
+           * - NotUnified : return Unified us because we can make the values
+           *   equal by unifying vc and vr
+           * - Equal : return Equal because we somehow proved equality without
+           *   any changes
+           * - Unified u' -> return Unified (us @ u') because we can either
+           *   just unify vc and vr directly or do whatever unifications u'
+           *   contains. *)
+          | Unified us ->
+              begin match add_function_constraint unify u cand ref with
+              | NotUnified -> Unified us
+              | Equal () -> Equal ()
+              | Unified u' -> Unified (us @ u')
+              end
+          | NotUnified -> add_function_constraint unify u cand ref
+        else add_function_constraint unify u cand ref
+    | Pair (xc, yc, _), Pair (xr, yr, _) ->
+        begin match unify u xc xr with
+        | NotUnified -> NotUnified
+        | Equal () -> unify u yc yr
+        | Unified u ->
+            let res_u =
+              List.concat (
+                List.filter_map (fun u ->
+                  match unify u yc yr with
+                  | NotUnified -> None
+                  | Equal () -> Some [u]
+                  | Unified u -> Some u) u)
+            in if List.is_empty res_u
+            then NotUnified
+            else Unified res_u
+        end
+    | Constructor (nc, cc, vc), Constructor (nr, cr, vr) ->
+        if nc <> nr || cc <> cr
+        then NotUnified
+        else unify u vc vr
+    | Struct (_, cs), Struct (_, rs) ->
+        (* By checking that they have equal cardinality and then ensuring that
+         * each binding in rs is also a binding in cs we ensure they have the
+         * same bindings *)
+        if Ast.FieldMap.cardinal cs <> Ast.FieldMap.cardinal rs
+        then NotUnified
+        else Ast.FieldMap.fold (fun f vr res ->
+          match res with
+          | NotUnified -> NotUnified
+          | Equal () ->
+              begin match Ast.FieldMap.find_opt f cs with
+              | None -> NotUnified
+              | Some vc -> unify u vc vr
+              end
+          | Unified u ->
+              begin match Ast.FieldMap.find_opt f cs with
+              | None -> NotUnified
+              | Some vc ->
+                  let res_u =
+                    List.concat (
+                      List.filter_map (fun u ->
+                        match unify u vc vr with
+                        | NotUnified -> None
+                        | Equal () -> Some [u]
+                        | Unified u -> Some u) u)
+                  in begin match res_u with
+                  | [] -> NotUnified
+                  | _ -> Unified res_u
+                  end
+              end
+          ) rs (Equal ())
+    | ListVal (_, vc), ListVal (_, vr) -> unify u vc vr
+    | Unknown (Loop c, _), Unknown (Loop r, _) ->
+        if c = r then Equal ()
+        else
+          (* Because we've performed evaluation already variables in the
+           * candidate and reference may not have originated from the same
+           * side, and so when looking up the lists we check all loops *)
+          let list_c =
+            match lookup_loop loops_cand c with
+            | Some lst -> Some (evaluate_candidate u lst)
+            | None ->
+                match lookup_loop loops_ref c with
+                | Some lst -> Some (Unifier.eval lst u)
+                | None -> None
+          in let list_r =
+            match lookup_loop loops_cand c with
+            | Some lst -> Some (evaluate_candidate u lst)
+            | None ->
+                match lookup_loop loops_ref c with
+                | Some lst -> Some (Unifier.eval lst u)
+                | None -> None
+          in begin match list_c, list_r with
+          | Some list_c, Some list_r ->
+              begin match unify u list_c list_r with
+              | NotUnified -> NotUnified
+              | Equal () ->
+                  begin match Unifier.add c ref u with
+                  | None -> NotUnified
+                  | Some u -> Unified [u]
+                  end
+              | Unified u ->
+                  let res_u = List.filter_map (Unifier.add c ref) u
+                  in if List.is_empty res_u
+                  then NotUnified
+                  else Unified res_u
+              end
+          | _ -> NotUnified
+          end
+    (* Loop variables cannot unify with anything other than other loop
+     * variables because they represent a specific set of unknown values (the
+     * values in the unreduced list) *)
+    | Unknown (Loop _, _), _ | _, Unknown (Loop _, _) -> NotUnified
+    (* Universal variables can only be unified with other universals *)
+    (* Note that neither variable has an existing binding as otherwise it would
+     * have been replaced by evaluation *)
+    | Unknown (Universal c, _), Unknown (Universal r, _) ->
+        if c = r then Equal ()
+        else begin match Unifier.add c ref u with
+        | None -> NotUnified
+        | Some u -> Unified [u]
+        end
+    | Unknown (Existential e, _), Unknown (Universal i, t)
+    | Unknown (Universal i, t), Unknown (Existential e, _) ->
+        if i = e then Equal ()
+        else begin match Unifier.add e (Unknown (Universal i, t)) u with
+        | None -> NotUnified
+        | Some u -> Unified [u]
+        end
+    | Unknown (Existential c, _), Unknown (Existential r, _) ->
+        if c = r then Equal ()
+        else begin match Unifier.add c ref u with
+        | None -> NotUnified
+        | Some u -> Unified [u]
+        end
+    | Unknown (Universal _, _), _ | _, Unknown (Universal _, _) -> NotUnified
+    | Unknown (Existential i, _), v | v, Unknown (Existential i, _) ->
+        begin match Unifier.add i v u with
+        | None -> NotUnified
+        | Some u -> Unified [u]
+        end
+
+    | Literal (_, _),
+      (Pair (_, _, _) | Constructor (_, _, _) | Struct (_, _) | ListVal (_, _))
+    | (Pair (_, _, _) | Constructor (_, _, _) | Struct (_, _) | ListVal (_, _)),
+      Literal (_, _)
+    | Pair (_, _, _),
+      (Constructor (_, _, _) | Struct (_, _) | ListVal (_, _))
+    | (Constructor (_, _, _) | Struct (_, _) | ListVal (_, _)), Pair (_, _, _)
+    | Constructor (_, _, _), Struct (_, _)
+    | Struct (_, _), Constructor (_, _, _)
+    | Struct (_, _), ListVal (_, _)
+    | ListVal (_, _), Struct (_, _)
+    -> NotUnified
+
+    (* ListVals where the list that was originally looped over was an
+     * existential could, in theory, unify with a concrete list, but I don't
+     * know that this is worth supporting at this time *)
+    | Constructor (_, _, _), ListVal (_, _)
+    | ListVal (_, _), Constructor (_, _, _) -> NotUnified
+
+    | _, Function (_, _, _) | Function (_, _, _), _ ->
+        add_function_constraint unify u cand ref
+  in unify u cand ref
+
+let list_of_res (res : Interp.interp_res) : Interp.interp_state list =
+  let rec with_acc (res : Interp.interp_res) acc =
+    match res with
+    | Err _ -> acc
+    | Success s -> s :: acc
+    | Both (x, y) | Either (x, y) -> with_acc y (with_acc x acc)
+  in with_acc res []
+
+let rec map_append (f : 'a -> 'b) (xs : 'a list) (ys : 'b list) : 'b list =
+  match xs with
+  | [] -> ys
+  | x :: xs -> f x :: map_append f xs ys
+
+let rec concat_map_append (f : 'a -> 'b list) (xs : 'a list) (ys : 'b list) =
+  match xs with
+  | [] -> ys
+  | x :: xs -> (f x) @ (concat_map_append f xs ys)
+
+type interp_state_unifier =
+  { u : unifier; init : state_diff; final : state_diff }
+
+let find_satisfying (ref : Interp.interp_state) (cand : Interp.interp_res)
+  : interp_state_unifier list =
+  let unify_states (u : unifier) ref_loops cand_loops (ref : Interp.state)
+    (cand : Interp.state) (can_miss : bool) : (unifier * state_diff) list =
+    let rec unify (u : unifier) (ref : Interp.state) (cand : Interp.state)
+      : (unifier * state_diff) list option =
+      let State (ref_elems, ref_attrs) = ref
+      in let State (cand_elems, cand_attrs) = cand
+      (* Unifying attributes is straightforward *)
+      in let* (attrs_diff, u) =
+        Interp.AttributeMap.fold (fun attr ref_val acc ->
+          let* (cand_attrs, u) = acc
+          in match Interp.AttributeMap.find_opt attr cand_attrs with
+          | None ->
+              if can_miss then Some (cand_attrs, u) else None
+          | Some cand_val ->
+              let res =
+                List.concat_map (fun u ->
+                  match unify_values u cand_loops ref_loops cand_val ref_val with
+                  | NotUnified -> []
+                  | Equal () -> [u]
+                  | Unified u -> u
+                ) u
+              in if List.is_empty res
+              then None
+              else Some (Interp.AttributeMap.remove attr cand_attrs, res)
+        ) ref_attrs (Some (cand_attrs, [u]))
+      (* Unifying elements is more complicated because we can unify the values
+       * which are part of the element *)
+      in let unified_elems =
+        List.concat_map (fun u ->
+          Interp.ElementMap.fold (fun (ref_elem, ref_val)
+              (ref_bind : Interp.element_result) acc ->
+            List.concat_map (fun (cand_elems, diff, u) ->
+              (* Search for any elements elem(X) in cand_elems and see if
+               * X can unify with ref_val. If so, handle whether the bindings
+               * are compatible.
+               * Options:
+               * - We find an element that exactly matches (i.e., unifies to
+               *   Equal) which either we return the diffs of or the nested
+               *   states do not unify.
+               * - We fine some (0+) elements that can be unified (i.e., unify
+               *   to Unified) in which case we try unifying the nested
+               *   states
+               * Returns a list of update candidate elements, an updated diff,
+               * and an updated unifier. *)
+              let res =
+                Interp.ElementMap.fold (fun (cand_elem, cand_val)
+                    (cand_bind : Interp.element_result) res ->
+                  match res with
+                  | NotUnified -> NotUnified
+                  | Equal res -> Equal res
+                  | Unified res ->
+                      if ref_elem <> cand_elem
+                      then Unified res
+                      else let new_elems =
+                        Interp.ElementMap.remove
+                          (cand_elem, cand_val) cand_elems
+                      in match
+                        unify_values u cand_loops ref_loops cand_val ref_val
+                      with
+                      | NotUnified -> Unified res
+                      | Equal () ->
+                          begin match ref_bind, cand_bind with
+                          | Negated, Negated -> Equal [(new_elems, diff, u)]
+                          | Positive ref_nested, Positive cand_nested ->
+                              let elem = (cand_elem, cand_val)
+                              in begin match unify u ref_nested cand_nested with
+                              | None -> NotUnified
+                              | Some nested_res ->
+                                  Equal (
+                                    List.map 
+                                      (fun (u, d) ->
+                                        (new_elems, 
+                                          diff_add_elem elem d diff, u))
+                                      nested_res)
+                              end
+                          | _, _ -> NotUnified
+                          end
+                      | Unified u ->
+                          begin match ref_bind, cand_bind with
+                          | Negated, Negated ->
+                              Unified
+                                (map_append 
+                                  (fun u -> (new_elems, diff, u)) u res)
+                          | Positive ref_nested, Positive cand_nested ->
+                              let res =
+                                concat_map_append (fun u ->
+                                  let elem = (cand_elem, cand_val)
+                                  in match unify u ref_nested cand_nested with
+                                  | None -> []
+                                  | Some nested_res ->
+                                      List.map (fun (u, d) ->
+                                        (new_elems,
+                                          diff_add_elem elem d diff, u))
+                                        nested_res
+                                ) u res
+                              in Unified res
+                          | _, _ -> Unified res
+                          end
+                ) cand_elems (Unified [])
+              in match res with
+              | NotUnified -> []
+              | Equal res -> res
+              | Unified res ->
+                  if can_miss then (cand_elems, diff, u) :: res else res
+            ) acc
+          ) ref_elems [(cand_elems, diff_empty, u)]
+        ) u
+      in if List.is_empty unified_elems
+      then None
+      else
+        Some (List.map (fun (elems_diff, diff, u) ->
+          (u, add_diffs diff (diff_of_state (State (elems_diff, attrs_diff))))
+        ) unified_elems)
+    in match unify u ref cand with
+    | None -> []
+    | Some res -> res
+  in let unify_interp_state (ref : Interp.interp_state)
+    (cand : Interp.interp_state) : interp_state_unifier list =
+    (* Setup our unifier by adding the constraints to it *)
+    let ref_loops = ref.loops
+    in let cand_loops = cand.loops
+    in let u =
+      let u = Unifier.empty
+      in let* u = Interp.ValueMap.fold (fun v b u ->
+        let* u = u
+        in Unifier.constrain v (IsBool b) u
+      ) ref.bools (Some u)
+      in let* u = Interp.ValueMap.fold (fun v b u ->
+        let* u = u
+        in Unifier.constrain v (IsBool b) u
+      ) cand.bools (Some u)
+      in let* u = Interp.ValueMap.fold (fun v (which, w) u ->
+        let* u = u
+        in Unifier.constrain v (IsConstructor (which, w)) u
+      ) ref.constrs (Some u)
+      in let* u = Interp.ValueMap.fold (fun v (which, w) u ->
+        let* u = u
+        in Unifier.constrain v (IsConstructor (which, w)) u
+      ) cand.constrs (Some u)
+      in Some u
+    in match u with
+    | None -> []
+    | Some u ->
+      List.fold_left (fun res (u, init) ->
+        List.fold_left (fun res (u, final) -> { u; init; final } :: res)
+          res (unify_states u ref_loops cand_loops ref.final cand.final false))
+        [] (unify_states u ref_loops cand_loops ref.init cand.init true)
+  in List.concat_map (unify_interp_state ref) (list_of_res cand)
+
+type interp_res_unifier =
+  | Left of interp_res_unifier
+  | Right of interp_res_unifier
+  | Both of interp_res_unifier * interp_res_unifier
+  | Either of interp_res_unifier * interp_res_unifier
+  | Satisfied of Interp.interp_state * interp_state_unifier list
+  | Trivial (* The reference solution errored *)
+  | Failed
+
+let unify_candidate (ref : Interp.interp_res) (cand : Interp.interp_res)
+  : interp_res_unifier =
+  let rec unify (ref : Interp.interp_res) : interp_res_unifier =
+    match ref with
+    | Err _ -> Trivial
+    | Success ref ->
+        let res = find_satisfying ref cand
+        in if List.is_empty res
+        then Failed
+        else Satisfied (ref, res)
+    | Both (left, right) ->
+        begin match unify left, unify right with
+        | Failed, _ | _, Failed -> Failed
+        | left, right -> Both (left, right)
+        end
+    | Either (left, right) ->
+        begin match unify left, unify right with
+        | Failed, Failed | Failed, Trivial | Trivial, Failed -> Failed
+        | Trivial, Trivial -> Trivial
+        | (Failed | Trivial), right -> Right right
+        | left, (Failed | Trivial) -> Left left
+        | left, right -> Either (left, right)
+        end
+  in unify ref
+
+(* A merged diff compresses many diffs together (where each diff is assigned
+ * some unique integer). For elements we track the merged nested diff and a
+ * list of unique integers that have that element as positive and negative AS
+ * PART OF THE DIFF.
+ * For attributes, we track the values it can have and the unique integers for
+ * the diffs those values came from *)
+type elem_merged = { diff : merged_diff; pos : int list; neg : int list }
+and merged_diff =
+  MergedDiff of elem_merged Interp.ElementMap.t
+              * (int list Interp.ValueMap.t) Interp.AttributeMap.t
+
+let empty_merged_diff =
+  MergedDiff (Interp.ElementMap.empty, Interp.AttributeMap.empty)
+
+(* Fully evaluates all expressions in a state diff *)
+let rec eval_state_diff (d : state_diff) (u : unifier) : state_diff option =
+  let StateDiff (elems, attrs) = d
+  in let attrs = Interp.AttributeMap.map (fun v -> Unifier.eval v u) attrs
+  in let* elems =
+    Interp.ElementMap.fold (fun (elem, v) (part, bind) res ->
+      let* res = res
+      in let v = Unifier.eval v u
+      in let res_bind = Interp.ElementMap.find_opt (elem, v) res
+      in let* new_bind =
+        match res_bind, bind with
+        | None, Negated -> Some (part, Negated)
+        | None, Positive d ->
+            let* res = eval_state_diff d u
+            in Some (part, Positive res)
+        | Some (p, Negated), Negated -> Some (p && part, Negated)
+        | Some (_, Negated), Positive _ -> None
+        | Some (_, Positive _), Negated -> None
+        | Some (p, Positive res), Positive d ->
+            let* d = eval_state_diff d u
+            in Some (p && part, Positive (add_diffs res d))
+      in Some (Interp.ElementMap.add (elem, v) new_bind res)
+    ) elems (Some Interp.ElementMap.empty)
+  in Some (StateDiff (elems, attrs))
+
+let merge_state_diffs (diffs : state_diff list) : merged_diff =
+  let rec add_diff (d : state_diff) (i : int) (acc : merged_diff) =
+    let StateDiff (d_elems, d_attrs) = d
+    in let MergedDiff (m_elems, m_attrs) = acc
+    in let m_elems =
+      Interp.ElementMap.fold (fun elem (is_part, d_bind) m_elems ->
+        match d_bind with
+        | Negated ->
+            Interp.ElementMap.update elem (fun m_bind ->
+              match m_bind with
+              | None -> Some { diff = empty_merged_diff; pos = [];
+                              neg = if is_part then [i] else [] }
+              | Some { diff; pos; neg } -> Some { diff; pos;
+                              neg = if is_part then i :: neg else neg }
+            ) m_elems
+        | Positive d_nested ->
+            Interp.ElementMap.update elem (fun m_bind ->
+              match m_bind with
+              | None -> Some { diff = add_diff d_nested i empty_merged_diff;
+                               pos = if is_part then [i] else []; neg = [] }
+              | Some { diff; pos; neg } -> 
+                  Some { diff = add_diff d_nested i diff;
+                        pos = if is_part then i :: pos else pos; neg }
+            ) m_elems
+      ) d_elems m_elems
+    in let m_attrs =
+      Interp.AttributeMap.fold (fun attr d_val m_attrs ->
+        Interp.AttributeMap.update attr (fun m_bind ->
+          match m_bind with
+          | None -> Some (Interp.ValueMap.singleton d_val [i])
+          | Some vals ->
+              Some (Interp.ValueMap.update d_val (fun m_cnt ->
+                match m_cnt with
+                | None -> Some [i]
+                | Some ns -> Some (i :: ns)) vals)
+        ) m_attrs
+      ) d_attrs m_attrs
+    in MergedDiff (m_elems, m_attrs)
+  in let rec merge (diffs : state_diff list) (i : int) (acc : merged_diff) =
+    match diffs with
+    | [] -> acc
+    | d :: diffs ->
+        merge diffs (i + 1) (add_diff d i acc)
+  in merge diffs 0 empty_merged_diff
+
+type merged_unifier =
+  { branches : int; constraints : Unifier.merged;
+    inits : merged_diff; finals : merged_diff }
+
+let merge_interp_state_unifiers (xs : interp_state_unifier list)
+  : merged_unifier option =
+  let constraints = Unifier.merge (List.map (fun x -> x.u) xs)
+  in let (inits, finals) =
+    let rec eval_states (xs : interp_state_unifier list) =
+      match xs with
+      | [] -> ([], [])
+      | x :: xs ->
+          match eval_state_diff x.init x.u, eval_state_diff x.final x.u with
+          | Some init, Some final ->
+              let (inits, finals) = eval_states xs
+              in (init :: inits, final :: finals)
+          | _, _ -> eval_states xs
+    in eval_states xs
+  in if List.is_empty inits
+  then None
+  else Some { branches = List.length inits; constraints;
+              inits = merge_state_diffs inits;
+              finals = merge_state_diffs finals }
+
+type merged_res =
+  | Both      of merged_res * merged_res
+  | Either    of merged_res * merged_res
+  | Satisfied of { base : Interp.state; diff : merged_unifier }
+
+type 'a merging_res =
+  | Failed | Trivial | Success of 'a
+
+let rec merge_interp_res_unifier (r : interp_res_unifier)
+  : merged_res merging_res =
+  match r with
+  | Failed -> Failed
+  | Trivial -> Trivial
+  | Left r | Right r -> merge_interp_res_unifier r
+  | Both (x, y) ->
+      begin match merge_interp_res_unifier x, merge_interp_res_unifier y with
+      | Failed, _ | _, Failed -> Failed
+      | Trivial, res | res, Trivial -> res
+      | Success x, Success y -> Success (Both (x, y))
+      end
+  | Either (x, y) ->
+      begin match merge_interp_res_unifier x, merge_interp_res_unifier y with
+      | (Failed | Trivial), res | res, (Failed | Trivial) -> res
+      | Success x, Success y -> Success (Either (x, y))
+      end
+  | Satisfied (base, unifiers) ->
+      begin match merge_interp_state_unifiers unifiers with
+      | None -> Failed
+      | Some diff -> Success (Satisfied { base = base.init; diff })
+      end
+
+let string_of_merged_diff (d : merged_diff) : string =
+  let rec inner_string_of_merged_diff if_empty lhs rhs (d : merged_diff) =
+    let MergedDiff (elems, attrs) = d
+    in Modules.Target.string_of_list if_empty lhs ", " rhs (fun s -> s)
+      (List.map (fun (((elem, _), v), (m : elem_merged)) ->
+        let el = elem ^ "(" ^ Modules.Target.string_of_value v ^ ")"
+        in let which =
+          let pos = String.concat ", " (List.map string_of_int m.pos)
+          in let neg = String.concat ", " (List.map string_of_int m.neg)
+          in match List.is_empty m.pos, List.is_empty m.neg with
+          | true, true -> ""
+          | false, true -> " [ " ^ pos ^ " : pos ]"
+          | true, false -> " [ " ^ neg ^ " : neg ]"
+          | false, false -> " [ " ^ pos ^ " : pos | " ^ neg ^ " : neg ]"
+        in let nested = inner_string_of_merged_diff "" ": < " " >" m.diff
+        in el ^ which ^ " " ^ nested
+        ) (Interp.ElementMap.to_list elems)
+        @
+        List.map (fun ((attr, _), vs) ->
+          let str_vs = 
+            Modules.Target.string_of_list "[]" "[ " " | " " ]" (fun s -> s)
+              (List.map (fun (v, ns) ->
+                (Modules.Target.string_of_list "" "" ", " "" string_of_int ns)
+                ^ ": " ^ Modules.Target.string_of_value v
+              ) (Interp.ValueMap.to_list vs))
+          in attr ^ " = " ^ str_vs
+        ) (Interp.AttributeMap.to_list attrs))
+  in inner_string_of_merged_diff "<>" "< " " >" d
+
+let string_of_unifier_merged (m : Unifier.merged) : string =
+  String.concat ", " (
+    Interp.ValueMap.fold (fun v (b : Unifier.merged_bool) res ->
+      let str_v = Modules.Target.string_of_value v
+      in let str_t = String.concat ", " (List.map string_of_int b.t)
+      in let str_f = String.concat ", " (List.map string_of_int b.f)
+      in begin match List.is_empty b.t, List.is_empty b.f with
+      | true, true -> str_v ^ " = [ ]"
+      | true, false -> str_v ^ " = [ " ^ str_f ^ " : false ]"
+      | false, true -> str_v ^ " = [ " ^ str_t ^ " : true ]"
+      | false, false ->
+          str_v ^ " = [ " ^ str_t ^ " : true | " ^ str_f ^ " : false ]"
+      end :: res
+    ) m.bools []
+    @
+    Interp.ValueMap.fold (fun v (c : Unifier.merged_constr) res ->
+      let str_v = Modules.Target.string_of_value v
+      in let opts =
+        List.map (fun (i, v) ->
+          string_of_int i ^ " : L(" ^ Modules.Target.string_of_value v ^ ")"
+        ) c.l
+        @
+        List.map (fun (i, v) ->
+          string_of_int i ^ " : R(" ^ Modules.Target.string_of_value v ^ ")"
+        ) c.r
+      in (str_v ^ " = [ " ^ String.concat " | " opts ^ " ]") :: res
+    ) m.constrs [])
+
+let rec string_of_merged_res (r : merged_res) : string =
+  match r with
+  | Both (x, y) | Either (x, y) ->
+      string_of_merged_res x ^ "\n" ^ string_of_merged_res y
+  | Satisfied { base; diff } ->
+      Printf.sprintf "%s { %d branch } assuming %s and [ %s ] performing %s"
+        (Modules.Target.string_of_state base)
+        diff.branches
+        (string_of_merged_diff diff.inits)
+        (string_of_unifier_merged diff.constraints)
+        (string_of_merged_diff diff.finals)
+
+(*
 (* Removes attributes that are just an unknown value from a state diff, this is
  * useful for cleaning up attributes in the initial states that happen to be
  * accessed in the ansible but not the query
@@ -704,3 +1313,4 @@ let print_verification (v: merged_outcomes option list) : bool =
     | None -> Printf.printf "FAILED TO VERIFY\n"; false
     | Some v -> Printf.printf "UNIFIED: %s\n" (outcome_to_string v); success
   ) true v
+*)

@@ -6,142 +6,7 @@ type id = Ast.id
 module Interp(Ast : Ast.Ast_Defs) = struct
   open Ast
 
-  module ValueOrder : Map.OrderedType with type t = value = struct
-    type t = value
-    let compare : value -> value -> int = compare
-  end
-  module ValueMap : Map.S with type key = value = Map.Make(ValueOrder)
-
-  (* States are made up of maps of qualifiers. For elements, we store the
-   * element, value, and whether or not it is negated (true = negated) as the
-   * key and the value is qualifiers applied to it. For attributes, the key is
-   * just the attribute and whether it is negated and this maps to the value and
-   * any qualifiers applied to it. *)
-  module ElementOrder : Map.OrderedType with type t = element * value * bool = struct
-    type t = element * value * bool
-    let compare : t -> t -> int = compare
-  end
-  module ElementMap : Map.S with type key = element * value * bool
-    = Map.Make(ElementOrder)
-
-  module AttributeOrder : Map.OrderedType with type t = attribute = struct
-    type t = attribute
-    let compare : t -> t -> int = compare
-  end
-  module AttributeMap : Map.S with type key = attribute
-    = Map.Make(AttributeOrder)
-
-  type state = State of state ElementMap.t * (value * state) AttributeMap.t
-  let init_state = State (ElementMap.empty, AttributeMap.empty)
-
-  let rec add_qual
-      ((q, v, qs) : (element * bool, attribute) Either.t * value * state)
-      (State (els, ats) : state) : state =
-    match q with
-    | Left (elem, neg) ->
-        let removed = ElementMap.remove (elem, v, not neg) els
-        in let added = ElementMap.update (elem, v, neg)
-                        (fun cur ->
-                          match cur with
-                          | None -> Some qs
-                          | Some ps -> Some (add_quals qs ps))
-                        removed
-        in State (added, ats)
-    | Right attr ->
-        let added = AttributeMap.update attr
-                      (fun cur ->
-                        match cur with
-                        | None -> Some (v, qs)
-                        | Some (_, ps) -> Some (v, add_quals qs ps))
-                      ats
-        in State (els, added)
-  and add_quals (State (els, ats) : state) (ps : state) =
-    let rec helper els ats state =
-      match els with
-      | ((el, v, neg), qs) :: tl
-        -> helper tl ats (add_qual (Left (el, neg), v, qs) state)
-      | [] ->
-          match ats with
-          | (at, (v, qs)) :: tl
-            -> helper [] tl (add_qual (Right at, v, qs) state)
-          | [] -> state
-    in helper (ElementMap.bindings els) (AttributeMap.bindings ats) ps
-
-  type loop_info = AllUnknown of uid | AllKnown of value | LastKnown of uid * value
-
-  type prg_type = {
-    init : state; final : state;
-    loops : loop_info ValueMap.t; (* Map between values and the loop variable over that value *)
-    bools : bool ValueMap.t; (* Map between values and its boolean value *)
-    constrs : (bool * value) ValueMap.t; (* Map between values and its constructor value (true = L) *)
-  }
-  let init_prg_type = {
-    init = init_state; final = init_state;
-    loops = ValueMap.empty;
-    bools = ValueMap.empty;
-    constrs = ValueMap.empty; }
-
-  (* These functions are used to replace loop variables with just values for
-   * handling after the loop ends. This is needed to distinguish actions
-   * performed within the loop from uses of the loop variable outside of the
-   * loop *)
-  let replace_loopvar (s: prg_type) (env: env) (uid: uid) : prg_type * env =
-    let rec replaceLoop (v: value) : value =
-      match v with
-      | Unknown (Loop x, elemTy) when x = uid -> Unknown (Val x, elemTy)
-      | Function (f, v, t) -> Function (f, replaceLoop v, t)
-      | Pair (x, y, t) -> Pair (replaceLoop x, replaceLoop y, t)
-      | Constructor (n, b, v) -> Constructor (n, b, replaceLoop v)
-      | Struct (s, r) -> Struct (s, FieldMap.map replaceLoop r)
-      | _ -> v
-    in let rec containsLoop (v: value) : bool =
-      match v with
-      | Unknown (Loop x, _) when x = uid -> true
-      | Function (_, v, _) -> containsLoop v
-      | Pair (x, y, _) -> containsLoop x || containsLoop y
-      | Constructor (_, _, v) -> containsLoop v
-      | Struct (_, r) -> FieldMap.exists (fun _ v -> containsLoop v) r
-      (* ListVal are not checked because they are allowed to contain loop
-       * variables (that's basically the whole reason they exist) *)
-      | _ -> false
-    in let rec helper_els (els : state ElementMap.t) =
-      ElementMap.mapi
-        (fun (_, v, _) st ->
-          if containsLoop v
-          then st
-          else helper_state st)
-        els
-    and helper_ats (ats : (value * state) AttributeMap.t) =
-      AttributeMap.map (fun (v, st) -> (replaceLoop v, helper_state st)) ats
-    and helper_state (State (els, ats) : state) : state =
-      State (helper_els els, helper_ats ats)
-    in ({ init = helper_state s.init; final = helper_state s.final;
-          loops = s.loops; bools = s.bools; constrs = s.constrs; },
-        VariableMap.map (fun (v, t) -> (replaceLoop v, t)) env)
-
-  let new_env = VariableMap.empty
-
-  type 'a error = Ok of 'a
-                | Err of string
-  type prg_res = (prg_type * value) error
-
-  (* A type representing attempting to find some value in a structure where we
-   * may or may not find it or may be able to create the value and returns
-   * additional information when it is created*)
-  type ('a, 'b) find = NotLocated
-                     | Located of 'a
-                     | Created of 'a * 'b
-
-  (* A list-like type is any named type defined as n = () + t * n
-   * Returns the element type is the give type is list like *)
-  let list_like (n : namedTy) : typ option =
-    let (nil, cons) = namedTyDef n
-    in if not (isUnit nil) then None
-    else match cons with
-         | Product (hd, Named tl) when tl = n -> Some hd
-         | _ -> None
-
-  let val_to_type (v : value) : typ =
+  let type_of_val (v : value) : typ =
     match v with
     | Unknown (_, t) -> t
     | Literal (_, p) -> Primitive p
@@ -151,689 +16,1080 @@ module Interp(Ast : Ast.Ast_Defs) = struct
     | Struct (s, _) -> Struct s
     | ListVal (n, _) -> Named n
 
-  let substitute_unknown (u: id) (v: value) (s: prg_type) (env: env)
-    : (prg_type * env) option =
-    (* Substitution here also tries to evaluate expressions further, by seeing
-     * whether functions can now reduce *)
-    let rec subst_in_value (w: value) : value =
-      match w with
-      | Unknown (w, _) when u = w -> v
-      | Unknown (_, _) | Literal (_, _) -> w
-      | Function (f, v, t) ->
-          let new_v = subst_in_value v
-          in let (_, _, f_def) = funcDef f
-          in begin match f_def new_v with
-          | Reduced w -> w
-          | Stuck -> Function (f, new_v, t)
-          | Err msg ->
-              (* FIXME *)
-              failwith ("While substituting an unknown, a function evaluation failed: " ^ msg)
+  let list_like (n : namedTy) : typ option =
+    let (nil, cons) = namedTyDef n
+    in if not (isUnit nil) then None
+    else match cons with
+      | Product (hd, Named tl) when tl = n -> Some hd
+      | _ -> None
+
+  type env = (value * typ) VariableMap.t
+
+  exception TypeError of funct * typ * typ
+
+  let rec eval_expr (e : expr) (env : env) : (value * typ, string) result =
+    match e with
+    | Function (f, exp) ->
+        Result.bind (eval_expr exp env) (fun (v, t) ->
+          let (argTy, retTy, interp) = funcDef f
+          in if not (typeEq t argTy)
+            then raise (TypeError (f, argTy, t)) (* Error "Type error, argument type mismatch" *)
+            else
+              match interp v with
+              | Reduced w -> Ok (w, retTy)
+              | Stuck     -> Ok (Function (f, v, retTy), retTy)
+              | Err msg   -> Error msg)
+    | Literal l ->
+        let p = literalTyp l
+        in Ok (Literal (l, p), Primitive p)
+    | Variable v ->
+        begin match VariableMap.find_opt v env with
+        | None -> Error "Undefined variable"
+        | Some v -> Ok v
+        end
+    | Pair (x, y) ->
+        begin match eval_expr x env, eval_expr y env with
+        | Ok (x, tx), Ok (y, ty)
+          -> let t : typ = Product (tx, ty) in Ok (Pair (x, y, t), t)
+        | Error m, Error n -> Error (m ^ "\n" ^ n)
+        | Error m, Ok _ -> Error m
+        | Ok _, Error n -> Error n
+        end
+
+  let construct_equals v w : (value, string) result =
+    let tv = type_of_val v
+    in let tw = type_of_val w
+    in if not (typeEq tv tw)
+      then Error "Type error, cannot equate values of different types"
+      else
+        let equals = equality_func tv
+        in let (_, retTy, _) = funcDef equals
+        in Ok (
+        Function (
+          equals,
+          Pair (v, w, Product (tv, tw)),
+          retTy))
+
+  let fieldMap_map_result (f : 'a -> ('b, 'e) result) (m : 'a FieldMap.t)
+    : ('b FieldMap.t, 'e) result
+    = FieldMap.fold
+        (fun k v res -> Result.bind res (fun new_map ->
+          Result.bind (f v) (fun new_v ->
+            Ok (FieldMap.add k new_v new_map))))
+        m
+        (Ok FieldMap.empty)
+
+  let variableMap_map_result (f : 'a -> ('b, 'e) result) (m : 'a VariableMap.t)
+    : ('b VariableMap.t, 'e) result
+    = VariableMap.fold
+        (fun k v res -> Result.bind res (fun new_map ->
+          Result.bind (f v) (fun new_v ->
+            Ok (VariableMap.add k new_v new_map))))
+        m
+        (Ok VariableMap.empty)
+
+  module ValueOrder : Map.OrderedType with type t = value = struct
+    type t = value
+    let compare : value -> value -> int = compare
+  end
+  module ValueMap : (Map.S with type key = value) = Map.Make(ValueOrder)
+
+  (* States are made up of maps of qualifiers. For elements, we store the
+   * element, value, and whether or not it is negated (true = negated) as the
+   * key and the value is qualifiers applied to it. For attributes, the key is
+   * just the attribute and whether it is negated and this maps to the value and
+   * any qualifiers applied to it. *)
+  module ElementOrder : Map.OrderedType with type t = element * value = struct
+    type t = element * value
+    let compare : t -> t -> int = compare
+  end
+  module ElementMap : (Map.S with type key = element * value)
+    = Map.Make(ElementOrder)
+
+  module AttributeOrder : Map.OrderedType with type t = attribute = struct
+    type t = attribute
+    let compare : t -> t -> int = compare
+  end
+  module AttributeMap : (Map.S with type key = attribute)
+    = Map.Make(AttributeOrder)
+
+  type element_result = Negated | Positive of state
+  and state = State of element_result ElementMap.t * value AttributeMap.t
+
+  let empty_state = State (ElementMap.empty, AttributeMap.empty)
+
+  type loop_info = AllUnknown of uid | AllKnown of value | LastKnown of uid * value
+
+  type interp_state = {
+    init    : state;
+    final   : state;
+    (* Map between values and the loop variable over that value *)
+    loops   : loop_info ValueMap.t;
+    (* Map between values and its boolean value *)
+    bools   : bool ValueMap.t;
+    (* Map between values and its constructor value (true = L) *)
+    constrs : (bool * value) ValueMap.t;
+  }
+
+  let init_interp_state = {
+    init    = empty_state;
+    final   = empty_state;
+    loops   = ValueMap.empty;
+    bools   = ValueMap.empty;
+    constrs = ValueMap.empty;
+  }
+
+  type interp_res =
+    | Err     of string
+    | Success of interp_state
+    | Both    of interp_res * interp_res
+    | Either  of interp_res * interp_res
+
+  (* Create an unknown value given whether it is existential or universal and
+   * its type *)
+  let unknown_value (is_ex : bool) (ty : typ) : value =
+    Unknown (
+      (if is_ex then Existential (uid ()) else Universal (uid ())),
+      ty)
+
+  (* Add the second state to the first state *)
+  let rec add_states (State (el, at)) (State (em, ar)) : state =
+    let new_attrs =
+      AttributeMap.merge (fun _attr orig added ->
+        match added with
+        | Some v -> Some v
+        | None -> orig)
+        at ar
+    in let new_elems =
+      ElementMap.merge (fun _elem orig added ->
+        match orig, added with
+        | None, None -> None
+        | None, Some added -> Some added
+        | Some orig, None -> Some orig
+        | Some Negated, Some added -> Some added
+        | Some _, Some Negated -> Some Negated
+        | Some (Positive orig), Some (Positive added) ->
+            Some (Positive (add_states orig added)))
+        el em
+    in State (new_elems, new_attrs)
+
+  type qualifier = Attribute  of attribute * value
+                 | Element    of element   * value * state
+                 | NotElement of element   * value
+
+  let add_qual (q : qualifier) (State (els, ats) : state) : state =
+    match q with
+    | Attribute (attr, v) ->
+        State (els, AttributeMap.add attr v ats)
+    | NotElement (elem, v) ->
+        State (ElementMap.add (elem, v) Negated els, ats)
+    | Element (elem, v, nested) ->
+        let updated =
+          ElementMap.update (elem, v)
+            (fun cur ->
+              let s =
+                match cur with
+                | None | Some Negated -> empty_state
+                | Some (Positive s) -> s
+              in Some (Positive (add_states s nested)))
+            els
+        in State (updated, ats)
+
+  let rec eval_qual (q : qual) (env : env) : (qualifier, string) result =
+    match q with
+    | Attribute (attr, exp) ->
+        Result.bind (eval_expr exp env) (fun (v, _) ->
+          Ok (Attribute (attr, v)))
+    | Element (elem, exp, q) ->
+        Result.bind (eval_expr exp env) (fun (v, _) ->
+          match q with
+          | None -> Ok (Element (elem, v, empty_state))
+          | Some q ->
+              Result.bind (eval_qual q env) (fun q ->
+                Ok (Element (elem, v, add_qual q empty_state))))
+    | NotElement (elem, exp) ->
+        Result.bind (eval_expr exp env) (fun (v, _) ->
+          Ok (NotElement (elem, v)))
+
+  (* A type representing attempting to find some value in a structure where we
+   * may find it, know that it cannot exist, or may not find it and either be
+   * able to add it "easily" or by creating a substantial structure to add it *)
+  type ('a, 'b) find = Located of 'a
+                     | NotContained
+                     | Added   of 'a * 'b
+                     | Created of 'a * 'b
+
+  let get_attribute (a : attr) (s : interp_state) (env : env)
+    : (value * interp_state, string) result =
+    let rec attr_to_state (a : attr) (is_final : bool)
+      : (value * state, string) result =
+      match a with
+      | AttrAccess a ->
+          let v : value = unknown_value is_final (attributeDef a)
+          in Ok (v, add_qual (Attribute (a, v)) empty_state)
+      | OnElement (el, ex, at) ->
+          Result.bind (eval_expr ex env) (fun (v, _) ->
+            Result.bind (attr_to_state at is_final) (fun (atv, s) ->
+              Ok (atv, add_qual (Element (el, v, s)) empty_state)))
+    in let rec find_in_state (a : attr) (State (els, ats)) (is_final : bool)
+      : ((value, state) find, string) result =
+      match a with
+      | AttrAccess a ->
+          begin match AttributeMap.find_opt a ats with
+          | Some v -> Ok (Located v)
+          | None ->
+              let v : value = unknown_value is_final (attributeDef a)
+              in Ok (Added (v, State (els, AttributeMap.add a v ats)))
           end
-      | Pair (x, y, t) -> Pair (subst_in_value x, subst_in_value y, t)
-      | Constructor (n, c, v) -> Constructor (n, c, subst_in_value v)
-      | Struct (t, r) -> Struct (t, FieldMap.map subst_in_value r)
+      | OnElement (el, ex, at) ->
+          Result.bind (eval_expr ex env) (fun (v, _) ->
+            match ElementMap.find_opt (el, v) els with
+            | None ->
+                Result.bind (attr_to_state at is_final) (fun (res, nested) ->
+                  Ok (Created (res,
+                    State (ElementMap.add (el, v) (Positive nested) els, ats))))
+            | Some Negated -> Ok NotContained
+            | Some (Positive s) ->
+                match find_in_state at s is_final with
+                | Error msg -> Error msg
+                | Ok NotContained -> Ok NotContained
+                | Ok (Located v) -> Ok (Located v)
+                | Ok (Added (res, st)) ->
+                    let new_els = ElementMap.add (el, v) (Positive st) els
+                    in Ok (Added (res, State (new_els, ats)))
+                | Ok (Created (res, st)) ->
+                    let new_els = ElementMap.add (el, v) (Positive st) els
+                    in Ok (Created (res, State (new_els, ats))))
+    in match find_in_state a s.final true with
+    | Error msg -> Error msg
+    (* NotContained means that one of the elements the attribute is on was
+     * negated in the final state, meaning this attribute does not have a value *)
+    | Ok NotContained -> Error "Attribute does not exist"
+    | Ok (Located v) -> Ok (v, s)
+    | Ok (Added (v, new_final)) ->
+        (* We prefer to add a value for an attribute on the initial state
+         * rather than the final state since that gives us a source of the
+         * value *)
+        begin match find_in_state a s.init false with
+        | Ok (Located v) -> Ok (v, s)
+        | Ok (Added (v, new_init)) ->
+            Ok (v, { init = new_init; final = s.final; loops = s.loops;
+                     bools = s.bools; constrs = s.constrs })
+        (* If the value cannot be contained in the initial state, would require
+         * creating an element, or we ran into some kind of error (which would
+         * be unexpected) we just add the attribute in the final state *)
+        (* NOTE: We prefer to Add rather than Create since this may represent a
+         * situation where we have added an element and are now accesssing
+         * an unspecified attribute *)
+        | _ -> Ok (v, { init = s.init; final = new_final; loops = s.loops;
+                        bools = s.bools; constrs = s.constrs })
+        end
+    (* We cannot create elements in the final state but we can try the initial
+     * state *)
+    | Ok (Created (_, _)) ->
+        begin match find_in_state a s.init false with
+        | Ok (Located v) -> Ok (v, s)
+        | Ok NotContained -> Error "Attribute does not exist"
+        | Ok (Added (v, new_init)) | Ok (Created (v, new_init)) ->
+            Ok (v, { init = new_init; final = s.final; loops = s.loops;
+                     bools = s.bools; constrs = s.constrs })
+        (* This would be unexpected *)
+        | Error msg -> Error msg
+        end
+
+  (* Either returns whether or not the element is in the state (Either.Left) or
+   * new initial states that assume the element does and does not exist,
+   * respectively (Either.Right) *)
+  let get_element (e : elem) (s : interp_state) (env : env)
+    (k : bool -> interp_state -> interp_res)
+    : (interp_res, string) result =
+    let rec find_in_state (e : elem) (State (els, _))
+      : (bool option, string) result =
+      match e with
+      | Element (el, ex) ->
+          Result.bind (eval_expr ex env) (fun (v, _) ->
+            match ElementMap.find_opt (el, v) els with
+            | Some (Positive _) -> Ok (Some true)
+            | Some Negated -> Ok (Some false)
+            | None -> Ok None)
+      | OnElement (el, ex, e) ->
+          Result.bind (eval_expr ex env) (fun (v, _) ->
+            match ElementMap.find_opt (el, v) els with
+            | None -> Ok None
+            | Some Negated -> Ok (Some false)
+            | Some (Positive s) -> find_in_state e s)
+    in let rec states_from_elem (e : elem)
+      (k : bool -> state -> interp_res) : (interp_res, string) result =
+      match e with
+      | Element (el, ex) ->
+          Result.bind (eval_expr ex env) (fun (v, _) ->
+            let state_with =
+              add_qual (Element (el, v, empty_state)) empty_state
+            in let state_without =
+              add_qual (NotElement (el, v)) empty_state
+            in Ok (Both (k true state_with, k false state_without)))
+      | OnElement (el, ex, e) ->
+          Result.bind (eval_expr ex env) (fun (v, _) ->
+            let state_without =
+              add_qual (NotElement (el, v)) empty_state
+            in let res_e =
+              states_from_elem e
+                (fun b s -> k b (add_qual (Element (el, v, s)) empty_state))
+            in Result.bind res_e (fun res_e ->
+              Ok (Both (res_e, k false state_without))))
+    in let rec find_or_add (e : elem) (State (els, ats))
+      (k : bool -> state -> interp_res) : (interp_res, string) result =
+      match e with
+      | Element (el, ex) ->
+          Result.bind (eval_expr ex env) (fun (v, _) ->
+            match ElementMap.find_opt (el, v) els with
+            | Some (Positive _) -> Ok (k true (State (els, ats)))
+            | Some Negated -> Ok (k false (State (els, ats)))
+            | None ->
+                let els_with =
+                  ElementMap.add (el, v) (Positive empty_state) els
+                in let els_without =
+                  ElementMap.add (el, v) Negated els
+                in Ok (Both (k true (State (els_with, ats)),
+                             k false (State (els_without, ats)))))
+      | OnElement (el, ex, e) ->
+          Result.bind (eval_expr ex env) (fun (v, _) ->
+            match ElementMap.find_opt (el, v) els with
+            | Some Negated -> Ok (k false (State (els, ats)))
+            | Some (Positive s) ->
+                find_or_add e s (fun b new_s ->
+                  let new_els = ElementMap.add (el, v) (Positive new_s) els
+                  in k b (State (new_els, ats)))
+            | None ->
+                let states_res =
+                  states_from_elem e (fun b s ->
+                    let new_els = ElementMap.add (el, v) (Positive s) els
+                    in k b (State (new_els, ats)))
+                in Result.bind states_res (fun states_res ->
+                  let els_without = ElementMap.add (el, v) Negated els
+                  in Ok (Both (states_res, k false (State (els_without, ats))))))
+    (* First check if we can resolve this question based on the final state *)
+    in match find_in_state e s.final with
+    | Error msg -> Error msg
+    | Ok (Some b) -> Ok (k b s)
+    | Ok None ->
+        (* If not, we'll use the initial state and either find out or try all
+         * the options *)
+        find_or_add e s.init (fun b new_init ->
+          let new_state = {
+            init = new_init; final = s.final; loops = s.loops;
+            bools = s.bools; constrs = s.constrs }
+          in k b new_state)
+
+  (* Given an element and the current state, evaluates the element and returns
+   * a function which given a new state resets the specified element in the
+   * final state to the same as the initial state.
+   * This is used for the Localize construct, and we only modify the final
+   * state so that any changes that occured during localization are undone
+   * but any inferred information about the initial state are not (since the
+   * initial version of the localized state is the current state of the state
+   * before localization). *)
+  let make_elem_reset (el : element) (ex : expr) (s : interp_state) (env : env)
+    : (interp_state -> interp_state, string) result =
+    let State (els, _) = s.final
+    in let change_final (f : state -> state) (s : interp_state) =
+      let { init; final; loops; bools; constrs } = s
+      in { init; final = f final; loops; bools; constrs }
+    in Result.bind (eval_expr ex env) (fun (v, _) ->
+        match ElementMap.find_opt (el, v) els with
+        | None ->
+            Ok (change_final (fun (State (els, ats)) ->
+              State (ElementMap.remove (el, v) els, ats)))
+        | Some b ->
+            Ok (change_final (fun (State (els, ats)) ->
+              State (ElementMap.add (el, v) b els, ats))))
+
+  (* Checks whether a value contains any Universal unknowns, this is important
+   * for interpreting matches and conditionals over unevaluated values *)
+  let rec contains_universal (v : value) : bool =
+    match v with
+    | Unknown (Universal _, _) -> true
+    (* We treat loop variables like existentials since they represent multiple
+     * values at once *)
+    | Unknown (Loop _, _) -> true
+    | Unknown (Existential _, _) -> false
+    | Literal (_, _) -> false
+    | Function (_, v, _) -> contains_universal v
+    | Pair (x, y, _) -> contains_universal x || contains_universal y
+    | Constructor (_, _, v) -> contains_universal v
+    | Struct (_, r) -> FieldMap.exists (fun _ -> contains_universal) r
+    (* TODO: I think this is correct for similar reasons to loop variables,
+     * additionally an expression like length({ ... }) has an arbitrary value
+     * based on the list that its derived from *)
+    | ListVal (_, _) -> true
+
+  let replace_loopvar_value (v : value) (uid : uid) : value =
+    let rec helper (v : value) : value =
+      match v with
+      (* TODO: Should this be a Universal or an Existential?
+       * I think it really depends on the list that is being looped over, if it
+       * contains a Universal variable then it should probably be Universal
+       * because it can take any value depending on that other Universal value.
+       * However, if the list does not contain a Universal then I think
+       * Existential is correct since it just represents some particular value
+       *)
+      | Unknown (Loop x, elemTy) when x = uid -> Unknown (Universal x, elemTy)
+      | Function (f, v, t) -> Function (f, helper v, t)
+      | Pair (x, y, t) -> Pair (helper x, helper y, t)
+      | Constructor (n, b, v) -> Constructor (n, b, helper v)
+      | Struct (s, r) -> Struct (s, FieldMap.map helper r)
+      (* ListVal are not modified because they are allowed to contain loop
+       * variables *)
+      | _ -> v
+    in helper v
+
+  let replace_loopvar (s : interp_state) (env : env) (uid : uid)
+    : interp_state * env =
+    let rec contains_loopvar (v : value) : bool =
+      match v with
+      | Unknown (Loop x, _) -> x = uid
+      | Function (_, v, _) -> contains_loopvar v
+      | Pair (x, y, _) -> contains_loopvar x || contains_loopvar y
+      | Constructor (_, _, v) -> contains_loopvar v
+      | Struct (_, r) -> FieldMap.exists (fun _ v -> contains_loopvar v) r
+      (* ListVal are not checked since they are lists not individual values *)
+      | _ -> false
+    in let rec replace_state (State (els, ats) : state) : state =
+      let replace_els (els : element_result ElementMap.t)
+        : element_result ElementMap.t =
+        ElementMap.mapi
+          (fun (_, v) st ->
+            match st with
+            | Negated -> Negated
+            | Positive s ->
+                if contains_loopvar v
+                then Positive s
+                else Positive (replace_state s))
+          els
+      in let replace_ats (ats : value AttributeMap.t)
+        : value AttributeMap.t =
+        AttributeMap.map (fun v -> replace_loopvar_value v uid) ats
+      in State (replace_els els, replace_ats ats)
+    in ({ init = replace_state s.init; final = replace_state s.final;
+          loops = s.loops; bools = s.bools; constrs = s.constrs },
+        VariableMap.map (fun (v, t) -> (replace_loopvar_value v uid, t)) env)
+
+  let rec substitute_unknown (u : id) (v : value) (s : interp_state) (env : env)
+    (k : interp_state -> env -> (interp_res, string) result)
+    (merge : interp_res -> interp_res -> interp_res)
+    : (interp_res, string) result =
+    let rec subst_in_value (w : value) : (value, string) result =
+      match w with
+      | Unknown (w, _) when u = w -> Ok v
+      | Unknown (_, _) | Literal (_, _) -> Ok w
+      | Function (f, v, t) ->
+          Result.bind (subst_in_value v) (fun new_v ->
+            let (_, _, f_def) = funcDef f
+            in match f_def new_v with
+            | Reduced w -> Ok w
+            | Stuck -> Ok (Function (f, new_v, t))
+            | Err msg -> Error msg)
+      | Pair (x, y, t) ->
+          Result.bind (subst_in_value x) (fun new_x ->
+            Result.bind (subst_in_value y) (fun new_y ->
+              Ok (Pair (new_x, new_y, t))))
+      | Constructor (n, c, v) ->
+          Result.bind (subst_in_value v) (fun new_v ->
+            Ok (Constructor (n, c, new_v)))
+      | Struct (t, r) ->
+          Result.bind (fieldMap_map_result subst_in_value r) (fun new_r ->
+            Ok (Struct (t, new_r)))
       (* Unlike substituting loop variables where we skip listvals we do handle
        * listvals here since they may contain unknown values that we want to
        * eliminate *)
-      | ListVal (n, w) -> ListVal (n, subst_in_value w)
-    in let rec subst_in_state (s: state) =
+      | ListVal (n, w) ->
+          Result.bind (subst_in_value w) (fun new_w ->
+            Ok (ListVal (n, new_w)))
+    in let rec subst_in_state (s : state) : (state, string) result =
       match s with
       | State (elems, attrs) ->
           let with_elems =
             ElementMap.fold
-              (fun (el, v, neg) s new_state ->
-                let new_v = subst_in_value v
-                in let new_s = subst_in_state s
-                in add_qual (Either.Left (el, neg), new_v, new_s) new_state)
-              elems
-              init_state
+              (fun (el, v) s new_state ->
+                Result.bind new_state (fun new_state ->
+                  Result.bind (subst_in_value v) (fun new_v ->
+                    match s with
+                    | Negated -> Ok (add_qual (NotElement (el, new_v)) new_state)
+                    | Positive s ->
+                        Result.bind (subst_in_state s) (fun new_s ->
+                          Ok (add_qual (Element (el, new_v, new_s)) new_state)))))
+              elems (Ok empty_state)
           in let with_attrs =
-            AttributeMap.fold
-              (fun attr (v, s) new_state ->
-                let new_v = subst_in_value v
-                in let new_s = subst_in_state s
-                in add_qual (Either.Right attr, new_v, new_s) new_state)
-              attrs
-              with_elems
+            Result.bind with_elems (fun with_elems ->
+              AttributeMap.fold
+                (fun attr v new_state ->
+                  Result.bind new_state (fun new_state ->
+                    Result.bind (subst_in_value v) (fun new_v ->
+                      Ok (add_qual (Attribute (attr, new_v)) new_state))))
+                attrs (Ok with_elems))
           in with_attrs
-    in let new_env = VariableMap.map (fun (v, t) -> (subst_in_value v, t)) env
+    in let new_env : (env, string) result =
+      variableMap_map_result
+        (fun (v, t) -> Result.bind (subst_in_value v) (fun v -> Ok (v, t)))
+        env
     in let new_init = subst_in_state s.init
     in let new_final = subst_in_state s.final
-    in let new_bools =
-      ValueMap.fold
-        (fun bound b new_bools ->
-          Option.bind new_bools
-          (fun new_bools ->
-            let new_v = subst_in_value bound
-            in match asTruth new_v with
-            | Some c -> if b = c then Some new_bools else None
-            | None ->
-                (* TODO: the substitution (and simplification) might enable us
-                 * to simplify the constraint *)
-                match ValueMap.find_opt new_v new_bools with
-                | None -> Some (ValueMap.add new_v b new_bools)
-                | Some c -> if b = c then Some new_bools else None))
-        s.bools
-        (Some ValueMap.empty)
-    in let new_constrs =
-      (* The problem with unification is it can produce other substitutions
-       * of values that need to be performed. This actually can be implemented
-       * and would be nice, but I'm not figuring that all out right now *)
-      let unify_values _ _ : (bool * value) ValueMap.t option =
-        failwith "unification of values during substitution of an unknown is not supported"
-      in ValueMap.fold
-        (fun bound (which, arg) new_constrs ->
-          Option.bind new_constrs
-          (fun new_constrs ->
-            let new_v = subst_in_value bound
-            in let new_arg = subst_in_value arg
-            in match new_v with
-            | Constructor (_, c, w) ->
-                if which = c then unify_values new_arg w else None
-            | _ ->
-                match ValueMap.find_opt new_v new_constrs with
-                | None ->
-                    Some (ValueMap.add new_v (which, new_arg) new_constrs)
-                | Some (c, w) ->
-                    if which = c then unify_values new_arg w else None))
-        s.constrs
-        (Some ValueMap.empty)
     in let new_loops =
-      let unify_loops _ _ : loop_info ValueMap.t option =
-        failwith "unification of loops during substitution of an unknown is not supported"
-      in ValueMap.fold
-        (fun lst loop new_loops ->
-          Option.bind new_loops
-          (fun new_loops ->
-            let new_lst = subst_in_value lst
-            in let new_loop =
-              match loop, u with
-              | AllUnknown i, Loop j when i = j -> AllKnown v
-              | AllUnknown i, Val j when i = j -> LastKnown (i, v)
-              | AllUnknown _, _ -> loop
-              | AllKnown w, _ -> AllKnown (subst_in_value w)
-              | LastKnown (i, _w), Loop j when i = j ->
-                  (* FIXME: Should unify w and v *) AllKnown v
-              | LastKnown (i, w), _ -> LastKnown (i, subst_in_value w)
-            in match ValueMap.find_opt new_lst new_loops with
-            | None -> Some (ValueMap.add new_lst new_loop new_loops)
-            | Some l -> unify_loops new_loop l))
+      ValueMap.fold (fun lst loop new_loops ->
+        Result.bind new_loops (fun new_loops ->
+          let new_lst = subst_in_value lst
+          in let new_loop =
+            match loop, u with
+            | AllUnknown i, Loop j when i = j -> Ok (AllKnown v)
+            | AllUnknown i, (Universal j | Existential j) when i = j ->
+                Ok (LastKnown (i, v))
+            | AllUnknown _, _ -> Ok loop
+            | AllKnown w, _ ->
+                Result.bind (subst_in_value w) (fun w -> Ok (AllKnown w))
+            | LastKnown (i, _w), Loop j when i = j ->
+                (* TODO: Should unify w and v *) Ok (AllKnown v)
+            | LastKnown  (i, w), _ ->
+                Result.bind (subst_in_value w) (fun w -> Ok (LastKnown (i, w)))
+          in Result.bind new_loop (fun new_loop ->
+              Result.bind new_lst (fun new_lst ->
+                match ValueMap.find_opt new_lst new_loops with
+                | None ->
+                    Ok (ValueMap.add new_lst new_loop new_loops)
+                | Some _l -> (* TODO: Should unify l and new_loop *)
+                    Ok new_loops))))
         s.loops
-        (Some ValueMap.empty)
-    in Option.bind new_bools (fun new_bools ->
-        Option.bind new_constrs (fun new_constrs ->
-          Option.bind new_loops (fun new_loops ->
-            Some ({ init = new_init; final = new_final;
-                    loops = new_loops; bools = new_bools;
-                    constrs = new_constrs; }, new_env))))
+        (Ok ValueMap.empty)
+    (* We don't add bools and constrs manually, we use addConstraint *)
+    in let partial_state =
+      Result.bind new_init (fun new_init ->
+        Result.bind new_final (fun new_final ->
+          Result.bind new_loops (fun new_loops ->
+            Result.bind new_env (fun new_env ->
+              Ok ({ init = new_init; final = new_final; loops = new_loops;
+                    bools = ValueMap.empty; constrs = ValueMap.empty },
+                  new_env)))))
+    in let add_bools =
+      ValueMap.fold
+        (fun old_v constr k state env -> 
+          Result.bind (subst_in_value old_v) (fun new_v ->
+            addConstraint new_v (IsBool constr) state env k merge))
+        s.bools
+        k
+    in let add_constrs =
+      ValueMap.fold
+        (fun old_v (cb, cv) k state env -> 
+          Result.bind (subst_in_value old_v) (fun new_v ->
+            addConstraint new_v (IsConstructor (cb, cv)) state env k merge))
+        s.constrs
+        add_bools
+    in Result.bind partial_state (fun (s, env) -> add_constrs s env)
 
-  let rec addConstraint (v: value) (c: constr) (s: prg_type) (env: env)
-    : (prg_type * env) list =
-    let addConstraint_basic (v: value) (c : constr) (s: prg_type) (env: env) =
+  and addConstraint (v : value) (c : constr) (s : interp_state) (env : env)
+    (k : interp_state -> env -> (interp_res, string) result)
+    (merge : interp_res -> interp_res -> interp_res)
+    : (interp_res, string) result =
+    let addConstraintBasic (v : value) (c : constr) (s : interp_state)
+      (env : env) (k : interp_state -> env -> (interp_res, string) result) =
       match c with
       | IsBool b ->
-          let new_bools = ValueMap.add v b s.bools
-          in ({ init = s.init; final = s.final; loops = s.loops;
-                bools = new_bools; constrs = s.constrs; },
-              env)
-      | IsConstructor (which, (id, typ)) ->
-          let new_constrs = ValueMap.add v (which, Unknown (id, typ)) s.constrs
-          in ({ init = s.init; final = s.final; loops = s.loops;
-                bools = s.bools; constrs = new_constrs; },
-              env)
-    in let checkValue (v: value) (c: constr) (s: prg_type) (env: env) =
+          let new_state = {
+            init = s.init; final = s.final; loops = s.loops;
+            bools = ValueMap.add v b s.bools;
+            constrs = s.constrs }
+          in k new_state env
+      | IsConstructor (which, c) ->
+          let new_state = {
+            init = s.init; final = s.final; loops = s.loops;
+            bools = s.bools;
+            constrs = ValueMap.add v (which, c) s.constrs }
+          in k new_state env
+      | IsEqual w ->
+          (* TODO: Ideally we would track a congruence closure data structure
+           * (i.e., an e-graph) but that's very complicated as we'd need a
+           * pure or persistent e-graph implementation *)
+          Result.bind (construct_equals v w) (fun equality_vw ->
+            Result.bind (construct_equals w v) (fun equality_wv ->
+              let new_state = {
+                init = s.init; final = s.final; loops = s.loops;
+                bools = ValueMap.add equality_vw true
+                          (ValueMap.add equality_wv true s.bools);
+                constrs = s.constrs }
+              in k new_state env))
+
+    in let checkValue =
       match c with
       | IsBool b ->
-          begin match ValueMap.find_opt v s.bools with
-          | Some c when b = c -> Some [(s, env)]
-          | Some _ -> Some [] (* b <> c, no way to satisfy this constraint *)
+          begin match asTruth v with
+          | Some c when b = c -> Some (k s env)
+          | Some _ -> Some (Error "Incompatible constraints")
           | None ->
-              match asTruth v with
-              | Some c when b = c -> Some [(s, env)]
-              | Some _ -> Some []
+              match ValueMap.find_opt v s.bools with
+              | Some c when b = c -> Some (k s env)
+              | Some _ -> Some (Error "Incompatible constraints")
               | None -> None
           end
-      | IsConstructor (which, (id, _)) ->
-          match ValueMap.find_opt v s.constrs with
-          | Some (b, v) when which = b ->
-              Option.map (fun x -> [x]) (substitute_unknown id v s env)
-          | Some (_, _) -> Some [] (* different constructors, no way to satisfy *)
-          | None -> None
-    in match checkValue v c s env with
+      | IsConstructor (which, b) ->
+          begin match v with
+          | Constructor (_, c, x) when c = which ->
+              Some (addConstraint x (IsEqual b) s env k merge)
+          | Constructor (_, _, _) -> Some (Error "Incompatible constraints")
+          | _ ->
+              match ValueMap.find_opt v s.constrs with
+              | Some (c, x) when c = which ->
+                  Some (addConstraint x (IsEqual b) s env k merge)
+              | Some (_, _) -> Some (Error "Incompatible constraints")
+              | None -> None
+          end
+      | IsEqual w ->
+          if v = w
+          then Some (k s env)
+          else
+            match construct_equals v w with
+            | Error msg -> Some (Error msg)
+            | Ok equality_check ->
+              match ValueMap.find_opt equality_check s.bools with
+              | Some true -> Some (k s env)
+              | Some false -> Some (Error "Incompatible constraints")
+              | None ->
+                match v, w with
+                | Unknown (id, _), _ ->
+                    Some (substitute_unknown id w s env k merge)
+                | _, Unknown (id, _) ->
+                    Some (substitute_unknown id v s env k merge)
+                (* TODO: Is it fair to assume literals must be syntactically equal? *)
+                | Literal (_, _), Literal (_, _) ->
+                    Some (Error "Incompatible constraints")
+                | Pair (a, b, _), Pair (x, y, _) ->
+                    Some (addConstraint a (IsEqual x) s env
+                      (fun s env ->
+                        addConstraint b (IsEqual y) s env k merge)
+                      merge)
+                | Constructor (_, a, b), Constructor (_, x, y) ->
+                    if a = x
+                    then
+                      Some (addConstraint b (IsEqual y) s env k merge)
+                    else Some (Error "Incompatiable constraints")
+                | Struct (_, x), Struct (_, y) ->
+                    let merged =
+                      FieldMap.merge (fun _f x y ->
+                        match x, y with
+                        | Some x, Some y -> Some (Ok (x, y))
+                        | None, None -> None
+                        | _, _ -> Some (Error "Incompatible constraints"))
+                        x y
+                    in Some (FieldMap.fold (fun _f vals k s env ->
+                        Result.bind vals (fun (x, y) ->
+                          addConstraint x (IsEqual y) s env k merge))
+                        merged k s env)
+                | ListVal (_, x), ListVal (_, y) ->
+                    (* TODO: Is this correct? *)
+                    Some (addConstraint x (IsEqual y) s env k merge)
+                (* TODO: Is there more we can do here? *)
+                | Constructor (_, _, _), ListVal (_, _) -> None
+                | ListVal (_, _), Constructor (_, _, _) -> None
+                (* Try to simplify function stuff below *)
+                | Function (_, _, _), _ -> None
+                | _, Function (_, _, _) ->
+                    (* Swap so that we can simplify the function *)
+                    Some (addConstraint w (IsEqual v) s env k merge)
+                | _, _ -> Some (Error "Incompatible constraints")
+    in match checkValue with
     | Some res -> res
     | None ->
-    match v with
-    | Unknown (id, typ) ->
-        let new_val =
-          match c with
-          | IsBool b -> boolAsValue b
-          | IsConstructor (which, (id, id_typ)) ->
-              let ty =
-                match typ with
-                | Named nm -> nm
-                | _ -> failwith "Error: invalid type for constructor"
-              in Constructor (ty, which, Unknown (id, id_typ))
-        in Option.fold ~none:[] ~some:(fun x -> [x])
-            (substitute_unknown id new_val s env)
-    | Function (f, arg, _) ->
-        begin match reduceFuncConstraint f arg c with
-        | Reducible options ->
-            List.flatten (List.map
-              (fun cs -> List.fold_left
-                (fun states c ->
-                  match c with
-                  | IsBool (v, b) -> List.flatten (List.map
-                      (fun (s, env) -> addConstraint v (IsBool b) s env)
-                      states)
-                  | IsConstructor (v, (which, arg)) -> List.flatten (List.map
-                      (fun (s, env) ->
-                        addConstraint v (IsConstructor (which, arg)) s env)
-                      states)
-                  | IsEqual (id, v) ->
-                      List.filter_map
-                        (fun (s, env) -> substitute_unknown id v s env)
-                        states)
-                [(s, env)]
-                cs)
-              options)
-        | Unreducible -> [addConstraint_basic v c s env]
-        end
-    | _ -> [addConstraint_basic v c s env]
+        match v with
+        | Unknown (id, typ) ->
+            let new_val =
+              match c with
+              | IsBool b -> Ok (boolAsValue b)
+              | IsConstructor (which, c) ->
+                  begin match typ with
+                  | Named nm -> Ok (Constructor (nm, which, c))
+                  | _ -> Error "Invalid type for constructor"
+                  end
+              | IsEqual w -> Ok w
+            in begin match new_val with
+            | Ok new_val -> substitute_unknown id new_val s env k merge
+            | Error msg -> Error msg
+            end
+        | Function (f, arg, _) ->
+            begin match reduceFuncConstraint f arg c with
+            | Unreducible -> addConstraintBasic v c s env k
+            | Reducible options ->
+                List.fold_left
+                  (fun total_res cs ->
+                    let this_res : (interp_res, string) result =
+                      List.fold_left
+                        (fun k c s env ->
+                          match c with
+                          | IsBool (v, b) ->
+                              addConstraint v (IsBool b) s env k merge
+                          | IsConstructor (v, (which, arg)) ->
+                              addConstraint v (IsConstructor (which, arg))
+                                s env k merge
+                          | IsEqual (x, y) ->
+                              addConstraint x (IsEqual y) s env k merge)
+                        k
+                        cs
+                        s
+                        env
+                    in match total_res, this_res with
+                    | Error _, _ -> this_res
+                    | _, Error _ -> total_res
+                    | Ok total, Ok this -> Ok (merge total this))
+                  (Error "Unsatisfiable function constraint reduction")
+                  options
+            end
+        | _ -> addConstraintBasic v c s env k
 
-  let interpret (s : stmt) (retTy : typ) : prg_res list =
-    let rec eval_expr (e : expr) (env : env) : (value * typ) error =
-      match e with
-      | Function (f, exp) ->
-          begin match eval_expr exp env with
-          | Err m -> Err m
-          | Ok (v, t) ->
-              let (argTy, retTy, interp) = funcDef f
-              in if t <> argTy
-                 then Err "Type error, argument type mismatch"
-                 else
-                   match interp v with
-                   | Reduced w -> Ok (w, retTy)
-                   | Stuck -> Ok (Function (f, v, retTy), retTy)
-                   | Err msg -> Err msg
-          end
-      | Literal l ->
-          let p = literalTyp l
-          in Ok (Literal (l, p), Primitive p)
-      | Variable v ->
-          begin match VariableMap.find_opt v env with
-          | None -> Err "Undefined variable"
-          | Some v -> Ok v
-          end
-      | Pair (x, y) ->
-          begin match eval_expr x env, eval_expr y env with
-          | Ok (x, tx), Ok (y, ty)
-            -> let t : typ = Product (tx, ty) in Ok (Pair (x, y, t), t)
-          | Err m, Err n -> Err (m ^ "\n" ^ n)
-          | Err m, Ok _ -> Err m
-          | Ok _ , Err n -> Err n
-          end
-      | Env -> Ok (envToVal env, envType)
-    (* Returns either the element or the attribute, the value, and attached qualifiers *)
-    in let rec eval_qual (q : qual) (env : env)
-      : ((element * bool, attribute) Either.t * value * state) error =
-      match q with
-      | Attribute (_, e, qs) | Element (_, e, qs) ->
-          let bq = match q with Attribute (at, _, _) -> Either.Right at
-                              | Element   (el, _, _) -> Either.Left (el, false)
-                              | _ -> failwith "Match error"
-          in begin match eval_expr e env with
-          | Err msg -> Err msg
-          | Ok (v, _) ->
-              match eval_quals qs env with
-              | Err msg -> Err msg
-              | Ok state -> Ok (bq, v, state)
-          end
-      | NotElement (el, e) ->
-          match eval_expr e env with
-          | Err msg -> Err msg
-          | Ok (v, _) -> Ok (Left (el, true), v, init_state)
-    and eval_quals (qs : qual list) (env : env) : state error =
-      match qs with
-      | [] -> Ok init_state
-      | q :: qs ->
-          match eval_qual q env with
-          | Err msg -> Err msg
-          | Ok qres ->
-              match eval_quals qs env with
-              | Err msg -> Err msg
-              | Ok state -> Ok (add_qual qres state)
-    (* Given an attribute AST and the current state, finds the attribute either
-     * in the final state or initial state, and (if necessary) adds the
-     * desired attribute with an unknown value.
-     * Returns the value of the attribute and resulting state *)
-    in let get_attribute (a : attr) (s : prg_type) (env : env) : (value * prg_type) error =
-      (* The helper traverses an attribute and a state to find the attribute's
-       * value (and returns the modified state if needed). Can fail by error or
-       * can return Ok NotLocated if it could not find some qualifier needed on
-       * the desired path *)
-      let rec helper (a : attr) (State (els, ats)) : (value, state) find error =
-        match a with
-        | AttrAccess a ->
-            begin match AttributeMap.find_opt a ats with
-            | Some (v, _) -> Ok (Located v)
-            | None ->
-                let v : value = Unknown (Val (uid ()), attributeDef a)
-                in Ok (Created (v, State (els, AttributeMap.add a (v, init_state) ats)))
-            end
-        | OnAttribute (a, at) ->
-            begin match AttributeMap.find_opt a ats with
-            | None ->
-                (* Even if the attribute doens't exist, we could create it
-                 * (since it's an attribute), so we do that and see what
-                 * happens *)
-                begin match helper at init_state with
-                | Err msg -> Err msg
-                | Ok NotLocated -> Ok NotLocated
-                | Ok (Located _) -> failwith "Cannot find attribute in empty state"
-                | Ok (Created (v, st)) ->
-                    let new_value : value = Unknown (Val (uid ()), attributeDef a)
-                    in let new_ats = AttributeMap.add a (new_value, st) ats
-                    in Ok (Created (v, State (els, new_ats)))
+  let rec interpret (p : stmt) (s : interp_state) (env : env)
+    (cont  : interp_state -> env -> interp_res)
+    (yield : interp_state -> env -> value * typ -> interp_res)
+    (ret   : interp_state -> env -> value * typ -> interp_res)
+    (raise : interp_state -> env -> value * typ -> interp_res) : interp_res =
+    match p with
+    | Pass -> cont s env
+    | Seq (x, y) ->
+        interpret x s env
+          (fun s env -> interpret y s env cont yield ret raise)
+          yield
+          ret
+          raise
+    | Action (var, a, e) ->
+        begin match eval_expr e env with
+        | Error msg -> Err msg
+        | Ok (v, t) ->
+            let (in_var, in_ty, ret_ty, body) = actionDef a
+            in if t <> in_ty
+            then Err "Incorrect argument type for action"
+            else
+              interpret body s (VariableMap.singleton in_var (v, t))
+                (fun _ _ -> Err "No return from action, continued instead")
+                (fun _ _ _ -> Err "No return from action, yielded instead")
+                (fun s _ (r, t) ->
+                  if t <> ret_ty
+                  then Err "Incorrect return type from action"
+                  else cont s (VariableMap.add var (r, t) env))
+                (fun s _ e -> raise s env e)
+        end
+    | Assign (var, e) ->
+        begin match eval_expr e env with
+        | Error msg -> Err msg
+        | Ok v -> cont s (VariableMap.add var v env)
+        end
+    | Add qual ->
+        begin match eval_qual qual env with
+        | Error msg -> Err msg
+        | Ok q ->
+            let new_final = add_qual q s.final
+            in let new_state = {
+              init = s.init; final = new_final; loops = s.loops;
+              bools = s.bools; constrs = s.constrs }
+            in cont new_state env
+        end
+    | Get (var, attr) ->
+        begin match get_attribute attr s env with
+        | Error msg -> Err msg
+        | Ok (v, new_state) ->
+            let new_env = VariableMap.add var (v, type_of_val v) env
+            in cont new_state new_env
+        end
+    | Contains (elem, thn, els) ->
+        let get_res =
+          get_element elem s env (fun b new_s ->
+            interpret (if b then thn else els) new_s env cont yield ret raise)
+        in begin match get_res with
+        | Error msg -> Err msg
+        | Ok res -> res
+        end
+    (* For both cond and match we try to reduce the expression to a concrete
+     * value that we can branch on. However, if it cannot reduce to such an
+     * expression then we try both possible options (which involves
+     * interacting with the constraints of the current state) *)
+    | Cond (c, thn, els) ->
+        begin match eval_expr c env with
+        | Error msg -> Err msg
+        | Ok (v, t) ->
+            if not (isTruthType t)
+            then Err "Condition is not truthy"
+            else
+              match asTruth v with
+              | Some true  -> interpret thn s env cont yield ret raise
+              | Some false -> interpret els s env cont yield ret raise
+              | None ->
+                  let is_either = not (contains_universal v)
+                  in let merge =
+                    if is_either
+                    then (fun x y -> Either (x, y))
+                    else (fun x y -> Both (x, y))
+                  in let true_res =
+                    addConstraint v (IsBool true) s env
+                      (fun s env ->
+                        Ok (interpret thn s env cont yield ret raise))
+                      merge
+                  in let false_res =
+                    addConstraint v (IsBool false) s env
+                      (fun s env ->
+                        Ok (interpret els s env cont yield ret raise))
+                      merge
+                  (* true_res and false_res can be Error iff adding the
+                   * constraint fails, meaning it is inconsistent. If only one
+                   * fails we can safely ignore it *)
+                  in match true_res, false_res with
+                  | Ok true_res, Ok false_res -> merge true_res false_res
+                  | Ok res, Error _ | Error _, Ok res -> res
+                  | Error m, Error n -> Err (m ^ "\n" ^ n)
+        end
+    | Match (expr, var, left, right) ->
+        begin match eval_expr expr env with
+        | Error msg -> Err msg
+        | Ok (v, t) ->
+            match t with
+            | Named n ->
+                begin match v with
+                | Constructor (_, b, v) ->
+                    let t = (if b then fst else snd) (namedTyDef n)
+                    in let new_env = VariableMap.add var (v, t) env
+                    in interpret (if b then left else right) s new_env
+                          cont yield ret raise
+                (* The value cannot be evaluated sufficiently so try both *)
+                | _ ->
+                    let is_exist = not (contains_universal v)
+                    in let merge =
+                      if is_exist
+                      then (fun x y -> Either (x, y))
+                      else (fun x y -> Both (x, y))
+                    in let (type_left, type_right) = namedTyDef n
+                    in let val_left = unknown_value is_exist type_left
+                    in let val_right = unknown_value is_exist type_right
+                    in let env_left =
+                      VariableMap.add var (val_left, type_left) env
+                    in let env_right =
+                      VariableMap.add var (val_right, type_right) env
+                    in let left_res =
+                      addConstraint v (IsConstructor (true, val_left))
+                        s env_left
+                        (fun s env ->
+                          Ok (interpret left s env cont yield ret raise))
+                        merge
+                    in let right_res =
+                      addConstraint v (IsConstructor (false, val_right))
+                        s env_right
+                        (fun s env ->
+                          Ok (interpret right s env cont yield ret raise))
+                        merge
+                    in match left_res, right_res with
+                    | Ok left_res, Ok right_res -> merge left_res right_res
+                    | Ok res, Error _ | Error _, Ok res -> res
+                    | Error m, Error n -> Err (m ^ "\n" ^ n)
                 end
-            | Some (av, qs) ->
-                match helper at qs with
-                | Err msg -> Err msg
-                | Ok NotLocated -> Ok NotLocated
-                | Ok (Located v) -> Ok (Located v)
-                | Ok (Created (v, st)) ->
-                    let new_ats = AttributeMap.add a (av, st) ats
-                    in Ok (Created (v, State (els, new_ats)))
-            end
-        | OnElement (el, e, at) ->
-            begin match eval_expr e env with
-            | Err msg -> Err msg
-            | Ok (v, _) ->
-                match ElementMap.find_opt (el, v, false) els with
-                | None -> Ok NotLocated
-                | Some qs ->
-                    match helper at qs with
-                    | Err msg -> Err msg
-                    | Ok NotLocated -> Ok NotLocated
-                    | Ok (Located v) -> Ok (Located v)
-                    | Ok (Created (res, st)) ->
-                        let new_els = ElementMap.add (el, v, false) st els
-                        in Ok (Created (res, State (new_els, ats)))
-            end
-      in match helper a s.final with
-         | Err msg -> Err msg
-         | Ok (Located v) -> Ok (v, s)
-         | Ok (Created (v, new_final)) ->
-             (* We prefer to create a value for an attribute on the initial
-              * state rather than the final state since that way if we set one
-              * attribute and then fetch another we still put that value onto
-              * the original state rather than creating it on the final state *)
-             begin match helper a s.init with
-             | Ok (Located v) -> Ok (v, s)
-             | Ok (Created (v, new_init)) ->
-                 Ok (v, { init = new_init; final = s.final; loops = s.loops;
-                          bools = s.bools; constrs = s.constrs; })
-             | _ -> Ok (v, { init = s.init; final = new_final; loops = s.loops;
-                             bools = s.bools; constrs = s.constrs; })
-             end
-         | Ok NotLocated ->
-             match helper a s.init with
-             | Err msg -> Err msg
-             | Ok NotLocated -> Err "Failed to locate attribute in current state"
-             | Ok (Located v) -> Ok (v, s)
-             | Ok (Created (v, new_init)) ->
-                 Ok (v, { init = new_init; final = s.final; loops = s.loops;
-                          bools = s.bools; constrs = s.constrs; })
-    (* Either returns whether or not the element is in the state (left) or
-     * new initial states assuming the element does and does not exist
-     * respectively (right) *)
-    in let has_element (e : elem) (s : prg_type) (env : env)
-      : (bool, state * state) Either.t error =
-      (* Returns whether the given element only has attributes except at the
-       * last level, returns an error if there's an error in evaluating the
-       * expression on that last level *)
-      let rec only_attrs (el : elem) : bool error =
-        match el with
-        | Element (_, e) | NotElement (_, e) ->
-            begin match eval_expr e env with
-            | Err msg -> Err msg
-            | Ok _ -> Ok true
-            end
-        | OnElement _ -> Ok false
-        | OnAttribute (_, el) -> only_attrs el
-      in let rec helper (el : elem) (State (els, ats)) : bool option error =
-        match el with
-        | Element _ | NotElement _ ->
-            let (elm, e, neg)
-              = match el with Element (elm, e)    -> (elm, e, false)
-                            | NotElement (elm, e) -> (elm, e, true)
-                            | _ -> failwith "Match Failure"
-            in begin match eval_expr e env with
-            | Err msg -> Err msg
-            | Ok (v, _) ->
-                match ElementMap.find_opt (elm, v, neg) els with
-                | Some _ -> Ok (Some true)
-                | None ->
-                    match ElementMap.find_opt (elm, v, not neg) els with
-                    | Some _ -> Ok (Some false)
-                    | None -> Ok None
-            end
-        | OnAttribute (at, q) ->
-            begin match AttributeMap.find_opt at ats with
-            | None ->
-                (* If this attribute doesn't exist but the element being checked
-                 * for is on the end of a series of attributes (with no
-                 * elements), we could create all the attributes and then create
-                 * the positive/negative of the attribute.
-                 * Otherwise, if there's an element then we are unable to locate
-                 * the desired qualifier *)
-                begin match only_attrs q with
-                | Err msg -> Err msg
-                | Ok true -> Ok None
-                | Ok false -> Err "Failed to locate element in state"
+            | _ -> Err "Cannot match over non-named type"
+        end
+    | ForEach (var, resTy, lst, elemVar, body) ->
+        begin match eval_expr lst env with
+        | Error msg -> Err msg
+        | Ok (v, t) ->
+            match t with
+            | Named n ->
+                begin match list_like n with
+                | None -> Err "Cannot loop over non list-like type"
+                | Some elemTy ->
+                    let rec process_foreach (lst : value) (s : interp_state)
+                      (env : env)
+                      (cont : value -> interp_state -> env -> interp_res)
+                      : interp_res =
+                      match lst with
+                      | Literal _ | Pair _ | Struct _ ->
+                          Err "Internal Error: loop value has non-list value"
+                      | Constructor (_, true, u) -> (* Nil case *)
+                          cont (Constructor (listType resTy, true, u)) s env
+                      | Constructor (_, false, Pair (hd, tl, _)) -> (* Cons *)
+                          let body_env =
+                            VariableMap.add elemVar (hd, elemTy) env
+                          in interpret body s body_env
+                            (* If it continues, we produce no value this
+                             * iteration *)
+                            (fun s env -> process_foreach tl s env cont)
+                            (* If it yields, we'll end up adding that value to
+                             * the result of the loop over the tail *)
+                            (fun s env (resHd, t) ->
+                              if t <> resTy
+                              then Err "Yielded incorrect type"
+                              else
+                                process_foreach tl s env
+                                  (fun resTl s env ->
+                                    let res =
+                                      Constructor (listType resTy,
+                                        false, (* cons *)
+                                        Pair (resHd, resTl,
+                                          Product (resTy, 
+                                            Named (listType resTy))))
+                                    in cont res s env))
+                            ret
+                            raise
+                      (* TODO: Is it possible to collect the different
+                       * behaviors and their results together? That would be
+                       * more accurate but probably then make looping over a
+                       * ListVal more difficult *)
+                      | ListVal (_, elemVal) ->
+                          let body_env =
+                            VariableMap.add elemVar (elemVal, elemTy) env
+                          in interpret body s body_env
+                            (* If it continues, we produce an empty list *)
+                            (fun s env ->
+                              cont 
+                                (Constructor (listType resTy, true, valUnit))
+                                s env)
+                            (* If it yields, we return a new ListVal *)
+                            (fun s env (elemRes, t) ->
+                              if t <> resTy
+                              then Err "Yielded incorrect type"
+                              else
+                                cont (ListVal (listType resTy, elemRes))
+                                  s env)
+                            ret
+                            raise
+                      | _ -> (* Loop over an unknown value *)
+                          (* The way we handle loops over unknown lists is to
+                           * create some new unknown value to represent all the
+                           * items of the list and record the association with
+                           * the list value in the state. We then return a
+                           * ListVal which indicates a result from an unknown
+                           * list *)
+                          let (loopvar, uid, s) =
+                            match ValueMap.find_opt lst s.loops with
+                            | Some (AllUnknown uid) | Some (LastKnown (uid, _))
+                                -> (Unknown (Loop uid, elemTy), Some uid, s)
+                            | Some (AllKnown v) -> (v, None, s)
+                            | None ->
+                                let uid = uid ()
+                                in let state = {
+                                  init = s.init; final = s.final;
+                                  loops = ValueMap.add lst (AllUnknown uid) s.loops;
+                                  bools = s.bools; constrs = s.constrs }
+                                in (Unknown (Loop uid, elemTy), Some uid, state)
+                          in let body_env =
+                            VariableMap.add elemVar (loopvar, elemTy) env
+                          (* This function is used to replace the loop variable
+                           * in the resulting state and environment so that all
+                           * occurences (other than those in the state on an
+                           * element that depends on the loop variable) are
+                           * marked as just representing the last element of
+                           * the list (i.e., the value that escapes) rather
+                           * than an arbitrary element since we are not longer
+                           * acting on all elements. *)
+                          in let unloop s env : interp_state * env =
+                            match uid with
+                            | None -> (s, env)
+                            | Some uid -> replace_loopvar s env uid
+                          in let unloop_val v : value =
+                            match uid with
+                            | None -> v
+                            | Some uid -> replace_loopvar_value v uid
+                          in interpret body s body_env
+                            (* If it continues, we produce no value *)
+                            (fun s env ->
+                              let (s, env) = unloop s env
+                              in cont 
+                                  (Constructor (listType resTy, true, valUnit))
+                                  s env)
+                            (* If it yields, we construct our ListVal *)
+                            (fun s env (res, t) ->
+                              let (s, env) = unloop s env
+                              in if t <> resTy
+                              then Err "Yielded incorrect type"
+                              else
+                                cont (ListVal (listType resTy, res)) s env)
+                            (* For return and raise, we also replace loop vars
+                             * in the returned/raised value again since it's
+                             * just one value now (though not necessarily the
+                             * last... *)
+                            (fun s env (v, t) ->
+                              let (s, env) = unloop s env
+                              in ret s env (unloop_val v, t))
+                            (fun s env (v, t) ->
+                              let (s, env) = unloop s env
+                              in raise s env (unloop_val v, t))
+                    in process_foreach v s env
+                      (fun res s env ->
+                        let new_env =
+                          VariableMap.add var
+                            (res, Named (listType resTy))
+                            env
+                        in cont s new_env)
                 end
-            | Some (_, st) -> helper q st
-            end
-        | OnElement (el, e, q) ->
-            begin match eval_expr e env with
-            | Err msg -> Err msg
-            | Ok (v, _) ->
-                match ElementMap.find_opt (el, v, false) els with
-                | None -> Err "Failed to locate element in state"
-                | Some st -> helper q st
-            end
-      in let rec add_elem (el : elem) (State (els, ats)) : state * state =
-        match el with
-        | Element _ | NotElement _ ->
-            let (elem, e, neg)
-              = match el with Element (elm, e)    -> (elm, e, false)
-                            | NotElement (elm, e) -> (elm, e, true)
-                            | _ -> failwith "Match Failure"
-            in begin match eval_expr e env with
-            | Err _ -> failwith "Error evaluating expression"
-            | Ok (v, _) ->
-                let new_true = ElementMap.add (elem, v, neg) init_state els
-                in let new_false = ElementMap.add (elem, v, not neg) init_state els
-                in (State (new_true, ats), State (new_false, ats))
-            end
-        | OnAttribute (at, el) ->
-            begin match AttributeMap.find_opt at ats with
-            | None ->
-                let v : value = Unknown (Val (uid ()), attributeDef at)
-                in let (new_true, new_false) = add_elem el init_state
-                in let ats_true = AttributeMap.add at (v, new_true) ats
-                in let ats_false = AttributeMap.add at (v, new_false) ats
-                in (State (els, ats_true), State (els, ats_false))
-            | Some (v, st) ->
-                let (new_true, new_false) = add_elem el st
-                in let ats_true = AttributeMap.add at (v, new_true) ats
-                in let ats_false = AttributeMap.add at (v, new_false) ats
-                in (State (els, ats_true), State (els, ats_false))
-            end
-        | OnElement (el, e, q) ->
-            begin match eval_expr e env with
-            | Err _ -> failwith "Error evaluating expression"
-            | Ok (v, _) ->
-                let st = ElementMap.find (el, v, false) els
-                in let (new_true, new_false) = add_elem q st
-                in let els_true = ElementMap.add (el, v, false) new_true els
-                in let els_false = ElementMap.add (el, v, false) new_false els
-                in (State (els_true, ats), State (els_false, ats))
-            end
-      in match helper e s.final with
-      | Ok (Some b) -> Ok (Left b)
-      | Err _ | Ok None ->
-          match helper e s.init with
-          | Err msg -> Err msg
-          | Ok (Some b) -> Ok (Left b)
-          | Ok None -> Ok (Right (add_elem e s.init))
-    (* Notes on loops: the bodies must return a pair of the value yielded by
-     * each iteration and the the special expression "Env", which is used to
-     * thread the environment back to the processing here so so that loop can
-     * modify the environment outside of it. This does mean you cannot return a
-     * value for an entire action from inside a loop *)
-    in let rec process_foreach (lst: value) (elemTy: typ) (var: variable)
-                        (resTy: typ) (body: stmt)  (s: prg_type) (env: env)
-                        : ((value * typ) * prg_type * env) error list =
-      match lst with
-      | Literal _ | Pair _ | Struct _ ->
-          failwith "Loop value has non-list value"
-      | Constructor (_, true, u) -> (* Nil case *)
-          [Ok ((Constructor (listType resTy, true, u), Named (listType resTy)),
-                s, env)]
-      | Constructor (_, false, Pair (hd, tl, _)) -> (* Cons case *)
-          let res_hd = interp body s (VariableMap.add var (hd, elemTy) env)
-                              (Product (resTy, envType))
-          in List.flatten
-            (List.map
-              (fun s ->
-                match s with Err msg -> [Err msg]
-                | Ok (s, Pair (resHd, envv, _)) ->
-                    let res_tl = process_foreach tl elemTy var resTy body s
-                                                 (envFromVal envv)
-                    in List.map (fun resTl ->
-                      match resTl with Err msg -> Err msg
-                      | Ok ((resTl, resTy), resS, resEnv) ->
-                        Ok ((Constructor (listType resTy, false,
-                            Pair (resHd, resTl,
-                              Product (resTy, Named (listType resTy)))),
-                            Named (listType resTy)),
-                         resS, resEnv))
-                      res_tl
-                | _ -> failwith "Return from for-each body must be a pair")
-              res_hd)
-      | ListVal (_, elemVal) ->
-          let res = interp body s (VariableMap.add var (elemVal, elemTy) env)
-                           (Product (resTy, envType))
-          in List.map
-            (fun s -> match s with Err msg -> Err msg
-              | Ok (s, Pair (res, envv, _)) ->
-                  Ok ((ListVal (listType resTy, res), Named (listType resTy)),
-                      s, envFromVal envv)
-              | _ -> failwith "Return from for-each body must be a pair")
-            res
-      | _ -> (* Loop over an unknown value *)
-          (* The way we handle loops over unknown lists is to assign the value
-           * we loop over a particular UID which represents the loop variable
-           * while we loop over that list. We record this information in the
-           * state so we can reconstruct repeat constructs at the end, without
-           * having to deal with them during interpretation *)
-          (* Identify whether there's already a "loop variable" for looping over
-           * this value. If so, use it, otherwise create our own.
-           * If we create our own, we also update the map in the state *)
-          (* The result of looping over an unknown value will be a ListVal *)
-          let (loopvar, uid, s) =
-            match ValueMap.find_opt lst s.loops with
-            | Some (AllUnknown uid) | Some (LastKnown (uid, _))
-                -> (Unknown (Loop uid, elemTy), Some uid, s)
-            | Some (AllKnown v) -> (v, None, s)
-            | None ->
-                let uid = uid ()
-                in let state = { init  = s.init; final = s.final;
-                                 loops = ValueMap.add lst (AllUnknown uid) s.loops;
-                                 bools = s.bools; constrs = s.constrs; }
-                in (Unknown (Loop uid, elemTy), Some uid, state)
-          in let res_loop
-            = interp body s (VariableMap.add var (loopvar, elemTy) env)
-                     (Product (resTy, envType))
-          in List.map
-              (fun s -> match s with Err msg -> Err msg
-                (* Note that we replace the loop variable in the state and
-                 * environment. What this does is replaces all occurences of
-                 * it in the environment and any instance in the state that
-                 * is not contained within an element depending on the
-                 * loop variable. This ensures that if the value is accessed
-                 * from outside the loop we can distinguish that it was not
-                 * the result of a loop, rather it takes the value of the
-                 * last element of the list.
-                 * We don't do this to the value in the resulting ListVal since
-                 * that is allowed to preserve these loop variables *)
-                | Ok (s, Pair (res, envv, _)) ->
-                    let (state, env) =
-                      Option.fold ~none:(s, env)
-                        ~some:(fun uid -> replace_loopvar s (envFromVal envv) uid)
-                        uid
-                    in Ok ((ListVal (listType resTy, res), Named (listType resTy)),
-                           state, env)
-                | _ -> failwith "Return from for-each body must be a pair")
-              res_loop
-    and interp (b : stmt) (s : prg_type) (env : env) (ret : typ) : prg_res list =
-      match b with
-      | Action   (var, action, expr, next) ->
-          let (arg, in_type, out_type, body) = actionDef action
-          in begin match eval_expr expr env with
-          | Err msg -> Err msg :: []
-          | Ok (v, t) ->
-              if t <> in_type
-              then Err "Incorrect argument type to action" :: []
-              else let results = interp body s (VariableMap.singleton arg (v, t)) out_type
-              in List.flatten
-                  (List.map (fun r ->
-                      match r with
-                      | Ok (s, v) ->
-                          interp next s (VariableMap.add var (v, out_type) env) ret
-                      | Err msg -> Err msg :: []) results)
-          end
-      | Assign   (var, expr, next) ->
-          begin match eval_expr expr env with
-          | Err msg -> Err msg :: []
-          | Ok (v, t) ->
-              interp next s (VariableMap.add var (v, t) env) ret
-          end
-      | Add      (qual, next) ->
-          begin match eval_qual qual env with
-          | Err msg -> Err msg :: []
-          | Ok q ->
-              (* Note: Add does not even look at the initial environment,
-               * technically we could check it and not add this if it's a
-               * duplicate, but that's generally unlikely to be useful and
-               * could be cleaned up after the fact if we want.
-               *)
-              let new_final = add_qual q s.final
-              in let new_state = { init = s.init; final = new_final;
-                                   loops = s.loops; bools = s.bools;
-                                   constrs = s.constrs; }
-              in interp next new_state env ret
-          end
-      | Get      (var, attr, next) ->
-          begin match get_attribute attr s env with
-          | Err msg -> Err msg :: []
-          | Ok (v, new_state) ->
-              interp next new_state (VariableMap.add var (v, val_to_type v) env) ret
-          end
-      (* Contains only needs to handle the addition of one constraint where the
-         last level is just an element. Adding attributes is handled by get
-         and constraining the values on elements should be handled by
-         constraints produced by Cond and Match *)
-      | Contains (elem, thn, els) ->
-          begin match has_element elem s env with
-          | Err msg -> Err msg :: []
-          (* If we definitively have or do not have the constraint, take the
-           * appropriate branch *)
-          | Ok (Left b) ->
-              interp (if b then thn else els) s env ret
-          (* Otherwise, take both branches in appropriate updated initial states *)
-          | Ok (Right (new_init_true, new_init_false)) ->
-              (interp thn { init = new_init_true; final = s.final;
-                            loops = s.loops; bools = s.bools; constrs = s.constrs; }
-                      env ret)
-              @
-              (interp els { init = new_init_false; final = s.final;
-                            loops = s.loops; bools = s.bools; constrs = s.constrs; }
-                      env ret)
-          end
-      (* For both cond and match we try to reduce the expression to a concrete
-       * value that we can branch on. However, if it cannot reduce to such an
-       * expression then we try both possible options (which involves
-       * interacting with the constraints of the current state) *)
-      | Cond     (expr, thn, els) ->
-          begin match eval_expr expr env with
-          | Err msg -> Err msg :: []
-          | Ok (v, t) ->
-              if not (isTruthType t)
-              then Err "Condition is not truthy" :: []
-              else match asTruth v with
-                   | Some true -> interp thn s env ret
-                   | Some false -> interp els s env ret
-                   (* Since the value cannot be evaluated fully try both
-                    * possible values *)
-                   | None ->
-                      (List.flatten
-                        (List.map
-                          (fun (s, env) -> interp thn s env ret)
-                          (addConstraint v (IsBool true) s env)))
-                      @
-                      (List.flatten
-                        (List.map
-                          (fun (s, env) -> interp els s env ret)
-                          (addConstraint v (IsBool false) s env)))
-          end
-      | Match    (expr, var, left, right) ->
-          begin match eval_expr expr env with
-          | Err msg -> Err msg :: []
-          | Ok (v, t) ->
-              match t with
-              | Named n ->
-                  begin match v with
-                  | Constructor (_, b, v) ->
-                      let t = (if b then fst else snd) (namedTyDef n)
-                      in interp (if b then left else right) s
-                            (VariableMap.add var (v, t) env) ret
-                  (* The value cannot be evaluated sufficiently, so try both
-                   * options *)
-                  | _ ->
-                      let type_left = fst (namedTyDef n)
-                      in let id_left : id = Val (uid ())
-                      in let val_left = Unknown (id_left, type_left)
-                      in let type_right = snd (namedTyDef n)
-                      in let id_right : id = Val (uid ())
-                      in let val_right = Unknown (id_right, type_right)
-                      in let env_left =
-                        VariableMap.add var (val_left, type_left) env
-                      in let env_right =
-                        VariableMap.add var (val_right, type_right) env
-                      in (List.flatten
-                        (List.map
-                          (fun (s, env) -> interp left s env ret)
-                          (addConstraint v (IsConstructor (true, (id_left, type_left)))
-                            s env_left)))
-                      @ (List.flatten
-                        (List.map
-                          (fun (s, env) -> interp right s env ret)
-                          (addConstraint v (IsConstructor (false, (id_right, type_right)))
-                            s env_right)))
-                  end
-              | _ -> Err "Cannot match over non-named type" :: []
-          end
-      | ForEach (var, resTyp, lst, elemVar, body, next) ->
-          begin match eval_expr lst env with
-          | Err msg -> Err msg :: []
-          | Ok (v, t) ->
-              match t with
-              | Named n ->
-                  begin match list_like n with
-                  | None -> Err "Cannot loop over non list-like type" :: []
-                  | Some elemTy ->
-                      let results
-                        = process_foreach v elemTy elemVar resTyp body s env
-                      in List.flatten
-                        (List.map
-                          (fun res ->
-                            match res with Err msg -> [Err msg]
-                            | Ok (res, s, env) ->
-                              let new_env = VariableMap.add var res env
-                              in interp next s new_env ret)
-                          results)
-                  end
-              | _ -> Err "Cannot loop over non-list-like type" :: []
-          end
-      | Fail     msg -> (Err msg) :: []
-      | Return   expr ->
-          begin match eval_expr expr env with
-          | Ok (v, t) ->
-              if t <> ret
-              then Err "Incorrect return type" :: []
-              else Ok (s, v) :: []
-          | Err msg -> Err msg :: []
-          end
-    in interp s init_prg_type new_env retTy
+            | _ -> Err "Cannot loop over non list-like type"
+        end
+    | TryCatch (body, var, catch, finally) ->
+        interpret body s env
+          (* continue : execute finally and then continue as usual *)
+          (fun s env -> interpret finally s env cont yield ret raise)
+          (* yield : execute finally and then yield the value, unless the finally did already *)
+          (fun s env e ->
+            interpret finally s env
+              (* continue -- yield e *) (fun s env -> yield s env e)
+              (* yield -- just yield *) yield
+              (* ret -- just return  *) ret
+              (* raise -- just raise *) raise)
+          (* ret : execute finally and then return the value, unless the finally did already *)
+          (fun s env e ->
+            interpret finally s env
+              (* continue -- return e *) (fun s env -> ret s env e)
+              (* yield -- still ret e *) (fun s env _ -> ret s env e)
+              (* ret -- just return   *) ret
+              (* raise -- just raise  *) raise)
+          (* raise : execute catch and then finally and continue as usual *)
+          (fun s env e ->
+            interpret catch s (VariableMap.add var e env)
+              (* continue -- finally then continue *)
+              (fun s env -> interpret finally s env cont yield ret raise)
+              (* yield -- finally then yield *)
+              (fun s env e ->
+                interpret finally s env
+                  (* continue - yield e *) (fun s env -> yield s env e)
+                  (* yield - just yield *) yield
+                  (* ret - just return  *) ret
+                  (* raise - just raise *) raise)
+              (* ret -- finally then ret *)
+              (fun s env e ->
+                interpret finally s env
+                  (* continue - return e *) (fun s env -> ret s env e)
+                  (* yield - still ret e *) (fun s env _ -> ret s env e)
+                  (* ret - just return   *) ret
+                  (* raise - just raise  *) raise)
+              (* raise -- finally then raise *)
+              (fun s env e ->
+                interpret finally s env
+                  (* continue - raise e *) (fun s env -> raise s env e)
+                  (* yield - raise e    *) (fun s env _ -> raise s env e)
+                  (* ret - just return  *) ret
+                  (* raise - just raise *) raise))
+    | Localize (el, ex, body) ->
+        begin match make_elem_reset el ex s env with
+        | Error msg -> Err msg
+        | Ok reset_elem ->
+            interpret body s env
+              (* continue : reset the element and continue *)
+              (fun s env -> cont (reset_elem s) env)
+              (* yield : reset the element and yield *)
+              (fun s env e -> yield (reset_elem s) env e)
+              (* ret : reset the element and return *)
+              (fun s env e -> ret (reset_elem s) env e)
+              (* raise : reset the element and return *)
+              (fun s env e -> raise (reset_elem s) env e)
+        end
+    | Raise e ->
+        begin match eval_expr e env with
+        | Error msg -> Err msg
+        | Ok v -> raise s env v
+        end
+    | Return e ->
+        begin match eval_expr e env with
+        | Error msg -> Err msg
+        | Ok v -> ret s env v
+        end
+    | Yield e ->
+        begin match eval_expr e env with
+        | Error msg -> Err msg
+        | Ok v -> yield s env v
+        end
 end

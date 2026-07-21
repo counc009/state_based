@@ -1,5 +1,6 @@
 ---
 - name: Test conditions
+  hosts: all
   remote_user: aaron
 
   tasks:

@@ -2,7 +2,7 @@ struct stat_res { exists: bool, gid: string, gr_name: string, isdir: bool,
                   islnk: bool, isreg: bool, path: path, pw_name: string,
                   uid: string }
 
-struct stat_result { failed: bool, stat: stat_res }
+struct stat_result { failed: bool, changed: bool, stat: stat_res }
 
 module ansible.builtin.stat aka stat -> stat_result {
   (path aka dest, name : path)
@@ -11,6 +11,7 @@ module ansible.builtin.stat aka stat -> stat_result {
   if exists fs(path, file_system::remote) {
     let result = stat_result { 
                     failed: false,
+                    changed: false,
                     stat: stat_res {
                       exists: true,
                       # FIXME: Should actully be the group number
@@ -34,6 +35,7 @@ module ansible.builtin.stat aka stat -> stat_result {
   } else {
     return stat_result {
       failed: false,
+      changed: false,
       stat: stat_res { exists: false },
     };
   }

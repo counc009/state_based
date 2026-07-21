@@ -1,17 +1,9 @@
-struct lineinfile_result { failed: bool }
+struct lineinfile_result { failed: bool, changed: bool }
 
 enum lineinfile_state { absent, present }
 
 enum insert_loc { before_first, before_last, after_first, after_last }
 
-uninterpreted regex_of_literal(line: string) -> string
-
-uninterpreted remove_lines(regex: string, body: string) -> string
-uninterpreted replace_last_expand(regex: string, line: string, body: string) -> string
-uninterpreted replace_last(regex: string, line: string, body: string) -> string
-uninterpreted insert_line(loc: insert_loc, regex: string, line: string, body: string) -> string
-
-uninterpreted regex_matches(regex: string, body: string) -> bool
 uninterpreted validate_contents(command: string, content: string) -> bool
 
 module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
@@ -40,7 +32,7 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
     }
 
     if !success {
-      return lineinfile_result { failed: true };
+      return lineinfile_result { failed: true, changed: false };
     }
 
     let result = content;
@@ -49,9 +41,9 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
       lineinfile_state::absent => {
         (search_string: string | regexp aka regex: string)
         if provided search_string {
-          result = remove_lines(regex_of_literal(search_string), content);
+          result = remove_matching_lines(regex_of_literal(search_string), content);
         } else {
-          result = remove_lines(regexp, content);
+          result = remove_matching_lines(regexp, content);
         }
       }
       lineinfile_state::present => {
@@ -64,30 +56,33 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
           if backrefs {
             # When backrefs are provided insertbefore/after are ignored, hence
             # the annoying definition here
-            result = replace_last_expand(regexp, line, content);
+            result = replace_last_matching_expand(regexp, line, content);
           } else {
             (insertbefore: string | insertafter: string = "EOF")
             (firstmatch: bool = false)
 
-            if regex_matches(regexp, content) {
-                result = replace_last(regexp, line, content);
+            if line_matches_regex(regexp, content) {
+                result = replace_last_matching(regexp, line, content);
             } else if provided insertbefore {
               if insertbefore == "BOF" {
-                result = line ^ "\n" ^ content;
-              } else if regex_matches(insertbefore, content) {
-                result = insert_line(firstmatch ? insert_loc::before_first : insert_loc::before_last,
+                result = concat_line(line, content);
+              } else if line_matches_regex(insertbefore, content) {
+                result = insert_line_matching(firstmatch ? insert_loc::before_first : insert_loc::before_last,
                                      insertbefore, line, content);
               } else {
-                result = content ^ line ^ "\n";
+                result = concat_line(content, line);
               }
             } else {
               if insertafter == "EOF" {
-                result = content ^ line ^ "\n";
-              } else if regex_matches(insertafter, content) {
-                result = insert_line(firstmatch ? insert_loc::after_first : insert_loc::after_last,
+                result = concat_line(content, line);
+              } else if insertafter == "BOF" {
+                // This is not a documented feature but is present in the code
+                result = concat_line(line, content);
+              } else if line_matches_regex(insertafter, content) {
+                result = insert_line_matching(firstmatch ? insert_loc::after_first : insert_loc::after_last,
                                      insertafter, line, content);
               } else {
-                result = content ^ line ^ "\n";
+                result = concat_line(content, line);
               }
             }
           }
@@ -97,25 +92,27 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
 
           let regexp = regex_of_literal(search_string);
 
-          if regex_matches(regexp, content) {
-              result = replace_last(regexp, line, content);
+          if line_matches_regex(regexp, content) {
+              result = replace_last_matching(regexp, line, content);
           } else if provided insertbefore {
             if insertbefore == "BOF" {
-              result = line ^ "\n" ^ content;
-            } else if regex_matches(insertbefore, content) {
-              result = insert_line(firstmatch ? insert_loc::before_first : insert_loc::before_last,
+              result = concat_line(line, content);
+            } else if line_matches_regex(insertbefore, content) {
+              result = insert_line_matching(firstmatch ? insert_loc::before_first : insert_loc::before_last,
                                    insertbefore, line, content);
             } else {
-              result = content ^ line ^ "\n";
+              result = concat_line(content, line);
             }
           } else {
             if insertafter == "EOF" {
-              result = content ^ line ^ "\n";
-            } else if regex_matches(insertafter, content) {
-              result = insert_line(firstmatch ? insert_loc::after_first : insert_loc::after_last,
+              result = concat_line(content, line);
+            } else if insertafter == "BOF" {
+              result = concat_line(line, content);
+            } else if line_matches_regex(insertafter, content) {
+              result = insert_line_matching(firstmatch ? insert_loc::after_first : insert_loc::after_last,
                                    insertafter, line, content);
             } else {
-              result = content ^ line ^ "\n";
+              result = concat_line(content, line);
             }
           }
         } else {
@@ -124,21 +121,23 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
 
           if provided insertbefore {
             if insertbefore == "BOF" {
-              result = line ^ "\n" ^ content;
-            } else if regex_matches(insertbefore, content) {
-              result = insert_line(firstmatch ? insert_loc::before_first : insert_loc::before_last,
+              result = concat_line(line, content);
+            } else if line_matches_regex(insertbefore, content) {
+              result = insert_line_matching(firstmatch ? insert_loc::before_first : insert_loc::before_last,
                                    insertbefore, line, content);
             } else {
-              result = content ^ line ^ "\n";
+              result = concat_line(content, line);
             }
           } else {
             if insertafter == "EOF" {
-              result = content ^ line ^ "\n";
-            } else if regex_matches(insertafter, content) {
-              result = insert_line(firstmatch ? insert_loc::after_first : insert_loc::after_last,
+              result = concat_line(content, line);
+            } else if insertafter == "BOF" {
+              result = concat_line(line, content);
+            } else if line_matches_regex(insertafter, content) {
+              result = insert_line_matching(firstmatch ? insert_loc::after_first : insert_loc::after_last,
                                    insertafter, line, content);
             } else {
-              result = content ^ line ^ "\n";
+              result = concat_line(content, line);
             }
           }
         }
@@ -147,7 +146,7 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
 
     if provided validate {
       if validate_contents(validate, result) {}
-      else { return lineinfile_result { failed: true }; }
+      else { return lineinfile_result { failed: true, changed: false }; }
     }
 
     fs(path, file_system::remote).fs_type = file_type::file(result);
@@ -162,28 +161,28 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
 
     match state {
       lineinfile_state::absent => {
-        return lineinfile_result { failed: true };
+        return lineinfile_result { failed: true, changed: false };
       }
       lineinfile_state::present => {
         (line: string)
         [create: bool = false]
 
         if !create {
-          return lineinfile_result { failed: true };
+          return lineinfile_result { failed: true, changed: false };
         } else {
           let result = line ^ "\n";
 
           if provided validate {
             if validate_contents(validate, result) {}
-            else { return lineinfile_result { failed: true }; }
+            else { return lineinfile_result { failed: true, changed: false }; }
           }
 
           fs(path, file_system::remote).fs_type = file_type::file(result);
 
           fs(path, file_system::remote).owner
-            = provided owner ? owner : env().active_user;
+            = provided owner ? owner : active_user;
           fs(path, file_system::remote).owner_group
-            = provided group ? group : env().active_group;
+            = provided group ? group : active_group;
           fs(path, file_system::remote).mode
             = provided mode ? mode : mode_of_umask(env().umask);
         }
@@ -192,5 +191,5 @@ module ansible.builtin.lineinfile aka lineinfile -> lineinfile_result {
   }
 
 
-  return lineinfile_result { failed: false };
+  return lineinfile_result { failed: false, changed: true };
 }

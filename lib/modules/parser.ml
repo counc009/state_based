@@ -648,6 +648,37 @@ let stmt =
       <* char ';'
       >>| fun rhs -> Assign (lhs, rhs)
 
+    in let tryCatchStmt =
+      let catchStmt =
+        string "catch" *> whitespace1
+        *> identifier
+        >>= fun exc_nm ->
+        whitespace
+        *> option []
+          (parens (sep_by (whitespace *> char ',' *> whitespace) identifier)
+            <* whitespace)
+        >>= fun exc_args ->
+        brackets stmts
+        >>| fun catch -> (exc_nm, exc_args, catch)
+      in let finallyStmt =
+        string "finally" *> whitespace
+        *> brackets stmts
+      in
+      string "try" *> whitespace
+      *> brackets stmts
+      >>= fun body ->
+      whitespace
+      *> optional catchStmt
+      >>= fun catch ->
+      whitespace
+      *> option [] finallyStmt
+      >>| fun finally -> TryCatch (body, catch, finally)
+
+    in let localizeStmt =
+      string "localize" *> whitespace
+      *> brackets stmts
+      >>| fun body -> Localize body
+
     in let exprStmt =
       expr stmts <* whitespace <* char ';'
         >>| fun exp -> LetStmt ("_", exp)
@@ -658,6 +689,8 @@ let stmt =
     ; forLoop
     ; ifStmts
     ; matchStmt
+    ; tryCatchStmt
+    ; localizeStmt
     ; letStmt
     ; (string "assert" *> whitespace1
       *> keywordStmt "exists" (fun e -> AssertExists e))
@@ -666,6 +699,17 @@ let stmt =
     ; keywordStmt "assert" (fun e -> Assert e)
     ; keywordStmt "return" (fun e -> Return e)
     ; keywordStmt "yield"  (fun e -> Yield e)
+    ; (string "raise" *> whitespace1
+      *> identifier
+      >>= fun exp ->
+      whitespace
+      *> optional (parens
+          (sep_by (whitespace *> char ',' *> whitespace) (expr stmts)))
+      <* whitespace <* char ';'
+      >>| fun e ->
+        match e with
+        | Some e -> Raise (exp, ProductExp e)
+        | None -> Raise (exp, UnitExp))
     ; assignStmt
     ; exprStmt
     ]
@@ -751,23 +795,41 @@ let uninterp_def =
   *> typ
   >>| fun res -> Uninterp (nm, args, res)
 
-let attr_def =
+let attr_def is_local =
   string "attribute"
   *> whitespace1
   *> identifier
   >>= fun nm ->
   whitespace
   *> parens ptype
-  >>| fun t -> Attribute (nm, t)
+  >>| fun t -> Attribute (is_local, nm, t)
 
-let elem_def =
+let elem_def is_local =
   string "element"
   *> whitespace1
   *> identifier
   >>= fun nm ->
   whitespace
   *> parens ptype
-  >>| fun t -> Element (nm, t)
+  >>| fun t -> Element (is_local, nm, t)
+
+let local_def =
+  string "local"
+  *> whitespace1
+  *> choice [ attr_def true; elem_def true ]
+
+let except_def =
+  string "exception"
+  *> whitespace1
+  *> identifier
+  >>= fun nm ->
+  whitespace
+  *>
+  optional (parens ptype)
+  >>| fun ty ->
+    match ty with
+    | Some t -> Exception (nm, t)
+    | None -> Exception (nm, Unit)
 
 let func_def =
   string "function"
@@ -807,17 +869,19 @@ let top_level =
       ; struct_def
       ; type_def
       ; uninterp_def
-      ; attr_def
-      ; elem_def
+      ; attr_def false
+      ; elem_def false
+      ; local_def
+      ; except_def
       ; func_def
       ; mod_def
       ])
 let file_parser = whitespace *> top_level <* whitespace
 
-let comments_regex = Str.regexp {|\(#\|//\).*|}
+let comments_regex = Re.compile (Re.Perl.re {|(#|//).*|})
 
 let remove_comments (s : string) : string =
-  Str.global_replace comments_regex "" s
+  Re.replace_string comments_regex ~by:"" s
 
 let parse_file (filename : string) : (topLevel list, string) result =
   let ch = open_in filename

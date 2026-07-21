@@ -2,12 +2,13 @@ enum user_state { absent, present }
 
 enum password_update { always, on_create }
 
-struct user_result { failed: bool, append: bool, create_home: bool, force: bool,
-                     groups: list string, home: path, move_home: bool,
-                     name: string,
-                     password: string, remove: bool, shell: path,
-                     ssh_fingerprint: string, ssh_key_file: path, ssh_public_key: string,
-                     system: bool }
+struct user_result {
+  failed: bool, changed: bool, append: bool, create_home: bool, force: bool,
+  groups: list string, home: path, move_home: bool,
+  name: string,
+  password: string, remove: bool, shell: path,
+  ssh_fingerprint: string, ssh_key_file: path, ssh_public_key: string,
+  system: bool }
 
 uninterpreted default_ssh_key_bits() -> int
 uninterpreted user_active(string) -> bool
@@ -31,7 +32,9 @@ module ansible.builtin.user aka user -> user_result {
   (name aka user : string)
   (state: user_state = user_state::present)
 
-  let res = user_result { failed: false, name: name };
+  // TODO: A lot of setting changed technically relies on whether it actually
+  // makes a change (I think)
+  let res = user_result { failed: false, changed: false, name: name };
 
   [expires: float] # TODO: Use
 
@@ -71,14 +74,16 @@ module ansible.builtin.user aka user -> user_result {
         res.append = append;
         res.move_home = move_home;
 
-        if provided group { e_user(name).primary_group = group; }
+        if provided group {
+          e_user(name).primary_group = group;
+        }
         let primary_group = e_user(name).primary_group;
 
         match update_password { password_update::always => { set_password = true; } }
 
         if provided home {
           # Changing the home directory requires root privileges
-          if !env().is_root { res.failed = true; return res; }
+          if !is_root { res.failed = true; return res; }
 
           homedir = norm_path(home);
 
@@ -95,11 +100,13 @@ module ansible.builtin.user aka user -> user_result {
           }
 
           e_user(name).homedir = homedir;
+          res.changed = true;
         }  else {
           homedir = e_user(name).homedir;
         }
 
         if provided groups {
+          res.changed = true;
           if append {
             e_user(name).supplemental_groups = groups @ e_user(name).supplemental_groups;
           } else {
@@ -111,7 +118,7 @@ module ansible.builtin.user aka user -> user_result {
         touch e_group(name);
 
         # User doesn't exist, this requires root privilege as discussed above
-        if !env().is_root { res.failed = true; return res; }
+        if !is_root { res.failed = true; return res; }
 
         touch e_user(name);
 
@@ -141,6 +148,7 @@ module ansible.builtin.user aka user -> user_result {
 
         e_user(name).system = system;
         res.system = system;
+        res.changed = true;
       }
 
       for g in e_user(name).supplemental_groups {
@@ -154,8 +162,9 @@ module ansible.builtin.user aka user -> user_result {
       if provided password {
         if set_password {
           res.password = password;
+          res.changed = true;
 
-          if !env().is_root { res.failed = true; return res; }
+          if !is_root { res.failed = true; return res; }
 
           # This isn't really documented in Ansible, but in Linux any password
           # beginning with either of these characters should suffice
@@ -170,6 +179,7 @@ module ansible.builtin.user aka user -> user_result {
       if provided password_lock {
         if password_lock {
           e_user(name).password = password_set::disabled;
+          res.changed = true;
         }
       }
 
@@ -179,11 +189,13 @@ module ansible.builtin.user aka user -> user_result {
           fs(homedir, file_system::remote).fs_type
             = file_type::directory(list::<path>::nil);
           fs(homedir, file_system::remote).owner = name;
+          res.changed = true;
         }
       }
 
       if provided shell {
         e_user(name).default_shell = norm_path(shell);
+        res.changed = true;
       }
       res.shell = e_user(name).default_shell;
 
@@ -221,6 +233,7 @@ module ansible.builtin.user aka user -> user_result {
           res.ssh_fingerprint = ssh_fingerprint(pub_key);
           res.ssh_key_file = key_path;
           res.ssh_public_key = pub_key;
+          res.changed = true;
         }
       }
     }
@@ -249,6 +262,7 @@ module ansible.builtin.user aka user -> user_result {
           }
 
           clear e_user(name);
+          res.changed = true;
         } else {
           # It is not documented at all if/how the module fails, but I'm going
           # to assume that failure of the underlying userdel results in failure

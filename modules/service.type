@@ -1,4 +1,4 @@
-struct service_result { failed: bool }
+struct service_result { failed: bool, changed: bool }
 
 enum service_state { reloaded, restarted, started, stopped }
 
@@ -54,5 +54,6 @@ module ansible.builtin.service aka service -> service_result {
     e_service(name).start_on_boot = enabled;
   }
 
-  return service_result { failed: false };
+  // TODO: Properly handle changed
+  return service_result { failed: false, changed: true };
 }

@@ -1,4 +1,4 @@
-struct package_result { failed: bool }
+struct package_result { failed: bool, changed: bool }
 
 # The docs say latest MAY be an option, depends on underlying package manager
 enum package_state { present, absent, latest }
@@ -42,5 +42,6 @@ module ansible.builtin.package aka package -> package_result {
     }
   }
 
-  return package_result { failed: false };
+  // TODO: Only changed if we actually changed something
+  return package_result { failed: false, changed: true };
 }

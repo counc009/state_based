@@ -1,4 +1,4 @@
-struct git_result { failed: bool }
+struct git_result { failed: bool, changed: bool }
 
 uninterpreted git_files(string, string, string) -> list path
 uninterpreted git_content(string, string, string, path) -> string
@@ -23,7 +23,7 @@ module ansible.builtin.git aka git -> git_result {
 
   if !clone {
     # TODO: Is there something else we're supposed to do?
-    return git_result { failed: false };
+    return git_result { failed: false, changed: false };
   }
 
   if exists fs(dest, file_system::remote) {
@@ -37,12 +37,12 @@ module ansible.builtin.git aka git -> git_result {
               yield p;
             };
             fs(dest, file_system::remote).fs_type = file_type::directory(files);
-            return git_result { failed: false };
+            return git_result { failed: false, changed: true };
           }
         }
       }
     }
   }
 
-  return git_result { failed: true };
+  return git_result { failed: true, changed: false };
 }

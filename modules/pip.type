@@ -1,4 +1,5 @@
-struct pip_result { failed: bool, name: list string, virtualenv: path }
+struct pip_result { failed: bool, changed: bool, name: list string,
+                    virtualenv: path }
 
 enum pip_state { absent, forcereinstall, latest, present }
 
@@ -22,7 +23,7 @@ module ansible.builtin.pip aka pip -> pip_result {
     return pip_result {};
   } else {
 
-  let res = pip_result { failed: false, name: name };
+  let res = pip_result { failed: false, changed: false, name: name };
 
   if provided virtualenv {
     let virtualenv = norm_path(virtualenv);
@@ -33,6 +34,7 @@ module ansible.builtin.pip aka pip -> pip_result {
     res.virtualenv = virtualenv;
     assert exists e_package("virtualenv");
     touch virtual_environment(virtualenv);
+    res.changed = true;
 
     [virtualenv_python: string]
     if provided virtualenv_python {
@@ -78,6 +80,7 @@ module ansible.builtin.pip aka pip -> pip_result {
         for n in name { touch e_package(n).e_pip(); }
       }
     }
+    res.changed = true; // TODO: Only if changes actually made
   }
 
   return res;

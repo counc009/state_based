@@ -1,0 +1,3 @@
+Debian:remote:/etc/sudoers:
+Ubuntu:remote:/etc/sudoers:
+RedHat:remote:/etc/sudoers:

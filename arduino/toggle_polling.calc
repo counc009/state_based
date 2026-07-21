@@ -1,4 +1,3 @@
-element globals()
 attribute buttonState(bool)
 attribute ledState(bool)
 
@@ -28,19 +27,18 @@ function digitalWrite(p: int, v: bool) {
 
 function program() {
   assert exists env();
-  assert exists globals();
 
   let time = get_time();
   assert exists input(time);
   touch output(time);
   // In theory we might want to copy outputs from the previous time
 
-  let oldState = globals().buttonState;
-  globals().buttonState = digitalRead(2);
+  let oldState = buttonState;
+  buttonState = digitalRead(2);
 
-  if !oldState && globals().buttonState {
-    globals().ledState = ! globals().ledState;
-    digitalWrite(8, globals().ledState);
+  if !oldState && buttonState {
+    ledState = ! ledState;
+    digitalWrite(8, ledState);
   }
 }
 
