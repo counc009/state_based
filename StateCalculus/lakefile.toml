@@ -1,0 +1,10 @@
+name = "StateCalculus"
+version = "0.1.0"
+defaultTargets = ["statecalculus"]
+
+[[lean_lib]]
+name = "StateCalculus"
+
+[[lean_exe]]
+name = "statecalculus"
+root = "Main"
