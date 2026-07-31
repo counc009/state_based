@@ -3,7 +3,6 @@ import StateCalculus.State
 inductive Res (α ε ν : Type) where
 | ok : α → State → Res α ε ν
 | except : ε → State → Res α ε ν
-| yield : ν → State → Res α ε ν
 | failure : Res α ε ν
 
 def M (α : Type) : Type := State → Res α Value Value
@@ -16,7 +15,6 @@ instance : Monad M where
     match x σ with
     | Res.ok a σ => f a σ
     | Res.except e σ => Res.except e σ
-    | Res.yield v σ => Res.yield v σ
     | Res.failure => Res.failure
 
 instance : MonadState State M where
@@ -40,17 +38,20 @@ instance : MonadExcept Value M where
     | Res.except e σ => h e σ
     | res => res
 
-inductive Yield : Type where
-| Y : Value → Yield
-
-instance : MonadExceptOf Yield M where
-  throw := λ v σ =>
-    match v with
-    | Yield.Y v => Res.yield v σ
-  tryCatch := λ x h σ =>
+instance : MonadFinally M where
+  tryFinally' := λ x f σ =>
     match x σ with
-    | Res.yield v σ => h (Yield.Y v) σ
-    | res => res
+    | Res.ok a σ =>
+      match f (Option.some a) σ with
+      | Res.ok b σ => Res.ok (a, b) σ
+      | Res.except e σ => Res.except e σ
+      | Res.failure => Res.failure
+    | Res.except e σ =>
+      match f Option.none σ with
+      | Res.ok _ σ => Res.except e σ
+      | Res.except e σ => Res.except e σ
+      | Res.failure => Res.failure
+    | Res.failure => Res.failure
 
 def add (q : Qual) : M Unit :=
   modifyGet (λ σ => ((), addQual σ q))
@@ -155,12 +156,19 @@ def exceptRunner (b : Bool) : M Unit := do
   add (Qual.SetAttribute "ok" (Value.Literal (Lit.BoolLit b)))
   exceptTest
 
-def catchTest (b : Bool) : M Unit := do
+def catchTest (b : Bool) : M Int := do
   try
     exceptRunner b
   catch
   | e =>
     add (Qual.SetAttribute "other" e)
+    return 7
+  finally
+    add (Qual.SetAttribute "finally" (Value.Literal (Lit.IntLit 42)))
+    -- The feedback window says this block doesn't support return (or continue/break)
+    -- I also had issues trying to add a throw here
+    -- We might have to just make something ourselves (TODO)
+  return 9
 
 #eval ((exceptRunner true).run emptyState)
 #eval ((catchTest true).run emptyState)
@@ -207,23 +215,46 @@ def setupMutTest (foo bar : Int) (which : Bool) : M Unit := do
 #eval ((setupMutTest 7 12 true).run emptyState)
 #eval ((setupMutTest 7 12 false).run emptyState)
 
-def yieldTest (x : String) : M Unit := do
-  add (Qual.SetAttribute "x" (Value.Literal (Lit.StringLit x)))
-  let y ← attrGet (Attr.AttrAccess "x")
-  yield y
+def listOfValue (v : Value) : M (List Value) := do
+  match v with
+  -- nil case
+  | Value.Left (Value.Literal Lit.UnitLit) => pure []
+  -- cons case
+  | Value.Right (Value.Pair hd tl) =>
+    let res_tl <- listOfValue tl
+    pure (hd :: res_tl)
+  | _ => failure
 
-def yieldCatch (x : String) : M Unit := do
-  tryCatchThe Yield
-    (do
-      yieldTest x)
-    (λ v =>
-      match v with
-      | Yield.Y v => do
-        add (Qual.SetAttribute "y" v))
+def valueOfList (vs : List Value) : Value :=
+  match vs with
+  | [] => Value.Left (Value.Literal Lit.UnitLit)
+  | hd :: tl => Value.Right (Value.Pair hd (valueOfList tl))
 
-#eval ((yieldTest "abc").run emptyState)
-#eval ((yieldTest "xyz").run emptyState)
-#eval ((yieldCatch "abc").run emptyState)
-#eval ((yieldCatch "xyz").run emptyState)
+def valueOfListMap {α} (vs : List α) (f : α → Value) : Value :=
+  valueOfList (vs.map f)
 
-def «%test.foo» : Type := Int
+def loopTest (lst : Value) : M Value := do
+  let mut lstTmp := []
+  for v in (← listOfValue lst) do
+    if (← contains (Elem.ElemAccess "file" v))
+    then
+      let c ← attrGet (Attr.NestedAttr "file" v (Attr.AttrAccess "contents"))
+      add (Qual.NegElement "file" v)
+      -- yield c is compiled into...
+      lstTmp := c :: lstTmp
+      continue
+    else
+      return Value.Literal (Lit.StringLit "error")
+  let loopRes := valueOfList (lstTmp.reverse)
+  return loopRes
+
+def loopTestSetup (files : List (String × Bool)) : M Value := do
+  for (v, c) in files do
+    if c
+    then
+      add (Qual.PosElement "file" (Value.Literal (Lit.PathLit v)) (Option.some (Qual.SetAttribute "contents" (Value.Literal (Lit.StringLit ("Content of " ++ v))))))
+    else
+      add (Qual.NegElement "file" (Value.Literal (Lit.PathLit v)))
+  loopTest (valueOfListMap files (λ (f, _) => Value.Literal (Lit.PathLit f)))
+
+#eval ((loopTestSetup [("a", true), ("c", true), ("b", true)]).run emptyState)
