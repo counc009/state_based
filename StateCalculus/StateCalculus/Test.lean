@@ -1,11 +1,12 @@
 import StateCalculus.State
 
-inductive Res (α ε : Type) where
-| ok : α → State → Res α ε
-| except : ε → State → Res α ε
-| failure : Res α ε
+inductive Res (α ε ν : Type) where
+| ok : α → State → Res α ε ν
+| except : ε → State → Res α ε ν
+| yield : ν → State → Res α ε ν
+| failure : Res α ε ν
 
-def M (α : Type) : Type := State → Res α Value
+def M (α : Type) : Type := State → Res α Value Value
 
 -- Maybe implement Lawful instances
 
@@ -15,6 +16,7 @@ instance : Monad M where
     match x σ with
     | Res.ok a σ => f a σ
     | Res.except e σ => Res.except e σ
+    | Res.yield v σ => Res.yield v σ
     | Res.failure => Res.failure
 
 instance : MonadState State M where
@@ -38,6 +40,18 @@ instance : MonadExcept Value M where
     | Res.except e σ => h e σ
     | res => res
 
+inductive Yield : Type where
+| Y : Value → Yield
+
+instance : MonadExceptOf Yield M where
+  throw := λ v σ =>
+    match v with
+    | Yield.Y v => Res.yield v σ
+  tryCatch := λ x h σ =>
+    match x σ with
+    | Res.yield v σ => h (Yield.Y v) σ
+    | res => res
+
 def add (q : Qual) : M Unit :=
   modifyGet (λ σ => ((), addQual σ q))
 
@@ -53,7 +67,9 @@ def attrGet (a : Attr) : M Value := do
   | Option.some x => pure x
   | Option.none => failure
 
-def M.run {α : Type} (f : M α) (σ : State) : Res α Value := f σ
+def yield (v : Value) : M Unit := throwThe Yield (Yield.Y v)
+
+def M.run {α : Type} (f : M α) (σ : State) : Res α Value Value := f σ
 
 -- Everything above are utilities the generated Lean code needs
 -- Below here are actual examples showing how we compile things
@@ -170,3 +186,44 @@ def setupReturnTest (x : Int) (ret : Bool) : M Value := do
 
 #eval ((setupReturnTest 3 false).run emptyState)
 #eval ((setupReturnTest 3 true).run emptyState)
+
+def mutTest : M Unit := do
+  let mut x := Value.Literal Lit.UnitLit
+  let e ← attrGet (Attr.AttrAccess "which")
+  match e with
+  | Value.Literal (Lit.BoolLit true) =>
+    x <- attrGet (Attr.AttrAccess "foo")
+  | Value.Literal (Lit.BoolLit false) =>
+    x <- attrGet (Attr.AttrAccess "bar")
+  | _ => failure
+  add (Qual.SetAttribute "x" x)
+
+def setupMutTest (foo bar : Int) (which : Bool) : M Unit := do
+  add (Qual.SetAttribute "foo" (Value.Literal (Lit.IntLit foo)))
+  add (Qual.SetAttribute "bar" (Value.Literal (Lit.IntLit bar)))
+  add (Qual.SetAttribute "which" (Value.Literal (Lit.BoolLit which)))
+  mutTest
+
+#eval ((setupMutTest 7 12 true).run emptyState)
+#eval ((setupMutTest 7 12 false).run emptyState)
+
+def yieldTest (x : String) : M Unit := do
+  add (Qual.SetAttribute "x" (Value.Literal (Lit.StringLit x)))
+  let y ← attrGet (Attr.AttrAccess "x")
+  yield y
+
+def yieldCatch (x : String) : M Unit := do
+  tryCatchThe Yield
+    (do
+      yieldTest x)
+    (λ v =>
+      match v with
+      | Yield.Y v => do
+        add (Qual.SetAttribute "y" v))
+
+#eval ((yieldTest "abc").run emptyState)
+#eval ((yieldTest "xyz").run emptyState)
+#eval ((yieldCatch "abc").run emptyState)
+#eval ((yieldCatch "xyz").run emptyState)
+
+def «%test.foo» : Type := Int

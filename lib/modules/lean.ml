@@ -47,6 +47,13 @@ let lean_of_attr (_a : Target.attr) : string = failwith "TODO"
 
 let lean_of_elem (_e : Target.elem) : string = failwith "TODO"
 
+(* TODO: We need to collect all of the local variables (used in assignments)
+ * and declare all of them as mutuable variables at the start of our generated
+ * code (let mut <id> := Value.Literal Lit.UnitLit)
+ * Also, need to collect all of the actions and their statements and code gen
+ * them.
+ * We also need to quote the identifiers with « » *)
+
 let rec lean_of_stmt (fmt : Format.t) (s : Target.stmt) : unit =
   match s with
   | Seq (x, y) ->
