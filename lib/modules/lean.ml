@@ -105,8 +105,10 @@ let rec lean_of_stmt (fmt : Format.t) (s : Target.stmt)
         lean_of_stmt fmt body ((vRes ^ "«lst") :: yields);
         Format.unindent fmt;
         Format.println fmt "«%s» := valueOfList («%s«lst».reverse)" vRes vRes
+    (* TODO
     | TryCatch (body, vExc, catch, finally) ->
         ???
+    *)
     (* TODO: Localize *)
     | Raise e ->
         Format.println fmt "throw (%s)" (lean_of_expr e)

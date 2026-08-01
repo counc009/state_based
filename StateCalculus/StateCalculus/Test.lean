@@ -68,8 +68,6 @@ def attrGet (a : Attr) : M Value := do
   | Option.some x => pure x
   | Option.none => failure
 
-def yield (v : Value) : M Unit := throwThe Yield (Yield.Y v)
-
 def M.run {α : Type} (f : M α) (σ : State) : Res α Value Value := f σ
 
 -- Everything above are utilities the generated Lean code needs
