@@ -1,0 +1,4 @@
+(executable
+ (public_name bash-verifier)
+ (name main)
+ (libraries bash_verifier))
