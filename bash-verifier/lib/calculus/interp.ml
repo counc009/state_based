@@ -10,8 +10,8 @@ module type VALUE = sig
          | Right   of t
          | Struct  of t FieldMap.t
          | SRef    of s
-  and  s = TopLevel
-         | Nested of s * string * t
+  and  s = Here
+         | Nested of string * t * s
 end
 
 module Value(C : AST) : VALUE with type lit = C.lit = struct
@@ -24,8 +24,8 @@ module Value(C : AST) : VALUE with type lit = C.lit = struct
          | Right   of t
          | Struct  of t FieldMap.t
          | SRef    of s
-  and  s = TopLevel
-         | Nested of s * string * t
+  and  s = Here
+         | Nested of string * t * s
 end
 
 module type INTERP_UTILS = sig
@@ -65,7 +65,7 @@ module Interp (I : INTERP_UTILS)(ST : STATE) = struct
   module VarMap = Map.Make(String)
   type env = V.t VarMap.t
 
-  let init_env : env = VarMap.singleton "σ" (V.SRef V.TopLevel)
+  let init_env : env = VarMap.singleton "σ" (V.SRef V.Here)
 
   let interp_expr (e : C.expr) (env : env) : V.t option =
     let rec interp = function
