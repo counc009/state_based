@@ -3,13 +3,14 @@ module type AST = sig
   type func
   type act
 
+  type att = string
+  type elm = string
+
   type expr = Function of func * expr
             | Literal  of lit
             | Variable of string
             | Pair     of expr * expr
-
-  type att = string
-  type elm = string
+            | Element  of expr * elm * expr
 
   (* A value representing the state reference *)
   type base = expr
@@ -24,9 +25,7 @@ module type AST = sig
             | Assign     of string * expr
             | Add        of qual
             | Get        of string * attr
-            (* Contains now returns a reference to the nested state on the
-             * element in the then branch *)
-            | Contains   of elem * string * stmt * stmt
+            | Contains   of elem * stmt * stmt
             | Cond       of expr * stmt * stmt
             (* The string is the name of the value within the constructor *)
             | Match      of expr * string * stmt * stmt
@@ -61,13 +60,14 @@ module Ast(L : LITERALS)(F : FUNCTIONS)(A : ACTIONS)
   type func = F.t
   type act  = A.t
 
+  type att = string
+  type elm = string
+
   type expr = Function of func * expr
             | Literal  of lit
             | Variable of string
             | Pair     of expr * expr
-
-  type att = string
-  type elm = string
+            | Element  of expr * elm * expr
 
   (* A value representing the state reference *)
   type base = expr
@@ -82,9 +82,7 @@ module Ast(L : LITERALS)(F : FUNCTIONS)(A : ACTIONS)
             | Assign     of string * expr
             | Add        of qual
             | Get        of string * attr
-            (* Contains now returns a reference to the nested state on the
-             * element in the then branch *)
-            | Contains   of elem * string * stmt * stmt
+            | Contains   of elem * stmt * stmt
             | Cond       of expr * stmt * stmt
             (* The string is the name of the value within the constructor *)
             | Match      of expr * string * stmt * stmt

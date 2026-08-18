@@ -1,32 +1,6 @@
 open Ast
-
-module type VALUE = sig
-  type lit
-  module FieldMap : Map.S with type key = string
-
-  type t = Literal of lit
-         | Pair    of t * t
-         | Left    of t
-         | Right   of t
-         | Struct  of t FieldMap.t
-         | SRef    of s
-  and  s = Here
-         | Nested of string * t * s
-end
-
-module Value(C : AST) : VALUE with type lit = C.lit = struct
-  type lit = C.lit
-  module FieldMap = Map.Make(String)
-
-  type t = Literal of lit
-         | Pair    of t * t
-         | Left    of t
-         | Right   of t
-         | Struct  of t FieldMap.t
-         | SRef    of s
-  and  s = Here
-         | Nested of string * t * s
-end
+open Value
+open State
 
 module type INTERP_UTILS = sig
   module C : AST
@@ -38,21 +12,6 @@ module type INTERP_UTILS = sig
 
   val func_def : C.func -> V.t -> V.t option
   val act_def : C.act -> C.stmt
-end
-
-module type STATE = functor (V : VALUE) -> sig
-  type t
-
-  val set_attr : t -> V.s -> string -> V.t -> t
-  val pos_elem : t -> V.s -> string -> V.t -> t
-  val neg_elem : t -> V.s -> string -> V.t -> t
-
-  val get_attr : t -> V.s -> string -> ((t * V.t) -> 'a) -> failure:'a -> 'a
-  val check_elem : t -> V.s -> string -> V.t
-        -> ((t * V.s) -> 'a) -> (t -> 'a) -> failure:'a -> 'a
-
-  val get_top : t -> string -> V.t -> (t -> 'a) -> failure:'a -> 'a
-  val set_top : t -> string -> V.t -> t -> t
 end
 
 let ( let* ) = Option.bind
@@ -78,6 +37,13 @@ module Interp (I : INTERP_UTILS)(ST : STATE) = struct
       | C.Function (f, e) ->
           let* e = interp e
           in I.func_def f e
+      | C.Element (b, elem, e) ->
+          let* b = interp b
+          in let* e = interp e
+          in match b with
+          | V.SRef b ->
+              Some (V.SRef (V.Nested (elem, e, b)))
+          | _ -> None
     in interp e
 
   type interp_res = Continue of env * S.t
@@ -87,7 +53,7 @@ module Interp (I : INTERP_UTILS)(ST : STATE) = struct
                   | Failure
 
   let get_attr = S.get_attr ~failure:Failure
-  let check_elem = S.check_elem ~failure:Failure
+  let check_elem = S.check_elem
   let get_top = S.get_top ~failure:Failure
 
   let ( let^ ) (r : interp_res) (f : (env * S.t) -> interp_res) : interp_res =
@@ -95,7 +61,7 @@ module Interp (I : INTERP_UTILS)(ST : STATE) = struct
     | Continue (e, s) -> f (e, s)
     | _ -> r
 
-  let ( let& ) (v : V.t option) (f : V.t -> interp_res) : interp_res =
+  let ( let& ) (v : 'a option) (f : 'a -> interp_res) : interp_res =
     match v with
     | None -> Failure
     | Some v -> f v
@@ -141,27 +107,31 @@ module Interp (I : INTERP_UTILS)(ST : STATE) = struct
     | C.Add (C.QualAttr (base, attr, e)) ->
         let$ base = interp_expr base env
         in let& e = interp_expr e env
-        in Continue (env, S.set_attr st base attr e)
+        in let& st = S.set_attr st base attr e
+        in Continue (env, st)
     | C.Add (C.QualPosE (base, elem, e)) ->
         let$ base = interp_expr base env
         in let& e = interp_expr e env
-        in Continue (env, S.pos_elem st base elem e)
+        in let& st = S.pos_elem st base elem e
+        in Continue (env, st)
     | C.Add (C.QualNegE (base, elem, e)) ->
         let$ base = interp_expr base env
         in let& e = interp_expr e env
-        in Continue (env, S.neg_elem st base elem e)
+        in let& st = S.neg_elem st base elem e
+        in Continue (env, st)
 
     | C.Get (v, (base, attr)) ->
         let$ base = interp_expr base env
         in let> (st, res) = get_attr st base attr
         in Continue (VarMap.add v res env, st)
 
-    | C.Contains ((base, elem, e), nested, thn, els) ->
+    | C.Contains ((base, elem, e), thn, els) ->
         let$ base = interp_expr base env
         in let& e = interp_expr e env
-        in check_elem st base elem e
-          (fun (st, res) -> interp thn (VarMap.add nested (V.SRef res) env) st)
-          (fun st -> interp els env st)
+        in let> (st, present) = check_elem st base elem e
+        in if present
+        then interp thn env st
+        else interp els env st
 
     | C.Cond (e, thn, els) ->
         let& e = interp_expr e env
@@ -240,7 +210,7 @@ module Interp (I : INTERP_UTILS)(ST : STATE) = struct
 
     | C.Localize (elem, e, body) ->
         let& e = interp_expr e env
-        in let> orig = get_top st elem e
+        in let> (st, orig) = get_top st elem e
         in begin match interp body env st with
         | Continue (env, st) -> Continue (env, S.set_top st elem e orig)
         | Raise (v, env, st) -> Raise (v, env, S.set_top st elem e orig)
