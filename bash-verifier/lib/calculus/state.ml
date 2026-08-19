@@ -1,22 +1,31 @@
 open Value
 
-module type STATE = functor (V : VALUE) -> sig
+module type STATE = sig
   type t
+  type vt
+  type vs
 
-  val set_attr : t -> V.s -> string -> V.t -> t option
-  val pos_elem : t -> V.s -> string -> V.t -> t option
-  val neg_elem : t -> V.s -> string -> V.t -> t option
+  val set_attr : t -> vs -> string -> vt -> t option
+  val pos_elem : t -> vs -> string -> vt -> t option
+  val neg_elem : t -> vs -> string -> vt -> t option
 
-  val get_attr : t -> V.s -> string -> ((t * V.t) -> 'a) -> failure:'a -> 'a
-  val check_elem : t -> V.s -> string -> V.t -> (t * bool -> 'a) -> 'a
+  val get_attr : t -> vs -> string -> ((t * vt) -> 'a) -> failure:'a -> 'a
+  val check_elem : t -> vs -> string -> vt -> (t * bool -> 'a) -> 'a
 
-  val localize : t -> string -> V.t -> (t -> 'a) -> failure:'a
+  val localize : t -> string -> vt -> (t -> 'a) -> failure:'a
     -> update:('a -> (t -> t) -> 'a) -> 'a
+
+  type setup
+  val new_state : setup -> t
 end
 
-module ConcreteState : STATE = functor (V : VALUE) -> struct
-  module AttrMap = Map.Make(String)
+module ConcreteState (V : VALUE) 
+  : STATE with type vt = V.t and type vs = V.s and type setup = unit
+= struct
+  type vt = V.t
+  type vs = V.s
 
+  module AttrMap = Map.Make(String)
   module ElemMap = Map.Make(struct
     type t = string * V.t
     let compare : t -> t -> int = compare
@@ -25,6 +34,9 @@ module ConcreteState : STATE = functor (V : VALUE) -> struct
   type t = State of { attrs : V.t AttrMap.t; elems : t ElemMap.t }
 
   let empty_state = State { attrs = AttrMap.empty; elems = ElemMap.empty }
+
+  type setup = unit
+  let new_state () = empty_state
 
   let ( let* ) (x : 'a option) (f : 'a -> 'b option) : 'b option = 
     Option.bind x f
@@ -97,7 +109,13 @@ module ConcreteState : STATE = functor (V : VALUE) -> struct
         in update (k st) update_state
 end
 
-module RandomizeState : STATE = functor (V : VALUE) -> struct
+module RandomizeState (V : VALUE)
+: STATE with type vt = V.t and type vs = V.s
+    and type setup = (V.s -> string -> V.t) * (V.s -> string -> V.t -> bool)
+= struct
+  type vt = V.t
+  type vs = V.s
+
   module AttrMap = Map.Make(String)
 
   module ElemMap = Map.Make(struct
@@ -113,6 +131,9 @@ module RandomizeState : STATE = functor (V : VALUE) -> struct
   let empty_s = State { attrs = AttrMap.empty; elems = ElemMap.empty }
   let empty_t attr_gen elem_pick =
     { attr_gen; elem_pick; init = empty_s; cur = empty_s }
+
+  type setup = (V.s -> string -> V.t) * (V.s -> string -> V.t -> bool)
+  let new_state (attr_gen, elem_pick) = empty_t attr_gen elem_pick
 
   let ( let* ) (x : 'a option) (f : 'a -> 'b option) : 'b option = 
     Option.bind x f

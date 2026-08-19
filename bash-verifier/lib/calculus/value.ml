@@ -1,4 +1,4 @@
-open Ast
+open Builtin
 
 module type VALUE = sig
   type lit
@@ -14,9 +14,8 @@ module type VALUE = sig
          | Nested of string * t * s
 end
 
-(* Construct a VALUE module from an AST instance *)
-module Value(C : AST) : VALUE with type lit = C.lit = struct
-  type lit = C.lit
+module Value (B : BUILTIN) : VALUE with type lit = B.lit = struct
+  type lit = B.lit
   module FieldMap = Map.Make(String)
 
   type t = Literal of lit

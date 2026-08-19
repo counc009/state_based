@@ -1,3 +1,5 @@
+open Builtin
+
 module type AST = sig
   type lit
   type func
@@ -41,24 +43,13 @@ module type AST = sig
             | Pass
 end
 
-module type LITERALS = sig
-  type t
-end
-module type FUNCTIONS = sig
-  type t
-end
-module type ACTIONS = sig
-  type t
-end
-
-module Ast(L : LITERALS)(F : FUNCTIONS)(A : ACTIONS)
-  : AST with type lit = L.t
-        with type func = F.t
-        with type act = A.t
+module Ast (B : BUILTIN) : AST with type lit  = B.lit
+                                and type func = B.func
+                                and type act  = B.act
 = struct
-  type lit  = L.t
-  type func = F.t
-  type act  = A.t
+  type lit  = B.lit
+  type func = B.func
+  type act  = B.act
 
   type att = string
   type elm = string

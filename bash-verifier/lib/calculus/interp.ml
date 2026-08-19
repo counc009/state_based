@@ -1,25 +1,37 @@
 open Ast
-open Value
+open Builtin
 open State
+open Value
 
 module type INTERP_UTILS = sig
-  module C : AST
-  module V : VALUE with type lit = C.lit
+  type func
+  type act
+  type v
+  type stmt
 
-  val as_bool : V.t -> bool option
-  val as_list : V.t -> V.t list option
-  val of_list : V.t list -> V.t
+  val as_bool : v -> bool option
+  val as_list : v -> v list option
+  val of_list : v list -> v
 
-  val func_def : C.func -> V.t -> V.t option
-  val act_def : C.act -> C.stmt
+  val func_def : func -> v -> v option
+  val act_def : act -> stmt
 end
 
 let ( let* ) = Option.bind
 
-module Interp (I : INTERP_UTILS)(ST : STATE) = struct
-  module C = I.C
-  module V = I.V
-  module S = ST(V)
+module Interp
+  (B : BUILTIN)
+  (C : AST with type lit = B.lit and type func = B.func and type act = B.act)
+  (V : VALUE with type lit = B.lit)
+  (I : INTERP_UTILS with type func = B.func and type act = B.act
+                     and type v = V.t and type stmt = C.stmt)
+  (S : STATE with type vt = V.t and type vs = V.s)
+= struct
+  module B = B
+  module C = C
+  module V = V
+  module I = I
+  module S = S
 
   module VarMap = Map.Make(String)
   type env = V.t VarMap.t
@@ -221,3 +233,15 @@ module Interp (I : INTERP_UTILS)(ST : STATE) = struct
         in let> st = localize st elem e
         in interp body env st
 end
+
+module InterpConcrete
+  (B : BUILTIN)
+  (I : INTERP_UTILS with type func = B.func and type act = B.act
+                     and type v = Value(B).t and type stmt = Ast(B).stmt)
+= Interp(B)(Ast(B))(Value(B))(I)(ConcreteState(Value(B)))
+
+module InterpRandomize
+  (B : BUILTIN)
+  (I : INTERP_UTILS with type func = B.func and type act = B.act
+                     and type v = Value(B).t and type stmt = Ast(B).stmt)
+= Interp(B)(Ast(B))(Value(B))(I)(RandomizeState(Value(B)))
