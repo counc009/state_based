@@ -137,23 +137,79 @@ end
 module SampleConcrete = InterpConcrete(Builtin)(Defs)
 module SampleRandomize = InterpRandomize(Builtin)(Defs)
 
+let string_of_concrete_state (st : SampleConcrete.S.t) : string =
+  let rec convert (indent : string) st =
+    let string_of_attr (attr, v) =
+      Printf.sprintf "%s%s = %s"
+        indent attr (SampleConcrete.V.string_of_value v)
+    in let lines_attr =
+      List.map string_of_attr (SampleConcrete.S.extract_attributes st)
+    in let string_of_elem ((elem, v), st) =
+      Printf.sprintf "%s%s(%s)\n%s"
+        indent elem (SampleConcrete.V.string_of_value v)
+        (convert ("  " ^ indent) st)
+    in let lines_elem =
+      List.map string_of_elem (SampleConcrete.S.extract_elements st)
+    in String.concat "\n" (lines_attr @ lines_elem)
+  in convert "  " st
+
 let concrete_interp s =
   let res = 
     SampleConcrete.interp s SampleConcrete.init_env
       (SampleConcrete.S.empty_state ())
   in match res with
   | Continue (_, s) ->
-      Printf.printf "CONTINUE\n%s\n" (SampleConcrete.S.string_of_state s)
+      Printf.printf "CONTINUE\n%s\n" (string_of_concrete_state s)
   | Raise (v, _, s) ->
       Printf.printf "RAISE %s\n%s\n" (SampleConcrete.V.string_of_value v)
-        (SampleConcrete.S.string_of_state s)
+        (string_of_concrete_state s)
   | Return (v, _, s) ->
       Printf.printf "RETURN %s\n%s\n" (SampleConcrete.V.string_of_value v)
-        (SampleConcrete.S.string_of_state s)
+        (string_of_concrete_state s)
   | Yield (v, _, s) ->
       Printf.printf "YIELD %s\n%s\n" (SampleConcrete.V.string_of_value v)
-        (SampleConcrete.S.string_of_state s)
+        (string_of_concrete_state s)
   | Failure -> Printf.printf "FAILURE\n"
+
+let string_of_randomize_state (st : SampleRandomize.S.t) : string =
+  let rec convert (indent : string) st =
+    let string_of_attr (attr, (v_init, v_cur)) =
+      let v_str =
+        begin match v_init with
+        | None -> ""
+        | Some v -> " (init) " ^ SampleRandomize.V.string_of_value v
+        end
+        ^
+        begin match v_cur with
+        | None -> ""
+        | Some v -> " (curr) " ^ SampleRandomize.V.string_of_value v
+        end
+      in Printf.sprintf "%s%s =%s" indent attr v_str
+    in let lines_attr =
+      List.map string_of_attr (SampleRandomize.S.extract_attributes st)
+    in let string_of_elem ((elem, v), (init, cur, st)) =
+      let s_str =
+        begin match init with
+        | Calculus.State.Unknown -> ""
+        | Absent  -> " (init) ABSENT"
+        | Present -> " (init) PRESENT"
+        end
+        ^
+        begin match cur with
+        | Calculus.State.Unknown -> ""
+        | Absent  -> " (curr) ABSENT"
+        | Present -> " (curr) PRESENT"
+        end
+      in let n_str =
+        match st with
+        | None -> ""
+        | Some st -> "\n" ^ convert ("  " ^ indent) st
+      in Printf.sprintf "%s%s(%s)%s%s"
+          indent elem (SampleRandomize.V.string_of_value v) s_str n_str
+    in let lines_elem =
+      List.map string_of_elem (SampleRandomize.S.extract_elements st)
+    in String.concat "\n" (lines_attr @ lines_elem)
+  in convert "  " st
 
 let randomize_interp s =
   let () = Random.self_init ()
@@ -164,14 +220,14 @@ let randomize_interp s =
       (SampleRandomize.S.empty_state (attr_gen, elem_pick))
   in match res with
   | Continue (_, s) ->
-      Printf.printf "CONTINUE\n%s\n" (SampleRandomize.S.string_of_state s)
+      Printf.printf "CONTINUE\n%s\n" (string_of_randomize_state s)
   | Raise (v, _, s) ->
       Printf.printf "RAISE %s\n%s\n" (SampleRandomize.V.string_of_value v)
-        (SampleRandomize.S.string_of_state s)
+        (string_of_randomize_state s)
   | Return (v, _, s) ->
       Printf.printf "RETURN %s\n%s\n" (SampleRandomize.V.string_of_value v)
-        (SampleRandomize.S.string_of_state s)
+        (string_of_randomize_state s)
   | Yield (v, _, s) ->
       Printf.printf "YIELD %s\n%s\n" (SampleRandomize.V.string_of_value v)
-        (SampleRandomize.S.string_of_state s)
+        (string_of_randomize_state s)
   | Failure -> Printf.printf "FAILURE\n"

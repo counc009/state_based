@@ -18,12 +18,19 @@ module type STATE = sig
   type setup
   val empty_state : setup -> t
 
-  val string_of_state : t -> string
+  type attr_ex
+  type elem_ex
+  val extract_attributes : t -> (string * attr_ex) list
+  val extract_elements   : t -> ((string * vt) * elem_ex) list
 end
 
-module ConcreteState (V : VALUE) 
-  : STATE with type vt = V.t and type vs = V.s and type setup = unit
-= struct
+module rec ConcreteState : functor (V : VALUE) -> STATE
+  with type vt      = V.t
+   and type vs      = V.s
+   and type setup   = unit
+   and type attr_ex = V.t
+   and type elem_ex = ConcreteState(V).t
+= functor (V : VALUE) -> struct
   type vt = V.t
   type vs = V.s
 
@@ -110,20 +117,16 @@ module ConcreteState (V : VALUE)
           in State { attrs; elems }
         in update (k st) update_state
 
-  let string_of_state st : string =
-    let rec convert (indent : string) (State { attrs; elems }) =
-      let string_of_attr attr v = indent ^ attr ^ " = " ^ V.string_of_value v
-      in let attr_lines =
-        AttrMap.fold (fun attr v res -> string_of_attr attr v :: res) attrs []
-      in let string_of_elem (elem, v) n = 
-        indent ^ elem ^ "(" ^ V.string_of_value v ^ ")" ^ "\n"
-        ^ convert ("  " ^ indent) n
-      in let lines =
-        ElemMap.fold (fun elem n res -> string_of_elem elem n :: res) elems
-          attr_lines
-      in String.concat "\n" lines
-    in convert "  " st
+  (* Extraction of a Concrete State just returns the values of attributes and
+   * the nested states of elements *)
+  type attr_ex = V.t
+  type elem_ex = t
+
+  let extract_attributes (State { attrs; _ }) = AttrMap.to_list attrs
+  let extract_elements   (State { elems; _ }) = ElemMap.to_list elems
 end
+
+type presence = Unknown | Absent | Present
 
 (* This is called a Randomized State because the original idea was that we
  * randomize the state as we discover it, so if we check whether an element
@@ -131,10 +134,13 @@ end
  * function to decide. However, it can also be used to model an actual system,
  * we can take the information we're asked about and check the appropriate
  * result to respond with. *)
-module RandomizeState (V : VALUE)
-: STATE with type vt = V.t and type vs = V.s
-    and type setup = (V.s -> string -> V.t) * (V.s -> string -> V.t -> bool)
-= struct
+module rec RandomizeState : functor (V : VALUE) -> STATE 
+  with type vt = V.t
+   and type vs = V.s
+   and type setup = (V.s -> string -> V.t) * (V.s -> string -> V.t -> bool)
+   and type attr_ex = V.t option * V.t option
+   and type elem_ex = presence * presence * RandomizeState(V).t option
+= functor (V : VALUE) -> struct
   type vt = V.t
   type vs = V.s
 
@@ -464,4 +470,33 @@ module RandomizeState (V : VALUE)
           attr_lines
       in String.concat "\n" lines
     in convert "  " st
+
+  (* Extraction of a Randomized State returns the values and nested states of
+   * both the initial and current state *)
+  type attr_ex = V.t option * V.t option
+  type elem_ex = presence * presence * t option
+
+  let extract_attributes
+    { init = State { attrs = init_attrs; _ };
+      cur = State  { attrs = cur_attrs;  _ }; _ } =
+    AttrMap.to_list 
+      (AttrMap.merge (fun _ i c -> Some (i, c)) init_attrs cur_attrs)
+  let extract_elements
+    { init = State { elems = init_elems; _ };
+      cur = State  { elems = cur_elems;  _ }; attr_gen; elem_pick } =
+    let merge_bindings i c =
+      let extract_state x =
+        match x with
+        | None          -> (Unknown, empty_s)
+        | Some None     -> (Absent, empty_s)
+        | Some (Some s) -> (Present, s)
+      in let (i, init) = extract_state i
+      in let (c, cur)  = extract_state c
+      in match i, c with
+      | Unknown, Unknown -> None
+      | Absent, Unknown | Unknown, Absent | Absent, Absent ->
+          Some (i, c, None)
+      | _, _ -> Some (i, c, Some { attr_gen; elem_pick; init; cur })
+    in ElemMap.to_list
+        (ElemMap.merge (fun _ -> merge_bindings) init_elems cur_elems)
 end
