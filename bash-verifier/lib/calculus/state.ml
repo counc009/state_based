@@ -106,10 +106,13 @@ module RandomizeState : STATE = functor (V : VALUE) -> struct
   end)
 
   type s = State of { attrs : V.t AttrMap.t; elems : (s option) ElemMap.t }
-  type t = { attr_gen : V.s -> string -> V.t; init : s; cur : s }
+  type t = { attr_gen : V.s -> string -> V.t;
+             elem_pick : V.s -> string -> V.t -> bool;
+             init : s; cur : s }
 
   let empty_s = State { attrs = AttrMap.empty; elems = ElemMap.empty }
-  let empty_t attr_gen = { attr_gen; init = empty_s; cur = empty_s }
+  let empty_t attr_gen elem_pick =
+    { attr_gen; elem_pick; init = empty_s; cur = empty_s }
 
   let ( let* ) (x : 'a option) (f : 'a -> 'b option) : 'b option = 
     Option.bind x f
@@ -119,7 +122,7 @@ module RandomizeState : STATE = functor (V : VALUE) -> struct
    * need to exist but were unspecified
    * Returns the state at that location and a function which, given a new state
    * for that location, produces the full updated state *)
-  let locate { attr_gen; init; cur } where : (s * (s -> t)) option =
+  let locate { attr_gen; elem_pick; init; cur } where : (s * (s -> t)) option =
     (* Returns the state we located and a function which given an update to
      * the current state, returns an updated initial state (if we had to add to
      * it to locate the desired state) and an updated current state *)
@@ -214,7 +217,7 @@ module RandomizeState : STATE = functor (V : VALUE) -> struct
         match init_update with
         | None -> init
         | Some init -> init
-      in { attr_gen; init; cur })
+      in { attr_gen; elem_pick; init; cur })
 
   let set_attr st where attr v =
     let* (State { attrs; elems }, k) = locate st where
@@ -245,7 +248,8 @@ module RandomizeState : STATE = functor (V : VALUE) -> struct
         | Some v -> k (update st, v)
 
   let check_elem st where elem v k =
-    match locate st where with
+    let elem_pick = st.elem_pick
+    in match locate st where with
     | None -> k (st, false)
     | Some (State { attrs; elems } as st, update) ->
         match ElemMap.find_opt (elem, v) elems with
@@ -253,7 +257,7 @@ module RandomizeState : STATE = functor (V : VALUE) -> struct
         | Some (Some _) -> k (update st, true)
         | None ->
             (* TODO: Do we randomize? Or take both? *)
-            let choice = true
+            let choice = elem_pick where elem v
             in let new_s =
               let new_bind =
                 if choice
@@ -282,14 +286,14 @@ module RandomizeState : STATE = functor (V : VALUE) -> struct
     in State { attrs; elems }
 
   let localize st elem v (k : t -> 'a) ~failure ~update =
-    let { attr_gen;
+    let { attr_gen; elem_pick;
           init = State { attrs = init_attrs; elems = init_elems };
           cur = State { attrs = cur_attrs; elems = cur_elems } } = st
     in match ElemMap.find_opt (elem, v) cur_elems with
     | Some None -> failure
     | Some (Some local_st) ->
         let update_state
-          { attr_gen;
+          { attr_gen; elem_pick;
             init = State { attrs = init_attrs; elems = init_elems } as init;
             cur = State { attrs = cur_attrs; elems = cur_elems } } =
           let init_st =
@@ -299,11 +303,11 @@ module RandomizeState : STATE = functor (V : VALUE) -> struct
             | Some (Some init_st) -> init_st
           in let res_st = merge_states init_st local_st
           in let cur_elems = ElemMap.add (elem, v) (Some res_st) cur_elems
-          in { attr_gen; init; 
+          in { attr_gen; elem_pick; init; 
                cur = State { attrs = cur_attrs; elems = cur_elems } }
         in update (k st) update_state
     | None ->
-        let st = { attr_gen;
+        let st = { attr_gen; elem_pick;
                    init = State {
                       attrs = init_attrs;
                       elems = ElemMap.add (elem, v) (Some empty_s) init_elems
@@ -312,7 +316,7 @@ module RandomizeState : STATE = functor (V : VALUE) -> struct
                      attrs = cur_attrs;
                      elems = ElemMap.add (elem, v) (Some empty_s) cur_elems } }
         in let update_state
-          { attr_gen;
+          { attr_gen; elem_pick;
             init = State { attrs = init_attrs; elems = init_elems } as init;
             cur = State { attrs = cur_attrs; elems = cur_elems } } =
           let init_st =
@@ -321,7 +325,7 @@ module RandomizeState : STATE = functor (V : VALUE) -> struct
             | Some None -> empty_s
             | Some (Some init_st) -> init_st
           in let cur_elems = ElemMap.add (elem, v) (Some init_st) cur_elems
-          in { attr_gen; init; 
+          in { attr_gen; elem_pick; init; 
                cur = State { attrs = cur_attrs; elems = cur_elems } }
         in update (k st) update_state
 end
