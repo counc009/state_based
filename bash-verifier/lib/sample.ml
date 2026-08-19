@@ -140,7 +140,7 @@ module SampleRandomize = InterpRandomize(Builtin)(Defs)
 let concrete_interp s =
   let res = 
     SampleConcrete.interp s SampleConcrete.init_env
-      (SampleConcrete.S.new_state ())
+      (SampleConcrete.S.empty_state ())
   in match res with
   | Continue (_, s) ->
       Printf.printf "CONTINUE\n%s\n" (SampleConcrete.S.string_of_state s)
@@ -161,7 +161,7 @@ let randomize_interp s =
   in let elem_pick _where _elem _v = Random.bool ()
   in let res = 
     SampleRandomize.interp s SampleRandomize.init_env
-      (SampleRandomize.S.new_state (attr_gen, elem_pick))
+      (SampleRandomize.S.empty_state (attr_gen, elem_pick))
   in match res with
   | Continue (_, s) ->
       Printf.printf "CONTINUE\n%s\n" (SampleRandomize.S.string_of_state s)

@@ -16,7 +16,7 @@ module type STATE = sig
     -> update:('a -> (t -> t) -> 'a) -> 'a
 
   type setup
-  val new_state : setup -> t
+  val empty_state : setup -> t
 
   val string_of_state : t -> string
 end
@@ -35,10 +35,10 @@ module ConcreteState (V : VALUE)
 
   type t = State of { attrs : V.t AttrMap.t; elems : t ElemMap.t }
 
-  let empty_state = State { attrs = AttrMap.empty; elems = ElemMap.empty }
+  let empty_t = State { attrs = AttrMap.empty; elems = ElemMap.empty }
 
   type setup = unit
-  let new_state () = empty_state
+  let empty_state () = empty_t
 
   let ( let* ) (x : 'a option) (f : 'a -> 'b option) : 'b option = 
     Option.bind x f
@@ -56,7 +56,7 @@ module ConcreteState (V : VALUE)
   let pos_elem st where elem v =
     let rec add (State { attrs; elems }) = function
       | V.Here ->
-          let elems = ElemMap.add (elem, v) empty_state elems
+          let elems = ElemMap.add (elem, v) empty_t elems
           in Some (State { attrs; elems })
       | V.Nested (elem, v, n) ->
           let* st = ElemMap.find_opt (elem, v) elems
@@ -125,6 +125,12 @@ module ConcreteState (V : VALUE)
     in convert "  " st
 end
 
+(* This is called a Randomized State because the original idea was that we
+ * randomize the state as we discover it, so if we check whether an element
+ * is present or absent and we're not sure yet we consult a (possibly random)
+ * function to decide. However, it can also be used to model an actual system,
+ * we can take the information we're asked about and check the appropriate
+ * result to respond with. *)
 module RandomizeState (V : VALUE)
 : STATE with type vt = V.t and type vs = V.s
     and type setup = (V.s -> string -> V.t) * (V.s -> string -> V.t -> bool)
@@ -149,7 +155,7 @@ module RandomizeState (V : VALUE)
     { attr_gen; elem_pick; init = empty_s; cur = empty_s }
 
   type setup = (V.s -> string -> V.t) * (V.s -> string -> V.t -> bool)
-  let new_state (attr_gen, elem_pick) = empty_t attr_gen elem_pick
+  let empty_state (attr_gen, elem_pick) = empty_t attr_gen elem_pick
 
   let ( let* ) (x : 'a option) (f : 'a -> 'b option) : 'b option = 
     Option.bind x f
@@ -284,24 +290,100 @@ module RandomizeState (V : VALUE)
             in k (update new_s, v)
         | Some v -> k (update st, v)
 
+  let ( let> ) (x : ('a -> 'b) -> 'c) (f : 'a -> 'b) : 'c = x f
+
+  (* check_elem uses its own locating function because the locate function we
+   * use everywhere else will create all intermediate elements which were
+   * unknown because those functions are either for add (which adds these
+   * intermediate elements) or to get an attribute in which case if there are
+   * missing intermediate elements we would have a failure and it is always
+   * better to avoid a failure if we can.
+   * But for check_elem if there is an unknown intermediate element we can
+   * either create it as positive or negative and either way is valid *)
   let check_elem st where elem v k =
     let elem_pick = st.elem_pick
-    in match locate st where with
-    | None -> k (st, false)
-    | Some (State { attrs; elems } as st, update) ->
-        match ElemMap.find_opt (elem, v) elems with
-        | Some None -> k (update st, false)
-        | Some (Some _) -> k (update st, true)
-        | None ->
-            (* TODO: Do we randomize? Or take both? *)
-            let choice = elem_pick where elem v
-            in let new_s =
-              let new_bind =
-                if choice
-                then Some empty_s
-                else None
-              in State { attrs; elems = ElemMap.add (elem, v) new_bind elems }
-            in k (update new_s, choice)
+    in let rec check (init : s option) (cur : s) where
+      (k : s option * s * bool -> 'a) =
+      let State { attrs = cur_attrs; elems = cur_elems } = cur
+      in match where with
+      | V.Here ->
+          begin match ElemMap.find_opt (elem, v) cur_elems with
+          | Some None -> k (None, cur, false)
+          | Some (Some _) -> k (None, cur, true)
+          | None ->
+              match init with
+              | None -> k (None, cur, false)
+              | Some (State { attrs = init_attrs; elems = init_elems }) ->
+                  let choice = elem_pick where elem v
+                  in let init =
+                    let bind = if choice then Some empty_s else None
+                    in State { attrs = init_attrs;
+                               elems = ElemMap.add (elem, v) bind init_elems }
+                  in let cur =
+                    let bind = if choice then Some empty_s else None
+                    in State { attrs = cur_attrs;
+                               elems = ElemMap.add (elem, v) bind cur_elems }
+                  in k (Some init, cur, choice)
+          end
+      | V.Nested (elem, v, n) ->
+          begin match ElemMap.find_opt (elem, v) cur_elems with
+          | Some None -> k (None, cur, false)
+          | Some (Some cur_rec) ->
+              let init_rec =
+                match init with
+                | None -> None
+                | Some (State { elems; _ }) ->
+                    match ElemMap.find_opt (elem, v) elems with
+                    | None -> None
+                    | Some i -> i
+              in let> (n_init, n_cur, cond) = check init_rec cur_rec n
+              in let init =
+                match n_init with
+                | None -> None
+                | Some bind ->
+                    match init with
+                    | None -> failwith "check_elem should never create an initial state when not provided one"
+                    | Some (State { attrs; elems }) ->
+                        Some (State { attrs;
+                          elems = ElemMap.add (elem, v) (Some bind) elems })
+              in let cur =
+                State { attrs = cur_attrs;
+                        elems = ElemMap.add (elem, v) (Some n_cur) cur_elems }
+              in k (init, cur, cond)
+          | None ->
+              match init with
+              | None -> k (None, cur, false)
+              | Some (State { attrs = init_attrs; elems = init_elems }) ->
+                  let choice = elem_pick where elem v
+                  in if not choice
+                  then
+                    let init =
+                      State { attrs = init_attrs;
+                              elems = ElemMap.add (elem, v) None init_elems }
+                    in let cur =
+                      State { attrs = cur_attrs;
+                              elems = ElemMap.add (elem, v) None cur_elems }
+                    in k (Some init, cur, false)
+                  else
+                    let> (n_init, n_cur, cond) = check (Some empty_s) empty_s n
+                    in let init =
+                      let binding = Option.value ~default:empty_s n_init
+                      in State {
+                        attrs = init_attrs;
+                        elems = ElemMap.add (elem, v) (Some binding) init_elems
+                      }
+                    in let cur =
+                      State {
+                        attrs = cur_attrs;
+                        elems = ElemMap.add (elem, v) (Some n_cur) cur_elems
+                      }
+                    in k (Some init, cur, cond)
+          end
+    in let { attr_gen; elem_pick; init; cur } = st
+    in let> (init_update, cur, cond) = check (Some init) cur where
+    in let init = Option.value ~default:init init_update
+    in let st = { attr_gen; elem_pick; init; cur }
+    in k (st, cond)
 
   let rec merge_states (State { attrs = init_attrs; elems = init_elems })
                        (State { attrs = cur_attrs;  elems = cur_elems }) =
