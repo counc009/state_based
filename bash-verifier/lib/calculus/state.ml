@@ -17,6 +17,8 @@ module type STATE = sig
 
   type setup
   val new_state : setup -> t
+
+  val string_of_state : t -> string
 end
 
 module ConcreteState (V : VALUE) 
@@ -107,6 +109,20 @@ module ConcreteState (V : VALUE)
           let elems = ElemMap.add (elem, v) local_s elems
           in State { attrs; elems }
         in update (k st) update_state
+
+  let string_of_state st : string =
+    let rec convert (indent : string) (State { attrs; elems }) =
+      let string_of_attr attr v = indent ^ attr ^ " = " ^ V.string_of_value v
+      in let attr_lines =
+        AttrMap.fold (fun attr v res -> string_of_attr attr v :: res) attrs []
+      in let string_of_elem (elem, v) n = 
+        indent ^ elem ^ "(" ^ V.string_of_value v ^ ")" ^ "\n"
+        ^ convert ("  " ^ indent) n
+      in let lines =
+        ElemMap.fold (fun elem n res -> string_of_elem elem n :: res) elems
+          attr_lines
+      in String.concat "\n" lines
+    in convert "  " st
 end
 
 module RandomizeState (V : VALUE)
@@ -349,4 +365,21 @@ module RandomizeState (V : VALUE)
           in { attr_gen; elem_pick; init; 
                cur = State { attrs = cur_attrs; elems = cur_elems } }
         in update (k st) update_state
+
+  let string_of_state { cur = st; _ } : string =
+    let rec convert (indent : string) (State { attrs; elems }) =
+      let string_of_attr attr v = indent ^ attr ^ " = " ^ V.string_of_value v
+      in let attr_lines =
+        AttrMap.fold (fun attr v res -> string_of_attr attr v :: res) attrs []
+      in let string_of_elem (elem, v) n = 
+        match n with
+        | None -> indent ^ "NOT " ^ elem ^ "(" ^ V.string_of_value v ^ ")"
+        | Some n ->
+            indent ^ elem ^ "(" ^ V.string_of_value v ^ ")" ^ "\n"
+            ^ convert ("  " ^ indent) n
+      in let lines =
+        ElemMap.fold (fun elem n res -> string_of_elem elem n :: res) elems
+          attr_lines
+      in String.concat "\n" lines
+    in convert "  " st
 end

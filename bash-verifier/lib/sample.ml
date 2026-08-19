@@ -25,6 +25,14 @@ module Builtin = struct
             | SplitPath
 
   type act = |
+
+  let string_of_lit = function
+    | Unit     -> "()"
+    | Bool b   -> string_of_bool b
+    | Int i    -> string_of_int i
+    | Float f  -> string_of_float f
+    | String s -> s
+    | Path p   -> p
 end
 
 module Defs = struct
@@ -128,3 +136,42 @@ end
 
 module SampleConcrete = InterpConcrete(Builtin)(Defs)
 module SampleRandomize = InterpRandomize(Builtin)(Defs)
+
+let concrete_interp s =
+  let res = 
+    SampleConcrete.interp s SampleConcrete.init_env
+      (SampleConcrete.S.new_state ())
+  in match res with
+  | Continue (_, s) ->
+      Printf.printf "CONTINUE\n%s\n" (SampleConcrete.S.string_of_state s)
+  | Raise (v, _, s) ->
+      Printf.printf "RAISE %s\n%s\n" (SampleConcrete.V.string_of_value v)
+        (SampleConcrete.S.string_of_state s)
+  | Return (v, _, s) ->
+      Printf.printf "RETURN %s\n%s\n" (SampleConcrete.V.string_of_value v)
+        (SampleConcrete.S.string_of_state s)
+  | Yield (v, _, s) ->
+      Printf.printf "YIELD %s\n%s\n" (SampleConcrete.V.string_of_value v)
+        (SampleConcrete.S.string_of_state s)
+  | Failure -> Printf.printf "FAILURE\n"
+
+let randomize_interp s =
+  let () = Random.self_init ()
+  in let attr_gen _where _attr = failwith "TODO"
+  in let elem_pick _where _elem _v = Random.bool ()
+  in let res = 
+    SampleRandomize.interp s SampleRandomize.init_env
+      (SampleRandomize.S.new_state (attr_gen, elem_pick))
+  in match res with
+  | Continue (_, s) ->
+      Printf.printf "CONTINUE\n%s\n" (SampleRandomize.S.string_of_state s)
+  | Raise (v, _, s) ->
+      Printf.printf "RAISE %s\n%s\n" (SampleRandomize.V.string_of_value v)
+        (SampleRandomize.S.string_of_state s)
+  | Return (v, _, s) ->
+      Printf.printf "RETURN %s\n%s\n" (SampleRandomize.V.string_of_value v)
+        (SampleRandomize.S.string_of_state s)
+  | Yield (v, _, s) ->
+      Printf.printf "YIELD %s\n%s\n" (SampleRandomize.V.string_of_value v)
+        (SampleRandomize.S.string_of_state s)
+  | Failure -> Printf.printf "FAILURE\n"
