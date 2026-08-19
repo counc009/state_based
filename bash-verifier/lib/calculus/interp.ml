@@ -54,7 +54,15 @@ module Interp (I : INTERP_UTILS)(ST : STATE) = struct
 
   let get_attr = S.get_attr ~failure:Failure
   let check_elem = S.check_elem
-  let get_top = S.get_top ~failure:Failure
+  let localize =
+    let update x update =
+      match x with
+      | Continue (env, st)  -> Continue (env, update st)
+      | Raise (v, env, st)  -> Raise (v, env, update st)
+      | Return (v, env, st) -> Return (v, env, update st)
+      | Yield (v, env, st)  -> Yield (v, env, update st)
+      | Failure             -> Failure
+    in S.localize ~failure:Failure ~update
 
   let ( let^ ) (r : interp_res) (f : (env * S.t) -> interp_res) : interp_res =
     match r with
@@ -210,12 +218,6 @@ module Interp (I : INTERP_UTILS)(ST : STATE) = struct
 
     | C.Localize (elem, e, body) ->
         let& e = interp_expr e env
-        in let> (st, orig) = get_top st elem e
-        in begin match interp body env st with
-        | Continue (env, st) -> Continue (env, S.set_top st elem e orig)
-        | Raise (v, env, st) -> Raise (v, env, S.set_top st elem e orig)
-        | Return (v, env, st) -> Return (v, env, S.set_top st elem e orig)
-        | Yield (v, env, st) -> Yield (v, env, S.set_top st elem e orig)
-        | Failure -> Failure
-        end
+        in let> st = localize st elem e
+        in interp body env st
 end

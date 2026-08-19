@@ -10,10 +10,8 @@ module type STATE = functor (V : VALUE) -> sig
   val get_attr : t -> V.s -> string -> ((t * V.t) -> 'a) -> failure:'a -> 'a
   val check_elem : t -> V.s -> string -> V.t -> (t * bool -> 'a) -> 'a
 
-  (* get_top's continuation takes a (potentially updated) copy of the state and
-   * the nested state of the specified top-level element *)
-  val get_top : t -> string -> V.t -> (t * t -> 'a) -> failure:'a -> 'a
-  val set_top : t -> string -> V.t -> t -> t
+  val localize : t -> string -> V.t -> (t -> 'a) -> failure:'a
+    -> update:('a -> (t -> t) -> 'a) -> 'a
 end
 
 module ConcreteState : STATE = functor (V : VALUE) -> struct
@@ -88,16 +86,15 @@ module ConcreteState : STATE = functor (V : VALUE) -> struct
           end
     in check st where
 
-  let get_top st elem v (k : t * t -> 'a) ~failure =
-    let State { elems; _ } = st
+  let localize st elem v (k : t -> 'a) ~failure ~update =
+    let State { attrs; elems } = st
     in match ElemMap.find_opt (elem, v) elems with
     | None -> failure
-    | Some res -> k (st, res)
-
-  let set_top st elem v n =
-    let State { attrs; elems } = st
-    in let elems = ElemMap.add (elem, v) n elems
-    in State { attrs; elems }
+    | Some local_s ->
+        let update_state (State { attrs; elems }) =
+          let elems = ElemMap.add (elem, v) local_s elems
+          in State { attrs; elems }
+        in update (k st) update_state
 end
 
 module RandomizeState : STATE = functor (V : VALUE) -> struct
@@ -265,6 +262,66 @@ module RandomizeState : STATE = functor (V : VALUE) -> struct
               in State { attrs; elems = ElemMap.add (elem, v) new_bind elems }
             in k (update new_s, choice)
 
-  let get_top = failwith "TODO"
-  let set_top = failwith "TODO"
+  let rec merge_states (State { attrs = init_attrs; elems = init_elems })
+                       (State { attrs = cur_attrs;  elems = cur_elems }) =
+    let attrs =
+      AttrMap.merge (fun _ init_val cur_val ->
+        match init_val, cur_val with
+        | _, Some v | Some v, None -> Some v
+        | None, None -> None
+      ) init_attrs cur_attrs
+    in let elems =
+      ElemMap.merge (fun _ init_st cur_st ->
+        match init_st, cur_st with
+        | None, None -> None
+        | None, Some st | Some None, Some st | Some st, None -> Some st
+        | _, Some None -> Some None
+        | Some (Some init_st), Some (Some cur_st) ->
+            Some (Some (merge_states init_st cur_st))
+      ) init_elems cur_elems
+    in State { attrs; elems }
+
+  let localize st elem v (k : t -> 'a) ~failure ~update =
+    let { attr_gen;
+          init = State { attrs = init_attrs; elems = init_elems };
+          cur = State { attrs = cur_attrs; elems = cur_elems } } = st
+    in match ElemMap.find_opt (elem, v) cur_elems with
+    | Some None -> failure
+    | Some (Some local_st) ->
+        let update_state
+          { attr_gen;
+            init = State { attrs = init_attrs; elems = init_elems } as init;
+            cur = State { attrs = cur_attrs; elems = cur_elems } } =
+          let init_st =
+            match ElemMap.find_opt (elem, v) init_elems with
+            | None -> empty_s
+            | Some None -> empty_s
+            | Some (Some init_st) -> init_st
+          in let res_st = merge_states init_st local_st
+          in let cur_elems = ElemMap.add (elem, v) (Some res_st) cur_elems
+          in { attr_gen; init; 
+               cur = State { attrs = cur_attrs; elems = cur_elems } }
+        in update (k st) update_state
+    | None ->
+        let st = { attr_gen;
+                   init = State {
+                      attrs = init_attrs;
+                      elems = ElemMap.add (elem, v) (Some empty_s) init_elems
+                   };
+                   cur = State {
+                     attrs = cur_attrs;
+                     elems = ElemMap.add (elem, v) (Some empty_s) cur_elems } }
+        in let update_state
+          { attr_gen;
+            init = State { attrs = init_attrs; elems = init_elems } as init;
+            cur = State { attrs = cur_attrs; elems = cur_elems } } =
+          let init_st =
+            match ElemMap.find_opt (elem, v) init_elems with
+            | None -> empty_s
+            | Some None -> empty_s
+            | Some (Some init_st) -> init_st
+          in let cur_elems = ElemMap.add (elem, v) (Some init_st) cur_elems
+          in { attr_gen; init; 
+               cur = State { attrs = cur_attrs; elems = cur_elems } }
+        in update (k st) update_state
 end
