@@ -215,9 +215,10 @@ let randomize_interp s =
   let () = Random.self_init ()
   in let attr_gen _where _attr = failwith "TODO"
   in let elem_pick _where _elem _v = Random.bool ()
+  in let elems_gen _where _elem = failwith "TODO"
   in let res = 
     SampleRandomize.interp s SampleRandomize.init_env
-      (SampleRandomize.S.empty_state (attr_gen, elem_pick))
+      (SampleRandomize.S.empty_state (attr_gen, elem_pick, elems_gen))
   in match res with
   | Continue (_, s) ->
       Printf.printf "CONTINUE\n%s\n" (string_of_randomize_state s)
