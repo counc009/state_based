@@ -197,6 +197,13 @@ module Interp
         | Some true -> interp (C.Seq (body, C.While (e, body))) env st
         end
 
+    | C.ForElem (base, elem, var, body) ->
+        let$ base = interp_expr base env
+        in S.each_elem st base elem (fun acc v ->
+          let^ (env, st) = acc
+          in interp body (VarMap.add var v env) st
+        ) (fun st -> Continue (env, st))
+
     | C.TryCatch (body, v_ex, catch) ->
         begin match interp body env st with
         | Raise (v, env, st) -> interp catch (VarMap.add v_ex v env) st

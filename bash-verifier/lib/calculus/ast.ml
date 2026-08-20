@@ -34,6 +34,10 @@ module type AST = sig
             (* First string is the result's name and second is the loop var *)
             | ForEach    of string * expr * string * stmt
             | While      of expr * stmt
+            (* Loop over each element on a state of a particular element label.
+             * The loop variable stores the argument of the element in each
+             * iteration. The order of iteration is unspecified. *)
+            | ForElem    of base * elm * string * stmt
             | TryCatch   of stmt * string * stmt
             | TryFinally of stmt * stmt
             | Localize   of elm * expr * stmt
@@ -80,6 +84,10 @@ module Ast (B : BUILTIN) : AST with type lit  = B.lit
             (* First string is the result's name and second is the loop var *)
             | ForEach    of string * expr * string * stmt
             | While      of expr * stmt
+            (* Loop over each element on a state of a particular element label.
+             * The loop variable stores the argument of the element in each
+             * iteration. The order of iteration is unspecified. *)
+            | ForElem    of base * elm * string * stmt
             | TryCatch   of stmt * string * stmt
             | TryFinally of stmt * stmt
             | Localize   of elm * expr * stmt

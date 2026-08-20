@@ -12,6 +12,8 @@ module type STATE = sig
   val get_attr : t -> vs -> string -> ((t * vt) -> 'a) -> failure:'a -> 'a
   val check_elem : t -> vs -> string -> vt -> (t * bool -> 'a) -> 'a
 
+  val each_elem : t -> vs -> string -> ('a -> vt -> 'a) -> (t -> 'a) -> 'a
+
   val localize : t -> string -> vt -> (t -> 'a) -> failure:'a
     -> update:('a -> (t -> t) -> 'a) -> 'a
 
@@ -33,12 +35,80 @@ module rec ConcreteState : functor (V : VALUE) -> STATE
 = functor (V : VALUE) -> struct
   type vt = V.t
   type vs = V.s
-
+  
   module AttrMap = Map.Make(String)
-  module ElemMap = Map.Make(struct
-    type t = string * V.t
-    let compare : t -> t -> int = compare
-  end)
+  module ElemMap : sig
+    type key = string * V.t
+    type !+'a t
+
+    val empty : 'a t
+
+    val add : key -> 'a -> 'a t -> 'a t
+    val add_if_absent : key -> 'a -> 'a t -> 'a t
+    val remove : key -> 'a t -> 'a t
+
+    val find_opt : key -> 'a t -> 'a option
+    val mem : key -> 'a t -> bool
+
+    val to_list : 'a t -> (key * 'a) list
+    val list_of_elem : string -> 'a t -> V.t list
+  end = struct
+    module StringMap = Map.Make(String)
+    module ValueMap = Map.Make(struct
+      type t = V.t
+      let compare : t -> t -> int = compare
+    end)
+
+    type key = string * V.t
+    type !+'a t = ('a ValueMap.t) StringMap.t
+
+    let empty = StringMap.empty
+
+    let add (elem, v) x m =
+      StringMap.update elem
+        (function
+          | None -> Some (ValueMap.singleton v x)
+          | Some m -> Some (ValueMap.add v x m))
+        m
+
+    let add_if_absent (elem, v) x m =
+      StringMap.update elem
+        (function
+          | None -> Some (ValueMap.singleton v x)
+          | Some m -> Some (ValueMap.update v
+            (function
+              | None -> Some x
+              | Some x -> Some x)
+            m)
+        ) m
+
+    let remove (elem, v) m =
+      StringMap.update elem
+        (function
+          | None -> None
+          | Some m -> Some (ValueMap.remove v m))
+        m
+
+    let find_opt (elem, v) m =
+      match StringMap.find_opt elem m with
+      | None -> None
+      | Some m -> ValueMap.find_opt v m
+
+    let mem (elem, v) m =
+      match StringMap.find_opt elem m with
+      | None -> false
+      | Some m -> ValueMap.mem v m
+
+    let to_list m =
+      StringMap.fold (fun elem n res ->
+        ValueMap.fold (fun v b res -> ((elem, v), b) :: res) n res)
+        m []
+
+    let list_of_elem elem m =
+      match StringMap.find_opt elem m with
+      | None -> []
+      | Some m -> List.map fst (ValueMap.bindings m)
+  end
 
   type t = State of { attrs : V.t AttrMap.t; elems : t ElemMap.t }
 
@@ -63,7 +133,7 @@ module rec ConcreteState : functor (V : VALUE) -> STATE
   let pos_elem st where elem v =
     let rec add (State { attrs; elems }) = function
       | V.Here ->
-          let elems = ElemMap.add (elem, v) empty_t elems
+          let elems = ElemMap.add_if_absent (elem, v) empty_t elems
           in Some (State { attrs; elems })
       | V.Nested (elem, v, n) ->
           let* st = ElemMap.find_opt (elem, v) elems
@@ -107,6 +177,17 @@ module rec ConcreteState : functor (V : VALUE) -> STATE
           end
     in check st where
 
+  let each_elem st where elem (iter : 'a -> V.t -> 'a) (init : t -> 'a) : 'a =
+    let rec each (State { attrs; elems }) = function
+      | V.Here ->
+          List.fold_left iter (init st) (ElemMap.list_of_elem elem elems)
+      | V.Nested (elem, v, n) ->
+          begin match ElemMap.find_opt (elem, v) elems with
+          | None -> init st
+          | Some st -> each st n
+          end
+    in each st where
+
   let localize st elem v (k : t -> 'a) ~failure ~update =
     let State { attrs; elems } = st
     in match ElemMap.find_opt (elem, v) elems with
@@ -145,18 +226,141 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
   type vs = V.s
 
   module AttrMap = Map.Make(String)
+  module ElemMap : sig
+    type key = string * V.t
+    type !+'a t
 
-  module ElemMap = Map.Make(struct
-    type t = string * V.t
-    let compare : t -> t -> int = compare
-  end)
+    val empty : 'a t
 
-  type s = State of { attrs : V.t AttrMap.t; elems : (s option) ElemMap.t }
+    val add : key -> 'a -> 'a t -> 'a t
+    val add_if_absent : key -> 'a -> 'a t -> 'a t
+    val remove : key -> 'a t -> 'a t
+
+    val find_opt : key -> 'a t -> 'a option option
+
+    val is_elem_known : string -> 'a t -> bool
+    val make_elem_known : string -> 'a t -> 'a t
+    (* Make all elements known (even absent elements) *)
+    val make_known : 'a t -> 'a t
+
+    val to_list : 'a t -> (key * 'a option) list
+    val list_of_elem : string -> 'a t -> V.t list
+
+    val merge : 
+      (key -> 'a option option -> 'b option option -> 'c option option)
+      -> 'a t -> 'b t -> 'c t
+    val fold : (key -> 'a option -> 'acc -> 'acc) -> 'a t -> 'acc -> 'acc
+  end = struct
+    module StringMap = Map.Make(String)
+    module ValueMap = Map.Make(struct
+      type t = V.t
+      let compare : t -> t -> int = compare
+    end)
+
+    type key = string * V.t
+    (* The bools are true to indicate that missing values indicate absence and
+     * false to indicate that missing values represent unknown state.
+     * It always starts as unknown but when we do a each_elem it will become
+     * missing and if an element was absent and we add it we also mark its
+     * nested state as missing *)
+    type !+'a t = bool * (bool * 'a option ValueMap.t) StringMap.t
+
+    let empty = (false, StringMap.empty)
+
+    let add (elem, v) x (b, m) =
+      (b, StringMap.update elem
+        (function
+          | None -> Some (b, ValueMap.singleton v (Some x))
+          | Some (b, m) -> Some (b, ValueMap.add v (Some x) m))
+        m)
+
+    let add_if_absent (elem, v) x (b, m) =
+      (b, StringMap.update elem
+        (function
+          | None -> Some (b, ValueMap.singleton v (Some x))
+          | Some (b, m) -> Some (b, ValueMap.update v
+            (function
+              | None -> Some (Some x)
+              | Some x -> Some x)
+            m)
+        ) m)
+
+    let remove (elem, v) (b, m) =
+      (b, StringMap.update elem
+        (function
+          | None -> Some (b, ValueMap.singleton v None)
+          | Some (b, m) -> Some (b, ValueMap.add v None m))
+        m)
+
+    let find_opt (elem, v) (known, m) =
+      match StringMap.find_opt elem m with
+      | None -> if known then Some None else None
+      | Some (known, m) ->
+          match ValueMap.find_opt v m with
+          | None -> if known then Some None else None
+          | Some r -> Some r
+
+    let is_elem_known elem (known, m) =
+      match StringMap.find_opt elem m with
+      | None -> known
+      | Some (known, _) -> known
+
+    let make_elem_known elem (b, m) =
+      (b, StringMap.update elem
+        (function
+          | None -> Some (true, ValueMap.empty)
+          | Some (_, m) -> Some (true, m)
+        ) m)
+
+    let make_known (_, m) = (true, m)
+
+    let to_list (_, m) =
+      StringMap.fold (fun elem (_, n) res ->
+        ValueMap.fold (fun v b res -> ((elem, v), b) :: res) n res)
+        m []
+
+    let list_of_elem elem (known, m) =
+      match StringMap.find_opt elem m with
+      | None when known -> []
+      | None | Some (false, _) ->
+          failwith "list_of_elem should only be called on a known element"
+      | Some (true, m) ->
+          List.filter_map (fun (v, b) ->
+            match b with
+            | None -> None
+            | Some _ -> Some v
+          ) (ValueMap.bindings m)
+
+    let merge f (b, n) (c, m) =
+      (b || c, StringMap.merge (fun elem n m ->
+        match n, m with
+        | None, None -> None
+        | Some (b, n), None ->
+            Some (b, 
+              ValueMap.filter_map (fun v n -> f (elem, v) (Some n) None) n)
+        | None, Some (c, m) ->
+            Some (c,
+              ValueMap.filter_map (fun v m -> f (elem, v) None (Some m)) m)
+        | Some (b, n), Some (c, m) ->
+            Some (b || c,
+              ValueMap.merge (fun v n m -> f (elem, v) n m) n m)) n m)
+
+    let fold f (_, m) acc =
+      StringMap.fold (fun elem (_, m) acc ->
+        ValueMap.fold (fun v m acc -> f (elem, v) m acc) m acc
+      ) m acc
+  end
+
+  type s = State of { attrs : V.t AttrMap.t; elems : s ElemMap.t }
   type t = { attr_gen : V.s -> string -> V.t;
              elem_pick : V.s -> string -> V.t -> bool;
              init : s; cur : s }
 
   let empty_s = State { attrs = AttrMap.empty; elems = ElemMap.empty }
+  let empty_s_known = State { 
+    attrs = AttrMap.empty;
+    elems = ElemMap.make_known ElemMap.empty }
+
   let empty_t attr_gen elem_pick =
     { attr_gen; elem_pick; init = empty_s; cur = empty_s }
 
@@ -190,7 +394,7 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
               let cur_update = fun new_s ->
                 State {
                   attrs = cur_attrs;
-                  elems = ElemMap.add (elem, v) (Some new_s) cur_elems
+                  elems = ElemMap.add (elem, v) new_s cur_elems
                 }
               in let (init_rec, init_update) =
                 match init with
@@ -213,7 +417,7 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
                           | Some new_bind ->
                               Some (State {
                                 attrs = init_attrs;
-                                elems = ElemMap.add (elem, v) (Some new_bind) init_elems
+                                elems = ElemMap.add (elem, v) new_bind init_elems
                               }))
                     | None ->
                         (Some empty_s,
@@ -222,7 +426,7 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
                           | Some new_bind ->
                               Some (State {
                                 attrs = init_attrs;
-                                elems = ElemMap.add (elem, v) (Some new_bind) init_elems
+                                elems = ElemMap.add (elem, v) new_bind init_elems
                               }))
                     end
               in let* (res, update) = locate init_rec cur n
@@ -249,13 +453,13 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
                       in Some (State {
                         attrs = init_attrs;
                         elems =
-                          ElemMap.add (elem, v) (Some new_binding) init_elems
+                          ElemMap.add (elem, v) new_binding init_elems
                       })
                     in let cur_res =
                       State {
                         attrs = cur_attrs;
                         elems =
-                          ElemMap.add (elem, v) (Some cur_update) cur_elems }
+                          ElemMap.add (elem, v) cur_update cur_elems }
                     in (init_res, cur_res))
               end
           end
@@ -275,12 +479,21 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
 
   let pos_elem st where elem v =
     let* (State { attrs; elems }, k) = locate st where
-    in let elems = ElemMap.add (elem, v) (Some empty_s) elems
+    in let elems =
+      match ElemMap.find_opt (elem, v) elems with
+      (* If the element's state is unknown it may already exist and have stuff
+       * nested on it, so we do not set it to known *)
+      | None -> ElemMap.add (elem, v) empty_s elems
+      (* But if it doesn't already exist, then we can set it to fully known *)
+      | Some None ->
+          ElemMap.add (elem, v) empty_s_known elems
+      (* If it already exists, we don't update it *)
+      | Some (Some _) -> elems
     in Some (k (State { attrs; elems }))
 
   let neg_elem st where elem v =
     let* (State { attrs; elems }, k) = locate st where
-    in let elems = ElemMap.add (elem, v) None elems
+    in let elems = ElemMap.remove (elem, v) elems
     in Some (k (State { attrs; elems }))
 
   let get_attr st where attr k ~failure =
@@ -298,14 +511,14 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
 
   let ( let> ) (x : ('a -> 'b) -> 'c) (f : 'a -> 'b) : 'c = x f
 
-  (* check_elem uses its own locating function because the locate function we
-   * use everywhere else will create all intermediate elements which were
-   * unknown because those functions are either for add (which adds these
-   * intermediate elements) or to get an attribute in which case if there are
-   * missing intermediate elements we would have a failure and it is always
-   * better to avoid a failure if we can.
-   * But for check_elem if there is an unknown intermediate element we can
-   * either create it as positive or negative and either way is valid *)
+  let rec ref_diff full part =
+    if full = part
+    then V.Here
+    else
+      match full with
+      | V.Here -> V.Here
+      | V.Nested (elem, v, n) -> V.Nested (elem, v, ref_diff n part)
+
   let check_elem st where elem v k =
     let elem_pick = st.elem_pick
     in let rec check (init : s option) (cur : s) where
@@ -322,13 +535,17 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
               | Some (State { attrs = init_attrs; elems = init_elems }) ->
                   let choice = elem_pick where elem v
                   in let init =
-                    let bind = if choice then Some empty_s else None
-                    in State { attrs = init_attrs;
-                               elems = ElemMap.add (elem, v) bind init_elems }
+                    let elems =
+                      if choice
+                      then ElemMap.add (elem, v) empty_s init_elems
+                      else ElemMap.remove (elem, v) init_elems
+                    in State { attrs = init_attrs; elems }
                   in let cur =
-                    let bind = if choice then Some empty_s else None
-                    in State { attrs = cur_attrs;
-                               elems = ElemMap.add (elem, v) bind cur_elems }
+                    let elems =
+                      if choice
+                      then ElemMap.add (elem, v) empty_s cur_elems
+                      else ElemMap.remove (elem, v) cur_elems
+                    in State { attrs = cur_attrs; elems }
                   in k (Some init, cur, choice)
           end
       | V.Nested (elem, v, n) ->
@@ -340,7 +557,7 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
                 | None -> None
                 | Some (State { elems; _ }) ->
                     match ElemMap.find_opt (elem, v) elems with
-                    | None -> None
+                    | None -> Some empty_s
                     | Some i -> i
               in let> (n_init, n_cur, cond) = check init_rec cur_rec n
               in let init =
@@ -351,24 +568,24 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
                     | None -> failwith "check_elem should never create an initial state when not provided one"
                     | Some (State { attrs; elems }) ->
                         Some (State { attrs;
-                          elems = ElemMap.add (elem, v) (Some bind) elems })
+                          elems = ElemMap.add (elem, v) bind elems })
               in let cur =
                 State { attrs = cur_attrs;
-                        elems = ElemMap.add (elem, v) (Some n_cur) cur_elems }
+                        elems = ElemMap.add (elem, v) n_cur cur_elems }
               in k (init, cur, cond)
           | None ->
               match init with
-              | None -> k (None, cur, false)
+              | None -> failwith "Current state should not be unknown when initial state is absent"
               | Some (State { attrs = init_attrs; elems = init_elems }) ->
-                  let choice = elem_pick where elem v
+                  let choice = elem_pick (ref_diff where n) elem v
                   in if not choice
                   then
                     let init =
                       State { attrs = init_attrs;
-                              elems = ElemMap.add (elem, v) None init_elems }
+                              elems = ElemMap.remove (elem, v) init_elems }
                     in let cur =
                       State { attrs = cur_attrs;
-                              elems = ElemMap.add (elem, v) None cur_elems }
+                              elems = ElemMap.remove (elem, v) cur_elems }
                     in k (Some init, cur, false)
                   else
                     let> (n_init, n_cur, cond) = check (Some empty_s) empty_s n
@@ -376,12 +593,12 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
                       let binding = Option.value ~default:empty_s n_init
                       in State {
                         attrs = init_attrs;
-                        elems = ElemMap.add (elem, v) (Some binding) init_elems
+                        elems = ElemMap.add (elem, v) binding init_elems
                       }
                     in let cur =
                       State {
                         attrs = cur_attrs;
-                        elems = ElemMap.add (elem, v) (Some n_cur) cur_elems
+                        elems = ElemMap.add (elem, v) n_cur cur_elems
                       }
                     in k (Some init, cur, cond)
           end
@@ -390,6 +607,10 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
     in let init = Option.value ~default:init init_update
     in let st = { attr_gen; elem_pick; init; cur }
     in k (st, cond)
+
+  (* TODO *)
+  let each_elem st where elem (iter : 'a -> V.t -> 'a) (init : t -> 'a) : 'a =
+    init st
 
   let rec merge_states (State { attrs = init_attrs; elems = init_elems })
                        (State { attrs = cur_attrs;  elems = cur_elems }) =
@@ -427,7 +648,7 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
             | Some None -> empty_s
             | Some (Some init_st) -> init_st
           in let res_st = merge_states init_st local_st
-          in let cur_elems = ElemMap.add (elem, v) (Some res_st) cur_elems
+          in let cur_elems = ElemMap.add (elem, v) res_st cur_elems
           in { attr_gen; elem_pick; init; 
                cur = State { attrs = cur_attrs; elems = cur_elems } }
         in update (k st) update_state
@@ -435,11 +656,11 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
         let st = { attr_gen; elem_pick;
                    init = State {
                       attrs = init_attrs;
-                      elems = ElemMap.add (elem, v) (Some empty_s) init_elems
+                      elems = ElemMap.add (elem, v) empty_s init_elems
                    };
                    cur = State {
                      attrs = cur_attrs;
-                     elems = ElemMap.add (elem, v) (Some empty_s) cur_elems } }
+                     elems = ElemMap.add (elem, v) empty_s cur_elems } }
         in let update_state
           { attr_gen; elem_pick;
             init = State { attrs = init_attrs; elems = init_elems } as init;
@@ -449,7 +670,7 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
             | None -> empty_s
             | Some None -> empty_s
             | Some (Some init_st) -> init_st
-          in let cur_elems = ElemMap.add (elem, v) (Some init_st) cur_elems
+          in let cur_elems = ElemMap.add (elem, v) init_st cur_elems
           in { attr_gen; elem_pick; init; 
                cur = State { attrs = cur_attrs; elems = cur_elems } }
         in update (k st) update_state
@@ -481,10 +702,12 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
       cur = State  { attrs = cur_attrs;  _ }; _ } =
     AttrMap.to_list 
       (AttrMap.merge (fun _ i c -> Some (i, c)) init_attrs cur_attrs)
+  (* TODO: We need some way to indicate when a set of elements is fully known
+   * (i.e., there cannot be others) *)
   let extract_elements
     { init = State { elems = init_elems; _ };
       cur = State  { elems = cur_elems;  _ }; attr_gen; elem_pick } =
-    let merge_bindings i c =
+    let merge_bindings i c : (presence * presence * t option) option =
       let extract_state x =
         match x with
         | None          -> (Unknown, empty_s)
@@ -497,6 +720,13 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
       | Absent, Unknown | Unknown, Absent | Absent, Absent ->
           Some (i, c, None)
       | _, _ -> Some (i, c, Some { attr_gen; elem_pick; init; cur })
-    in ElemMap.to_list
-        (ElemMap.merge (fun _ -> merge_bindings) init_elems cur_elems)
+
+    in let keys = ElemMap.merge (fun _ _ _ -> Some None) init_elems cur_elems
+    in ElemMap.fold (fun el _ acc ->
+      let i = ElemMap.find_opt el init_elems
+      in let c = ElemMap.find_opt el cur_elems
+      in match merge_bindings i c with
+      | None -> acc
+      | Some x -> (el, x) :: acc
+    ) keys []
 end
