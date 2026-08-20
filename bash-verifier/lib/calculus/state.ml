@@ -608,9 +608,27 @@ module rec RandomizeState : functor (V : VALUE) -> STATE
     in let st = { attr_gen; elem_pick; init; cur }
     in k (st, cond)
 
-  (* TODO *)
-  let each_elem st where elem (iter : 'a -> V.t -> 'a) (init : t -> 'a) : 'a =
-    init st
+  let each_elem st where elem (iter : 'a -> V.t -> 'a) (acc : t -> 'a) : 'a =
+    let elem_pick = st.elem_pick
+    in let rec elems (init : s option) (cur : s) where
+      : s option * s * V.t list =
+      let State { attrs = cur_attrs; elems = cur_elems } = cur
+      in match where with
+      | V.Here ->
+          let cur_elems =
+            if ElemMap.is_elem_known elem cur_elems
+            then cur_elems
+            else (* TODO: generate a list of elements to add to initial state *)
+              failwith "TODO"
+          in let cur = State { attrs = cur_attrs; elems = cur_elems }
+          in (None, cur, ElemMap.list_of_elem elem cur_elems)
+    in let { attr_gen; elem_pick; init; cur } = st
+    in let (init_update, cur, vs) = elems (Some init) cur where
+    in let st = { 
+      attr_gen; elem_pick; 
+      init = Option.value ~default:init init_update;
+      cur }
+    in List.fold_left iter (acc st) vs
 
   let rec merge_states (State { attrs = init_attrs; elems = init_elems })
                        (State { attrs = cur_attrs;  elems = cur_elems }) =
