@@ -213,9 +213,10 @@ let string_of_randomize_state (st : SampleRandomize.S.t) : string =
 
 let randomize_interp s =
   let () = Random.self_init ()
-  in let attr_gen _where _attr = failwith "TODO"
+  in let attr_gen _where _attr = Defs.V.Literal (Int 42)
   in let elem_pick _where _elem _v = Random.bool ()
-  in let elems_gen _where _elem = failwith "TODO"
+  in let elems_gen _where _elem = 
+    [Defs.V.Literal (String "a"); Defs.V.Literal (String "b")]
   in let res = 
     SampleRandomize.interp s SampleRandomize.init_env
       (SampleRandomize.S.empty_state (attr_gen, elem_pick, elems_gen))
@@ -232,3 +233,15 @@ let randomize_interp s =
       Printf.printf "YIELD %s\n%s\n" (SampleRandomize.V.string_of_value v)
         (string_of_randomize_state s)
   | Failure -> Printf.printf "FAILURE\n"
+
+let sample_create_dir : Ast(Builtin).stmt =
+  Contains (
+    (Variable "σ", "dir", Literal (Path "/some/dir")),
+    Raise (Literal Unit),
+    Seq (
+      Add (QualPosE (Variable "σ", "dir", Literal (Path "/some/dir"))),
+      ForElem (Element (Variable "σ", "dir", Literal (Path "/some/dir")),
+        "file",
+        "v", Raise (Variable "v"))
+    )
+  )
