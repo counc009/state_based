@@ -31,7 +31,7 @@ end = struct
         (* select maps [0, nonempty) to the index of a non-empty option *)
         mutable select   : int array;
                 options  : 'v iarray;
-                children : 'v traverse_space array }
+                children : 'v traverse_space ref iarray }
 
   type gen_info = Bool of bool | Value of V.t | Elems of V.t list
 
@@ -40,17 +40,17 @@ end = struct
     (elem_pick : V.s -> string -> V.t -> ternary)
     (elems_gen : V.s -> string -> V.t list list)
   = object (self)
-    val mutable root = Unexplored
+    val root = ref Unexplored
     val mutable cur  = ref Unexplored
 
-    method init = cur <- ref root
+    method init = cur <- root
 
     method reset =
-      let () = cur <- ref root
+      let () = cur <- root
       in let rec update = function
         | Unexplored -> false
         | Node ({ nonempty; selected; select; options; children } as n) ->
-            let selected_more = update children.(selected)
+            let selected_more = update !(Iarray.get children selected)
             in if selected_more
             then true
             else
@@ -60,7 +60,7 @@ end = struct
                            (Array.length select - 1 - selected)
               in let () = n.nonempty <- nonempty - 1
               in nonempty > 1
-      in update root
+      in update !root
 
     method gen_attr (where : V.s) (attr : string) =
       let () =
@@ -69,7 +69,7 @@ end = struct
             let options     = List.map (fun v -> Value v) (attr_gen where attr)
             in let options  = Iarray.of_list options
             in let nonempty = Iarray.length options
-            in let children = Array.make nonempty Unexplored
+            in let children = Iarray.init nonempty (fun _ -> ref Unexplored)
             in let select   = Array.init nonempty (fun x -> x)
             in let () =
               cur := Node { nonempty; select; selected = 0; options; children }
@@ -81,7 +81,7 @@ end = struct
           let j = Random.int nonempty
           in let i = select.(j)
           in let () = n.selected <- i
-          in let () = cur <- ref children.(i)
+          in let () = cur <- Iarray.get children i
           in let res =
             match Iarray.get options i with
             | Bool _  ->
@@ -102,7 +102,7 @@ end = struct
               | Either -> [Bool true; Bool false]
             in let options  = Iarray.of_list options
             in let nonempty = Iarray.length options
-            in let children = Array.make nonempty Unexplored
+            in let children = Iarray.init nonempty (fun _ -> ref Unexplored)
             in let select   = Array.init nonempty (fun x -> x)
             in let () =
               cur := Node { nonempty; select; selected = 0; options; children }
@@ -114,7 +114,7 @@ end = struct
           let j = Random.int nonempty
           in let i = select.(j)
           in let () = n.selected <- i
-          in let () = cur <- ref children.(i)
+          in let () = cur <- Iarray.get children i
           in let res =
             match Iarray.get options i with
             | Bool b -> b
@@ -130,7 +130,7 @@ end = struct
             let options     = List.map (fun vs -> Elems vs) (elems_gen where elem)
             in let options  = Iarray.of_list options
             in let nonempty = Iarray.length options
-            in let children = Array.make nonempty Unexplored
+            in let children = Iarray.init nonempty (fun _ -> ref Unexplored)
             in let select   = Array.init nonempty (fun x -> x)
             in let () =
               cur := Node { nonempty; select; selected = 0; options; children }
@@ -142,7 +142,7 @@ end = struct
           let j = Random.int nonempty
           in let i = select.(j)
           in let () = n.selected <- i
-          in let () = cur <- ref children.(i)
+          in let () = cur <- Iarray.get children i
           in let res =
             match Iarray.get options i with
             | Bool _ -> failwith "Asked to generate elems but found a bool"

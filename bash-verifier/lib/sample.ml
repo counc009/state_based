@@ -1,5 +1,6 @@
 open Calculus.Ast
 open Calculus.Builtin
+open Calculus.Generator
 open Calculus.Interp
 open Calculus.Value
 
@@ -211,13 +212,8 @@ let string_of_randomize_state (st : SampleRandomize.S.t) : string =
     in String.concat "\n" (lines_attr @ lines_elem)
   in convert "  " st
 
-let randomize_interp s =
-  let () = Random.self_init ()
-  in let attr_gen _where _attr = Defs.V.Literal (Int 42)
-  in let elem_pick _where _elem _v = Random.bool ()
-  in let elems_gen _where _elem = 
-    [Defs.V.Literal (String "a"); Defs.V.Literal (String "b")]
-  in let res = 
+let rand_interp attr_gen elem_pick elems_gen s =
+  let res = 
     SampleRandomize.interp s SampleRandomize.init_env
       (SampleRandomize.S.empty_state (attr_gen, elem_pick, elems_gen))
   in match res with
@@ -233,6 +229,41 @@ let randomize_interp s =
       Printf.printf "YIELD %s\n%s\n" (SampleRandomize.V.string_of_value v)
         (string_of_randomize_state s)
   | Failure -> Printf.printf "FAILURE\n"
+
+let randomize_interp s =
+  let () = Random.self_init ()
+  in let attr_gen _where _attr = Defs.V.Literal (Int 42)
+  in let elem_pick _where _elem _v = Random.bool ()
+  in let elems_gen _where _elem = 
+    [Defs.V.Literal (String "a"); Defs.V.Literal (String "b")]
+  in rand_interp attr_gen elem_pick elems_gen s
+
+module SampleGenerator = Generator(SampleRandomize.V)
+
+let generator_interp s =
+  let () = Random.self_init ()
+  in let attr_gen _where _attr =
+    [ Defs.V.Literal (Int 42); Defs.V.Literal (Int 3) ]
+  in let elem_pick _where _elem _v = Either
+  in let elems_gen _where _elem =
+    [ [ Defs.V.Literal (String "a"); Defs.V.Literal (String "b") ]
+    ; [ Defs.V.Literal (String "x"); Defs.V.Literal (String "y") ] ]
+  in let gen = new SampleGenerator.generator attr_gen elem_pick elems_gen
+  in let () = gen#init
+  in let continue = ref true
+  in while !continue do
+    rand_interp gen#gen_attr gen#pick_elem gen#gen_elems s;
+    continue := gen#reset;
+    Printf.printf "\n"
+  done
+
+let sample_contains_nested : Ast(Builtin).stmt =
+  Contains (
+    (Element (Variable "σ", "bar", Literal (String "hi")),
+        "foo", Literal (Int 3)),
+    Return (Literal (Bool true)),
+    Return (Literal (Bool false))
+  )
 
 let sample_create_dir : Ast(Builtin).stmt =
   Contains (
