@@ -97,4 +97,27 @@ rule token = parse
   | "ptr"     { PTR }
   | "state"   { STATE }
 
-(* TODO: EOF, COMMENTS, LITERALS *)
+  (* TODO: LITERALS: INT, FLOAT, and STRING *)
+  | "true"    { BOOLLIT true }
+  | "false"   { BOOLLIT false }
+  | "'" _ "'" { CHARLIT (String.get (lexeme lexbuf) 1) }
+  | ident     { ID (lexeme lexbuf) }
+
+  | "//"        { line_comment lexbuf }
+  | "/*"        { block_comment lexbuf; token lexbuf }
+  | whitespace  { token lexbuf }
+  | newline     { next_line lexbuf; token lexbuf }
+  | eof         { EOF }
+  | _           { failwith "TODO: fail?" }
+
+and line_comment = parse
+  | newline { next_line lexbuf; token lexbuf }
+  | eof     { EOF }
+  | _       { line_comment lexbuf }
+
+and block_comment = parse
+  | newline { next_line lexbuf; block_comment lexbuf }
+  | eof     { failwith "TODO: fail?" }
+  | "*/"    { () }
+  | "/*"    { block_comment lexbuf; block_comment lexbuf }
+  | _       { block_comment lexbuf }
