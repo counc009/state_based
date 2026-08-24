@@ -97,7 +97,10 @@ rule token = parse
   | "ptr"     { PTR }
   | "state"   { STATE }
 
-  (* TODO: LITERALS: INT, FLOAT, and STRING *)
+  (* TODO *)
+  (* Int Literals: https://en.cppreference.com/cpp/language/integer_literal *)
+  (* Float Literals: https://en.cppreference.com/cpp/language/floating_literal *)
+  (* String Literals: https://en.cppreference.com/c/language/string_literal *)
   | "true"    { BOOLLIT true }
   | "false"   { BOOLLIT false }
   | "'" _ "'" { CHARLIT (String.get (lexeme lexbuf) 1) }
