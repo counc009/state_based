@@ -6,7 +6,7 @@ type typ = Void | Bool
          | Function of typ * typ list (* return type and argument types *)
          (* Types that are mostly internal and not related to C *)
          | StateRef | Product of typ list
-         | Named of string * typ list option
+         | Named of string * typ list
 
 type unary = Neg | LNot | BNot
 
@@ -14,8 +14,7 @@ type binary = Mul | Div | Mod | Add | Sub | LShft | RShft
             | Lt | Le | Gt | Ge | Eq | Ne
             | BAnd | LAnd | BXor | BOr | LOr
 
-type pattern =
-  { enum: string; ty: typ option; constr: string; vars: string list }
+type pattern = { enum: string; constr: string; vars: string list }
 
 type expr = Id        of string
           | BoolLit   of bool
@@ -34,7 +33,7 @@ type expr = Id        of string
           | CondExp   of expr * expr * expr
           | Exists    of expr
           | ForEach   of string * expr * stmt list
-          | SizeOf    of typ
+          | Sizeof    of typ
 
 and stmt = ForLoop    of string * expr * stmt list
          | IfThenElse of expr * stmt list * stmt list
@@ -47,9 +46,9 @@ and stmt = ForLoop    of string * expr * stmt list
          | Assert     of expr
          | Return     of expr
          | Yield      of expr
-         | Raise      of string * expr (* Exception name and argument *)
+         | Raise      of string * expr list (* Exception name and arguments *)
          | Assign     of expr * expr
-         | LetStmt    of string * expr
+         | LetStmt    of string * typ option * expr
          | Localize   of stmt list
 
 type decl = Enum      of { name: string; ty_args: string list;

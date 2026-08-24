@@ -18,7 +18,6 @@ let whitespace = [' ' '\t']+
 let newline = '\r' | '\n' | "\r\n"
 
 rule token = parse
-  | "()"  { UNIT }
   | "("   { LPAREN }
   | ")"   { RPAREN }
   | "{"   { LCURLY }
@@ -41,7 +40,8 @@ rule token = parse
   | "<"   { LT }
   | ">="  { GE }
   | ">"   { GT }
-  | "="   { EQ }
+  | "="   { ASSIGN }
+  | "=="  { EQ }
   | "!="  { NE }
   | "&&"  { LOGAND }
   | "&"   { BITAND }
