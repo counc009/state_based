@@ -1,11 +1,9 @@
 type typ = Void | Bool
          | SInt8 | UInt8 | SInt16 | UInt16 | SInt32 | UInt32 | SInt64 | UInt64
          | Float32 | Float64
-         | Pointer of typ | Array of typ * int
-         | Struct of (string * typ) list | Union of (string * typ) list
          | Function of typ * typ list (* return type and argument types *)
          (* Types that are mostly internal and not related to C *)
-         | StateRef | Product of typ list
+         | StateRef | Product of typ list | Struct of (string * typ) list
          | Named of string * typ list
 
 type unary = Neg | LNot | BNot
@@ -25,15 +23,15 @@ type expr = Id        of string
           | UnitLit
           | UnaryExp  of unary * expr
           | BinaryExp of expr * binary * expr
-          | TupleExp  of expr list
           | FieldExp  of expr * string
           | ProdField of expr * int
-          | EnumExp   of string * typ option * string * expr list
-          | FuncExp   of expr * typ option * expr list
+          | TupleExp  of expr list
+          | StructExp of string * typ list * (string * expr) list
+          | EnumExp   of string * typ list * string * expr list
+          | FuncExp   of expr * typ list * expr list
           | CondExp   of expr * expr * expr
           | Exists    of expr
           | ForEach   of string * expr * stmt list
-          | Sizeof    of typ
 
 and stmt = ForLoop    of string * expr * stmt list
          | IfThenElse of expr * stmt list * stmt list

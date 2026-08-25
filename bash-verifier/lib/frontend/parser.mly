@@ -1,9 +1,6 @@
 %{
   open Ast
 
-  let array_type (t : Ast.typ) (n : string) : Ast.typ =
-    Array (t, int_of_string n)
-
   let prod_type (ts : Ast.typ list) : Ast.typ =
     match ts with
     | [] -> Void
@@ -43,14 +40,12 @@
 %token MATCH
 %token RAISE
 %token RETURN
-%token SIZEOF
 %token STRUCT
 %token THEN
 %token TOUCH
 %token TRY
 %token TYPE
 %token UNINTERPRETED
-%token UNION
 %token YIELD
 
 %token VOID
@@ -65,8 +60,6 @@
 %token UINT64
 %token FLOAT32
 %token FLOAT64
-%token ARRAY
-%token PTR
 %token STATE
 
 %token LCURLY
@@ -198,10 +191,6 @@ typ:
   | UINT64  { UInt64 }
   | FLOAT32 { Float32 }
   | FLOAT64 { Float64 }
-  | PTR; COLONCOLON; LT; t = typ; GT  { Pointer t }
-  | ARRAY; COLONCOLON; LT; t = typ; COMMA; n = INTLIT; GT { array_type t n }
-  | STRUCT; LCURLY; fs = sep_list(COMMA, struct_field); RCURLY { Struct fs }
-  | UNION; LCURLY; fs = sep_list(COMMA, struct_field); RCURLY  { Union fs }
   | LPAREN; args = sep_list(COMMA, typ); RPAREN; SINGLEARROW; ret = typ
       { Function (ret, args) }
   | STATE { StateRef }
@@ -282,8 +271,6 @@ expr:
     { FieldExp (e, f) }
   | e = expr; DOT; f = INTLIT
     { ProdField (e, int_of_string f) }
-  | SIZEOF; LPAREN; t = typ; RPAREN
-    { Sizeof t }
-  (* TODO: Unary and Binary expressions, Enums, Func, Cond, Exists *)
+  (* TODO: Unary and Binary expressions, Enums, Structs, Func, Cond, Exists *)
   | FOR; v = ID; IN; e = expr; b = block
     { ForEach (v, e, b) }

@@ -71,14 +71,12 @@ rule token = parse
   | "match"	        { MATCH }
   | "raise"	        { RAISE }
   | "return"	      { RETURN }
-  | "sizeof"	      { SIZEOF }
   | "struct"	      { STRUCT }
   | "then"	        { THEN }
   | "touch"	        { TOUCH }
   | "try"	          { TRY }
   | "type"	        { TYPE }
   | "uninterpreted"	{ UNINTERPRETED }
-  | "union"         { UNION }
   | "yield"	        { YIELD }
 
   | "void"	  { VOID }
@@ -93,8 +91,6 @@ rule token = parse
   | "uint64"	{ UINT64 }
   | "float32" { FLOAT32 }
   | "float64" { FLOAT64 }
-  | "array"   { ARRAY }
-  | "ptr"     { PTR }
   | "state"   { STATE }
 
   (* TODO *)
