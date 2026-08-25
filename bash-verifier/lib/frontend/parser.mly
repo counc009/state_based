@@ -1,5 +1,6 @@
 %{
   open Ast
+  open Stdint
 
   let prod_type (ts : Ast.typ list) : Ast.typ =
     match ts with
@@ -15,10 +16,20 @@
 
 %token <string> ID
 %token <bool>   BOOLLIT
-%token <string> INTLIT
-%token <string> FLOATLIT
 %token <string> STRINGLIT
 %token <char>   CHARLIT
+
+%token <Stdint.int8>   INT8LIT
+%token <Stdint.int16>  INT16LIT
+%token <Stdint.int32>  INT32LIT
+%token <Stdint.int64>  INT64LIT
+%token <Stdint.uint8>  UINT8LIT
+%token <Stdint.uint16> UINT16LIT
+%token <Stdint.uint32> UINT32LIT
+%token <Stdint.uint64> UINT64LIT
+%token <int>    INTLIT
+%token <string> FLOAT32LIT
+%token <string> FLOAT64LIT
 
 %token ASSERT
 %token ATTRIBUTE
@@ -283,7 +294,7 @@ lval:
   | l = lval; DOT; f = ID
     { FieldExp (l, f) }
   | l = lval; DOT; f = INTLIT
-    { ProdField (l, int_of_string f) }
+    { ProdField (l, f) }
   | f = lval; LPAREN; es = sep_list(COMMA, expr); RPAREN
     { FuncExp (f, [], es) }
   | f = ID; FISHTAIL; tys = sep_list(COMMA, typ); GT;
@@ -296,21 +307,42 @@ ns_expr:
     { Id v }
   | b = BOOLLIT
     { BoolLit b }
-  | i = INTLIT
-    { IntLit i }
-  | f = FLOATLIT
-    { FloatLit f }
   | s = STRINGLIT
     { StringLit s }
   | c = CHARLIT
     { CharLit c }
+
+  | i = INTLIT
+    { Int64Lit (Int64.of_int i) }
+  | i = INT8LIT
+    { Int8Lit i }
+  | i = INT16LIT
+    { Int16Lit i }
+  | i = INT32LIT
+    { Int32Lit i }
+  | i = INT64LIT
+    { Int64Lit i }
+  | i = UINT8LIT
+    { UInt8Lit i }
+  | i = UINT16LIT
+    { UInt16Lit i }
+  | i = UINT32LIT
+    { UInt32Lit i }
+  | i = UINT64LIT
+    { UInt64Lit i }
+
+  | f = FLOAT32LIT
+    { F32Lit f }
+  | f = FLOAT64LIT
+    { F64Lit f }
+
   (* Inside parentheses we can include struct expressions *)
   | LPAREN; es = sep_list(COMMA, expr); RPAREN
     { prod_expr es }
   | e = ns_expr; DOT; f = ID
     { FieldExp (e, f) }
   | e = ns_expr; DOT; f = INTLIT
-    { ProdField (e, int_of_string f) }
+    { ProdField (e, f) }
   | FOR; v = ID; IN; e = ns_expr; b = block
     { ForEach (v, e, b) }
 
@@ -380,20 +412,41 @@ expr:
     { Id v }
   | b = BOOLLIT
     { BoolLit b }
-  | i = INTLIT
-    { IntLit i }
-  | f = FLOATLIT
-    { FloatLit f }
   | s = STRINGLIT
     { StringLit s }
   | c = CHARLIT
     { CharLit c }
+
+  | i = INTLIT
+    { Int64Lit (Int64.of_int i) }
+  | i = INT8LIT
+    { Int8Lit i }
+  | i = INT16LIT
+    { Int16Lit i }
+  | i = INT32LIT
+    { Int32Lit i }
+  | i = INT64LIT
+    { Int64Lit i }
+  | i = UINT8LIT
+    { UInt8Lit i }
+  | i = UINT16LIT
+    { UInt16Lit i }
+  | i = UINT32LIT
+    { UInt32Lit i }
+  | i = UINT64LIT
+    { UInt64Lit i }
+
+  | f = FLOAT32LIT
+    { F32Lit f }
+  | f = FLOAT64LIT
+    { F64Lit f }
+
   | LPAREN; es = sep_list(COMMA, expr); RPAREN
     { prod_expr es }
   | e = expr; DOT; f = ID
     { FieldExp (e, f) }
   | e = expr; DOT; f = INTLIT
-    { ProdField (e, int_of_string f) }
+    { ProdField (e, f) }
   | FOR; v = ID; IN; e = ns_expr; b = block
     { ForEach (v, e, b) }
 

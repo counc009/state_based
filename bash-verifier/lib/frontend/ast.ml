@@ -1,3 +1,5 @@
+open Stdint
+
 type typ = Void | Bool
          | SInt8 | UInt8 | SInt16 | UInt16 | SInt32 | UInt32 | SInt64 | UInt64
          | Float32 | Float64
@@ -16,8 +18,16 @@ type pattern = { enum: string; constr: string; vars: string list }
 
 type expr = Id        of string
           | BoolLit   of bool
-          | IntLit    of string (* to ensure we preserve it properly *)
-          | FloatLit  of string
+          | Int8Lit   of int8
+          | Int16Lit  of int16
+          | Int32Lit  of int32
+          | Int64Lit  of int64
+          | UInt8Lit  of uint8
+          | UInt16Lit of uint16
+          | UInt32Lit of uint32
+          | UInt64Lit of uint64
+          | F32Lit    of string
+          | F64Lit    of string
           | StringLit of string
           | CharLit   of char
           | UnitLit

@@ -1,6 +1,6 @@
 (library
   (name frontend)
-  (libraries calculus))
+  (libraries calculus stdint))
 (ocamllex lexer)
 (menhir
   (modules parser))
