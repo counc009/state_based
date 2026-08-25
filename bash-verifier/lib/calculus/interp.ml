@@ -116,7 +116,8 @@ module Interp
 
     | C.Action (v, act, e) ->
         let& e = interp_expr e env
-        in begin match interp (I.act_def act) init_env st with
+        in let act_env = VarMap.add "ι" e init_env
+        in begin match interp (I.act_def act) act_env st with
         | Return (res, _, st) -> Continue (VarMap.add v res env, st)
         | Raise (v, _, st) -> Raise (v, env, st)
         | Continue (_, _) -> Failure (* a continue across functions, invalid *)
