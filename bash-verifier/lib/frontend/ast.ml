@@ -35,6 +35,7 @@ type expr = Id        of string
           | BinaryExp of expr * binary * expr
           | FieldExp  of expr * string
           | ProdField of expr * int
+          | CastExp   of expr * typ
           | TupleExp  of expr list
           | StructExp of string * typ list * (string * expr) list
           | EnumExp   of string * typ list * string * expr list

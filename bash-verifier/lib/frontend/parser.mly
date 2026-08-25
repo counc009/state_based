@@ -31,6 +31,7 @@
 %token <string> FLOAT32LIT
 %token <string> FLOAT64LIT
 
+%token AS
 %token ASSERT
 %token ATTRIBUTE
 %token CATCH
@@ -124,6 +125,7 @@
 %left LSHIFT RSHIFT
 %left ADD SUB
 %left MUL DIV MOD
+%left AS
 %right UMINUS LOGNOT BITNOT
 %right EXISTS
 (* LPAREN sets the precedence for function application *)
@@ -343,6 +345,8 @@ ns_expr:
     { FieldExp (e, f) }
   | e = ns_expr; DOT; f = INTLIT
     { ProdField (e, f) }
+  | e = ns_expr; AS; t = typ
+    { CastExp (e, t) }
   | FOR; v = ID; IN; e = ns_expr; b = block
     { ForEach (v, e, b) }
 
@@ -447,6 +451,8 @@ expr:
     { FieldExp (e, f) }
   | e = expr; DOT; f = INTLIT
     { ProdField (e, f) }
+  | e = expr; AS; t = typ
+    { CastExp (e, t) }
   | FOR; v = ID; IN; e = ns_expr; b = block
     { ForEach (v, e, b) }
 

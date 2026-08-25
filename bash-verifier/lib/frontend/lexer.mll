@@ -60,6 +60,7 @@ rule token = parse
   | "!"   { LOGNOT }
 
   | "assert"	      { ASSERT }
+  | "as"            { AS }
   | "attribute"	    { ATTRIBUTE }
   | "catch"	        { CATCH }
   | "clear"	        { CLEAR }
