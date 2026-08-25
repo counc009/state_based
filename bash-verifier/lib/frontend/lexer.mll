@@ -25,6 +25,7 @@ rule token = parse
   | ","   { COMMA }
   | "."   { DOT }
   | ";"   { SEMICOLON }
+  | "::<" { FISHTAIL }
   | "::"  { COLONCOLON }
   | ":"   { COLON }
   | "->"  { SINGLEARROW }

@@ -95,16 +95,35 @@
 %token LOGNOT
 
 %token COLONCOLON
+%token FISHTAIL
 %token SINGLEARROW
 %token DOUBLEARROW
 
 %token EOF
+
+(* ELSE sets the precedence for conditional expressions *)
+%right ELSE
+%left LOGOR
+%left LOGAND
+%left BITOR
+%left BITXOR
+%left BITAND
+%left EQ NE
+%left LT LE GT GE
+%left LSHIFT RSHIFT
+%left ADD SUB
+%left MUL DIV MOD
+%right UMINUS LOGNOT BITNOT
+%right EXISTS
+(* LPAREN sets the precedence for function application *)
+%left DOT LPAREN
 
 %start program
 
 %type <Ast.decl list>         program
 %type <Ast.decl>              decl
 %type <string list>           type_args
+%type <Ast.typ list>          type_vars
 %type <string * Ast.typ list> enum_case
 %type <string * Ast.typ>      struct_field
 %type <string * Ast.typ>      arg
@@ -115,7 +134,9 @@
 %type <Ast.stmt list>         block
 %type <(string * string list * Ast.stmt list) option> catch_block
 %type <Ast.pattern * Ast.stmt list> match_case
+%type <Ast.expr>              lval
 %type <Ast.expr>              expr
+%type <string * Ast.expr>     field
 
 %%
 
@@ -161,6 +182,10 @@ type_args:
   |                                   { [] }
   | LT; ts = sep_list(COMMA, ID); GT  { ts }
 
+type_vars:
+  |                                               { [] }
+  | FISHTAIL; ts = sep_list(COMMA, typ); GT { ts }
+
 enum_case:
   | nm = ID; LPAREN; tys = sep_list(COMMA, nameannt_typ); RPAREN { (nm, tys) }
 
@@ -195,8 +220,7 @@ typ:
       { Function (ret, args) }
   | STATE { StateRef }
   | LPAREN; ts = sep_list (COMMA, typ); RPAREN  { prod_type ts }
-  | n = ID                                                { Named (n, []) }
-  | n = ID; COLONCOLON; LT; ts = sep_list(COMMA, typ); GT { Named (n, ts) }
+  | n = ID; ts = type_vars { Named (n, ts) }
 
 stmt:
   | FOR; v = ID; IN; e = expr; body = block
@@ -222,7 +246,7 @@ stmt:
     { Raise (v, []) }
   | RAISE; v = ID; LPAREN; e = sep_list(COMMA, expr); RPAREN
     { Raise (v, e) }
-  | lhs = expr; ASSIGN; rhs = expr; SEMICOLON
+  | lhs = lval; ASSIGN; rhs = expr; SEMICOLON
     { Assign (lhs, rhs) }
   | LET; v = ID; ASSIGN; rhs = expr; SEMICOLON
     { LetStmt (v, None, rhs) }
@@ -252,6 +276,19 @@ match_case:
       LPAREN; vars = sep_list(COMMA, ID); RPAREN; b = block
     { ({ enum; constr; vars }, b) }
 
+lval:
+  | v = ID
+    { Id v }
+  | l = lval; DOT; f = ID
+    { FieldExp (l, f) }
+  | l = lval; DOT; f = INTLIT
+    { ProdField (l, int_of_string f) }
+  | f = lval; LPAREN; es = sep_list(COMMA, expr); RPAREN
+    { FuncExp (f, [], es) }
+  | f = ID; FISHTAIL; tys = sep_list(COMMA, typ); GT;
+      LPAREN; es = sep_list(COMMA, expr); RPAREN
+    { FuncExp (Id f, tys, es) }
+
 expr:
   | v = ID
     { Id v }
@@ -271,6 +308,77 @@ expr:
     { FieldExp (e, f) }
   | e = expr; DOT; f = INTLIT
     { ProdField (e, int_of_string f) }
-  (* TODO: Unary and Binary expressions, Enums, Structs, Func, Cond, Exists *)
   | FOR; v = ID; IN; e = expr; b = block
     { ForEach (v, e, b) }
+
+  | SUB; e = expr %prec UMINUS
+    { UnaryExp (Neg, e) }
+  | LOGNOT; e = expr
+    { UnaryExp (LNot, e) }
+  | BITNOT; e = expr
+    { UnaryExp (BNot, e) }
+
+  | l = expr; ADD; r = expr
+    { BinaryExp (l, Add, r) }
+  | l = expr; SUB; r = expr
+    { BinaryExp (l, Sub, r) }
+  | l = expr; MUL; r = expr
+    { BinaryExp (l, Mul, r) }
+  | l = expr; DIV; r = expr
+    { BinaryExp (l, Div, r) }
+  | l = expr; MOD; r = expr
+    { BinaryExp (l, Mod, r) }
+  | l = expr; LSHIFT; r = expr
+    { BinaryExp (l, LShft, r) }
+  | l = expr; RSHIFT; r = expr
+    { BinaryExp (l, RShft, r) }
+  | l = expr; LT; r = expr
+    { BinaryExp (l, Lt, r) }
+  | l = expr; LE; r = expr
+    { BinaryExp (l, Le, r) }
+  | l = expr; GT; r = expr
+    { BinaryExp (l, Gt, r) }
+  | l = expr; GE; r = expr
+    { BinaryExp (l, Ge, r) }
+  | l = expr; EQ; r = expr
+    { BinaryExp (l, Eq, r) }
+  | l = expr; NE; r = expr
+    { BinaryExp (l, Ne, r) }
+  | l = expr; BITAND; r = expr
+    { BinaryExp (l, BAnd, r) }
+  | l = expr; BITXOR; r = expr
+    { BinaryExp (l, BXor, r) }
+  | l = expr; BITOR; r = expr
+    { BinaryExp (l, BOr, r) }
+  | l = expr; LOGAND; r = expr
+    { BinaryExp (l, LAnd, r) }
+  | l = expr; LOGOR; r = expr
+    { BinaryExp (l, LOr, r) }
+
+  | enum = ID; tys = type_vars; COLONCOLON;
+      constr = ID; LPAREN; es = sep_list(COMMA, expr); RPAREN
+    { EnumExp (enum, tys, constr, es) }
+  | f = expr; LPAREN; es = sep_list(COMMA, expr); RPAREN
+    { FuncExp (f, [], es) }
+  (* We can only apply type variables directly to a name, there's also a
+   * shift/reduce conflict without this rule because ID FISHTAIL has to be
+   * reduced to expr FISHTAIL for function application but not for an enum *)
+  | f = ID; FISHTAIL; tys = sep_list(COMMA, typ); GT;
+      LPAREN; es = sep_list(COMMA, expr); RPAREN
+    { FuncExp (Id f, tys, es) }
+
+  | IF; c = expr; THEN; th = expr; ELSE; el = expr
+    { CondExp (c, th, el) }
+  | EXISTS; e = expr
+    { Exists e }
+
+  (*
+  | s = ID; tys = type_vars; LCURLY; fs = sep_list(COMMA, field); RCURLY
+    { StructExp (s, tys, fs) }
+  *)
+
+  (* TODO: Structs *)
+
+field:
+  | n = ID; ASSIGN; e = expr
+    { (n, e) }
