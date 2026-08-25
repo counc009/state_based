@@ -135,6 +135,7 @@
 %type <(string * string list * Ast.stmt list) option> catch_block
 %type <Ast.pattern * Ast.stmt list> match_case
 %type <Ast.expr>              lval
+%type <Ast.expr>              ns_expr
 %type <Ast.expr>              expr
 %type <string * Ast.expr>     field
 
@@ -223,11 +224,11 @@ typ:
   | n = ID; ts = type_vars { Named (n, ts) }
 
 stmt:
-  | FOR; v = ID; IN; e = expr; body = block
+  | FOR; v = ID; IN; e = ns_expr; body = block
     { ForLoop (v, e, body) }
-  | IF; c = expr; th = block; es = opt_block(ELSE)
+  | IF; c = ns_expr; th = block; es = opt_block(ELSE)
     { IfThenElse (c, th, es) }
-  | MATCH; e = expr; LCURLY; cs = list(match_case); RCURLY
+  | MATCH; e = ns_expr; LCURLY; cs = list(match_case); RCURLY
     { Match (e, cs) }
   | TRY; LCURLY; body = list(stmt); RCURLY; catch = catch_block;
       finally = opt_block(FINALLY)
@@ -289,6 +290,91 @@ lval:
       LPAREN; es = sep_list(COMMA, expr); RPAREN
     { FuncExp (Id f, tys, es) }
 
+(* Non-struct expressions *)
+ns_expr:
+  | v = ID
+    { Id v }
+  | b = BOOLLIT
+    { BoolLit b }
+  | i = INTLIT
+    { IntLit i }
+  | f = FLOATLIT
+    { FloatLit f }
+  | s = STRINGLIT
+    { StringLit s }
+  | c = CHARLIT
+    { CharLit c }
+  (* Inside parentheses we can include struct expressions *)
+  | LPAREN; es = sep_list(COMMA, expr); RPAREN
+    { prod_expr es }
+  | e = ns_expr; DOT; f = ID
+    { FieldExp (e, f) }
+  | e = ns_expr; DOT; f = INTLIT
+    { ProdField (e, int_of_string f) }
+  | FOR; v = ID; IN; e = ns_expr; b = block
+    { ForEach (v, e, b) }
+
+  | SUB; e = ns_expr %prec UMINUS
+    { UnaryExp (Neg, e) }
+  | LOGNOT; e = ns_expr
+    { UnaryExp (LNot, e) }
+  | BITNOT; e = ns_expr
+    { UnaryExp (BNot, e) }
+
+  | l = ns_expr; ADD; r = ns_expr
+    { BinaryExp (l, Add, r) }
+  | l = ns_expr; SUB; r = ns_expr
+    { BinaryExp (l, Sub, r) }
+  | l = ns_expr; MUL; r = ns_expr
+    { BinaryExp (l, Mul, r) }
+  | l = ns_expr; DIV; r = ns_expr
+    { BinaryExp (l, Div, r) }
+  | l = ns_expr; MOD; r = ns_expr
+    { BinaryExp (l, Mod, r) }
+  | l = ns_expr; LSHIFT; r = ns_expr
+    { BinaryExp (l, LShft, r) }
+  | l = ns_expr; RSHIFT; r = ns_expr
+    { BinaryExp (l, RShft, r) }
+  | l = ns_expr; LT; r = ns_expr
+    { BinaryExp (l, Lt, r) }
+  | l = ns_expr; LE; r = ns_expr
+    { BinaryExp (l, Le, r) }
+  | l = ns_expr; GT; r = ns_expr
+    { BinaryExp (l, Gt, r) }
+  | l = ns_expr; GE; r = ns_expr
+    { BinaryExp (l, Ge, r) }
+  | l = ns_expr; EQ; r = ns_expr
+    { BinaryExp (l, Eq, r) }
+  | l = ns_expr; NE; r = ns_expr
+    { BinaryExp (l, Ne, r) }
+  | l = ns_expr; BITAND; r = ns_expr
+    { BinaryExp (l, BAnd, r) }
+  | l = ns_expr; BITXOR; r = ns_expr
+    { BinaryExp (l, BXor, r) }
+  | l = ns_expr; BITOR; r = ns_expr
+    { BinaryExp (l, BOr, r) }
+  | l = ns_expr; LOGAND; r = ns_expr
+    { BinaryExp (l, LAnd, r) }
+  | l = ns_expr; LOGOR; r = ns_expr
+    { BinaryExp (l, LOr, r) }
+
+  | enum = ID; tys = type_vars; COLONCOLON;
+      constr = ID; LPAREN; es = sep_list(COMMA, expr); RPAREN
+    { EnumExp (enum, tys, constr, es) }
+  | f = ns_expr; LPAREN; es = sep_list(COMMA, expr); RPAREN
+    { FuncExp (f, [], es) }
+  (* We can only apply type variables directly to a name, there's also a
+   * shift/reduce conflict without this rule because ID FISHTAIL has to be
+   * reduced to expr FISHTAIL for function application but not for an enum *)
+  | f = ID; FISHTAIL; tys = sep_list(COMMA, typ); GT;
+      LPAREN; es = sep_list(COMMA, expr); RPAREN
+    { FuncExp (Id f, tys, es) }
+
+  | IF; c = ns_expr; THEN; th = ns_expr; ELSE; el = ns_expr
+    { CondExp (c, th, el) }
+  | EXISTS; e = ns_expr
+    { Exists e }
+
 expr:
   | v = ID
     { Id v }
@@ -308,7 +394,7 @@ expr:
     { FieldExp (e, f) }
   | e = expr; DOT; f = INTLIT
     { ProdField (e, int_of_string f) }
-  | FOR; v = ID; IN; e = expr; b = block
+  | FOR; v = ID; IN; e = ns_expr; b = block
     { ForEach (v, e, b) }
 
   | SUB; e = expr %prec UMINUS
@@ -360,9 +446,6 @@ expr:
     { EnumExp (enum, tys, constr, es) }
   | f = expr; LPAREN; es = sep_list(COMMA, expr); RPAREN
     { FuncExp (f, [], es) }
-  (* We can only apply type variables directly to a name, there's also a
-   * shift/reduce conflict without this rule because ID FISHTAIL has to be
-   * reduced to expr FISHTAIL for function application but not for an enum *)
   | f = ID; FISHTAIL; tys = sep_list(COMMA, typ); GT;
       LPAREN; es = sep_list(COMMA, expr); RPAREN
     { FuncExp (Id f, tys, es) }
@@ -372,12 +455,8 @@ expr:
   | EXISTS; e = expr
     { Exists e }
 
-  (*
   | s = ID; tys = type_vars; LCURLY; fs = sep_list(COMMA, field); RCURLY
     { StructExp (s, tys, fs) }
-  *)
-
-  (* TODO: Structs *)
 
 field:
   | n = ID; ASSIGN; e = expr
