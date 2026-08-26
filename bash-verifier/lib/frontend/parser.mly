@@ -28,8 +28,8 @@
 %token <Stdint.uint32> UINT32LIT
 %token <Stdint.uint64> UINT64LIT
 %token <int>    INTLIT
-%token <string> FLOAT32LIT
-%token <string> FLOAT64LIT
+%token <F32.t> FLOAT32LIT
+%token <float> FLOAT64LIT
 
 %token AS
 %token ASSERT

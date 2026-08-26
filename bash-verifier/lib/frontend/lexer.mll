@@ -145,9 +145,9 @@ rule token = parse
   | octal           { INT64LIT (Int64.of_string (lexeme lexbuf)) }
   | hex             { INT64LIT (Int64.of_string (lexeme lexbuf)) }
 
-  | floating "f32"  { FLOAT32LIT (lexeme lexbuf) }
-  | floating "f64"  { FLOAT64LIT (lexeme lexbuf) }
-  | floating        { FLOAT64LIT (lexeme lexbuf) }
+  | floating "f32"  { FLOAT32LIT (F32.of_float (float_of_string (lexeme lexbuf))) }
+  | floating "f64"  { FLOAT64LIT (float_of_string (lexeme lexbuf)) }
+  | floating        { FLOAT64LIT (float_of_string (lexeme lexbuf)) }
   | "'" _ "'" { CHARLIT (String.get (lexeme lexbuf) 1) }
   | '"' ([^'\n''\r''"''\\'] | '\\' _)* '"'
     { let l = lexeme lexbuf

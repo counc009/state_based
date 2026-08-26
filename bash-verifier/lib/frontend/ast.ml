@@ -26,8 +26,8 @@ type expr = Id        of string
           | UInt16Lit of uint16
           | UInt32Lit of uint32
           | UInt64Lit of uint64
-          | F32Lit    of string
-          | F64Lit    of string
+          | F32Lit    of F32.t
+          | F64Lit    of float
           | StringLit of string
           | CharLit   of char
           | UnitLit
