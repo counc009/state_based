@@ -1,0 +1,6 @@
+(library
+  (name f32)
+  (foreign_stubs
+    (language c)
+    (names
+      f32)))
