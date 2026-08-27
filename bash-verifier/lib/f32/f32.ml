@@ -20,3 +20,8 @@ let ( + ) = add
 let ( - ) = sub
 let ( * ) = mul
 let ( / ) = div
+
+let of_string s = of_float (Float.of_string s)
+let of_string_opt s = Option.map of_float (Float.of_string_opt s)
+let to_string f = Float.to_string (to_float f)
+let printer c f = Printf.fprintf c "%f" (to_float f)

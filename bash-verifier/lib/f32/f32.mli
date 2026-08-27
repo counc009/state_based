@@ -19,3 +19,8 @@ val of_float : float -> t
 val to_float : t -> float
 
 val compare : t -> t -> int
+
+val of_string : string -> t
+val of_string_opt : string -> t option
+val to_string : t -> string
+val printer : out_channel -> t -> unit
