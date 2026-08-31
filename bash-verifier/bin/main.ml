@@ -4,8 +4,8 @@ let errored = ref false
 
 let process_file filename =
   try
-    let _res = Runner.parse_file filename
-    in Printf.printf "File %s parsed successfully\n" filename
+    let res = Runner.parse_file filename
+    in Printf.printf "File %s\n\n%s\n\n" filename (Format.string_of_ast res)
   with
   | Lexer.LexerError msg ->
     Printf.printf "While processing file %s encountered:\n  %s\n" filename msg;

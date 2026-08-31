@@ -6,8 +6,7 @@ type typ = Void | Bool
          | Function of typ * typ list (* return type and argument types *)
          (* Types that are mostly internal and not related to C *)
          | StateRef | String
-         | Product of typ list | Struct of (string * typ) list
-         | Named of string * typ list
+         | Product of typ list | Named of string * typ list | List of typ
 
 type unary = Neg | LNot | BNot
 
@@ -46,6 +45,7 @@ type expr = Id        of string
           | ForEach   of string * expr * stmt list
 
 and stmt = ForLoop    of string * expr * stmt list
+         (* TODO: While loop, do-while loop *)
          | IfThenElse of expr * stmt list * stmt list
          (* Contains a default pattern in case no other pattern matched *)
          | Match      of expr * (pattern * stmt list) list * stmt list

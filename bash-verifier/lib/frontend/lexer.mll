@@ -103,6 +103,7 @@ rule token = parse
   | "f64"     { FLOAT64 }
   | "string"  { STRING }
   | "state"   { STATE }
+  | "list"    { LIST }
 
   | "true"  { BOOLLIT true }
   | "false" { BOOLLIT false }

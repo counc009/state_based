@@ -76,6 +76,7 @@
 %token FLOAT64
 %token STRING
 %token STATE
+%token LIST
 
 %token LCURLY
 %token RCURLY
@@ -241,6 +242,7 @@ typ:
       { Function (ret, args) }
   | STATE { StateRef }
   | LPAREN; ts = sep_list (COMMA, typ); RPAREN  { prod_type ts }
+  | LIST; FISHTAIL; t = typ; GT { List t }
   | n = ID; ts = type_vars { Named (n, ts) }
 
 stmt:
