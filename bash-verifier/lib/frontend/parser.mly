@@ -15,6 +15,8 @@
 %}
 
 %token <string> ID
+%token UNDERSCORE
+
 %token <bool>   BOOLLIT
 %token <string> STRINGLIT
 %token <char>   CHARLIT
@@ -148,10 +150,12 @@
 %type <Ast.stmt list>         block
 %type <(string * string list * Ast.stmt list) option> catch_block
 %type <Ast.pattern * Ast.stmt list> match_case
+%type <Ast.stmt list>               default_case
 %type <Ast.expr>              lval
 %type <Ast.expr>              ns_expr
 %type <Ast.expr>              expr
 %type <string * Ast.expr>     field
+%type <string>                id
 
 %%
 
@@ -171,7 +175,7 @@ decl:
   | STRUCT; name = ID; ty_args = type_args;
       LCURLY; fields = sep_list(COMMA, struct_field); RCURLY
     { Struct { name; ty_args; fields } }
-  | TYPE; name = ID; EQ; def = typ
+  | TYPE; name = ID; ASSIGN; def = typ
     { Type { name; def } }
   | UNINTERPRETED; name = ID; ty_args = type_args;
       LPAREN; args = sep_list(COMMA, nameannt_typ); RPAREN;
@@ -240,12 +244,13 @@ typ:
   | n = ID; ts = type_vars { Named (n, ts) }
 
 stmt:
-  | FOR; v = ID; IN; e = ns_expr; body = block
+  | FOR; v = id; IN; e = ns_expr; body = block
     { ForLoop (v, e, body) }
   | IF; c = ns_expr; th = block; es = opt_block(ELSE)
     { IfThenElse (c, th, es) }
-  | MATCH; e = ns_expr; LCURLY; cs = list(match_case); RCURLY
-    { Match (e, cs) }
+  | MATCH; e = ns_expr; LCURLY; cs = list(match_case);
+      d = loption(default_case); RCURLY
+    { Match (e, cs, d) }
   | TRY; LCURLY; body = list(stmt); RCURLY; catch = catch_block;
       finally = opt_block(FINALLY)
     { TryCatch (body, catch, finally) }
@@ -265,9 +270,9 @@ stmt:
     { Raise (v, e) }
   | lhs = lval; ASSIGN; rhs = expr; SEMICOLON
     { Assign (lhs, rhs) }
-  | LET; v = ID; ASSIGN; rhs = expr; SEMICOLON
+  | LET; v = id; ASSIGN; rhs = expr; SEMICOLON
     { LetStmt (v, None, rhs) }
-  | LET; v = ID; COLON; t = typ; ASSIGN; rhs = expr; SEMICOLON
+  | LET; v = id; COLON; t = typ; ASSIGN; rhs = expr; SEMICOLON
     { LetStmt (v, Some t, rhs) }
   | LOCALIZE; b = block
     { Localize b }
@@ -279,7 +284,7 @@ catch_block:
   | { None }
   | CATCH; e=ID; body = block
     { Some (e, [], body) }
-  | CATCH; e=ID; LPAREN; vs = sep_list(COMMA, ID); RPAREN; body = block
+  | CATCH; e=ID; LPAREN; vs = sep_list(COMMA, id); RPAREN; body = block
     { Some (e, vs, body) }
 
 opt_block(label):
@@ -290,8 +295,11 @@ match_case:
   | enum = ID; COLONCOLON; constr = ID; DOUBLEARROW; b = block
     { ({ enum; constr; vars = [] }, b) }
   | enum = ID; COLONCOLON; constr = ID;
-      LPAREN; vars = sep_list(COMMA, ID); RPAREN; b = block
+      LPAREN; vars = sep_list(COMMA, id); RPAREN; DOUBLEARROW; b = block
     { ({ enum; constr; vars }, b) }
+
+default_case:
+  | UNDERSCORE; DOUBLEARROW; b = block { b }
 
 lval:
   | v = ID
@@ -350,7 +358,7 @@ ns_expr:
     { ProdField (e, f) }
   | e = ns_expr; AS; t = typ
     { CastExp (e, t) }
-  | FOR; v = ID; IN; e = ns_expr; b = block
+  | FOR; v = id; IN; e = ns_expr; b = block
     { ForEach (v, e, b) }
 
   | SUB; e = ns_expr %prec UMINUS
@@ -523,3 +531,7 @@ expr:
 field:
   | n = ID; ASSIGN; e = expr
     { (n, e) }
+
+id:
+  | n = ID     { n }
+  | UNDERSCORE { "_" }

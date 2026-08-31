@@ -47,7 +47,8 @@ type expr = Id        of string
 
 and stmt = ForLoop    of string * expr * stmt list
          | IfThenElse of expr * stmt list * stmt list
-         | Match      of expr * (pattern * stmt list) list
+         (* Contains a default pattern in case no other pattern matched *)
+         | Match      of expr * (pattern * stmt list) list * stmt list
          | TryCatch   of stmt list
                        * (string * string list * stmt list) option (* catch *)
                        * stmt list (* finally *)

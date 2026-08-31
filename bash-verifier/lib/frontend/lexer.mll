@@ -155,6 +155,7 @@ rule token = parse
     { let l = lexeme lexbuf
       in STRINGLIT (String.sub l 1 (String.length l - 2)) }
   | ident     { ID (lexeme lexbuf) }
+  | "_"       { UNDERSCORE }
 
   | "//"        { line_comment lexbuf }
   | "/*"        { block_comment (lexeme_start_p lexbuf) lexbuf; token lexbuf }
