@@ -86,6 +86,7 @@ rule token = parse
   | "try"	          { TRY }
   | "type"	        { TYPE }
   | "uninterpreted"	{ UNINTERPRETED }
+  | "while"         { WHILE }
   | "yield"	        { YIELD }
 
   | "void"	  { VOID }

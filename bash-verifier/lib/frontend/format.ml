@@ -233,6 +233,12 @@ let string_of_ast (prg : Ast.decl list) : string =
             (string_of_expr l)
             (string_of_stmts (indent_step ^ indent) b)
             indent
+      | WhileLoop (c, b) ->
+          Printf.sprintf "%swhile %s {\n%s\n%s}"
+            indent
+            (string_of_expr c)
+            (string_of_stmts (indent_step ^ indent) b)
+            indent
       | TryCatch (b, None, f) ->
           Printf.sprintf "%stry {\n%s\n%s} finally {\n%s\n%s}"
             indent

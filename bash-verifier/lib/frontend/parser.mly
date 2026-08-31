@@ -60,6 +60,7 @@
 %token TRY
 %token TYPE
 %token UNINTERPRETED
+%token WHILE
 %token YIELD
 
 %token VOID
@@ -248,6 +249,8 @@ typ:
 stmt:
   | FOR; v = id; IN; e = ns_expr; body = block
     { ForLoop (v, e, body) }
+  | WHILE; c = ns_expr; body = block
+    { WhileLoop (c, body) }
   | IF; c = ns_expr; th = block; es = opt_block(ELSE)
     { IfThenElse (c, th, es) }
   | MATCH; e = ns_expr; LCURLY; cs = list(match_case);

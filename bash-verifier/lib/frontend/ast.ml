@@ -45,7 +45,7 @@ type expr = Id        of string
           | ForEach   of string * expr * stmt list
 
 and stmt = ForLoop    of string * expr * stmt list
-         (* TODO: While loop, do-while loop *)
+         | WhileLoop  of expr * stmt list
          | IfThenElse of expr * stmt list * stmt list
          (* Contains a default pattern in case no other pattern matched *)
          | Match      of expr * (pattern * stmt list) list * stmt list
