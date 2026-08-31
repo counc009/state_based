@@ -90,20 +90,22 @@ rule token = parse
 
   | "void"	  { VOID }
   | "bool"	  { BOOL }
-  | "int8"	  { INT8 }
-  | "int16"	  { INT16 }
-  | "int32"	  { INT32 }
-  | "int64"	  { INT64 }
-  | "uint8"	  { UINT8 }
-  | "uint16"	{ UINT16 }
-  | "uint32"	{ UINT32 }
-  | "uint64"	{ UINT64 }
-  | "float32" { FLOAT32 }
-  | "float64" { FLOAT64 }
+  | "i8"	    { INT8 }
+  | "i16"	    { INT16 }
+  | "i32"	    { INT32 }
+  | "i64"	    { INT64 }
+  | "int"     { INT64 }
+  | "u8"	    { UINT8 }
+  | "u16"	    { UINT16 }
+  | "u32"	    { UINT32 }
+  | "u64"	    { UINT64 }
+  | "f32"     { FLOAT32 }
+  | "f64"     { FLOAT64 }
+  | "string"  { STRING }
   | "state"   { STATE }
 
-  | "true"    { BOOLLIT true }
-  | "false"   { BOOLLIT false }
+  | "true"  { BOOLLIT true }
+  | "false" { BOOLLIT false }
 
   | decimal "i8"    { INT8LIT (Int8.of_string (lexeme lexbuf)) }
   | decimal "i16"   { INT16LIT (Int16.of_string (lexeme lexbuf)) }
@@ -164,7 +166,7 @@ rule token = parse
     in let s = lexeme lexbuf
     in let msg =
       Printf.sprintf "Lexer error at line %d, column %d : invalid symbol '%s'"
-        (pos.pos_lnum + 1) (pos.pos_bol + 1) s
+        pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1) s
     in raise (LexerError msg) }
 
 and line_comment = parse
@@ -177,7 +179,7 @@ and block_comment start = parse
   | eof     {
     let msg =
       Printf.sprintf "Lexer error, comment at line %d, column %d not terminated"
-        (start.pos_lnum + 1) (start.pos_bol + 1)
+        start.pos_lnum (start.pos_cnum - start.pos_bol + 1)
     in raise (LexerError msg) }
   | "*/"    { () }
   | "/*"    {

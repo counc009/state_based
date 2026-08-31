@@ -5,7 +5,8 @@ type typ = Void | Bool
          | Float32 | Float64
          | Function of typ * typ list (* return type and argument types *)
          (* Types that are mostly internal and not related to C *)
-         | StateRef | Product of typ list | Struct of (string * typ) list
+         | StateRef | String
+         | Product of typ list | Struct of (string * typ) list
          | Named of string * typ list
 
 type unary = Neg | LNot | BNot

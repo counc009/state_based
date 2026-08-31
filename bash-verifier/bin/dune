@@ -1,4 +1,4 @@
 (executable
- (public_name bash-verifier)
+ (public_name compiler)
  (name main)
- (libraries bash_verifier))
+ (libraries bash_verifier clap))

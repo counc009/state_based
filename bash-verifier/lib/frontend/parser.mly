@@ -72,6 +72,7 @@
 %token UINT64
 %token FLOAT32
 %token FLOAT64
+%token STRING
 %token STATE
 
 %token LCURLY
@@ -201,6 +202,7 @@ type_vars:
   | FISHTAIL; ts = sep_list(COMMA, typ); GT { ts }
 
 enum_case:
+  | nm = ID                                                      { (nm, []) }
   | nm = ID; LPAREN; tys = sep_list(COMMA, nameannt_typ); RPAREN { (nm, tys) }
 
 struct_field:
@@ -230,6 +232,7 @@ typ:
   | UINT64  { UInt64 }
   | FLOAT32 { Float32 }
   | FLOAT64 { Float64 }
+  | STRING  { String }
   | LPAREN; args = sep_list(COMMA, typ); RPAREN; SINGLEARROW; ret = typ
       { Function (ret, args) }
   | STATE { StateRef }
