@@ -1,17 +1,17 @@
 %{
-  open Ast
   open Stdint
+  open Ast.Parsed
 
-  let prod_type (ts : Ast.typ list) : Ast.typ =
+  let prod_type (ts : typ list) : typ_base =
     match ts with
     | [] -> Void
-    | _ -> Product ts
+    | _   -> Product ts
 
-  let prod_expr (es : Ast.expr list) : Ast.expr =
+  let prod_expr (es : expr list) : expr_base =
     match es with
-    | [] -> UnitLit
-    | [e] -> e
-    | _ -> TupleExp es
+    | []  -> UnitLit
+    | [e] -> e.ast
+    | _   -> TupleExp es
 %}
 
 %token <string> ID
@@ -138,26 +138,32 @@
 
 %start program
 
-%type <Ast.decl list>         program
-%type <Ast.decl>              decl
-%type <string list>           type_args
-%type <Ast.typ list>          type_vars
-%type <string * Ast.typ list> enum_case
-%type <string * Ast.typ>      struct_field
-%type <string * Ast.typ>      arg
-%type <Ast.typ>               return_type
-%type <Ast.typ>               nameannt_typ
-%type <Ast.typ>               typ
-%type <Ast.stmt>              stmt
-%type <Ast.stmt list>         block
-%type <(string * string list * Ast.stmt list) option> catch_block
-%type <Ast.pattern * Ast.stmt list> match_case
-%type <Ast.stmt list>               default_case
-%type <Ast.expr>              lval
-%type <Ast.expr>              ns_expr
-%type <Ast.expr>              expr
-%type <string * Ast.expr>     field
-%type <string>                id
+%type <decl list>         program
+%type <decl>              decl
+%type <decl_base>         decl_base
+%type <string list>       type_args
+%type <typ list>          type_vars
+%type <string * typ list> enum_case
+%type <string * typ>      struct_field
+%type <string * typ>      arg
+%type <typ>               return_type
+%type <typ>               nameannt_typ
+%type <typ>               typ
+%type <typ_base>          typ_base
+%type <stmt>              stmt
+%type <stmt_base>         stmt_base
+%type <stmt list>         block
+%type <stmt list>         default_case
+%type <expr>              lval
+%type <expr_base>         lval_base
+%type <expr>              ns_expr
+%type <expr_base>         ns_expr_base
+%type <expr>              expr
+%type <expr_base>         expr_base
+%type <string * expr>     field
+%type <string>            id
+%type <(string * string list * stmt list) option> catch_block
+%type <pattern * stmt list>                       match_case
 
 %%
 
@@ -170,7 +176,9 @@ sep_list(seperator, X):
   | x = X                                         { [ x ] }   [@name one]
   | x = X; seperator; xs = sep_list(seperator, X) { x :: xs } [@name more]
 
-decl:
+decl: d = decl_base { { ast = d; pos = $loc } }
+
+decl_base:
   | ENUM; name = ID; ty_args = type_args;
       LCURLY; constrs = sep_list(COMMA, enum_case); RCURLY
     { Enum { name; ty_args; constrs } }
@@ -218,14 +226,16 @@ arg:
   | n = ID; COLON; t = typ { (n, t) }
 
 return_type:
-  |                       { Void }
+  |                       { { ast = Void; pos = $loc } }
   | SINGLEARROW; t = typ  { t }
 
 nameannt_typ:
   | t = typ             { t }
   | ID; COLON; t = typ  { t }
 
-typ:
+typ: t = typ_base { { ast = t; pos = $loc } }
+
+typ_base:
   | VOID    { Void }
   | BOOL    { Bool }
   | INT8    { SInt8 }
@@ -246,7 +256,9 @@ typ:
   | LIST; FISHTAIL; t = typ; GT { List t }
   | n = ID; ts = type_vars { Named (n, ts) }
 
-stmt:
+stmt: s = stmt_base { { ast = s; pos = $loc } }
+
+stmt_base:
   | FOR; v = id; IN; e = ns_expr; body = block
     { ForLoop (v, e, body) }
   | WHILE; c = ns_expr; body = block
@@ -298,15 +310,21 @@ opt_block(label):
 
 match_case:
   | enum = ID; COLONCOLON; constr = ID; DOUBLEARROW; b = block
-    { ({ enum; constr; vars = [] }, b) }
+    { ({ ast = { enum; constr; vars = [] };
+         pos = ($startpos(enum), $endpos(constr)) },
+        b) }
   | enum = ID; COLONCOLON; constr = ID;
-      LPAREN; vars = sep_list(COMMA, id); RPAREN; DOUBLEARROW; b = block
-    { ({ enum; constr; vars }, b) }
+      LPAREN; vars = sep_list(COMMA, id); RPAREN; c = DOUBLEARROW; b = block
+    { ({ ast = { enum; constr; vars };
+         pos = ($startpos(enum), $endpos(c)) },
+        b) }
 
 default_case:
   | UNDERSCORE; DOUBLEARROW; b = block { b }
 
-lval:
+lval: l = lval_base { { ast = l; pos = $loc } }
+
+lval_base:
   | v = ID
     { Id v }
   | l = lval; DOT; f = ID
@@ -317,10 +335,12 @@ lval:
     { FuncExp (f, [], es) }
   | f = ID; FISHTAIL; tys = sep_list(COMMA, typ); GT;
       LPAREN; es = sep_list(COMMA, expr); RPAREN
-    { FuncExp (Id f, tys, es) }
+    { FuncExp ({ ast = Id f; pos = $loc(f) }, tys, es) }
 
 (* Non-struct expressions *)
-ns_expr:
+ns_expr: e = ns_expr_base { { ast = e; pos = $loc } }
+
+ns_expr_base:
   | v = ID
     { Id v }
   | b = BOOLLIT
@@ -420,14 +440,16 @@ ns_expr:
    * reduced to expr FISHTAIL for function application but not for an enum *)
   | f = ID; FISHTAIL; tys = sep_list(COMMA, typ); GT;
       LPAREN; es = sep_list(COMMA, expr); RPAREN
-    { FuncExp (Id f, tys, es) }
+    { FuncExp ({ ast = Id f; pos = $loc(f) }, tys, es) }
 
   | IF; c = ns_expr; THEN; th = ns_expr; ELSE; el = ns_expr
     { CondExp (c, th, el) }
   | EXISTS; e = ns_expr
     { Exists e }
 
-expr:
+expr: e = expr_base { { ast = e; pos = $loc } }
+
+expr_base:
   | v = ID
     { Id v }
   | b = BOOLLIT
@@ -523,7 +545,7 @@ expr:
     { FuncExp (f, [], es) }
   | f = ID; FISHTAIL; tys = sep_list(COMMA, typ); GT;
       LPAREN; es = sep_list(COMMA, expr); RPAREN
-    { FuncExp (Id f, tys, es) }
+    { FuncExp ({ ast = Id f; pos = $loc(f) }, tys, es) }
 
   | IF; c = expr; THEN; th = expr; ELSE; el = expr
     { CondExp (c, th, el) }

@@ -1,13 +1,14 @@
 open Stdint
+open Ast.Parsed
 
-let string_of_ast (prg : Ast.decl list) : string =
+let string_of_ast (prg : decl list) : string =
   let indent_step = "  "
   in let string_of_type_args (ts : string list) : string =
     if List.is_empty ts
     then ""
     else Printf.sprintf "<%s>" (String.concat ", " ts)
-  in let rec string_of_typ (t : Ast.typ) : string =
-    match t with
+  in let rec string_of_typ (t : typ) : string =
+    match t.ast with
     | Void      -> "void"
     | Bool      -> "bool"
     | SInt8     -> "i8"
@@ -35,22 +36,22 @@ let string_of_ast (prg : Ast.decl list) : string =
         Printf.sprintf "%s%s"
           nm
           (string_of_type_params ts)
-  and string_of_type_params (ts : Ast.typ list) : string =
+  and string_of_type_params (ts : typ list) : string =
     if List.is_empty ts
     then ""
     else
       Printf.sprintf "::<%s>" (String.concat ", " (List.map string_of_typ ts))
-  in let string_of_expr (e : Ast.expr) : string =
+  in let string_of_expr (e : expr) : string =
     (* Precedence 11 is reserved for as, 13 for exists, 14 for dot & funcs *)
-    let prec_unary (u : Ast.unary) : int =
+    let prec_unary (u : unary) : int =
       match u with
       | Neg | LNot | BNot -> 12
-    in let string_of_unary (u : Ast.unary) : string =
+    in let string_of_unary (u : unary) : string =
       match u with
       | Neg -> "-"
       | LNot -> "!"
       | BNot -> "~"
-    in let prec_binary (b : Ast.binary) : int =
+    in let prec_binary (b : binary) : int =
       match b with
       | LOr -> 1
       | LAnd -> 2
@@ -62,7 +63,7 @@ let string_of_ast (prg : Ast.decl list) : string =
       | LShft | RShft -> 8
       | Add | Sub -> 9
       | Mul | Div | Mod -> 10
-    in let string_of_binary (b : Ast.binary) : string =
+    in let string_of_binary (b : binary) : string =
       match b with
       | LOr   -> "||"
       | LAnd  -> "&&"
@@ -82,8 +83,8 @@ let string_of_ast (prg : Ast.decl list) : string =
       | Mul   -> "*"
       | Div   -> "/"
       | Mod   -> "%"
-    in let rec to_string (prec : int) (e : Ast.expr) : string =
-      match e with
+    in let rec to_string (prec : int) (e : expr) : string =
+      match e.ast with
       | Id nm -> nm
       | BoolLit true  -> "true"
       | BoolLit false -> "false"
@@ -179,9 +180,9 @@ let string_of_ast (prg : Ast.decl list) : string =
           else Printf.sprintf "(exists %s)" (to_string 13 e)
       | ForEach (_v, _e, _b) -> failwith "TODO: for-each expressions"
     in to_string 0 e
-  in let rec string_of_stmts (indent : string) (b : Ast.stmt list) : string =
-    let rec string_of_stmt (s : Ast.stmt) : string =
-      match s with
+  in let rec string_of_stmts (indent : string) (b : stmt list) : string =
+    let rec string_of_stmt (s : stmt) : string =
+      match s.ast with
       | LetStmt (nm, None, e) ->
           Printf.sprintf "%slet %s = %s;"
             indent
@@ -262,7 +263,8 @@ let string_of_ast (prg : Ast.decl list) : string =
           in Printf.sprintf "%smatch %s {\n%s%s\n%s}"
               indent
               (string_of_expr e)
-              (String.concat "" (List.map (fun ({ Ast.enum; constr; vars }, b) ->
+              (String.concat "" (List.map
+                (fun ({ast = { enum; constr; vars }; _ }, b) ->
                   Printf.sprintf "%s%s::%s(%s) => {\n%s\n%s}\n"
                     c_indent
                     enum
@@ -277,8 +279,8 @@ let string_of_ast (prg : Ast.decl list) : string =
                 c_indent)
               indent
     in String.concat "\n" (List.map string_of_stmt b)
-  in let string_of_decl (d : Ast.decl) : string =
-    match d with
+  in let string_of_decl (d : decl) : string =
+    match d.ast with
     | Enum { name; ty_args; constrs } ->
         let string_of_constr (nm, tys) =
           Printf.sprintf "%s(%s)"
