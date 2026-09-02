@@ -258,7 +258,7 @@ let string_of_ast (prg : decl list) : string =
             indent
             (string_of_stmts (indent_step ^ indent) f)
             indent
-      | Match (e, cases, d) ->
+      | Match (e, (cases, d)) ->
           let c_indent = indent_step ^ indent
           in Printf.sprintf "%smatch %s {\n%s%s\n%s}"
               indent

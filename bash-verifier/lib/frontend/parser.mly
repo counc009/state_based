@@ -267,7 +267,7 @@ stmt_base:
     { IfThenElse (c, th, es) }
   | MATCH; e = ns_expr; LCURLY; cs = list(match_case);
       d = loption(default_case); RCURLY
-    { Match (e, cs, d) }
+    { Match (e, (cs, d)) }
   | TRY; LCURLY; body = list(stmt); RCURLY; catch = catch_block;
       finally = opt_block(FINALLY)
     { TryCatch (body, catch, finally) }
