@@ -6,6 +6,7 @@
  *   shadowing
  *)
 open Ast
+open Utils
 
 module StringMap = Map.Make(String)
 
@@ -15,7 +16,7 @@ module Semant = struct
   (* For unions we record a map from the constructor name to an index and an
    * array of argument types for each constructor. This is because in code-gen
    * we need to know the position of each constructor *)
-  type union_info = {
+  type enum_info = {
     constrs: int StringMap.t;
     typs: typ_annt list Iarray.t
   }
@@ -27,7 +28,7 @@ module Semant = struct
     | Function of typ_annt * typ_annt list (* return type and argument types *)
     | StateRef | String
     | Product of typ_annt list | List of typ_annt
-    | Struct of typ_annt StringMap.t | Enum of typ_annt StringMap.t
+    | Struct of typ_annt StringMap.t | Enum of enum_info
     | Named of string * typ_annt list
 
   (* At this point we discard locations so types don't need any additional
@@ -117,12 +118,18 @@ type value_binding =
   | Attribute of { local : bool; ty : Semant.typ }
   | Element   of { local : bool; tys : Semant.typ list }
   | Function  of { ty_args : string list; args : (string * Semant.typ list);
-                    ret : Semant.typ; body : Semant.stmt list ref }
+                    ret : Semant.typ; mutable body : Semant.stmt list ref }
   | Local     of { unique : string; typ : Semant.typ }
-type type_binding = { ty_args : string list; typ : Semant.typ }
+type type_binding = { ty_args : string list; mutable typ : Semant.typ }
 type except_binding = Semant.typ list
 
 type env = (value_binding, type_binding, except_binding) Env.t
+
+let add_ty_args (env : env) (ty_args : string list) : env =
+  List.fold_left (fun env nm ->
+    Option.value ~default:env
+      (Env.add_type nm { ty_args = []; typ = Semant.Void } env))
+    env ty_args
 
 type err_msg = { pos : Lexing.position * Lexing.position; msg : string }
 type 'a err = ('a, err_msg) result
@@ -132,24 +139,65 @@ let error pos = Printf.ksprintf (fun msg -> { pos; msg })
 let ( let^ ) = Result.bind
 
 (* Semantic analysis functions *)
-(* Utilities for splitting decls by kind (type, exception, and values) *)
+(* Utilities for splitting decls by kind (type, "values", and functions) *)
 type decls_split = { 
-  types : Parsed.decl list;
-  excepts : Parsed.decl list;
-  values : Parsed.decl list }
+  types   : Parsed.decl list;
+  values  : Parsed.decl list;
+  funcs   : Parsed.decl list }
 
 let split_decls (ds : Parsed.decl list) : decls_split =
-  let (types, excepts, values) =
-    List.fold_right (fun (d : Parsed.decl) (types, excepts, values) ->
+  let (types, values, funcs) =
+    List.fold_right (fun (d : Parsed.decl) (types, values, funcs) ->
       match d.ast with
-      | Enum _ | Struct _ | Type _ -> (d :: types, excepts, values)
-      | Exception _ -> (types, d :: excepts, values)
-      | Uninterp _ | Attribute _ | Element _ | Function _ ->
-          (types, excepts, d :: values)
+      | Enum _ | Struct _ | Type _ -> (d :: types, values, funcs)
+      | Exception _ | Uninterp _ | Attribute _ | Element _ ->
+          (types, d :: values, funcs)
+      | Function _ -> (types, values, d :: funcs)
     ) ds ([], [], [])
-  in { types; excepts; values }
+  in { types; values; funcs }
 
-(* Analyze types
+(* Semantic analysis of types, ensures the proper use of named types *)
+let analyze_type (env : env) (ty : Parsed.typ) : Semant.typ err =
+  let rec analyze (ty : Parsed.typ) : Semant.typ err =
+    match ty.ast with
+    | Void    -> Ok Void
+    | Bool    -> Ok Bool
+    | SInt8   -> Ok SInt8
+    | SInt16  -> Ok SInt16
+    | SInt32  -> Ok SInt32
+    | SInt64  -> Ok SInt64
+    | UInt8   -> Ok UInt8
+    | UInt16  -> Ok UInt16
+    | UInt32  -> Ok UInt32
+    | UInt64  -> Ok UInt64
+    | Float32 -> Ok Float32
+    | Float64 -> Ok Float64
+    | Function (ret, args) ->
+        let^ ret = analyze ret
+        in let^ args = map_result analyze args
+        in Ok (Function (ret, args) : Semant.typ)
+    | StateRef  -> Ok StateRef
+    | String    -> Ok String
+    | Product ts ->
+        let^ ts = map_result analyze ts
+        in Ok (Semant.Product ts)
+    | List t ->
+        let^ t = analyze t
+        in Ok (Semant.List t)
+    | Named (nm, ty_args) ->
+        let^ ty_args = map_result analyze ty_args
+        in let^ ty_info =
+          match Env.find_type nm env with
+          | None -> Error (error ty.pos "Undefined type '%s'" nm)
+          | Some info -> Ok info
+        in if List.length ty_args <> List.length ty_info.ty_args
+        then
+          Error (error ty.pos "Type '%s' expected %d arguments but provided %d"
+            nm (List.length ty_info.ty_args) (List.length ty_args))
+        else Ok (Semant.Named (nm, ty_args))
+  in analyze ty
+
+(* Analyze type declarations
  * - Step 1: Collect all the type names to ensure there are no repeated names
  * - Step 2: Process each type to provide a real definition and ensure all
  *    named types exist and are properly used
@@ -157,7 +205,7 @@ let split_decls (ds : Parsed.decl list) : decls_split =
  *)
 let analyze_types (env : env) (tys : Parsed.decl list) : env err =
   (* Step 1 *)
-  let^ with_names =
+  let^ env =
     (* The order we process the types in does not matter, so use fold_left
      * since it's tail recursive *)
     List.fold_left (fun env (d : Parsed.decl) ->
@@ -174,24 +222,97 @@ let analyze_types (env : env) (tys : Parsed.decl list) : env err =
       | _ -> failwith "Match error"
     ) (Ok env) tys
   (* Step 2 *)
-  in let^ processed =
-    List.fold_left (fun env (d : Parsed.decl) ->
-      let^ env = env
+  in let^ () =
+    List.fold_left (fun acc (d : Parsed.decl) ->
+      let^ () = acc
       in match d.ast with
       | Enum { name; ty_args; constrs } ->
-          failwith "TODO"
+          let info =
+            match Env.find_type name env with
+            | None -> failwith "Map error"
+            | Some info -> info
+          in let typ_env = add_ty_args env ty_args
+          in let^ constrs =
+            map_result
+              (fun (f, ts) ->
+                Result.map (fun ts -> (f, ts))
+                  (map_result (analyze_type typ_env) ts))
+              constrs
+          in let typs =
+            Iarray.of_seq (let rec gen xs () =
+              match xs with
+              | [] -> Seq.Nil
+              | (_, ts) :: tl -> Seq.Cons (ts, gen tl)
+            in gen constrs)
+          in let constrs =
+            StringMap.of_seq (let rec gen xs i () =
+              match xs with
+              | [] -> Seq.Nil
+              | (c, _) :: tl -> Seq.Cons ((c, i), gen tl (i+1))
+            in gen constrs 0)
+          in Ok (info.typ <- Enum { constrs; typs })
       | Struct { name; ty_args; fields } ->
-          failwith "TODO"
+          let info =
+            match Env.find_type name env with
+            | None -> failwith "Map error"
+            | Some info -> info
+          in let typ_env = add_ty_args env ty_args
+          in let^ fields =
+            map_result 
+              (fun (f, t) -> 
+                Result.map (fun t -> (f, t)) (analyze_type typ_env t))
+              fields
+          in Ok (info.typ <- Struct (StringMap.of_list fields))
       | Type { name; def } ->
-          failwith "TODO"
+          let info =
+            match Env.find_type name env with
+            | None -> failwith "Map error"
+            | Some info -> info
+          in let^ def = analyze_type env def
+          in Ok (info.typ <- def)
       | _ -> failwith "Match error"
-    ) (Ok with_names) tys
-  in Ok processed
+    ) (Ok ()) tys
+  in Ok env
+
+(* Analyze "value" declarations, this includes exceptions, uninterpreted
+ * functions, elements, and attributes
+ * The unifying idea of these kinds of declarations is that none of them are
+ * recursive (else self-recursive or mutually recursive). This means that we
+ * can process them in just a single step pass rather than the two steps we
+ * need for types and functions. *)
+let analyze_values (env : env) (vals : Parsed.decl list) : env err =
+  List.fold_left (fun env (d : Parsed.decl) ->
+    let^ env = env
+    in match d.ast with
+    | Exception { name; ty } ->
+        let^ tys = map_result (analyze_type env) ty
+        in Option.to_result
+            ~none:(error d.pos "Exception %s already defined" name)
+            (Env.add_except name tys env)
+    | Uninterp { name; ty_args; args; ret } ->
+        let typ_env = add_ty_args env ty_args
+        in let^ args = map_result (analyze_type typ_env) args
+        in let^ ret = analyze_type typ_env ret
+        in Option.to_result
+            ~none:(error d.pos "Name %s already defined" name)
+            (Env.add_unique name (Uninterp { ty_args; args; ret }) env)
+    | Attribute { local; name; ty } ->
+        let^ ty = analyze_type env ty
+        in Option.to_result
+            ~none:(error d.pos "Name %s already defined" name)
+            (Env.add_unique name (Attribute { local; ty }) env)
+    | Element { local; name; ty } ->
+        let^ tys = map_result (analyze_type env) ty
+        in Option.to_result
+            ~none:(error d.pos "Name %s already defined" name)
+            (Env.add_unique name (Element { local; tys }) env)
+    | _ -> failwith "Match error"
+  ) (Ok env) vals
 
 (* Entry point *)
 let analyze_program (prg : Parsed.decl list) : env err =
   let env : env = Env.empty
-  in let { types; excepts; values } = split_decls prg
+  in let { types; values; funcs } = split_decls prg
   in let^ env = analyze_types env types
-  in let^ env = analyze_excepts env excepts
-  in analyze_values env values
+  in let^ env = analyze_values env values
+  in analyze_funcs env funcs
