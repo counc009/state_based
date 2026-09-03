@@ -1,3 +1,9 @@
+(* TODO: Rewrite to allow us to continue trying to analyze a program after
+ * encountering errors. In particular, this will require:
+ * - A mechanism for reporting multiple errors
+ * - A mechanism for returning default values
+ *)
+
 (* Semantic analysis, in this stage we:
  * - Type check the program and assign types to every expression
  * - Check the placement of return and yield statements and ensure all non-void
@@ -22,6 +28,11 @@ module Semant = struct
   }
 
   and typ_base =
+    (* The any type is used to denote types for type variables. The unknown
+     * type is used when a type error occured on the right-hand side of a
+     * let-binding so we can't determine it's type. This is essentially used
+     * to suppress other type errors *)
+    | Any | Unknown
     | Void | Bool
     | SInt8 | UInt8 | SInt16 | UInt16 | SInt32 | UInt32 | SInt64 | UInt64
     | Float32 | Float64
@@ -61,6 +72,9 @@ module Env : sig
   val add_except : string -> 'e -> ('v, 't, 'e) t -> ('v, 't, 'e) t option
   val add_unique : string -> 'v -> ('v, 't, 'e) t -> ('v, 't, 'e) t option
   val add_value : string -> (string -> 'v) -> ('v, 't, 'e) t -> ('v, 't, 'e) t
+
+  (* Used to add type variables which are allowed to shadow other type names *)
+  val replace_type : string -> 't -> ('v, 't, 'e) t -> ('v, 't, 'e) t
 
   val find_type : string -> ('v, 't, 'e) t -> 't option
   val find_except : string -> ('v, 't, 'e) t -> 'e option
@@ -102,6 +116,10 @@ end = struct
           | None -> Some (0, f s)
           | Some (i, n) -> Some (i + 1, f (s ^ "." ^ string_of_int i))
         ) values }
+  
+  let replace_type s t { values; types; excepts } =
+    { values; excepts;
+      types = StringMap.add s t types }
 
   let find_type s { types; _ } = StringMap.find_opt s types
 
@@ -112,13 +130,19 @@ end = struct
   let scope m k = k m
 end
 
+type func_binding = { 
+  ty_args : string list;
+  args : (string * Semant.typ) list;
+  ret : Semant.typ;
+  mutable body : Semant.stmt list
+}
+
 type value_binding =
   | Uninterp  of { ty_args : string list; args : Semant.typ list;
                     ret : Semant.typ }
   | Attribute of { local : bool; ty : Semant.typ }
   | Element   of { local : bool; tys : Semant.typ list }
-  | Function  of { ty_args : string list; args : (string * Semant.typ list);
-                    ret : Semant.typ; mutable body : Semant.stmt list ref }
+  | Function  of func_binding
   | Local     of { unique : string; typ : Semant.typ }
 type type_binding = { ty_args : string list; mutable typ : Semant.typ }
 type except_binding = Semant.typ list
@@ -127,8 +151,7 @@ type env = (value_binding, type_binding, except_binding) Env.t
 
 let add_ty_args (env : env) (ty_args : string list) : env =
   List.fold_left (fun env nm ->
-    Option.value ~default:env
-      (Env.add_type nm { ty_args = []; typ = Semant.Void } env))
+    Env.replace_type nm { ty_args = []; typ = Semant.Any } env)
     env ty_args
 
 type err_msg = { pos : Lexing.position * Lexing.position; msg : string }
@@ -197,6 +220,15 @@ let analyze_type (env : env) (ty : Parsed.typ) : Semant.typ err =
         else Ok (Semant.Named (nm, ty_args))
   in analyze ty
 
+(* Semantic analysis of statements, provided the current environment and a
+ * context that tells us the return type of the current function and whether we
+ * are allowed to yield or not and if so the type *)
+type stmt_context = { ret : Semant.typ; yield : Semant.typ ref option }
+
+let analyze_statements (env : env) (ctx : stmt_context)
+  (stmts : Parsed.stmt list) : Semant.stmt list err =
+  failwith "TODO"
+
 (* Analyze type declarations
  * - Step 1: Collect all the type names to ensure there are no repeated names
  * - Step 2: Process each type to provide a real definition and ensure all
@@ -218,7 +250,7 @@ let analyze_types (env : env) (tys : Parsed.decl list) : env err =
       | Type { name; _ } ->
           Option.to_result
             ~none:(error d.pos "Type %s already defined" name)
-            (Env.add_type name { ty_args = []; typ = Void } env)
+            (Env.add_type name { ty_args = []; typ = Unknown } env)
       | _ -> failwith "Match error"
     ) (Ok env) tys
   (* Step 2 *)
@@ -308,6 +340,52 @@ let analyze_values (env : env) (vals : Parsed.decl list) : env err =
             (Env.add_unique name (Element { local; tys }) env)
     | _ -> failwith "Match error"
   ) (Ok env) vals
+
+(* Semantic analysis for functions. Like with types this is a two-step process,
+ * first we add all the functions and their types to the environment to handle
+ * potentially recursive definitions and then we process the body of each
+ * function (and the order doesn't matter since we already have the type
+ * information for every function, which is the only thing that can matter
+ * while performing semantic analysis) *)
+let analyze_funcs (env : env) (funcs : Parsed.decl list) : env err =
+  (* Step 1 *)
+  let^ env =
+    List.fold_left (fun env (d : Parsed.decl) ->
+      let^ env = env
+      in match d.ast with
+      | Function { name; ty_args; args; ret; _ } ->
+          let typ_env = add_ty_args env ty_args
+          in let^ args = map_result (fun (nm, t) ->
+            Result.map (fun t -> (nm, t)) (analyze_type typ_env t)
+          ) args
+          in let^ ret = analyze_type typ_env ret
+          in Option.to_result
+              ~none:(error d.pos "Name %s already defined" name)
+              (Env.add_unique name 
+                (Function { ty_args; args; ret; body = [] }) env)
+      | _ -> failwith "Match error"
+    ) (Ok env) funcs
+  (* Step 2 *)
+  in let^ () =
+    List.fold_left (fun acc (d : Parsed.decl) ->
+      let^ () = acc
+      in match d.ast with
+      | Function { name; ty_args; body; _ } ->
+          let info =
+            match Env.find_value name env with
+            | Some (Function info) -> info
+            | _ -> failwith "Map error"
+          in let typ_env = add_ty_args env ty_args
+          in let body_env =
+            List.fold_left (fun env (nm, typ) ->
+              Env.add_value nm (fun unique -> Local { unique; typ }) env
+            ) typ_env info.args
+          in let body_info = { ret = info.ret; yield = None }
+          in let^ body = analyze_statements body_env body_info body
+          in Ok (info.body <- body)
+      | _ -> failwith "Match error"
+    ) (Ok ()) funcs
+  in Ok env
 
 (* Entry point *)
 let analyze_program (prg : Parsed.decl list) : env err =
