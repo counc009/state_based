@@ -1,9 +1,3 @@
-(* TODO: Rewrite to allow us to continue trying to analyze a program after
- * encountering errors. In particular, this will require:
- * - A mechanism for reporting multiple errors
- * - A mechanism for returning default values
- *)
-
 (* Semantic analysis, in this stage we:
  * - Type check the program and assign types to every expression
  * - Check the placement of return and yield statements and ensure all non-void
@@ -12,7 +6,6 @@
  *   shadowing
  *)
 open Ast
-open Utils
 
 module StringMap = Map.Make(String)
 
@@ -154,12 +147,41 @@ let add_ty_args (env : env) (ty_args : string list) : env =
     Env.replace_type nm { ty_args = []; typ = Semant.Any } env)
     env ty_args
 
-type err_msg = { pos : Lexing.position * Lexing.position; msg : string }
-type 'a err = ('a, err_msg) result
+type err_msg =
+  | Leaf of { pos : Lexing.position * Lexing.position; msg : string }
+  | Node of err_msg * err_msg
+type 'a err = Ok of 'a | Err of 'a * err_msg
 
-let error pos = Printf.ksprintf (fun msg -> { pos; msg })
+let error default pos =
+  Printf.ksprintf (fun msg -> Err (default, Leaf { pos; msg }))
 
-let ( let^ ) = Result.bind
+let of_option ~err (x : 'a option) : 'a err =
+  match x with
+  | Some x -> Ok x
+  | None -> err ()
+
+let ( let^ ) (res : 'a err) (f : 'a -> 'b err) : 'b err =
+  match res with
+  | Ok x -> f x
+  | Err (x, es) ->
+      match f x with
+      | Ok y -> Err (y, es)
+      | Err (y, fs) -> Err (y, Node (es, fs))
+
+let map_err (f : 'a -> 'b err) (xs : 'a list) : 'b list err =
+  let rec map (xs : 'a list) =
+    match xs with
+    | [] -> Ok []
+    | x :: xs ->
+        let^ y = f x
+        in let^ ys = map xs
+        in Ok (y :: ys)
+  in map xs
+
+let err_map (f : 'a -> 'b) (x : 'a err) : 'b err =
+  match x with
+  | Ok x -> Ok (f x)
+  | Err (x, es) -> Err (f x, es)
 
 (* Semantic analysis functions *)
 (* Utilities for splitting decls by kind (type, "values", and functions) *)
@@ -197,26 +219,32 @@ let analyze_type (env : env) (ty : Parsed.typ) : Semant.typ err =
     | Float64 -> Ok Float64
     | Function (ret, args) ->
         let^ ret = analyze ret
-        in let^ args = map_result analyze args
+        in let^ args = map_err analyze args
         in Ok (Function (ret, args) : Semant.typ)
     | StateRef  -> Ok StateRef
     | String    -> Ok String
     | Product ts ->
-        let^ ts = map_result analyze ts
+        let^ ts = map_err analyze ts
         in Ok (Semant.Product ts)
     | List t ->
         let^ t = analyze t
         in Ok (Semant.List t)
     | Named (nm, ty_args) ->
-        let^ ty_args = map_result analyze ty_args
+        let^ ty_args = map_err analyze ty_args
         in let^ ty_info =
           match Env.find_type nm env with
-          | None -> Error (error ty.pos "Undefined type '%s'" nm)
+          | None ->
+              error { ty_args = []; typ = Semant.Unknown} ty.pos
+                "Undefined type '%s'" nm
           | Some info -> Ok info
         in if List.length ty_args <> List.length ty_info.ty_args
         then
-          Error (error ty.pos "Type '%s' expected %d arguments but provided %d"
-            nm (List.length ty_info.ty_args) (List.length ty_args))
+          match ty_info.typ with
+          | Unknown -> Ok Semant.Unknown
+          | _ ->
+              error Semant.Unknown ty.pos
+                "Type '%s' expected %d arguments but provided %d"
+                nm (List.length ty_info.ty_args) (List.length ty_args)
         else Ok (Semant.Named (nm, ty_args))
   in analyze ty
 
@@ -244,12 +272,12 @@ let analyze_types (env : env) (tys : Parsed.decl list) : env err =
       let^ env = env
       in match d.ast with
       | Enum { name; ty_args; _ } | Struct { name; ty_args; _ } ->
-          Option.to_result
-            ~none:(error d.pos "Type %s already defined" name)
+          of_option
+            ~err:(fun () -> error env d.pos "Type %s already defined" name)
             (Env.add_type name { ty_args; typ = Void } env)
       | Type { name; _ } ->
-          Option.to_result
-            ~none:(error d.pos "Type %s already defined" name)
+          of_option
+            ~err:(fun () -> error env d.pos "Type %s already defined" name)
             (Env.add_type name { ty_args = []; typ = Unknown } env)
       | _ -> failwith "Match error"
     ) (Ok env) tys
@@ -265,10 +293,10 @@ let analyze_types (env : env) (tys : Parsed.decl list) : env err =
             | Some info -> info
           in let typ_env = add_ty_args env ty_args
           in let^ constrs =
-            map_result
+            map_err
               (fun (f, ts) ->
-                Result.map (fun ts -> (f, ts))
-                  (map_result (analyze_type typ_env) ts))
+                err_map (fun ts -> (f, ts))
+                  (map_err (analyze_type typ_env) ts))
               constrs
           in let typs =
             Iarray.of_seq (let rec gen xs () =
@@ -290,9 +318,9 @@ let analyze_types (env : env) (tys : Parsed.decl list) : env err =
             | Some info -> info
           in let typ_env = add_ty_args env ty_args
           in let^ fields =
-            map_result 
+            map_err 
               (fun (f, t) -> 
-                Result.map (fun t -> (f, t)) (analyze_type typ_env t))
+                err_map (fun t -> (f, t)) (analyze_type typ_env t))
               fields
           in Ok (info.typ <- Struct (StringMap.of_list fields))
       | Type { name; def } ->
@@ -317,26 +345,26 @@ let analyze_values (env : env) (vals : Parsed.decl list) : env err =
     let^ env = env
     in match d.ast with
     | Exception { name; ty } ->
-        let^ tys = map_result (analyze_type env) ty
-        in Option.to_result
-            ~none:(error d.pos "Exception %s already defined" name)
+        let^ tys = map_err (analyze_type env) ty
+        in of_option
+            ~err:(fun()-> error env d.pos "Exception %s already defined" name)
             (Env.add_except name tys env)
     | Uninterp { name; ty_args; args; ret } ->
         let typ_env = add_ty_args env ty_args
-        in let^ args = map_result (analyze_type typ_env) args
+        in let^ args = map_err (analyze_type typ_env) args
         in let^ ret = analyze_type typ_env ret
-        in Option.to_result
-            ~none:(error d.pos "Name %s already defined" name)
+        in of_option
+            ~err:(fun () -> error env d.pos "Name %s already defined" name)
             (Env.add_unique name (Uninterp { ty_args; args; ret }) env)
     | Attribute { local; name; ty } ->
         let^ ty = analyze_type env ty
-        in Option.to_result
-            ~none:(error d.pos "Name %s already defined" name)
+        in of_option
+            ~err:(fun () -> error env d.pos "Name %s already defined" name)
             (Env.add_unique name (Attribute { local; ty }) env)
     | Element { local; name; ty } ->
-        let^ tys = map_result (analyze_type env) ty
-        in Option.to_result
-            ~none:(error d.pos "Name %s already defined" name)
+        let^ tys = map_err (analyze_type env) ty
+        in of_option
+            ~err:(fun () -> error env d.pos "Name %s already defined" name)
             (Env.add_unique name (Element { local; tys }) env)
     | _ -> failwith "Match error"
   ) (Ok env) vals
@@ -355,12 +383,12 @@ let analyze_funcs (env : env) (funcs : Parsed.decl list) : env err =
       in match d.ast with
       | Function { name; ty_args; args; ret; _ } ->
           let typ_env = add_ty_args env ty_args
-          in let^ args = map_result (fun (nm, t) ->
-            Result.map (fun t -> (nm, t)) (analyze_type typ_env t)
+          in let^ args = map_err (fun (nm, t) ->
+            err_map (fun t -> (nm, t)) (analyze_type typ_env t)
           ) args
           in let^ ret = analyze_type typ_env ret
-          in Option.to_result
-              ~none:(error d.pos "Name %s already defined" name)
+          in of_option
+              ~err:(fun () -> error env d.pos "Name %s already defined" name)
               (Env.add_unique name 
                 (Function { ty_args; args; ret; body = [] }) env)
       | _ -> failwith "Match error"
