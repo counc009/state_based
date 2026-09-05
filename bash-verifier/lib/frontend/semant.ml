@@ -12,15 +12,7 @@ module StringMap = Map.Make(String)
 (* The result of semantic analysis (though we do not use decls in favor of
  * maps) *)
 module Semant = struct
-  (* For unions we record a map from the constructor name to an index and an
-   * array of argument types for each constructor. This is because in code-gen
-   * we need to know the position of each constructor *)
-  type enum_info = {
-    constrs: int StringMap.t;
-    typs: typ_annt list Iarray.t
-  }
-
-  and typ_base =
+  type typ_base =
     (* The any type is used to denote types for type variables. The unknown
      * type is used when a type error occured on the right-hand side of a
      * let-binding so we can't determine it's type. This is essentially used
@@ -32,7 +24,6 @@ module Semant = struct
     | Function of typ_annt * typ_annt list (* return type and argument types *)
     | StateRef | String
     | Product of typ_annt list | List of typ_annt
-    | Struct of typ_annt StringMap.t | Enum of enum_info
     | Named of string * typ_annt list
 
   (* At this point we discard locations so types don't need any additional
@@ -56,6 +47,45 @@ module Semant = struct
   end)
 end
 
+let rec string_of_type (t : Semant.typ) : string =
+  match t with
+  | Any     -> "any"
+  | Unknown -> "unknown"
+  | Void    -> "void"
+  | Bool    -> "bool"
+  | SInt8   -> "i8"
+  | SInt16  -> "i16"
+  | SInt32  -> "i32"
+  | SInt64  -> "i64"
+  | UInt8   -> "u8"
+  | UInt16  -> "u16"
+  | UInt32  -> "u32"
+  | UInt64  -> "u64"
+  | Float32 -> "f32"
+  | Float64 -> "f64"
+  | Function (ret, args) ->
+      Printf.sprintf "(%s) -> %s"
+        (String.concat ", " (List.map string_of_type args))
+        (string_of_type ret)
+  | StateRef  -> "state"
+  | String    -> "string"
+  | Product ts ->
+      Printf.sprintf "(%s)" (String.concat ", " (List.map string_of_type ts))
+  | List t -> Printf.sprintf "list::<%s>" (string_of_type t)
+  | Named (nm, ts) ->
+      if List.is_empty ts
+      then nm
+      else Printf.sprintf "%s::<%s>" nm
+            (String.concat ", " (List.map string_of_type ts))
+
+(* Checks type equality but returns true if either type is unknown *)
+let types_match (t : Semant.typ) (s : Semant.typ) : bool =
+  if t = s then true
+  else
+    match t, s with
+    | Unknown, _ | _, Unknown -> true
+    | _, _ -> false
+
 module Env : sig
   type ('v, 't, 'e) t
 
@@ -64,7 +94,8 @@ module Env : sig
   val add_type : string -> 't -> ('v, 't, 'e) t -> ('v, 't, 'e) t option
   val add_except : string -> 'e -> ('v, 't, 'e) t -> ('v, 't, 'e) t option
   val add_unique : string -> 'v -> ('v, 't, 'e) t -> ('v, 't, 'e) t option
-  val add_value : string -> (string -> 'v) -> ('v, 't, 'e) t -> ('v, 't, 'e) t
+  val add_value : string -> (string -> 'v) -> ('v, 't, 'e) t
+    -> string * ('v, 't, 'e) t
 
   (* Used to add type variables which are allowed to shadow other type names *)
   val replace_type : string -> 't -> ('v, 't, 'e) t -> ('v, 't, 'e) t
@@ -100,15 +131,22 @@ end = struct
   let add_unique s x { values; types; excepts } =
     if StringMap.mem s values
     then None
-    else Some { types; excepts; values = StringMap.add s (0, x) values }
+    (* We flag this entry as a unique name (i.e., a global) by setting the
+     * counter to -1. Then, when we add a shadowing local we can identify that
+     * we don't actually need to assign it a mangled name (which ensures we
+     * don't have to rename function arguments) *)
+    else Some { types; excepts; values = StringMap.add s (-1, x) values }
 
   let add_value s f { values; types; excepts } =
-    { types; excepts;
-      values =
-        StringMap.update s (function
-          | None -> Some (0, f s)
-          | Some (i, n) -> Some (i + 1, f (s ^ "." ^ string_of_int i))
-        ) values }
+    let unique = ref s
+    in let values =
+      StringMap.update s (function
+        | None -> Some (0, f s)
+        | Some (-1, _) -> Some (0, f s)
+        | Some (i, _) -> unique := s ^ "." ^ string_of_int i
+                       ; Some (i + 1, f !unique))
+      values
+    in (!unique, { types; excepts; values })
   
   let replace_type s t { values; types; excepts } =
     { values; excepts;
@@ -137,15 +175,31 @@ type value_binding =
   | Element   of { local : bool; tys : Semant.typ list }
   | Function  of func_binding
   | Local     of { unique : string; typ : Semant.typ }
-type type_binding = { ty_args : string list; mutable typ : Semant.typ }
+
+(* For enums we record a map from the constructor name to an index and an
+ * array of argument types for each constructor. This is because in code-gen
+ * we need to know the position of each constructor *)
+type enum_info = {
+  constrs: int StringMap.t;
+  typs: Semant.typ list Iarray.t
+}
+type type_def =
+  | Alias of Semant.typ
+  | Enum of enum_info
+  | Struct of Semant.typ StringMap.t
+type type_binding = { ty_args : string list; mutable typ : type_def }
+
 type except_binding = Semant.typ list
 
 type env = (value_binding, type_binding, except_binding) Env.t
 
 let add_ty_args (env : env) (ty_args : string list) : env =
   List.fold_left (fun env nm ->
-    Env.replace_type nm { ty_args = []; typ = Semant.Any } env)
+    Env.replace_type nm { ty_args = []; typ = Alias Any } env)
     env ty_args
+
+let add_local (nm : string) (typ : Semant.typ) (env : env) : string * env =
+  Env.add_value nm (fun unique -> Local { unique; typ }) env
 
 type err_msg =
   | Leaf of { pos : Lexing.position * Lexing.position; msg : string }
@@ -234,13 +288,13 @@ let analyze_type (env : env) (ty : Parsed.typ) : Semant.typ err =
         in let^ ty_info =
           match Env.find_type nm env with
           | None ->
-              error { ty_args = []; typ = Semant.Unknown} ty.pos
+              error { ty_args = []; typ = Alias Unknown} ty.pos
                 "Undefined type '%s'" nm
           | Some info -> Ok info
         in if List.length ty_args <> List.length ty_info.ty_args
         then
           match ty_info.typ with
-          | Unknown -> Ok Semant.Unknown
+          | Alias Unknown -> Ok Semant.Unknown
           | _ ->
               error Semant.Unknown ty.pos
                 "Type '%s' expected %d arguments but provided %d"
@@ -248,14 +302,105 @@ let analyze_type (env : env) (ty : Parsed.typ) : Semant.typ err =
         else Ok (Semant.Named (nm, ty_args))
   in analyze ty
 
+let analyze_expr (env : env) (e : Parsed.expr)
+  : (Semant.expr * Semant.typ) err =
+  failwith "TODO"
+
+let analyze_cond (env : env) (e : Parsed.expr) : Semant.expr err =
+  let^ (res, t) = analyze_expr env e
+  in match t with
+  | Bool | Unknown -> Ok res
+  | _ -> error res e.pos "Expected a bool, found %s" (string_of_type t)
+
 (* Semantic analysis of statements, provided the current environment and a
  * context that tells us the return type of the current function and whether we
  * are allowed to yield or not and if so the type *)
 type stmt_context = { ret : Semant.typ; yield : Semant.typ ref option }
 
-let analyze_statements (env : env) (ctx : stmt_context)
-  (stmts : Parsed.stmt list) : Semant.stmt list err =
-  failwith "TODO"
+let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
+  : (env * Semant.stmt) err =
+  match s.ast with
+  | ForLoop (v, ex, body) ->
+      let^ (exp, t) = analyze_expr env ex
+      in let^ elem_ty =
+        match t with
+        | List t -> Ok t
+        | Unknown -> Ok Semant.Unknown (* an error will already have occured *)
+        | t -> error Semant.Unknown ex.pos "Expected a list, found %s"
+                (string_of_type t)
+      in let (unique, body_env) = add_local v elem_ty env
+      in let body_ctx = { ret = ctx.ret; yield = Some (ref Semant.Any) }
+      in let^ body = analyze_stmts body_env body_ctx body
+      in Ok (env, Semant.ForLoop (unique, exp, body))
+  | WhileLoop (cond, body) ->
+      let^ cond = analyze_cond env cond
+      in let^ body = analyze_stmts env ctx body
+      in Ok (env, Semant.WhileLoop (cond, body))
+  | IfThenElse (cond, thn, els) ->
+      let^ cond = analyze_cond env cond
+      in let^ thn = analyze_stmts env ctx thn
+      in let^ els = analyze_stmts env ctx els
+      in Ok (env, Semant.IfThenElse (cond, thn, els))
+  (* TODO: Match, Clear, Touch *)
+  (* TODO: Should we also adjust the AST to allow us to change what you
+   * specify for clear and touch to allow us to process state references
+   * better? *)
+  | Assert e ->
+      let^ e = analyze_cond env e
+      in Ok (env, Semant.Assert e)
+  | Return e ->
+      let^ (exp, t) = analyze_expr env e
+      (* TODO: Indicate that there should be no code following this statement *)
+      in let res = (env, Semant.Return exp)
+      in if types_match t ctx.ret
+      then Ok res
+      else error res s.pos "Incorrect return type, expected %s but found %s"
+            (string_of_type ctx.ret) (string_of_type t)
+  | Yield e ->
+      let^ (exp, t) = analyze_expr env e
+      (* TODO: Indicate that there should be no code following this statement *)
+      in let res = (env, Semant.Yield exp)
+      in begin match ctx.yield with
+      | None -> error res s.pos "Invalid yield, not contained in a for-loop"
+      | Some ({ contents = Any } as yield_ty) ->
+          yield_ty := t ; Ok res
+      | Some ({ contents = Unknown }) -> Ok res
+      | Some ({ contents = yield_ty }) ->
+          if types_match t yield_ty
+          then Ok res
+          else error res s.pos "Incorrect yield type, expected %s but found %s"
+                (string_of_type yield_ty) (string_of_type t)
+      end
+  (* TODO: Raise, Assign *)
+  | LetStmt (v, ty, exp) ->
+      let^ (exp, t) = analyze_expr env exp
+      in let^ t =
+        match ty with
+        | None -> Ok t
+        | Some ty ->
+            let^ ty = analyze_type env ty
+            in if types_match t ty
+            then Ok t
+            else error t s.pos "Type mismatched, expected %s but found %s"
+                  (string_of_type ty) (string_of_type t)
+      in let (unique, env) = add_local v t env
+      in Ok (env, Semant.LetStmt (unique, None, exp))
+  | Localize body ->
+      let^ body = analyze_stmts env ctx body
+      in Ok (env, Semant.Localize body)
+
+and analyze_stmts (env : env) (ctx : stmt_context) (stmts : Parsed.stmt list)
+  : Semant.stmt list err =
+  match stmts with
+  | [] -> Ok []
+  | s :: tl ->
+      let^ (env, s) = analyze_stmt env ctx s
+      in let^ tl = analyze_stmts env ctx tl
+      in Ok (s :: tl)
+
+let analyze_function (env : env) (ret : Semant.typ) (stmts : Parsed.stmt list)
+  : Semant.stmt list err =
+  analyze_stmts env { ret; yield = None } stmts
 
 (* Analyze type declarations
  * - Step 1: Collect all the type names to ensure there are no repeated names
@@ -274,11 +419,11 @@ let analyze_types (env : env) (tys : Parsed.decl list) : env err =
       | Enum { name; ty_args; _ } | Struct { name; ty_args; _ } ->
           of_option
             ~err:(fun () -> error env d.pos "Type %s already defined" name)
-            (Env.add_type name { ty_args; typ = Void } env)
+            (Env.add_type name { ty_args; typ = Alias Unknown } env)
       | Type { name; _ } ->
           of_option
             ~err:(fun () -> error env d.pos "Type %s already defined" name)
-            (Env.add_type name { ty_args = []; typ = Unknown } env)
+            (Env.add_type name { ty_args = []; typ = Alias Unknown } env)
       | _ -> failwith "Match error"
     ) (Ok env) tys
   (* Step 2 *)
@@ -329,7 +474,7 @@ let analyze_types (env : env) (tys : Parsed.decl list) : env err =
             | None -> failwith "Map error"
             | Some info -> info
           in let^ def = analyze_type env def
-          in Ok (info.typ <- def)
+          in Ok (info.typ <- Alias def)
       | _ -> failwith "Match error"
     ) (Ok ()) tys
   in Ok env
@@ -383,6 +528,21 @@ let analyze_funcs (env : env) (funcs : Parsed.decl list) : env err =
       in match d.ast with
       | Function { name; ty_args; args; ret; _ } ->
           let typ_env = add_ty_args env ty_args
+          (* Check that all argument names are distinct, we consider it a
+           * semantic error if this is not the case (because this uniqueness is
+           * assumed below) *)
+          in let^ () =
+            let rec find_dups (nms : (string * 'a) list) : unit err =
+              match nms with
+              | [] -> Ok ()
+              | (nm, _) :: tl ->
+                  let^ () =
+                    if List.exists (fun (x, _) -> x = nm) tl
+                    then
+                      error () d.pos "Multiple arguments named %s" nm
+                    else Ok ()
+                  in find_dups tl
+            in find_dups args
           in let^ args = map_err (fun (nm, t) ->
             err_map (fun t -> (nm, t)) (analyze_type typ_env t)
           ) args
@@ -406,10 +566,14 @@ let analyze_funcs (env : env) (funcs : Parsed.decl list) : env err =
           in let typ_env = add_ty_args env ty_args
           in let body_env =
             List.fold_left (fun env (nm, typ) ->
-              Env.add_value nm (fun unique -> Local { unique; typ }) env
+              (* The unique name generated by the environment will always be
+               * the same as the actual variable name because variable names
+               * are unique (checked above) and there are no locals in the
+               * environment yet *)
+              let (_, env) = add_local nm typ env
+              in env
             ) typ_env info.args
-          in let body_info = { ret = info.ret; yield = None }
-          in let^ body = analyze_statements body_env body_info body
+          in let^ body = analyze_function body_env info.ret body
           in Ok (info.body <- body)
       | _ -> failwith "Match error"
     ) (Ok ()) funcs
