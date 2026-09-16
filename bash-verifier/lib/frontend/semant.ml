@@ -40,14 +40,14 @@ module Semant = struct
   type 'a eannt = { ast : 'a; typ : typ }
 
   type 'e element =
-    | TopLevel
+    | StateTop
     | Nested of 'e element * string * 'e list
 
   include Ast(struct
     type 'a declannt = 'a
     type 'a exprannt = 'a eannt
     type 'a stmtannt = 'a
-    type 'a elemannt = 'a
+    type 'a elemannt = 'a element
 
     type 's cases = 's cases_base
     type typ = typ_annt
@@ -309,15 +309,30 @@ let analyze_type (env : env) (ty : Parsed.typ) : Semant.typ err =
         else Ok (Semant.Named (nm, ty_args))
   in analyze ty
 
+type expr_res = Expr of Semant.expr * Semant.typ
+              | Elem of Semant.elem
+
+let analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
+  failwith "TODO"
+
 let analyze_expr (env : env) (e : Parsed.expr)
   : (Semant.expr * Semant.typ) err =
-  failwith "TODO"
+  let^ res = analyze_expr_or_elem env e
+  in match res with
+  | Expr (res, t) -> Ok (res, t)
+  | Elem elem -> Ok ({ ast = Semant.Element elem; typ = StateRef }, StateRef)
 
 let analyze_cond (env : env) (e : Parsed.expr) : Semant.expr err =
   let^ (res, t) = analyze_expr env e
   in match t with
   | Bool | Unknown -> Ok res
   | _ -> error res e.pos "Expected a bool, found %s" (string_of_type t)
+
+let analyze_elem (env : env) (e : Parsed.expr) : Semant.elem err =
+  let^ res = analyze_expr_or_elem env e
+  in match res with
+  | Elem elem -> Ok elem
+  | Expr (_, _) -> error Semant.StateTop e.pos "Not an element"
 
 (* Semantic analysis of statements, provided the current environment and a
  * context that tells us the return type of the current function and whether we
@@ -368,7 +383,7 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
   (* TODO: ForElem *)
   | WhileLoop (cond, body) ->
       let^ cond = analyze_cond env cond
-      (* We choose now to allow yields from while loops *)
+      (* We choose not to allow yields from while loops *)
       in let body_ctx = { ret = ctx.ret; yield = None }
       in let^ (body, cont) = analyze_stmts env body_ctx body
       in Ok { env; res = Semant.WhileLoop (cond, body); cont = cont_loop cont }
@@ -378,7 +393,13 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
       in let^ (els, els_cont) = analyze_stmts env ctx els
       in Ok { env; res = Semant.IfThenElse (cond, thn, els);
               cont = cont_branches thn_cont els_cont }
-  (* TODO: Match, Clear, Touch *)
+  (* TODO: Match *)
+  | Clear elem ->
+      let^ elem = analyze_elem env elem
+      in Ok { env; res = Semant.Clear elem; cont = Reachable }
+  | Touch elem ->
+      let^ elem = analyze_elem env elem
+      in Ok { env; res = Semant.Touch elem; cont = Reachable }
   | Assert e ->
       let^ e = analyze_cond env e
       in begin match e.ast with
