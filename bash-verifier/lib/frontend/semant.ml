@@ -239,6 +239,18 @@ let map_err (f : 'a -> 'b err) (xs : 'a list) : 'b list err =
         in Ok (y :: ys)
   in map xs
 
+let map2_err (f : 'a -> 'b -> 'c err) (xs : 'a list) (ys : 'b list)
+  : 'c list err =
+  let rec map (xs : 'a list) (ys : 'b list) =
+    match xs, ys with
+    | [], [] -> Ok []
+    | x :: xs, y :: ys ->
+        let^ z = f x y
+        in let^ zs = map xs ys
+        in Ok (z :: zs)
+    | _, _ -> raise (Invalid_argument "map2_err")
+  in map xs ys
+
 let err_map (f : 'a -> 'b) (x : 'a err) : 'b err =
   match x with
   | Ok x -> Ok (f x)
@@ -336,6 +348,15 @@ let analyze_cond (env : env) (e : Parsed.expr) : Semant.expr err =
   | Bool | Unknown -> Ok res
   | _ -> error res e.pos "Expected a bool, found %s" (string_of_type t)
 
+let analyze_expr_for_type (env : env) (t : Semant.typ) (e : Parsed.expr)
+  : Semant.expr err =
+  let^ (res, res_t) = analyze_expr env e
+  in if types_match res_t t
+  then Ok res
+  else
+    error res e.pos "Incorrect type, expected %s but found %s"
+      (string_of_type t) (string_of_type res_t)
+
 let analyze_elem (env : env) (e : Parsed.expr) : Semant.elem err =
   let^ res = analyze_expr_or_elem env e
   in match res with
@@ -425,7 +446,7 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
       in let^ (els, els_cont) = analyze_stmts env ctx els
       in Ok { env; res = Semant.IfThenElse (cond, thn, els);
               cont = cont_branches thn_cont els_cont }
-  (* TODO: Match *)
+  (* TODO: Match, TryCatch *)
   | Clear elem ->
       let^ elem = analyze_elem env elem
       in Ok { env; res = Semant.Clear elem; cont = Reachable }
@@ -466,7 +487,21 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
           else error res s.pos "Incorrect yield type, expected %s but found %s"
                 (string_of_type yield_ty) (string_of_type t)
       end
-  (* TODO: Raise, Assign *)
+  | Raise (excpt, args) ->
+      let^ tys =
+        match Env.find_except excpt env with
+        | Some tys ->
+            if List.length tys = List.length args
+            then Ok tys
+            else error (match_length args tys Semant.Unknown) s.pos
+                  "Exception '%s' has %d arguments but %d provided"
+                  excpt (List.length tys) (List.length args)
+        | None -> error (List.map (fun _ -> Semant.Unknown) args) s.pos
+                    "Undefined exception '%s'" excpt
+      in let^ args = map2_err (analyze_expr_for_type env) tys args
+      in Ok { env; res = Semant.Raise (excpt, args);
+              cont = Unreachable { ret = false; raise = true; yield = false } }
+  (* TODO: Assign *)
   | LetStmt (v, ty, exp) ->
       let^ (exp, t) = analyze_expr env exp
       in let^ t =
