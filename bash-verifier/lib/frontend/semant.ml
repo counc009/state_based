@@ -377,12 +377,6 @@ type stmt_cont = Unreachable of { ret : bool; raise : bool; yield : bool }
                | Reachable
 type stmt_res  = { env : env; res : Semant.stmt; cont : stmt_cont }
 
-let cont_loop = function
-  | Reachable -> Reachable
-  | Unreachable { yield = true; _ } -> Reachable
-  | Unreachable { yield = false; ret; raise } ->
-      Unreachable { ret; raise; yield = false }
-
 let cont_branches (x : stmt_cont) (y : stmt_cont) =
   match x, y with
   | Unreachable { yield = x_yield; ret = x_ret; raise = x_raise },
@@ -406,9 +400,8 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
       in let (unique, body_env) = add_local v elem_ty env
       (* We choose not to allow yields from statement loops *)
       in let body_ctx = { ret = ctx.ret; yield = None }
-      in let^ (body, cont) = analyze_stmts body_env body_ctx body
-      in Ok { env; res = Semant.ForLoop (unique, exp, body);
-              cont = cont_loop cont }
+      in let^ (body, _) = analyze_stmts body_env body_ctx body
+      in Ok { env; res = Semant.ForLoop (unique, exp, body); cont = Reachable }
   | ForElem (base, elem, vs, body) ->
       let^ base =
         match base with
@@ -431,15 +424,15 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
           let (unique, env) = add_local nm ty env in (unique :: uniques, env)
         ) vs var_tys ([], env)
       in let body_ctx = { ret = ctx.ret; yield = None }
-      in let^ (body, cont) = analyze_stmts body_env body_ctx body
+      in let^ (body, _) = analyze_stmts body_env body_ctx body
       in Ok { env; res = Semant.ForElem (Some base, elem, uniques, body);
-              cont = cont_loop cont }
+              cont = Reachable }
   | WhileLoop (cond, body) ->
       let^ cond = analyze_cond env cond
       (* We choose not to allow yields from while loops *)
       in let body_ctx = { ret = ctx.ret; yield = None }
-      in let^ (body, cont) = analyze_stmts env body_ctx body
-      in Ok { env; res = Semant.WhileLoop (cond, body); cont = cont_loop cont }
+      in let^ (body, _) = analyze_stmts env body_ctx body
+      in Ok { env; res = Semant.WhileLoop (cond, body); cont = Reachable }
   | IfThenElse (cond, thn, els) ->
       let^ cond = analyze_cond env cond
       in let^ (thn, thn_cont) = analyze_stmts env ctx thn
@@ -501,7 +494,14 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
       in let^ args = map2_err (analyze_expr_for_type env) tys args
       in Ok { env; res = Semant.Raise (excpt, args);
               cont = Unreachable { ret = false; raise = true; yield = false } }
-  (* TODO: Assign *)
+  | Assign (lhs, rhs) ->
+      let^ (lhs, ty_lhs) = analyze_expr env lhs
+      in let^ (rhs, ty_rhs) = analyze_expr env rhs
+      in let res = { env; res = Semant.Assign (lhs, rhs); cont = Reachable }
+      in if types_match ty_lhs ty_rhs
+      then Ok res
+      else error res s.pos "Mismatched types, %s and %s"
+            (string_of_type ty_lhs) (string_of_type ty_rhs)
   | LetStmt (v, ty, exp) ->
       let^ (exp, t) = analyze_expr env exp
       in let^ t =
@@ -541,7 +541,7 @@ let analyze_function (env : env) pos (ret : Semant.typ)
   | Unreachable _ -> Ok res
   | Reachable ->
       match ret with
-      | Void -> Ok res
+      | Void -> Ok (res @ [Semant.Return { ast = UnitLit; typ = Void }])
       | _ -> error res pos "Control can reach end of function without return"
 
 (* Analyze type declarations
