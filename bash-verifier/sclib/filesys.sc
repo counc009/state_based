@@ -43,5 +43,12 @@ fn file_contents(p : path) -> string {
 }
 
 fn list_dir(p : path) -> list::<path> {
-  return forall fs(n) in fs(p) { yield n; };
+  let f = fs(p);
+
+  match f.fs_contents {
+    file_kind::directory => {
+      return forall fs(n) in f { yield n; };
+    }
+    _ => { assert false; }
+  }
 }
