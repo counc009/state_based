@@ -4,6 +4,7 @@ module type ANNOTATOR = sig
   type 'a declannt
   type 'a exprannt
   type 'a stmtannt
+  type 'a elemannt (* The type of an element, where 'a is the expr type *)
 
   type 's cases
   type typ
@@ -42,22 +43,27 @@ module Ast(A : ANNOTATOR) = struct
     | EnumExp   of string * A.typ list * string * expr list
     | FuncExp   of expr * A.typ list * expr list
     | CondExp   of expr * expr * expr
-    | Exists    of expr
+    | Exists    of elem
     | ForEach   of string * expr * stmt list
-    | ForAll    of expr option * string * string list * stmt list
+    | ForAll    of elem option * string * string list * stmt list
+    (* Not used in parsing but useful after semantic analysis to separate
+     * struct accesses and state accesses *)
+    | Element   of elem
+    | Attribute of elem * string
   and expr = expr_base A.exprannt
+  and elem = expr_base A.elemannt
 
   and stmt_base =
     | ForLoop    of string * expr * stmt list
-    | ForElem    of expr option * string * string list * stmt list
+    | ForElem    of elem option * string * string list * stmt list
     | WhileLoop  of expr * stmt list
     | IfThenElse of expr * stmt list * stmt list
     | Match      of expr * (stmt list) A.cases
     | TryCatch   of stmt list
                   * (string * string list * stmt list) option (* catch *)
                   * stmt list (* finally *)
-    | Clear      of expr
-    | Touch      of expr
+    | Clear      of elem
+    | Touch      of elem
     | Assert     of expr
     | Return     of expr
     | Yield      of expr
@@ -109,6 +115,7 @@ module Parsed = struct
     type 'a declannt = 'a annt
     type 'a exprannt = 'a annt
     type 'a stmtannt = 'a annt
+    type 'a elemannt = 'a annt
 
     type 's cases = (pattern * 's) list * 's
     type typ = typ_annt

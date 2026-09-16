@@ -39,10 +39,15 @@ module Semant = struct
 
   type 'a eannt = { ast : 'a; typ : typ }
 
+  type 'e element =
+    | TopLevel
+    | Nested of 'e element * string * 'e list
+
   include Ast(struct
     type 'a declannt = 'a
     type 'a exprannt = 'a eannt
     type 'a stmtannt = 'a
+    type 'a elemannt = 'a
 
     type 's cases = 's cases_base
     type typ = typ_annt
@@ -374,9 +379,6 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
       in Ok { env; res = Semant.IfThenElse (cond, thn, els);
               cont = cont_branches thn_cont els_cont }
   (* TODO: Match, Clear, Touch *)
-  (* TODO: Should we also adjust the AST to allow us to change what you
-   * specify for clear and touch to allow us to process state references
-   * better? *)
   | Assert e ->
       let^ e = analyze_cond env e
       in begin match e.ast with
