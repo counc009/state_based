@@ -44,10 +44,12 @@ module Ast(A : ANNOTATOR) = struct
     | CondExp   of expr * expr * expr
     | Exists    of expr
     | ForEach   of string * expr * stmt list
+    | ForAll    of expr option * string * string list * stmt list
   and expr = expr_base A.exprannt
 
   and stmt_base =
     | ForLoop    of string * expr * stmt list
+    | ForElem    of expr option * string * string list * stmt list
     | WhileLoop  of expr * stmt list
     | IfThenElse of expr * stmt list * stmt list
     | Match      of expr * (stmt list) A.cases

@@ -332,6 +332,7 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
       in let body_ctx = { ret = ctx.ret; yield = Some (ref Semant.Any) }
       in let^ body = analyze_stmts body_env body_ctx body
       in Ok (env, Semant.ForLoop (unique, exp, body))
+  (* TODO: ForElem *)
   | WhileLoop (cond, body) ->
       let^ cond = analyze_cond env cond
       in let^ body = analyze_stmts env ctx body

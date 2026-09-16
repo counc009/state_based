@@ -41,3 +41,7 @@ fn file_contents(p : path) -> string {
     _ => { assert false; }
   }
 }
+
+fn list_dir(p : path) -> list::<path> {
+  return forall fs(n) in fs(p) { yield n; };
+}

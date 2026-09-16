@@ -71,6 +71,7 @@ rule token = parse
   | "exists"	      { EXISTS }
   | "finally"	      { FINALLY }
   | "fn"	          { FN }
+  | "forall"        { FORALL }
   | "for"	          { FOR }
   | "if"	          { IF }
   | "in"	          { IN }

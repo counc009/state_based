@@ -46,6 +46,7 @@
 %token FINALLY
 %token FN
 %token FOR
+%token FORALL
 %token IF
 %token IN
 %token LET
@@ -261,6 +262,9 @@ stmt: s = stmt_base { { ast = s; pos = $loc } }
 stmt_base:
   | FOR; v = id; IN; e = ns_expr; body = block
     { ForLoop (v, e, body) }
+  | FORALL; elem = id; LPAREN; vs = sep_list(COMMA, id); RPAREN;
+    base = option(preceded(IN, ns_expr)); body = block
+    { ForElem (base, elem, vs, body) }
   | WHILE; c = ns_expr; body = block
     { WhileLoop (c, body) }
   | IF; c = ns_expr; th = block; es = opt_block(ELSE)
@@ -385,6 +389,9 @@ ns_expr_base:
     { CastExp (e, t) }
   | FOR; v = id; IN; e = ns_expr; b = block
     { ForEach (v, e, b) }
+  | FORALL; elem = id; LPAREN; vs = sep_list(COMMA, id); RPAREN;
+    base = option(preceded(IN, ns_expr)); b = block
+    { ForAll (base, elem, vs, b) }
 
   | SUB; e = ns_expr %prec UMINUS
     { UnaryExp (Neg, e) }
@@ -493,6 +500,9 @@ expr_base:
     { CastExp (e, t) }
   | FOR; v = ID; IN; e = ns_expr; b = block
     { ForEach (v, e, b) }
+  | FORALL; elem = id; LPAREN; vs = sep_list(COMMA, id); RPAREN;
+    base = option(preceded(IN, ns_expr)); b = block
+    { ForAll (base, elem, vs, b) }
 
   | SUB; e = expr %prec UMINUS
     { UnaryExp (Neg, e) }
