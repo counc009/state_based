@@ -37,9 +37,11 @@ module Semant = struct
   type 's cases_base = 's Iarray.t
   type 's cases = 's cases_base
 
+  type 'a eannt = { ast : 'a; typ : typ }
+
   include Ast(struct
     type 'a declannt = 'a
-    type 'a exprannt = { ast : 'a; typ : typ }
+    type 'a exprannt = 'a eannt
     type 'a stmtannt = 'a
 
     type 's cases = 's cases_base
@@ -317,8 +319,32 @@ let analyze_cond (env : env) (e : Parsed.expr) : Semant.expr err =
  * are allowed to yield or not and if so the type *)
 type stmt_context = { ret : Semant.typ; yield : Semant.typ ref option }
 
+(* Continue field indicates whether the statement after is reachable and if not
+ * why.
+ * Unreachable { ret; raise; yield } indicates that the statement is
+ * unreachable and may instead exit by ret, raise, or yield if they are true
+ * Reachable indicates it may be reachable. *)
+type stmt_cont = Unreachable of { ret : bool; raise : bool; yield : bool }
+               | Reachable
+type stmt_res  = { env : env; res : Semant.stmt; cont : stmt_cont }
+
+let cont_loop = function
+  | Reachable -> Reachable
+  | Unreachable { yield = true; _ } -> Reachable
+  | Unreachable { yield = false; ret; raise } ->
+      Unreachable { ret; raise; yield = false }
+
+let cont_branches (x : stmt_cont) (y : stmt_cont) =
+  match x, y with
+  | Unreachable { yield = x_yield; ret = x_ret; raise = x_raise },
+    Unreachable { yield = y_yield; ret = y_ret; raise = y_raise }
+    -> Unreachable {  yield = x_yield || y_yield;
+                      ret   = x_ret || y_ret;
+                      raise = x_raise || y_raise }
+  | _, _ -> Reachable
+
 let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
-  : (env * Semant.stmt) err =
+  : stmt_res err =
   match s.ast with
   | ForLoop (v, ex, body) ->
       let^ (exp, t) = analyze_expr env ex
@@ -329,38 +355,51 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
         | t -> error Semant.Unknown ex.pos "Expected a list, found %s"
                 (string_of_type t)
       in let (unique, body_env) = add_local v elem_ty env
-      in let body_ctx = { ret = ctx.ret; yield = Some (ref Semant.Any) }
-      in let^ body = analyze_stmts body_env body_ctx body
-      in Ok (env, Semant.ForLoop (unique, exp, body))
+      (* We choose not to allow yields from statement loops *)
+      in let body_ctx = { ret = ctx.ret; yield = None }
+      in let^ (body, cont) = analyze_stmts body_env body_ctx body
+      in Ok { env; res = Semant.ForLoop (unique, exp, body);
+              cont = cont_loop cont }
   (* TODO: ForElem *)
   | WhileLoop (cond, body) ->
       let^ cond = analyze_cond env cond
-      in let^ body = analyze_stmts env ctx body
-      in Ok (env, Semant.WhileLoop (cond, body))
+      (* We choose now to allow yields from while loops *)
+      in let body_ctx = { ret = ctx.ret; yield = None }
+      in let^ (body, cont) = analyze_stmts env body_ctx body
+      in Ok { env; res = Semant.WhileLoop (cond, body); cont = cont_loop cont }
   | IfThenElse (cond, thn, els) ->
       let^ cond = analyze_cond env cond
-      in let^ thn = analyze_stmts env ctx thn
-      in let^ els = analyze_stmts env ctx els
-      in Ok (env, Semant.IfThenElse (cond, thn, els))
+      in let^ (thn, thn_cont) = analyze_stmts env ctx thn
+      in let^ (els, els_cont) = analyze_stmts env ctx els
+      in Ok { env; res = Semant.IfThenElse (cond, thn, els);
+              cont = cont_branches thn_cont els_cont }
   (* TODO: Match, Clear, Touch *)
   (* TODO: Should we also adjust the AST to allow us to change what you
    * specify for clear and touch to allow us to process state references
    * better? *)
   | Assert e ->
       let^ e = analyze_cond env e
-      in Ok (env, Semant.Assert e)
+      in begin match e.ast with
+      | Semant.BoolLit false ->
+          Ok {  env; res = Semant.Assert e;
+                cont = Unreachable {
+                  ret = false; raise = true; yield = false } }
+      | _ -> Ok { env; res = Semant.Assert e; cont = Reachable }
+      end
   | Return e ->
       let^ (exp, t) = analyze_expr env e
-      (* TODO: Indicate that there should be no code following this statement *)
-      in let res = (env, Semant.Return exp)
+      in let res =
+        { env; res = Semant.Return exp;
+          cont = Unreachable { ret = true; raise = false; yield = false } }
       in if types_match t ctx.ret
       then Ok res
       else error res s.pos "Incorrect return type, expected %s but found %s"
             (string_of_type ctx.ret) (string_of_type t)
   | Yield e ->
       let^ (exp, t) = analyze_expr env e
-      (* TODO: Indicate that there should be no code following this statement *)
-      in let res = (env, Semant.Yield exp)
+      in let res =
+        { env; res = Semant.Yield exp;
+          cont = Unreachable { ret = false; raise = false; yield = true } }
       in begin match ctx.yield with
       | None -> error res s.pos "Invalid yield, not contained in a for-loop"
       | Some ({ contents = Any } as yield_ty) ->
@@ -385,23 +424,35 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
             else error t s.pos "Type mismatched, expected %s but found %s"
                   (string_of_type ty) (string_of_type t)
       in let (unique, env) = add_local v t env
-      in Ok (env, Semant.LetStmt (unique, None, exp))
+      in Ok { env; res = Semant.LetStmt (unique, None, exp); cont = Reachable }
   | Localize body ->
-      let^ body = analyze_stmts env ctx body
-      in Ok (env, Semant.Localize body)
+      let^ (body, cont) = analyze_stmts env ctx body
+      in Ok { env; res = Semant.Localize body; cont }
 
 and analyze_stmts (env : env) (ctx : stmt_context) (stmts : Parsed.stmt list)
-  : Semant.stmt list err =
+  : (Semant.stmt list * stmt_cont) err =
   match stmts with
-  | [] -> Ok []
+  | [] -> Ok ([], Reachable)
   | s :: tl ->
-      let^ (env, s) = analyze_stmt env ctx s
-      in let^ tl = analyze_stmts env ctx tl
-      in Ok (s :: tl)
+      let^ { env; res = s_res; cont = s_cont } = analyze_stmt env ctx s
+      in let^ (tl_res, tl_cont) = analyze_stmts env ctx tl
+      in let res = (s_res :: tl_res, tl_cont)
+      in match s_cont with
+      | Reachable -> Ok res
+      | Unreachable _ ->
+          match tl with
+          | [] -> Ok res
+          | un :: _ -> error res un.pos "Unreachable statement"
 
-let analyze_function (env : env) (ret : Semant.typ) (stmts : Parsed.stmt list)
-  : Semant.stmt list err =
-  analyze_stmts env { ret; yield = None } stmts
+let analyze_function (env : env) pos (ret : Semant.typ)
+  (stmts : Parsed.stmt list) : Semant.stmt list err =
+  let^ (res, cont) = analyze_stmts env { ret; yield = None } stmts
+  in match cont with
+  | Unreachable _ -> Ok res
+  | Reachable ->
+      match ret with
+      | Void -> Ok res
+      | _ -> error res pos "Control can reach end of function without return"
 
 (* Analyze type declarations
  * - Step 1: Collect all the type names to ensure there are no repeated names
@@ -574,7 +625,7 @@ let analyze_funcs (env : env) (funcs : Parsed.decl list) : env err =
               let (_, env) = add_local nm typ env
               in env
             ) typ_env info.args
-          in let^ body = analyze_function body_env info.ret body
+          in let^ body = analyze_function body_env d.pos info.ret body
           in Ok (info.body <- body)
       | _ -> failwith "Match error"
     ) (Ok ()) funcs
