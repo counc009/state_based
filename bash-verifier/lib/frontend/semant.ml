@@ -244,6 +244,14 @@ let err_map (f : 'a -> 'b) (x : 'a err) : 'b err =
   | Ok x -> Ok (f x)
   | Err (x, es) -> Err (f x, es)
 
+(* match_length xs ys d returns a list of the same length as xs where the
+ * elements are taken from ys until it runs out and then all elements are d *)
+let rec match_length (xs : 'a list) (ys : 'b list) (default : 'b) : 'b list =
+  match xs, ys with
+  | [], _ -> []
+  | _ :: xs, y :: ys -> y :: match_length xs ys default
+  | _ :: xs, [] -> default :: match_length xs [] default
+
 (* Semantic analysis functions *)
 (* Utilities for splitting decls by kind (type, "values", and functions) *)
 type decls_split = { 
@@ -380,7 +388,31 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
       in let^ (body, cont) = analyze_stmts body_env body_ctx body
       in Ok { env; res = Semant.ForLoop (unique, exp, body);
               cont = cont_loop cont }
-  (* TODO: ForElem *)
+  | ForElem (base, elem, vs, body) ->
+      let^ base =
+        match base with
+        | None -> Ok Semant.StateTop
+        | Some base -> analyze_elem env base
+      in let^ var_tys =
+        match Env.find_value elem env with
+        | Some (Element { tys; _ }) ->
+            if List.length tys = List.length vs
+            then Ok tys
+            else error (match_length vs tys Semant.Unknown) s.pos
+                  "Element '%s' has %d arguments but %d variables provided"
+                  elem (List.length tys) (List.length vs)
+        | None -> error (List.map (fun _ -> Semant.Unknown) vs) s.pos
+                    "Undefined element '%s'" elem
+        | Some _ -> error (List.map (fun _ -> Semant.Unknown) vs) s.pos
+                      "Value '%s' is not an element" elem
+      in let (uniques, body_env) =
+        List.fold_right2 (fun nm ty (uniques, env) ->
+          let (unique, env) = add_local nm ty env in (unique :: uniques, env)
+        ) vs var_tys ([], env)
+      in let body_ctx = { ret = ctx.ret; yield = None }
+      in let^ (body, cont) = analyze_stmts body_env body_ctx body
+      in Ok { env; res = Semant.ForElem (Some base, elem, uniques, body);
+              cont = cont_loop cont }
   | WhileLoop (cond, body) ->
       let^ cond = analyze_cond env cond
       (* We choose not to allow yields from while loops *)
