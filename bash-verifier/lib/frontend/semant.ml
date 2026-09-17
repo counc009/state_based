@@ -8,6 +8,7 @@
 open Ast
 
 module StringMap = Map.Make(String)
+module IntMap = Map.Make(Int)
 
 (* The result of semantic analysis (though we do not use decls in favor of
  * maps) *)
@@ -32,9 +33,9 @@ module Semant = struct
 
   type typ = typ_annt
 
-  (* For cases we store an array to the statement for each constructor of the
-   * enum. This is much nicer for code-generation *)
-  type 's cases_base = 's Iarray.t
+  (* For cases we store an array to the variable names and body for each
+   * constructor of the enum. This is much nicer for code-generation *)
+  type 's cases_base = (string list * 's) Iarray.t
   type 's cases = 's cases_base
 
   type 'a eannt = { ast : 'a; typ : typ }
@@ -208,6 +209,13 @@ let add_ty_args (env : env) (ty_args : string list) : env =
 let add_local (nm : string) (typ : Semant.typ) (env : env) : string * env =
   Env.add_value nm (fun unique -> Local { unique; typ }) env
 
+let add_locals (nms : string list) (tys : Semant.typ list) (env : env) :
+  (string list * env) =
+  List.fold_right2 (fun nm ty (uniques, env) ->
+    let (unique, env) = add_local nm ty env
+    in (unique :: uniques, env)
+  ) nms tys ([], env)
+
 type err_msg =
   | Leaf of { pos : Lexing.position * Lexing.position; msg : string }
   | Node of err_msg * err_msg
@@ -215,6 +223,12 @@ type 'a err = Ok of 'a | Err of 'a * err_msg
 
 let error default pos =
   Printf.ksprintf (fun msg -> Err (default, Leaf { pos; msg }))
+
+let prepend_error res pos =
+  Printf.ksprintf (fun msg ->
+    match res with
+    | Ok x -> Err (x, Leaf { pos; msg })
+    | Err (x, errs) -> Err (x, Node (Leaf { pos; msg }, errs)))
 
 let of_option ~err (x : 'a option) : 'a err =
   match x with
@@ -263,6 +277,33 @@ let rec match_length (xs : 'a list) (ys : 'b list) (default : 'b) : 'b list =
   | [], _ -> []
   | _ :: xs, y :: ys -> y :: match_length xs ys default
   | _ :: xs, [] -> default :: match_length xs [] default
+
+(* Utility for extracting information about a type from the type and env *)
+let typ_subst (map : Semant.typ StringMap.t) (t : Semant.typ) : Semant.typ =
+  let rec subst (t : Semant.typ) : Semant.typ =
+    match t with
+    | Any | Unknown | Void | Bool | SInt8 | SInt16 | SInt32 | SInt64
+    | UInt8 | UInt16 | UInt32 | UInt64 | Float32 | Float64 | StateRef
+    | String -> t
+    | Function (ret, args) -> Function (subst ret, List.map subst args)
+    | Product ts -> Product (List.map subst ts)
+    | List t -> List (subst t)
+    | Named (nm, args) -> Named (nm, List.map subst args)
+  in subst t
+
+let enum_info_of_type (env : env) (ty : Semant.typ)
+  : (string * enum_info) option =
+  match ty with
+  | Named (nm, tys) ->
+      begin match Env.find_type nm env with
+      | Some { ty_args; typ = Enum info } ->
+          let vars_map = StringMap.of_list (List.combine ty_args tys)
+          in let { constrs; typs } = info
+          in let typs = Iarray.map (List.map (typ_subst vars_map)) typs
+          in Some (nm, { constrs; typs })
+      | _ -> None
+      end
+  | _ -> None
 
 (* Semantic analysis functions *)
 (* Utilities for splitting decls by kind (type, "values", and functions) *)
@@ -417,6 +458,8 @@ let cont_try_catch (b : stmt_cont) (c : stmt_cont) (f : stmt_cont)
     yield = b.yield || f.yield || (b.raise && c.yield)
   }
 
+(* FIXME: Validate that variable names are unique in ForElem, TryCatch, and
+ * Match *)
 let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
   : stmt_res err =
   match s.ast with
@@ -451,10 +494,7 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
                     "Undefined element '%s'" elem
         | Some _ -> error (List.map (fun _ -> Semant.Unknown) vs) s.pos
                       "Value '%s' is not an element" elem
-      in let (uniques, body_env) =
-        List.fold_right2 (fun nm ty (uniques, env) ->
-          let (unique, env) = add_local nm ty env in (unique :: uniques, env)
-        ) vs var_tys ([], env)
+      in let (uniques, body_env) = add_locals vs var_tys env
       in let body_ctx = { ret = ctx.ret; yield = None }
       in let^ (body, cont) = analyze_stmts body_env body_ctx body
       in Ok { env; res = Semant.ForElem (Some base, elem, uniques, body);
@@ -472,7 +512,79 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
       in let^ (els, els_cont) = analyze_stmts env ctx els
       in Ok { env; res = Semant.IfThenElse (cond, thn, els);
               cont = cont_branches can_raise thn_cont els_cont }
-  (* TODO: Match *)
+  | Match (e, (cases, default)) ->
+      let^ { ast = (expr, ty); can_raise } = analyze_expr env e
+      in let^ ty_info =
+        match enum_info_of_type env ty with
+        | Some info -> Ok (Some info)
+        | None -> error None e.pos "Not an enum type, found %s"
+                    (string_of_type ty)
+      in let case_info pos (enum : string) (constr : string) (vs : string list)
+        : (int * Semant.typ list) err =
+        match ty_info with
+        (* If the scrutinee isn't an enum, we just return unknown types *)
+        | None -> Ok (-1, List.map (fun _ -> Semant.Unknown) vs)
+        | Some (nm, info) ->
+            let res =
+              match StringMap.find_opt constr info.constrs with
+              | None ->
+                  error (-1, List.map (fun _ -> Semant.Unknown) vs) pos
+                    "Undefined constructor '%s'" constr
+              | Some i ->
+                  let tys = Iarray.get info.typs i
+                  in if List.length tys = List.length vs
+                  then Ok (i, tys)
+                  else
+                    error (i, match_length vs tys Semant.Unknown) pos
+                      "Constructor '%s' has %d arguments but %d variables provided"
+                      constr (List.length tys) (List.length vs)
+            in if nm = enum
+            then res
+            else
+              prepend_error res pos
+                "Expected case for type '%s' but found '%s'" nm constr
+      in let^ (cases_map, cases_cont) =
+        List.fold_left (fun acc ((pat : Parsed.pattern), body) ->
+          let^ (cases_map, cont) = acc
+          in let vs = pat.ast.vars
+          in let^ (idx, tys) = case_info pat.pos pat.ast.enum pat.ast.constr vs
+          in let (uniques, body_env) = add_locals vs tys env
+          in let^ (body, case_cont) = analyze_stmts body_env ctx body
+          in let res =
+            (IntMap.add idx (uniques, body) cases_map,
+             cont_branches false cont case_cont)
+          in if not (IntMap.mem idx cases_map)
+          then Ok res
+          else error res pat.pos
+                "Duplicate case for %s::%s" pat.ast.enum pat.ast.constr
+        ) (Ok (IntMap.empty, 
+              { contu = false; ret = false; raise = false; yield = false }))
+        cases
+      in let^ (default_body, default_cont) = analyze_stmts env ctx default
+      (* Note that we can use cont_branches can_raise cases_cont default_cont
+       * as a reasonable approximation of the continuation, including
+       * default_cont is not necessary if the default is never used but that
+       * is also an error, so it's possible this could suppress an error but
+       * that'll occur sometimes when other errors occur like this so it's
+       * fine *)
+      in begin match ty_info with
+      (* If we don't have the type information we need, just generate a
+       * placeholder, an error will have been generated by now *)
+      | None -> Ok { env; res = Semant.Match (expr, Iarray.of_list []);
+                     cont = cont_branches can_raise cases_cont default_cont }
+      | Some (_, { constrs; _ }) ->
+          let cases_res =
+            Iarray.init (StringMap.cardinal constrs) (fun i ->
+              Option.value ~default:([], default_body)
+                (IntMap.find_opt i cases_map))
+          in let res =
+            { env; res = Semant.Match (expr, cases_res);
+              cont = cont_branches can_raise cases_cont default_cont }
+          in if (IntMap.cardinal cases_map < StringMap.cardinal constrs)
+              || List.is_empty default
+          then Ok res
+          else error res s.pos "Unused default case"
+      end
   | TryCatch (body, catch, finally) ->
       let^ (body, body_cont) = analyze_stmts env ctx body
       in let^ (catch, catch_cont) =
@@ -489,11 +601,7 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
                         excpt (List.length tys) (List.length vs)
               | None -> error (List.map (fun _ -> Semant.Unknown) vs) s.pos
                           "Undefined exception '%s'" excpt
-            in let (uniques, catch_env) =
-              List.fold_right2 (fun v t (uniques, env) ->
-                let (unique, env) = add_local v t env
-                in (unique :: uniques, env)
-              ) vs tys ([], env)
+            in let (uniques, catch_env) = add_locals vs tys env
             in let^ (b, b_cont) = analyze_stmts catch_env ctx b
             in Ok (Some (excpt, uniques, b), b_cont)
       in let^ (finally, finally_cont) = analyze_stmts env ctx finally
