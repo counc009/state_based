@@ -142,11 +142,11 @@
 %type <decl list>         program
 %type <decl>              decl
 %type <decl_base>         decl_base
-%type <string list>       type_args
+%type <name list>         type_args
 %type <typ list>          type_vars
-%type <string * typ list> enum_case
-%type <string * typ>      struct_field
-%type <string * typ>      arg
+%type <name * typ list>   enum_case
+%type <name * typ>        struct_field
+%type <name * typ>        arg
 %type <typ>               return_type
 %type <typ>               nameannt_typ
 %type <typ>               typ
@@ -161,10 +161,12 @@
 %type <expr_base>         ns_expr_base
 %type <expr>              expr
 %type <expr_base>         expr_base
-%type <string * expr>     field
+%type <name * expr>       field
 %type <string>            id
-%type <(string * string list * stmt list) option> catch_block
-%type <pattern * stmt list>                       match_case
+%type <name>              name
+%type <name>              idname
+%type <(name * name list * stmt list) option> catch_block
+%type <pattern * stmt list>                   match_case
 
 %%
 
@@ -180,51 +182,54 @@ sep_list(seperator, X):
 decl: d = decl_base { { ast = d; pos = $loc } }
 
 decl_base:
-  | ENUM; name = ID; ty_args = type_args;
+  | ENUM; name = name; ty_args = type_args;
       LCURLY; constrs = sep_list(COMMA, enum_case); RCURLY
     { Enum { name; ty_args; constrs } }
-  | STRUCT; name = ID; ty_args = type_args;
+  | STRUCT; name = name; ty_args = type_args;
       LCURLY; fields = sep_list(COMMA, struct_field); RCURLY
     { Struct { name; ty_args; fields } }
-  | TYPE; name = ID; ASSIGN; def = typ
+  | TYPE; name = name; ASSIGN; def = typ
     { Type { name; def } }
-  | UNINTERPRETED; name = ID; ty_args = type_args;
+  | UNINTERPRETED; name = name; ty_args = type_args;
       LPAREN; args = sep_list(COMMA, nameannt_typ); RPAREN;
       SINGLEARROW; ret = typ
     { Uninterp { name; ty_args; args; ret } }
-  | ATTRIBUTE; name = ID; COLON; ty = typ
+  | ATTRIBUTE; name = name; COLON; ty = typ
     { Attribute { local = false; name; ty } }
-  | LOCAL; ATTRIBUTE; name = ID; COLON; ty = typ
+  | LOCAL; ATTRIBUTE; name = name; COLON; ty = typ
     { Attribute { local = true; name; ty } }
-  | ELEMENT; name = ID; LPAREN; ty = sep_list(COMMA, nameannt_typ); RPAREN
+  | ELEMENT; name = name; LPAREN; ty = sep_list(COMMA, nameannt_typ); RPAREN
     { Element { local = false; name; ty } }
-  | LOCAL; ELEMENT; name = ID; LPAREN; ty = sep_list(COMMA, nameannt_typ); RPAREN
+  | LOCAL; ELEMENT; name = name; LPAREN; ty = sep_list(COMMA, nameannt_typ);
+      RPAREN
     { Element { local = true; name; ty } }
-  | EXCEPTION; name = ID; LPAREN; ty = sep_list(COMMA, nameannt_typ); RPAREN
+  | EXCEPTION; name = name; LPAREN; ty = sep_list(COMMA, nameannt_typ); RPAREN
     { Exception { name; ty } }
-  | FN; name = ID; ty_args = type_args;
+  | FN; name = name; ty_args = type_args;
       LPAREN; args = sep_list(COMMA, arg); RPAREN;
       ret = return_type;
       LCURLY; body = list(stmt); RCURLY
     { Function { name; ty_args; args; ret; body } }
 
 type_args:
-  |                                   { [] }
-  | LT; ts = sep_list(COMMA, ID); GT  { ts }
+  |                                     { [] }
+  | LT; ts = sep_list(COMMA, name); GT  { ts }
 
 type_vars:
   |                                               { [] }
   | FISHTAIL; ts = sep_list(COMMA, typ); GT { ts }
 
 enum_case:
-  | nm = ID                                                      { (nm, []) }
-  | nm = ID; LPAREN; tys = sep_list(COMMA, nameannt_typ); RPAREN { (nm, tys) }
+  | nm = name
+    { (nm, []) }
+  | nm = name; LPAREN; tys = sep_list(COMMA, nameannt_typ); RPAREN
+    { (nm, tys) }
 
 struct_field:
-  | nm = ID; COLON; ty = typ  { (nm, ty) }
+  | nm = name; COLON; ty = typ  { (nm, ty) }
 
 arg:
-  | n = ID; COLON; t = typ { (n, t) }
+  | n = name; COLON; t = typ { (n, t) }
 
 return_type:
   |                       { { ast = Void; pos = $loc } }
@@ -260,9 +265,9 @@ typ_base:
 stmt: s = stmt_base { { ast = s; pos = $loc } }
 
 stmt_base:
-  | FOR; v = id; IN; e = ns_expr; body = block
+  | FOR; v = idname; IN; e = ns_expr; body = block
     { ForLoop (v, e, body) }
-  | FORALL; elem = id; LPAREN; vs = sep_list(COMMA, id); RPAREN;
+  | FORALL; elem = idname; LPAREN; vs = sep_list(COMMA, idname); RPAREN;
     base = option(preceded(IN, ns_expr)); body = block
     { ForElem (base, elem, vs, body) }
   | WHILE; c = ns_expr; body = block
@@ -285,15 +290,15 @@ stmt_base:
     { Return e }
   | YIELD; e = expr; SEMICOLON
     { Yield e }
-  | RAISE; v = ID; SEMICOLON
+  | RAISE; v = name; SEMICOLON
     { Raise (v, []) }
-  | RAISE; v = ID; LPAREN; e = sep_list(COMMA, expr); RPAREN
+  | RAISE; v = name; LPAREN; e = sep_list(COMMA, expr); RPAREN
     { Raise (v, e) }
   | lhs = lval; ASSIGN; rhs = expr; SEMICOLON
     { Assign (lhs, rhs) }
-  | LET; v = id; ASSIGN; rhs = expr; SEMICOLON
+  | LET; v = idname; ASSIGN; rhs = expr; SEMICOLON
     { LetStmt (v, None, rhs) }
-  | LET; v = id; COLON; t = typ; ASSIGN; rhs = expr; SEMICOLON
+  | LET; v = idname; COLON; t = typ; ASSIGN; rhs = expr; SEMICOLON
     { LetStmt (v, Some t, rhs) }
   | LOCALIZE; b = block
     { Localize b }
@@ -303,9 +308,9 @@ block:
 
 catch_block:
   | { None }
-  | CATCH; e=ID; body = block
+  | CATCH; e=name; body = block
     { Some (e, [], body) }
-  | CATCH; e=ID; LPAREN; vs = sep_list(COMMA, id); RPAREN; body = block
+  | CATCH; e=name; LPAREN; vs = sep_list(COMMA, name); RPAREN; body = block
     { Some (e, vs, body) }
 
 opt_block(label):
@@ -313,12 +318,13 @@ opt_block(label):
   | label; body = block { body } [@name present]
 
 match_case:
-  | enum = ID; COLONCOLON; constr = ID; DOUBLEARROW; b = block
+  | enum = name; COLONCOLON; constr = name; DOUBLEARROW; b = block
     { ({ ast = { enum; constr; vars = [] };
          pos = ($startpos(enum), $endpos(constr)) },
         b) }
-  | enum = ID; COLONCOLON; constr = ID;
-      LPAREN; vars = sep_list(COMMA, id); RPAREN; c = DOUBLEARROW; b = block
+  | enum = name; COLONCOLON; constr = name;
+      LPAREN; vars = sep_list(COMMA, idname); RPAREN; c = DOUBLEARROW;
+      b = block
     { ({ ast = { enum; constr; vars };
          pos = ($startpos(enum), $endpos(c)) },
         b) }
@@ -331,10 +337,10 @@ lval: l = lval_base { { ast = l; pos = $loc } }
 lval_base:
   | v = ID
     { Id v }
-  | l = lval; DOT; f = ID
+  | l = lval; DOT; f = name
     { FieldExp (l, f) }
   | l = lval; DOT; f = INTLIT
-    { ProdField (l, f) }
+    { ProdField (l, { ast = f; pos = $loc(f) }) }
   | f = lval; LPAREN; es = sep_list(COMMA, expr); RPAREN
     { FuncExp (f, [], es) }
   | f = ID; FISHTAIL; tys = sep_list(COMMA, typ); GT;
@@ -381,15 +387,15 @@ ns_expr_base:
   (* Inside parentheses we can include struct expressions *)
   | LPAREN; es = sep_list(COMMA, expr); RPAREN
     { prod_expr es }
-  | e = ns_expr; DOT; f = ID
+  | e = ns_expr; DOT; f = name
     { FieldExp (e, f) }
   | e = ns_expr; DOT; f = INTLIT
-    { ProdField (e, f) }
+    { ProdField (e, { ast = f; pos = $loc(f) }) }
   | e = ns_expr; AS; t = typ
     { CastExp (e, t) }
-  | FOR; v = id; IN; e = ns_expr; b = block
+  | FOR; v = idname; IN; e = ns_expr; b = block
     { ForEach (v, e, b) }
-  | FORALL; elem = id; LPAREN; vs = sep_list(COMMA, id); RPAREN;
+  | FORALL; elem = idname; LPAREN; vs = sep_list(COMMA, idname); RPAREN;
     base = option(preceded(IN, ns_expr)); b = block
     { ForAll (base, elem, vs, b) }
 
@@ -437,8 +443,8 @@ ns_expr_base:
   | l = ns_expr; LOGOR; r = ns_expr
     { BinaryExp (l, LOr, r) }
 
-  | enum = ID; tys = type_vars; COLONCOLON;
-      constr = ID; LPAREN; es = sep_list(COMMA, expr); RPAREN
+  | enum = name; tys = type_vars; COLONCOLON;
+      constr = name; LPAREN; es = sep_list(COMMA, expr); RPAREN
     { EnumExp (enum, tys, constr, es) }
   | f = ns_expr; LPAREN; es = sep_list(COMMA, expr); RPAREN
     { FuncExp (f, [], es) }
@@ -492,15 +498,15 @@ expr_base:
 
   | LPAREN; es = sep_list(COMMA, expr); RPAREN
     { prod_expr es }
-  | e = expr; DOT; f = ID
+  | e = expr; DOT; f = name
     { FieldExp (e, f) }
   | e = expr; DOT; f = INTLIT
-    { ProdField (e, f) }
+    { ProdField (e, { ast = f; pos = $loc(f) }) }
   | e = expr; AS; t = typ
     { CastExp (e, t) }
-  | FOR; v = ID; IN; e = ns_expr; b = block
+  | FOR; v = idname; IN; e = ns_expr; b = block
     { ForEach (v, e, b) }
-  | FORALL; elem = id; LPAREN; vs = sep_list(COMMA, id); RPAREN;
+  | FORALL; elem = idname; LPAREN; vs = sep_list(COMMA, idname); RPAREN;
     base = option(preceded(IN, ns_expr)); b = block
     { ForAll (base, elem, vs, b) }
 
@@ -548,8 +554,8 @@ expr_base:
   | l = expr; LOGOR; r = expr
     { BinaryExp (l, LOr, r) }
 
-  | enum = ID; tys = type_vars; COLONCOLON;
-      constr = ID; LPAREN; es = sep_list(COMMA, expr); RPAREN
+  | enum = name; tys = type_vars; COLONCOLON;
+      constr = name; LPAREN; es = sep_list(COMMA, expr); RPAREN
     { EnumExp (enum, tys, constr, es) }
   | f = expr; LPAREN; es = sep_list(COMMA, expr); RPAREN
     { FuncExp (f, [], es) }
@@ -563,12 +569,15 @@ expr_base:
     { Exists e }
 
   | s = ID; tys = type_vars; LCURLY; fs = sep_list(COMMA, field); RCURLY
-    { StructExp (s, tys, fs) }
+    { StructExp ({ ast = s; pos = $loc(s) }, tys, fs) }
 
 field:
-  | n = ID; ASSIGN; e = expr
+  | n = name; ASSIGN; e = expr
     { (n, e) }
 
 id:
   | n = ID     { n }
   | UNDERSCORE { "_" }
+
+idname: i = id { { ast = i; pos = $loc } }
+name: i = ID { { ast = i; pos = $loc } }

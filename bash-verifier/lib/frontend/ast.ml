@@ -109,7 +109,8 @@ module Parsed = struct
 
   type typ = typ_annt
 
-  type pattern_base = { enum: string; constr: string; vars: string list }
+  type pattern_base = { enum: string annt; constr: string annt;
+                        vars: string annt list }
   and pattern = pattern_base annt
 
   type 's cases = (pattern * 's) list * 's
@@ -120,7 +121,7 @@ module Parsed = struct
     type 'a stmtannt = 'a annt
     type 'a elemannt = 'a annt
 
-    type 'a tokannt   = 'a
+    type 'a tokannt   = 'a annt
 
     type 's cases = (pattern * 's) list * 's
     type typ = typ_annt

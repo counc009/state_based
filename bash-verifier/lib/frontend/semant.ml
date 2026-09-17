@@ -174,7 +174,7 @@ end
 
 type func_binding = { 
   ty_args : string list;
-  args : (string * Semant.typ) list;
+  args : (Parsed.name * Semant.typ) list;
   ret : Semant.typ;
   mutable body : Semant.stmt list
 }
@@ -204,13 +204,14 @@ type except_binding = Semant.typ list
 
 type env = (value_binding, type_binding, except_binding) Env.t
 
-let add_ty_args (env : env) (ty_args : string list) : env =
-  List.fold_left (fun env nm ->
-    Env.replace_type nm { ty_args = []; typ = Alias Any } env)
+let add_ty_args (env : env) (ty_args : Parsed.name list) : env =
+  List.fold_left (fun env (nm : Parsed.name) ->
+    Env.replace_type nm.ast { ty_args = []; typ = Alias Any } env)
     env ty_args
 
-let add_local (nm : string) (typ : Semant.typ) (env : env) : string * env =
-  Env.add_value nm (fun unique -> Local { unique; typ }) env
+let add_local (nm : Parsed.name) (typ : Semant.typ) (env : env)
+  : string * env =
+  Env.add_value nm.ast (fun unique -> Local { unique; typ }) env
 
 type err_msg =
   | Leaf of { pos : Lexing.position * Lexing.position; msg : string }
@@ -276,25 +277,28 @@ let rec match_length (xs : 'a list) (ys : 'b list) (default : 'b) : 'b list =
 
 (* Utility for adding multiple variables and checking that there are no
  * duplicates *)
-let add_locals pos (nms : string list) (tys : Semant.typ list) (env : env) :
-  (string list * env) err =
+let add_locals pos (nms : Parsed.name list) (tys : Semant.typ list) (env : env)
+  : (string list * env) err =
   let duplicates =
     let (_, duplicates) =
-      List.fold_left (fun (set, duplicates) v ->
+      List.fold_left (fun (set, duplicates) { Parsed.ast = v; pos } ->
         if StringSet.mem v set
-        then (set, StringSet.add v duplicates)
+        then 
+          (set, 
+           StringMap.update v
+            (function None -> Some pos | Some x -> Some x)
+            duplicates)
         else (StringSet.add v set, duplicates)
-      ) (StringSet.empty, StringSet.empty) nms
-    in StringSet.to_list duplicates
+      ) (StringSet.empty, StringMap.empty) nms
+    in duplicates
   in let res =
     List.fold_right2 (fun nm ty (uniques, env) ->
       let (unique, env) = add_local nm ty env
       in (unique :: uniques, env)
     ) nms tys ([], env)
-  in if List.is_empty duplicates
-  then Ok res
-  else error res pos "Duplicate variable names: %s"
-          (String.concat ", " duplicates)
+  in StringMap.fold (fun v pos res ->
+    prepend_error res pos "Variable '%s' already declared" v
+  ) duplicates (Ok res)
 
 (* Utility for extracting information about a type from the type and env *)
 let typ_subst (map : Semant.typ StringMap.t) (t : Semant.typ) : Semant.typ =
@@ -499,21 +503,21 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
         | None -> Ok { ast = Semant.StateTop; can_raise = false }
         | Some base -> analyze_elem env base
       in let^ var_tys =
-        match Env.find_value elem env with
+        match Env.find_value elem.ast env with
         | Some (Element { tys; _ }) ->
             if List.length tys = List.length vs
             then Ok tys
-            else error (match_length vs tys Semant.Unknown) s.pos
+            else error (match_length vs tys Semant.Unknown) elem.pos
                   "Element '%s' has %d arguments but %d variables provided"
-                  elem (List.length tys) (List.length vs)
-        | None -> error (List.map (fun _ -> Semant.Unknown) vs) s.pos
-                    "Undefined element '%s'" elem
-        | Some _ -> error (List.map (fun _ -> Semant.Unknown) vs) s.pos
-                      "Value '%s' is not an element" elem
+                  elem.ast (List.length tys) (List.length vs)
+        | None -> error (List.map (fun _ -> Semant.Unknown) vs) elem.pos
+                    "Undefined element '%s'" elem.ast
+        | Some _ -> error (List.map (fun _ -> Semant.Unknown) vs) elem.pos
+                      "Value '%s' is not an element" elem.ast
       in let^ (uniques, body_env) = add_locals s.pos vs var_tys env
       in let body_ctx = { ret = ctx.ret; yield = None }
       in let^ (body, cont) = analyze_stmts body_env body_ctx body
-      in Ok { env; res = Semant.ForElem (Some base, elem, uniques, body);
+      in Ok { env; res = Semant.ForElem (Some base, elem.ast, uniques, body);
               cont = loop_cont can_raise cont }
   | WhileLoop (cond, body) ->
       let^ { ast = cond; can_raise } = analyze_cond env cond
@@ -535,17 +539,17 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
         | Some info -> Ok (Some info)
         | None -> error None e.pos "Not an enum type, found %s"
                     (string_of_type ty)
-      in let case_info pos (enum : string) (constr : string) (vs : string list)
-        : (int * Semant.typ list) err =
+      in let case_info pos (enum : Parsed.name) (constr : Parsed.name)
+        (vs : Parsed.name list) : (int * Semant.typ list) err =
         match ty_info with
         (* If the scrutinee isn't an enum, we just return unknown types *)
         | None -> Ok (-1, List.map (fun _ -> Semant.Unknown) vs)
         | Some (nm, info) ->
             let res =
-              match StringMap.find_opt constr info.constrs with
+              match StringMap.find_opt constr.ast info.constrs with
               | None ->
-                  error (-1, List.map (fun _ -> Semant.Unknown) vs) pos
-                    "Undefined constructor '%s'" constr
+                  error (-1, List.map (fun _ -> Semant.Unknown) vs) constr.pos
+                    "Undefined constructor '%s'" constr.ast
               | Some i ->
                   let tys = Iarray.get info.typs i
                   in if List.length tys = List.length vs
@@ -553,26 +557,26 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
                   else
                     error (i, match_length vs tys Semant.Unknown) pos
                       "Constructor '%s' has %d arguments but %d variables provided"
-                      constr (List.length tys) (List.length vs)
-            in if nm = enum
+                      constr.ast (List.length tys) (List.length vs)
+            in if nm = enum.ast
             then res
             else
-              prepend_error res pos
-                "Expected case for type '%s' but found '%s'" nm constr
+              prepend_error res enum.pos
+                "Expected case for type '%s' but found '%s'" nm enum.ast
       in let^ (cases_map, cases_cont) =
         List.fold_left (fun acc ((pat : Parsed.pattern), body) ->
           let^ (cases_map, cont) = acc
           in let vs = pat.ast.vars
           in let^ (idx, tys) = case_info pat.pos pat.ast.enum pat.ast.constr vs
-          in let^ (uniques, body_env) = add_locals s.pos vs tys env
+          in let^ (uniques, body_env) = add_locals pat.pos vs tys env
           in let^ (body, case_cont) = analyze_stmts body_env ctx body
           in let res =
             (IntMap.add idx (uniques, body) cases_map,
              cont_branches false cont case_cont)
           in if not (IntMap.mem idx cases_map)
           then Ok res
-          else error res pat.pos
-                "Duplicate case for %s::%s" pat.ast.enum pat.ast.constr
+          else error res pat.pos "Duplicate case for %s::%s"
+                pat.ast.enum.ast pat.ast.constr.ast
         ) (Ok (IntMap.empty, 
               { contu = false; ret = false; raise = false; yield = false }))
         cases
@@ -608,18 +612,18 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
         | None -> Ok (None, continue)
         | Some (excpt, vs, b) ->
             let^ tys =
-              match Env.find_except excpt env with
+              match Env.find_except excpt.ast env with
               | Some tys ->
                   if List.length tys = List.length vs
                   then Ok tys
-                  else error (match_length vs tys Semant.Unknown) s.pos
+                  else error (match_length vs tys Semant.Unknown) excpt.pos
                         "Exception '%s' has %d arguments but %d provided"
-                        excpt (List.length tys) (List.length vs)
-              | None -> error (List.map (fun _ -> Semant.Unknown) vs) s.pos
-                          "Undefined exception '%s'" excpt
+                        excpt.ast (List.length tys) (List.length vs)
+              | None -> error (List.map (fun _ -> Semant.Unknown) vs) excpt.pos
+                          "Undefined exception '%s'" excpt.ast
             in let^ (uniques, catch_env) = add_locals s.pos vs tys env
             in let^ (b, b_cont) = analyze_stmts catch_env ctx b
-            in Ok (Some (excpt, uniques, b), b_cont)
+            in Ok (Some (excpt.ast, uniques, b), b_cont)
       in let^ (finally, finally_cont) = analyze_stmts env ctx finally
       in Ok { env; res = Semant.TryCatch (body, catch, finally);
               cont = cont_try_catch body_cont catch_cont finally_cont }
@@ -667,20 +671,20 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
       end
   | Raise (excpt, args) ->
       let^ tys =
-        match Env.find_except excpt env with
+        match Env.find_except excpt.ast env with
         | Some tys ->
             if List.length tys = List.length args
             then Ok tys
-            else error (match_length args tys Semant.Unknown) s.pos
+            else error (match_length args tys Semant.Unknown) excpt.pos
                   "Exception '%s' has %d arguments but %d provided"
-                  excpt (List.length tys) (List.length args)
-        | None -> error (List.map (fun _ -> Semant.Unknown) args) s.pos
-                    "Undefined exception '%s'" excpt
+                  excpt.ast (List.length tys) (List.length args)
+        | None -> error (List.map (fun _ -> Semant.Unknown) args) excpt.pos
+                    "Undefined exception '%s'" excpt.ast
       in let^ args =
         map2_err (fun ty ex ->
           let^ { ast; _ } = analyze_expr_for_type env ty ex in Ok ast
         ) tys args
-      in Ok { env; res = Semant.Raise (excpt, args);
+      in Ok { env; res = Semant.Raise (excpt.ast, args);
               cont =
                 { contu = false; ret = false; raise = true; yield = false } }
   | Assign (lhs, rhs) ->
@@ -756,12 +760,14 @@ let analyze_types (env : env) (tys : Parsed.decl list) : env err =
       in match d.ast with
       | Enum { name; ty_args; _ } | Struct { name; ty_args; _ } ->
           of_option
-            ~err:(fun () -> error env d.pos "Type %s already defined" name)
-            (Env.add_type name { ty_args; typ = Alias Unknown } env)
+            ~err:(fun () -> error env d.pos "Type %s already defined" name.ast)
+            (Env.add_type name.ast {
+              ty_args = List.map (fun (t : Parsed.name) -> t.ast) ty_args;
+              typ = Alias Unknown } env)
       | Type { name; _ } ->
           of_option
-            ~err:(fun () -> error env d.pos "Type %s already defined" name)
-            (Env.add_type name { ty_args = []; typ = Alias Unknown } env)
+            ~err:(fun () -> error env d.pos "Type %s already defined" name.ast)
+            (Env.add_type name.ast { ty_args = []; typ = Alias Unknown } env)
       | _ -> failwith "Match error"
     ) (Ok env) tys
   (* Step 2 *)
@@ -771,7 +777,7 @@ let analyze_types (env : env) (tys : Parsed.decl list) : env err =
       in match d.ast with
       | Enum { name; ty_args; constrs } ->
           let info =
-            match Env.find_type name env with
+            match Env.find_type name.ast env with
             | None -> failwith "Map error"
             | Some info -> info
           in let typ_env = add_ty_args env ty_args
@@ -791,24 +797,25 @@ let analyze_types (env : env) (tys : Parsed.decl list) : env err =
             StringMap.of_seq (let rec gen xs i () =
               match xs with
               | [] -> Seq.Nil
-              | (c, _) :: tl -> Seq.Cons ((c, i), gen tl (i+1))
+              | ((c : Parsed.name), _) :: tl ->
+                  Seq.Cons ((c.ast, i), gen tl (i+1))
             in gen constrs 0)
           in Ok (info.typ <- Enum { constrs; typs })
       | Struct { name; ty_args; fields } ->
           let info =
-            match Env.find_type name env with
+            match Env.find_type name.ast env with
             | None -> failwith "Map error"
             | Some info -> info
           in let typ_env = add_ty_args env ty_args
           in let^ fields =
             map_err 
-              (fun (f, t) -> 
-                err_map (fun t -> (f, t)) (analyze_type typ_env t))
+              (fun ((f : Parsed.name), t) -> 
+                err_map (fun t -> (f.ast, t)) (analyze_type typ_env t))
               fields
           in Ok (info.typ <- Struct (StringMap.of_list fields))
       | Type { name; def } ->
           let info =
-            match Env.find_type name env with
+            match Env.find_type name.ast env with
             | None -> failwith "Map error"
             | Some info -> info
           in let^ def = analyze_type env def
@@ -830,25 +837,29 @@ let analyze_values (env : env) (vals : Parsed.decl list) : env err =
     | Exception { name; ty } ->
         let^ tys = map_err (analyze_type env) ty
         in of_option
-            ~err:(fun()-> error env d.pos "Exception %s already defined" name)
-            (Env.add_except name tys env)
+            ~err:(fun() ->
+              error env d.pos "Exception %s already defined" name.ast)
+            (Env.add_except name.ast tys env)
     | Uninterp { name; ty_args; args; ret } ->
         let typ_env = add_ty_args env ty_args
         in let^ args = map_err (analyze_type typ_env) args
         in let^ ret = analyze_type typ_env ret
         in of_option
-            ~err:(fun () -> error env d.pos "Name %s already defined" name)
-            (Env.add_unique name (Uninterp { ty_args; args; ret }) env)
+            ~err:(fun () -> error env d.pos "Name %s already defined" name.ast)
+            (Env.add_unique name.ast
+              (Uninterp {
+                ty_args = List.map (fun (t : Parsed.name) -> t.ast) ty_args;
+                args; ret }) env)
     | Attribute { local; name; ty } ->
         let^ ty = analyze_type env ty
         in of_option
-            ~err:(fun () -> error env d.pos "Name %s already defined" name)
-            (Env.add_unique name (Attribute { local; ty }) env)
+            ~err:(fun () -> error env d.pos "Name %s already defined" name.ast)
+            (Env.add_unique name.ast (Attribute { local; ty }) env)
     | Element { local; name; ty } ->
         let^ tys = map_err (analyze_type env) ty
         in of_option
-            ~err:(fun () -> error env d.pos "Name %s already defined" name)
-            (Env.add_unique name (Element { local; tys }) env)
+            ~err:(fun () -> error env d.pos "Name %s already defined" name.ast)
+            (Env.add_unique name.ast (Element { local; tys }) env)
     | _ -> failwith "Match error"
   ) (Ok env) vals
 
@@ -870,14 +881,15 @@ let analyze_funcs (env : env) (funcs : Parsed.decl list) : env err =
            * semantic error if this is not the case (because this uniqueness is
            * assumed below) *)
           in let^ () =
-            let rec find_dups (nms : (string * 'a) list) : unit err =
+            let rec find_dups (nms : (Parsed.name * 'a) list) : unit err =
               match nms with
               | [] -> Ok ()
               | (nm, _) :: tl ->
                   let^ () =
-                    if List.exists (fun (x, _) -> x = nm) tl
+                    if List.exists
+                        (fun ((x : Parsed.name), _) -> x.ast = nm.ast) tl
                     then
-                      error () d.pos "Multiple arguments named %s" nm
+                      error () nm.pos "Multiple arguments named %s" nm.ast
                     else Ok ()
                   in find_dups tl
             in find_dups args
@@ -886,9 +898,12 @@ let analyze_funcs (env : env) (funcs : Parsed.decl list) : env err =
           ) args
           in let^ ret = analyze_type typ_env ret
           in of_option
-              ~err:(fun () -> error env d.pos "Name %s already defined" name)
-              (Env.add_unique name 
-                (Function { ty_args; args; ret; body = [] }) env)
+              ~err:(fun () ->
+                error env d.pos "Name %s already defined" name.ast)
+              (Env.add_unique name.ast
+                (Function {
+                  ty_args = List.map (fun (t : Parsed.name) -> t.ast) ty_args;
+                  args; ret; body = [] }) env)
       | _ -> failwith "Match error"
     ) (Ok env) funcs
   (* Step 2 *)
@@ -898,7 +913,7 @@ let analyze_funcs (env : env) (funcs : Parsed.decl list) : env err =
       in match d.ast with
       | Function { name; ty_args; body; _ } ->
           let info =
-            match Env.find_value name env with
+            match Env.find_value name.ast env with
             | Some (Function info) -> info
             | _ -> failwith "Map error"
           in let typ_env = add_ty_args env ty_args

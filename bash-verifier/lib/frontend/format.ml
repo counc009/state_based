@@ -33,10 +33,11 @@ module FmtFlat : FORMAT = struct
 end
 
 let string_of_ast (prg : decl list) : string =
-  let string_of_type_args (ts : string list) : string =
+  let string_of_type_args (ts : name list) : string =
     if List.is_empty ts
     then ""
-    else Printf.sprintf "<%s>" (String.concat ", " ts)
+    else Printf.sprintf "<%s>"
+            (String.concat ", " (List.map (fun t -> t.ast) ts))
   in let rec string_of_typ (t : typ) : string =
     match t.ast with
     | Void      -> "void"
@@ -157,11 +158,11 @@ let string_of_ast (prg : decl list) : string =
         | FieldExp (e, field) ->
             Printf.sprintf "%s.%s"
               (to_string 14 e)
-              field
+              field.ast
         | ProdField (e, n) ->
             Printf.sprintf "%s.%d"
               (to_string 14 e)
-              n
+              n.ast
         | CastExp (e, t) ->
             if prec <= 11
             then
@@ -177,16 +178,16 @@ let string_of_ast (prg : decl list) : string =
               (String.concat ", " (List.map (to_string 0) es))
         | StructExp (nm, tys, fields) ->
             Printf.sprintf "%s%s{ %s }"
-              nm
+              nm.ast
               (string_of_type_params tys)
               (String.concat ", " (List.map (fun (f, e) ->
-                  f ^ " = " ^ to_string 0 e
+                  f.ast ^ " = " ^ to_string 0 e
                 ) fields))
         | EnumExp (nm, tys, constr, es) ->
             Printf.sprintf "%s%s::%s(%s)"
-              nm
+              nm.ast
               (string_of_type_params tys)
-              constr
+              constr.ast
               (String.concat ", " (List.map (to_string 0) es))
         | FuncExp (f, ts, es) ->
             Printf.sprintf "%s%s(%s)"
@@ -210,11 +211,12 @@ let string_of_ast (prg : decl list) : string =
             then Printf.sprintf "exists %s" (to_string 13 e)
             else Printf.sprintf "(exists %s)" (to_string 13 e)
         | ForEach (v, e, b) ->
-            Printf.sprintf "for %s in %s%s" v (to_string 0 e)
+            Printf.sprintf "for %s in %s%s" v.ast (to_string 0 e)
               (fmt_block (module FmtFlat : FORMAT) b)
         | ForAll (on, elem, vs, b) ->
             Printf.sprintf "forall %s(%s)%s%s"
-              elem (String.concat ", " vs)
+              elem.ast
+              (String.concat ", " (List.map (fun v -> v.ast) vs))
               (Option.value ~default:""
                 (Option.map (fun e -> " in " ^ to_string 0 e) on))
               (fmt_block (module FmtFlat : FORMAT) b)
@@ -226,11 +228,11 @@ let string_of_ast (prg : decl list) : string =
         match s.ast with
         | LetStmt (nm, None, e) ->
             F.print f "let %s = %s;"
-              nm
+              nm.ast
               (string_of_expr e)
         | LetStmt (nm, Some t, e) ->
             F.print f "let %s : %s = %s;"
-              nm
+              nm.ast
               (string_of_typ t)
               (string_of_expr e)
         | Assign (lhs, rhs) ->
@@ -249,7 +251,7 @@ let string_of_ast (prg : decl list) : string =
             F.print f "yield %s;" (string_of_expr e)
         | Raise (nm, args) ->
             F.print f "raise %s(%s);"
-              nm
+              nm.ast
               (String.concat ", " (List.map string_of_expr args))
         | Localize b ->
             F.print_block f (fun f -> fmt_stmts f b) "localize"
@@ -261,10 +263,12 @@ let string_of_ast (prg : decl list) : string =
             in if_str ^ " " ^ else_str
         | ForLoop (v, l, b) ->
             F.print_block f (fun f -> fmt_stmts f b)
-              "for %s in %s" v (string_of_expr l)
+              "for %s in %s" v.ast (string_of_expr l)
         | ForElem (on, elem, vs, b) ->
             F.print_block f (fun f -> fmt_stmts f b)
-              "forall %s(%s)%s" elem (String.concat ", " vs)
+              "forall %s(%s)%s"
+                elem.ast
+                (String.concat ", " (List.map (fun v -> v.ast) vs))
                 (Option.value ~default:""
                   (Option.map (fun e -> " in " ^ string_of_expr e) on))
         | WhileLoop (c, b) ->
@@ -281,14 +285,16 @@ let string_of_ast (prg : decl list) : string =
               F.print_block f (fun f -> fmt_stmts f b) "try"
             in let catch_str =
               F.print_block f (fun f -> fmt_stmts f ctch)
-                "catch %s(%s)" ex (String.concat ", " vs)
+                "catch %s(%s)" ex.ast
+                  (String.concat ", " (List.map (fun v -> v.ast) vs))
             in let finally_str =
               F.print_block f (fun f -> fmt_stmts f fnly) "finally"
             in try_str ^ " " ^ catch_str ^ " " ^ finally_str
         | Match (e, (cases, d)) ->
             let fmt_case (f : F.t) ({ ast = { enum; constr; vars}; _ }, b) =
               F.print_block f (fun f -> fmt_stmts f b)
-                "%s::%s(%s) =>" enum constr (String.concat ", " vars)
+                "%s::%s(%s) =>" enum.ast constr.ast
+                  (String.concat ", " (List.map (fun v -> v.ast) vars))
             in let fmt_cases (f : F.t) =
               let case_strs = List.map (fmt_case f) cases
               in let default_str =
@@ -302,46 +308,46 @@ let string_of_ast (prg : decl list) : string =
     | Enum { name; ty_args; constrs } ->
         let string_of_constr (nm, tys) =
           Printf.sprintf "%s(%s)"
-            nm (String.concat ", " (List.map string_of_typ tys))
+            nm.ast (String.concat ", " (List.map string_of_typ tys))
         in Printf.sprintf "enum %s%s { %s }"
-            name 
+            name.ast
             (string_of_type_args ty_args)
             (String.concat ", " (List.map string_of_constr constrs))
     |  Struct { name; ty_args; fields } ->
         let string_of_field (nm, ty) =
-          Printf.sprintf "%s : %s" nm (string_of_typ ty)
+          Printf.sprintf "%s : %s" nm.ast (string_of_typ ty)
         in Printf.sprintf "struct %s%s { %s }"
-            name
+            name.ast
             (string_of_type_args ty_args)
             (String.concat ", " (List.map string_of_field fields))
     | Type { name; def } ->
-        Printf.sprintf "type %s = %s" name (string_of_typ def)
+        Printf.sprintf "type %s = %s" name.ast (string_of_typ def)
     | Uninterp { name; ty_args; args; ret } ->
         Printf.sprintf "uninterpreted %s%s(%s) -> %s"
-          name
+          name.ast
           (string_of_type_args ty_args)
           (String.concat ", " (List.map string_of_typ args))
           (string_of_typ ret)
     | Attribute { local; name; ty } ->
         Printf.sprintf "%sattribute %s : %s"
           (if local then "local " else "")
-          name
+          name.ast
           (string_of_typ ty)
     | Element { local; name; ty } ->
         Printf.sprintf "%selement %s(%s)"
           (if local then "local " else "")
-          name
+          name.ast
           (String.concat ", " (List.map string_of_typ ty))
     | Exception { name; ty } ->
         Printf.sprintf "exception %s(%s)"
-          name
+          name.ast
           (String.concat ", " (List.map string_of_typ ty))
     | Function { name; ty_args; args; ret; body } ->
         Printf.sprintf "fn %s%s(%s) -> %s%s"
-          name
+          name.ast
           (string_of_type_args ty_args)
           (String.concat ", " 
-            (List.map (fun (nm, t) -> nm ^ " : " ^ string_of_typ t) args))
+            (List.map (fun (nm, t) -> nm.ast ^ " : " ^ string_of_typ t) args))
           (string_of_typ ret)
           (fmt_block (module FmtIndent) body)
   in String.concat "\n\n" (List.map string_of_decl prg)
