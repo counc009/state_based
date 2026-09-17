@@ -329,76 +329,99 @@ let analyze_type (env : env) (ty : Parsed.typ) : Semant.typ err =
         else Ok (Semant.Named (nm, ty_args))
   in analyze ty
 
-type expr_res = Expr of Semant.expr * Semant.typ
+type sem_expr = Expr of Semant.expr * Semant.typ
               | Elem of Semant.elem
+type expr_res = { ast : sem_expr; can_raise : bool }
 
 let analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
   failwith "TODO"
 
-let analyze_expr (env : env) (e : Parsed.expr)
-  : (Semant.expr * Semant.typ) err =
-  let^ res = analyze_expr_or_elem env e
-  in match res with
-  | Expr (res, t) -> Ok (res, t)
-  | Elem elem -> Ok ({ ast = Semant.Element elem; typ = StateRef }, StateRef)
+type as_expr_res = { ast : Semant.expr * Semant.typ; can_raise : bool }
 
-let analyze_cond (env : env) (e : Parsed.expr) : Semant.expr err =
-  let^ (res, t) = analyze_expr env e
+let analyze_expr (env : env) (e : Parsed.expr) : as_expr_res err =
+  let^ { ast; can_raise } = analyze_expr_or_elem env e
+  in match ast with
+  | Expr (res, t) -> Ok { ast = (res, t); can_raise }
+  | Elem elem -> 
+      Ok { ast = ({ ast = Semant.Element elem; typ = StateRef }, StateRef);
+           can_raise }
+
+type expr_typed_res = { ast : Semant.expr; can_raise : bool }
+
+let analyze_cond (env : env) (e : Parsed.expr) : expr_typed_res err =
+  let^ { ast = (res, t); can_raise } = analyze_expr env e
+  in let res : expr_typed_res = { ast = res; can_raise }
   in match t with
   | Bool | Unknown -> Ok res
   | _ -> error res e.pos "Expected a bool, found %s" (string_of_type t)
 
 let analyze_expr_for_type (env : env) (t : Semant.typ) (e : Parsed.expr)
-  : Semant.expr err =
-  let^ (res, res_t) = analyze_expr env e
+  : expr_typed_res err =
+  let^ { ast = (res, res_t); can_raise } = analyze_expr env e
+  in let res : expr_typed_res = { ast = res; can_raise }
   in if types_match res_t t
   then Ok res
   else
     error res e.pos "Incorrect type, expected %s but found %s"
       (string_of_type t) (string_of_type res_t)
 
-let analyze_elem (env : env) (e : Parsed.expr) : Semant.elem err =
-  let^ res = analyze_expr_or_elem env e
+type elem_res = { ast : Semant.elem; can_raise : bool }
+
+let analyze_elem (env : env) (e : Parsed.expr) : elem_res err =
+  let^ { ast = res; can_raise } = analyze_expr_or_elem env e
   in match res with
-  | Elem elem -> Ok elem
-  | Expr (_, _) -> error Semant.StateTop e.pos "Not an element"
+  | Elem elem -> Ok { ast = elem; can_raise }
+  | Expr (_, _) ->
+      error {ast = Semant.StateTop; can_raise } e.pos "Not an element"
 
 (* Semantic analysis of statements, provided the current environment and a
  * context that tells us the return type of the current function and whether we
  * are allowed to yield or not and if so the type *)
 type stmt_context = { ret : Semant.typ; yield : Semant.typ ref option }
 
-(* Continue field indicates whether the statement after is reachable and if not
- * why.
- * Unreachable { ret; raise; yield } indicates that the statement is
- * unreachable and may instead exit by ret, raise, or yield if they are true
- * Reachable indicates it may be reachable. *)
-type stmt_cont = Unreachable of { ret : bool; raise : bool; yield : bool }
-               | Reachable
+(* Continue field indicates whether the statement after is reachable.
+ * For each statement we record whether it CAN continue to the next statement,
+ * return, raise an exception, or yield. *)
+type stmt_cont = { contu : bool; ret : bool; raise : bool; yield : bool }
 type stmt_res  = { env : env; res : Semant.stmt; cont : stmt_cont }
 
-let cont_branches (x : stmt_cont) (y : stmt_cont) =
-  match x, y with
-  | Unreachable { yield = x_yield; ret = x_ret; raise = x_raise },
-    Unreachable { yield = y_yield; ret = y_ret; raise = y_raise }
-    -> Unreachable {  yield = x_yield || y_yield;
-                      ret   = x_ret || y_ret;
-                      raise = x_raise || y_raise }
-  | _, _ -> Reachable
+let reachable (x : stmt_cont) : bool = let { contu; _ } = x in contu
+let continue : stmt_cont =
+  { contu = true; ret = false; raise = false; yield = false }
+let may_raise (raise : bool) =
+  { contu = true; ret = false; raise; yield = false }
 
-(* FIXME : our notion of unreachability has a problem because function calls
- * can result in exceptions and as a result anything containing an exception
- * might exit by exception. What we should instead track is if a statement is
- * Unreachable by a yield (or exception) or Unreachable by return or exception
- *)
-let cont_try_catch (body : stmt_cont) (catch : stmt_cont) (finally : stmt_cont)
-  : stmt_cont = failwith "TODO"
+(* Loops can always continue to the next statement (since they may not be
+ * entered), never yield (since they absorb the yield), but can return or raise
+ * if the body does *)
+let loop_cont (lst_raise : bool) (b : stmt_cont) =
+  { contu = true; ret = b.ret; raise = b.raise || lst_raise; yield = false }
+
+let cont_branches (cond_raise : bool) (x : stmt_cont) (y : stmt_cont) =
+  { contu = x.contu || y.contu;  ret   = x.ret   || y.ret;
+    yield = x.yield || y.yield;  raise = x.raise || y.raise || cond_raise }
+
+let cont_try_catch (b : stmt_cont) (c : stmt_cont) (f : stmt_cont)
+  : stmt_cont =
+  {
+    (* We can continue if the body and finally can continue, or if the body can
+     * raise and the catch and finally can continue *)
+    contu = (b.contu && f.contu) || (b.raise && c.contu && f.contu);
+    (* We can return if the body can return, if finally can return, or if the
+     * body can raise and the catch can return *)
+    ret = b.ret || f.ret || (b.raise && c.ret);
+    (* We can raise if the body or finally can raise. *)
+    raise = b.raise || f.raise;
+    (* We can yield if the body or finally can yield or if the body can raise
+     * and catch can yield *)
+    yield = b.yield || f.yield || (b.raise && c.yield)
+  }
 
 let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
   : stmt_res err =
   match s.ast with
   | ForLoop (v, ex, body) ->
-      let^ (exp, t) = analyze_expr env ex
+      let^ { ast = (exp, t); can_raise } = analyze_expr env ex
       in let^ elem_ty =
         match t with
         | List t -> Ok t
@@ -408,12 +431,13 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
       in let (unique, body_env) = add_local v elem_ty env
       (* We choose not to allow yields from statement loops *)
       in let body_ctx = { ret = ctx.ret; yield = None }
-      in let^ (body, _) = analyze_stmts body_env body_ctx body
-      in Ok { env; res = Semant.ForLoop (unique, exp, body); cont = Reachable }
+      in let^ (body, cont) = analyze_stmts body_env body_ctx body
+      in Ok { env; res = Semant.ForLoop (unique, exp, body);
+              cont = loop_cont can_raise cont }
   | ForElem (base, elem, vs, body) ->
-      let^ base =
+      let^ { ast = base; can_raise } =
         match base with
-        | None -> Ok Semant.StateTop
+        | None -> Ok { ast = Semant.StateTop; can_raise = false }
         | Some base -> analyze_elem env base
       in let^ var_tys =
         match Env.find_value elem env with
@@ -432,27 +456,28 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
           let (unique, env) = add_local nm ty env in (unique :: uniques, env)
         ) vs var_tys ([], env)
       in let body_ctx = { ret = ctx.ret; yield = None }
-      in let^ (body, _) = analyze_stmts body_env body_ctx body
+      in let^ (body, cont) = analyze_stmts body_env body_ctx body
       in Ok { env; res = Semant.ForElem (Some base, elem, uniques, body);
-              cont = Reachable }
+              cont = loop_cont can_raise cont }
   | WhileLoop (cond, body) ->
-      let^ cond = analyze_cond env cond
+      let^ { ast = cond; can_raise } = analyze_cond env cond
       (* We choose not to allow yields from while loops *)
       in let body_ctx = { ret = ctx.ret; yield = None }
-      in let^ (body, _) = analyze_stmts env body_ctx body
-      in Ok { env; res = Semant.WhileLoop (cond, body); cont = Reachable }
+      in let^ (body, cont) = analyze_stmts env body_ctx body
+      in Ok { env; res = Semant.WhileLoop (cond, body);
+              cont = loop_cont can_raise cont }
   | IfThenElse (cond, thn, els) ->
-      let^ cond = analyze_cond env cond
+      let^ { ast = cond; can_raise } = analyze_cond env cond
       in let^ (thn, thn_cont) = analyze_stmts env ctx thn
       in let^ (els, els_cont) = analyze_stmts env ctx els
       in Ok { env; res = Semant.IfThenElse (cond, thn, els);
-              cont = cont_branches thn_cont els_cont }
+              cont = cont_branches can_raise thn_cont els_cont }
   (* TODO: Match *)
   | TryCatch (body, catch, finally) ->
       let^ (body, body_cont) = analyze_stmts env ctx body
       in let^ (catch, catch_cont) =
         match catch with
-        | None -> Ok (None, Reachable)
+        | None -> Ok (None, continue)
         | Some (excpt, vs, b) ->
             let^ tys =
               match Env.find_except excpt env with
@@ -475,34 +500,36 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
       in Ok { env; res = Semant.TryCatch (body, catch, finally);
               cont = cont_try_catch body_cont catch_cont finally_cont }
   | Clear elem ->
-      let^ elem = analyze_elem env elem
-      in Ok { env; res = Semant.Clear elem; cont = Reachable }
+      let^ { ast = elem; can_raise } = analyze_elem env elem
+      in Ok { env; res = Semant.Clear elem; cont = may_raise can_raise }
   | Touch elem ->
-      let^ elem = analyze_elem env elem
-      in Ok { env; res = Semant.Touch elem; cont = Reachable }
+      let^ { ast = elem; can_raise } = analyze_elem env elem
+      in Ok { env; res = Semant.Touch elem; cont = may_raise can_raise }
   | Assert e ->
-      let^ e = analyze_cond env e
+      let^ { ast = e; _ } = analyze_cond env e
       in begin match e.ast with
       | Semant.BoolLit false ->
-          Ok {  env; res = Semant.Assert e;
-                cont = Unreachable {
-                  ret = false; raise = true; yield = false } }
-      | _ -> Ok { env; res = Semant.Assert e; cont = Reachable }
+          Ok { env; res = Semant.Assert e;
+               cont =
+                 { contu = false; ret = false; raise = true; yield = false } }
+      | _ -> Ok { env; res = Semant.Assert e; cont = may_raise true }
       end
   | Return e ->
-      let^ (exp, t) = analyze_expr env e
+      let^ { ast = (exp, t); can_raise } = analyze_expr env e
       in let res =
         { env; res = Semant.Return exp;
-          cont = Unreachable { ret = true; raise = false; yield = false } }
+          cont =
+            { contu = false; ret = true; raise = can_raise; yield = false } }
       in if types_match t ctx.ret
       then Ok res
       else error res s.pos "Incorrect return type, expected %s but found %s"
             (string_of_type ctx.ret) (string_of_type t)
   | Yield e ->
-      let^ (exp, t) = analyze_expr env e
+      let^ { ast = (exp, t); can_raise } = analyze_expr env e
       in let res =
         { env; res = Semant.Yield exp;
-          cont = Unreachable { ret = false; raise = false; yield = true } }
+          cont =
+            { contu = false; ret = false; raise = can_raise; yield = true } }
       in begin match ctx.yield with
       | None -> error res s.pos "Invalid yield, not contained in a for-loop"
       | Some ({ contents = Any } as yield_ty) ->
@@ -525,19 +552,29 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
                   excpt (List.length tys) (List.length args)
         | None -> error (List.map (fun _ -> Semant.Unknown) args) s.pos
                     "Undefined exception '%s'" excpt
-      in let^ args = map2_err (analyze_expr_for_type env) tys args
+      in let^ args =
+        map2_err (fun ty ex ->
+          let^ { ast; _ } = analyze_expr_for_type env ty ex in Ok ast
+        ) tys args
       in Ok { env; res = Semant.Raise (excpt, args);
-              cont = Unreachable { ret = false; raise = true; yield = false } }
+              cont =
+                { contu = false; ret = false; raise = true; yield = false } }
   | Assign (lhs, rhs) ->
-      let^ (lhs, ty_lhs) = analyze_expr env lhs
-      in let^ (rhs, ty_rhs) = analyze_expr env rhs
-      in let res = { env; res = Semant.Assign (lhs, rhs); cont = Reachable }
+      let^ { ast = (lhs, ty_lhs); can_raise = lhs_raise } =
+        analyze_expr env lhs
+      in let^ { ast = (rhs, ty_rhs); can_raise = rhs_raise } =
+        analyze_expr env rhs
+      in let res =
+        { env; res = Semant.Assign (lhs, rhs);
+          cont =
+            { contu = true; ret = false; raise = lhs_raise || rhs_raise;
+              yield = false } }
       in if types_match ty_lhs ty_rhs
       then Ok res
       else error res s.pos "Mismatched types, %s and %s"
             (string_of_type ty_lhs) (string_of_type ty_rhs)
   | LetStmt (v, ty, exp) ->
-      let^ (exp, t) = analyze_expr env exp
+      let^ { ast = (exp, t); can_raise = raise } = analyze_expr env exp
       in let^ t =
         match ty with
         | None -> Ok t
@@ -548,7 +585,8 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
             else error t s.pos "Type mismatched, expected %s but found %s"
                   (string_of_type ty) (string_of_type t)
       in let (unique, env) = add_local v t env
-      in Ok { env; res = Semant.LetStmt (unique, None, exp); cont = Reachable }
+      in Ok { env; res = Semant.LetStmt (unique, None, exp);
+              cont = { contu = true; ret = false; raise; yield = false } }
   | Localize body ->
       let^ (body, cont) = analyze_stmts env ctx body
       in Ok { env; res = Semant.Localize body; cont }
@@ -556,27 +594,27 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
 and analyze_stmts (env : env) (ctx : stmt_context) (stmts : Parsed.stmt list)
   : (Semant.stmt list * stmt_cont) err =
   match stmts with
-  | [] -> Ok ([], Reachable)
+  | [] -> Ok ([], { contu = true; ret = false; raise = false; yield = false })
   | s :: tl ->
       let^ { env; res = s_res; cont = s_cont } = analyze_stmt env ctx s
       in let^ (tl_res, tl_cont) = analyze_stmts env ctx tl
       in let res = (s_res :: tl_res, tl_cont)
-      in match s_cont with
-      | Reachable -> Ok res
-      | Unreachable _ ->
-          match tl with
-          | [] -> Ok res
-          | un :: _ -> error res un.pos "Unreachable statement"
+      in if s_cont.contu
+      then Ok res
+      else
+        match tl with
+        | [] -> Ok res
+        | un :: _ -> error res un.pos "Unreachable statement"
 
 let analyze_function (env : env) pos (ret : Semant.typ)
   (stmts : Parsed.stmt list) : Semant.stmt list err =
   let^ (res, cont) = analyze_stmts env { ret; yield = None } stmts
-  in match cont with
-  | Unreachable _ -> Ok res
-  | Reachable ->
-      match ret with
-      | Void -> Ok (res @ [Semant.Return { ast = UnitLit; typ = Void }])
-      | _ -> error res pos "Control can reach end of function without return"
+  in if not cont.contu
+  then Ok res
+  else
+    match ret with
+    | Void -> Ok (res @ [Semant.Return { ast = UnitLit; typ = Void }])
+    | _ -> error res pos "Control can reach end of function without return"
 
 (* Analyze type declarations
  * - Step 1: Collect all the type names to ensure there are no repeated names
