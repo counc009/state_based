@@ -386,6 +386,14 @@ let cont_branches (x : stmt_cont) (y : stmt_cont) =
                       raise = x_raise || y_raise }
   | _, _ -> Reachable
 
+(* FIXME : our notion of unreachability has a problem because function calls
+ * can result in exceptions and as a result anything containing an exception
+ * might exit by exception. What we should instead track is if a statement is
+ * Unreachable by a yield (or exception) or Unreachable by return or exception
+ *)
+let cont_try_catch (body : stmt_cont) (catch : stmt_cont) (finally : stmt_cont)
+  : stmt_cont = failwith "TODO"
+
 let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
   : stmt_res err =
   match s.ast with
@@ -439,7 +447,33 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
       in let^ (els, els_cont) = analyze_stmts env ctx els
       in Ok { env; res = Semant.IfThenElse (cond, thn, els);
               cont = cont_branches thn_cont els_cont }
-  (* TODO: Match, TryCatch *)
+  (* TODO: Match *)
+  | TryCatch (body, catch, finally) ->
+      let^ (body, body_cont) = analyze_stmts env ctx body
+      in let^ (catch, catch_cont) =
+        match catch with
+        | None -> Ok (None, Reachable)
+        | Some (excpt, vs, b) ->
+            let^ tys =
+              match Env.find_except excpt env with
+              | Some tys ->
+                  if List.length tys = List.length vs
+                  then Ok tys
+                  else error (match_length vs tys Semant.Unknown) s.pos
+                        "Exception '%s' has %d arguments but %d provided"
+                        excpt (List.length tys) (List.length vs)
+              | None -> error (List.map (fun _ -> Semant.Unknown) vs) s.pos
+                          "Undefined exception '%s'" excpt
+            in let (uniques, catch_env) =
+              List.fold_right2 (fun v t (uniques, env) ->
+                let (unique, env) = add_local v t env
+                in (unique :: uniques, env)
+              ) vs tys ([], env)
+            in let^ (b, b_cont) = analyze_stmts catch_env ctx b
+            in Ok (Some (excpt, uniques, b), b_cont)
+      in let^ (finally, finally_cont) = analyze_stmts env ctx finally
+      in Ok { env; res = Semant.TryCatch (body, catch, finally);
+              cont = cont_try_catch body_cont catch_cont finally_cont }
   | Clear elem ->
       let^ elem = analyze_elem env elem
       in Ok { env; res = Semant.Clear elem; cont = Reachable }
