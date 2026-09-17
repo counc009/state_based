@@ -51,6 +51,9 @@ module Semant = struct
     type 'a stmtannt = 'a
     type 'a elemannt = 'a element
 
+    type 'a idannt   = 'a
+    type 'a litannt  = 'a
+
     type 's cases = 's cases_base
     type typ = typ_annt
   end)
@@ -735,7 +738,7 @@ let analyze_function (env : env) pos (ret : Semant.typ)
   then Ok res
   else
     match ret with
-    | Void -> Ok (res @ [Semant.Return { ast = UnitLit; typ = Void }])
+    | Void -> Ok (res @ [Semant.Return { ast = UnitLit (); typ = Void }])
     | _ -> error res pos "Control can reach end of function without return"
 
 (* Analyze type declarations

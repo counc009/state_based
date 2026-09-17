@@ -5,6 +5,8 @@ module type ANNOTATOR = sig
   type 'a exprannt
   type 'a stmtannt
   type 'a elemannt (* The type of an element, where 'a is the expr type *)
+  type 'a idannt   (* Annotation for an identifier *)
+  type 'a litannt  (* Annotation for a literal value *)
 
   type 's cases
   type typ
@@ -17,75 +19,77 @@ module Ast(A : ANNOTATOR) = struct
               | Lt | Le | Gt | Ge | Eq | Ne
               | BAnd | LAnd | BXor | BOr | LOr
 
+  type id = string A.idannt
+
   type expr_base =
-    | Id        of string
-    | BoolLit   of bool
-    | Int8Lit   of int8
-    | Int16Lit  of int16
-    | Int32Lit  of int32
-    | Int64Lit  of int64
-    | UInt8Lit  of uint8
-    | UInt16Lit of uint16
-    | UInt32Lit of uint32
-    | UInt64Lit of uint64
-    | F32Lit    of F32.t
-    | F64Lit    of float
-    | StringLit of string
-    | CharLit   of char
-    | UnitLit
+    | Id        of id
+    | BoolLit   of bool A.litannt
+    | Int8Lit   of int8 A.litannt
+    | Int16Lit  of int16 A.litannt
+    | Int32Lit  of int32 A.litannt
+    | Int64Lit  of int64 A.litannt
+    | UInt8Lit  of uint8 A.litannt
+    | UInt16Lit of uint16 A.litannt
+    | UInt32Lit of uint32 A.litannt
+    | UInt64Lit of uint64 A.litannt
+    | F32Lit    of F32.t A.litannt
+    | F64Lit    of float A.litannt
+    | StringLit of string A.litannt
+    | CharLit   of char A.litannt
+    | UnitLit   of unit A.litannt
     | UnaryExp  of unary * expr
     | BinaryExp of expr * binary * expr
-    | FieldExp  of expr * string
-    | ProdField of expr * int
+    | FieldExp  of expr * id
+    | ProdField of expr * int A.litannt
     | CastExp   of expr * A.typ
     | TupleExp  of expr list
-    | StructExp of string * A.typ list * (string * expr) list
-    | EnumExp   of string * A.typ list * string * expr list
+    | StructExp of id * A.typ list * (id * expr) list
+    | EnumExp   of id * A.typ list * id * expr list
     | FuncExp   of expr * A.typ list * expr list
     | CondExp   of expr * expr * expr
     | Exists    of elem
-    | ForEach   of string * expr * stmt list
-    | ForAll    of elem option * string * string list * stmt list
+    | ForEach   of id * expr * stmt list
+    | ForAll    of elem option * id * id list * stmt list
     (* Not used in parsing but useful after semantic analysis to separate
      * struct accesses and state accesses *)
     | Element   of elem
-    | Attribute of elem * string
+    | Attribute of elem * id
   and expr = expr_base A.exprannt
   and elem = expr_base A.elemannt
 
   and stmt_base =
-    | ForLoop    of string * expr * stmt list
-    | ForElem    of elem option * string * string list * stmt list
+    | ForLoop    of id * expr * stmt list
+    | ForElem    of elem option * id * id list * stmt list
     | WhileLoop  of expr * stmt list
     | IfThenElse of expr * stmt list * stmt list
     | Match      of expr * (stmt list) A.cases
     | TryCatch   of stmt list
-                  * (string * string list * stmt list) option (* catch *)
+                  * (id * id list * stmt list) option (* catch *)
                   * stmt list (* finally *)
     | Clear      of elem
     | Touch      of elem
     | Assert     of expr
     | Return     of expr
     | Yield      of expr
-    | Raise      of string * expr list (* Exception name and arguments *)
+    | Raise      of id * expr list (* Exception name and arguments *)
     | Assign     of expr * expr
-    | LetStmt    of string * A.typ option * expr
+    | LetStmt    of id * A.typ option * expr
     | Localize   of stmt list
   and stmt = stmt_base A.stmtannt
 
   type decl_base = 
-    | Enum      of { name: string; ty_args: string list;
-                      constrs: (string * A.typ list) list }
-    | Struct    of { name: string; ty_args: string list;
-                      fields: (string * A.typ) list }
-    | Type      of { name: string; def: A.typ }
-    | Uninterp  of { name: string; ty_args: string list;
+    | Enum      of { name: id; ty_args: id list;
+                      constrs: (id * A.typ list) list }
+    | Struct    of { name: id; ty_args: id list;
+                      fields: (id * A.typ) list }
+    | Type      of { name: id; def: A.typ }
+    | Uninterp  of { name: id; ty_args: id list;
                       args: A.typ list; ret: A.typ }
-    | Attribute of { local: bool; name: string; ty: A.typ }
-    | Element   of { local: bool; name: string; ty: A.typ list }
-    | Exception of { name: string; ty: A.typ list }
-    | Function  of { name: string; ty_args: string list;
-                      args: (string * A.typ) list; ret: A.typ;
+    | Attribute of { local: bool; name: id; ty: A.typ }
+    | Element   of { local: bool; name: id; ty: A.typ list }
+    | Exception of { name: id; ty: A.typ list }
+    | Function  of { name: id; ty_args: id list;
+                      args: (id * A.typ) list; ret: A.typ;
                       body: stmt list }
   and decl = decl_base A.declannt
 end
@@ -116,6 +120,9 @@ module Parsed = struct
     type 'a exprannt = 'a annt
     type 'a stmtannt = 'a annt
     type 'a elemannt = 'a annt
+
+    type 'a idannt   = 'a
+    type 'a litannt  = 'a
 
     type 's cases = (pattern * 's) list * 's
     type typ = typ_annt
