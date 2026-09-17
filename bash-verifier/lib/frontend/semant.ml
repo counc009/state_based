@@ -7,8 +7,9 @@
  *)
 open Ast
 
-module StringMap = Map.Make(String)
 module IntMap = Map.Make(Int)
+module StringMap = Map.Make(String)
+module StringSet = Set.Make(String)
 
 (* The result of semantic analysis (though we do not use decls in favor of
  * maps) *)
@@ -209,13 +210,6 @@ let add_ty_args (env : env) (ty_args : string list) : env =
 let add_local (nm : string) (typ : Semant.typ) (env : env) : string * env =
   Env.add_value nm (fun unique -> Local { unique; typ }) env
 
-let add_locals (nms : string list) (tys : Semant.typ list) (env : env) :
-  (string list * env) =
-  List.fold_right2 (fun nm ty (uniques, env) ->
-    let (unique, env) = add_local nm ty env
-    in (unique :: uniques, env)
-  ) nms tys ([], env)
-
 type err_msg =
   | Leaf of { pos : Lexing.position * Lexing.position; msg : string }
   | Node of err_msg * err_msg
@@ -277,6 +271,28 @@ let rec match_length (xs : 'a list) (ys : 'b list) (default : 'b) : 'b list =
   | [], _ -> []
   | _ :: xs, y :: ys -> y :: match_length xs ys default
   | _ :: xs, [] -> default :: match_length xs [] default
+
+(* Utility for adding multiple variables and checking that there are no
+ * duplicates *)
+let add_locals pos (nms : string list) (tys : Semant.typ list) (env : env) :
+  (string list * env) err =
+  let duplicates =
+    let (_, duplicates) =
+      List.fold_left (fun (set, duplicates) v ->
+        if StringSet.mem v set
+        then (set, StringSet.add v duplicates)
+        else (StringSet.add v set, duplicates)
+      ) (StringSet.empty, StringSet.empty) nms
+    in StringSet.to_list duplicates
+  in let res =
+    List.fold_right2 (fun nm ty (uniques, env) ->
+      let (unique, env) = add_local nm ty env
+      in (unique :: uniques, env)
+    ) nms tys ([], env)
+  in if List.is_empty duplicates
+  then Ok res
+  else error res pos "Duplicate variable names: %s"
+          (String.concat ", " duplicates)
 
 (* Utility for extracting information about a type from the type and env *)
 let typ_subst (map : Semant.typ StringMap.t) (t : Semant.typ) : Semant.typ =
@@ -458,8 +474,6 @@ let cont_try_catch (b : stmt_cont) (c : stmt_cont) (f : stmt_cont)
     yield = b.yield || f.yield || (b.raise && c.yield)
   }
 
-(* FIXME: Validate that variable names are unique in ForElem, TryCatch, and
- * Match *)
 let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
   : stmt_res err =
   match s.ast with
@@ -494,7 +508,7 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
                     "Undefined element '%s'" elem
         | Some _ -> error (List.map (fun _ -> Semant.Unknown) vs) s.pos
                       "Value '%s' is not an element" elem
-      in let (uniques, body_env) = add_locals vs var_tys env
+      in let^ (uniques, body_env) = add_locals s.pos vs var_tys env
       in let body_ctx = { ret = ctx.ret; yield = None }
       in let^ (body, cont) = analyze_stmts body_env body_ctx body
       in Ok { env; res = Semant.ForElem (Some base, elem, uniques, body);
@@ -548,7 +562,7 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
           let^ (cases_map, cont) = acc
           in let vs = pat.ast.vars
           in let^ (idx, tys) = case_info pat.pos pat.ast.enum pat.ast.constr vs
-          in let (uniques, body_env) = add_locals vs tys env
+          in let^ (uniques, body_env) = add_locals s.pos vs tys env
           in let^ (body, case_cont) = analyze_stmts body_env ctx body
           in let res =
             (IntMap.add idx (uniques, body) cases_map,
@@ -601,7 +615,7 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
                         excpt (List.length tys) (List.length vs)
               | None -> error (List.map (fun _ -> Semant.Unknown) vs) s.pos
                           "Undefined exception '%s'" excpt
-            in let (uniques, catch_env) = add_locals vs tys env
+            in let^ (uniques, catch_env) = add_locals s.pos vs tys env
             in let^ (b, b_cont) = analyze_stmts catch_env ctx b
             in Ok (Some (excpt, uniques, b), b_cont)
       in let^ (finally, finally_cont) = analyze_stmts env ctx finally
