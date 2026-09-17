@@ -131,7 +131,7 @@ let string_of_ast (prg : decl list) : string =
         | F64Lit f -> Printf.sprintf "%ff64" f
         | StringLit s -> Printf.sprintf "\"%s\"" s
         | CharLit c -> Printf.sprintf "'%c'" c
-        | UnitLit () -> Printf.sprintf "()"
+        | UnitLit -> Printf.sprintf "()"
         | UnaryExp (op, e) ->
             if prec_unary op >= prec
             then

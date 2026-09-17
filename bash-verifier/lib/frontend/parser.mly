@@ -9,7 +9,7 @@
 
   let prod_expr (es : expr list) : expr_base =
     match es with
-    | []  -> UnitLit ()
+    | []  -> UnitLit
     | [e] -> e.ast
     | _   -> TupleExp es
 %}
