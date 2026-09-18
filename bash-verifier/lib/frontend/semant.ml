@@ -392,41 +392,40 @@ let analyze_type (env : env) (ty : Parsed.typ) : Semant.typ err =
         else Ok (Semant.Named (nm, ty_args))
   in analyze ty
 
-type sem_expr = Expr of Semant.expr * Semant.typ
+type sem_expr = Expr of Semant.expr
               | Elem of Semant.elem
 type expr_res = { ast : sem_expr; can_raise : bool }
 
 let analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
   failwith "TODO"
 
-type as_expr_res = { ast : Semant.expr * Semant.typ; can_raise : bool }
+type as_expr_res = { ast : Semant.expr; can_raise : bool }
 
 let analyze_expr (env : env) (e : Parsed.expr) : as_expr_res err =
   let^ { ast; can_raise } = analyze_expr_or_elem env e
   in match ast with
-  | Expr (res, t) -> Ok { ast = (res, t); can_raise }
+  | Expr res -> Ok { ast = res; can_raise }
   | Elem elem -> 
-      Ok { ast = ({ ast = Semant.Element elem; typ = StateRef }, StateRef);
-           can_raise }
+      Ok { ast = { ast = Semant.Element elem; typ = StateRef }; can_raise }
 
 type expr_typed_res = { ast : Semant.expr; can_raise : bool }
 
 let analyze_cond (env : env) (e : Parsed.expr) : expr_typed_res err =
-  let^ { ast = (res, t); can_raise } = analyze_expr env e
-  in let res : expr_typed_res = { ast = res; can_raise }
-  in match t with
+  let^ { ast; can_raise } = analyze_expr env e
+  in let res : expr_typed_res = { ast; can_raise }
+  in match ast.typ with
   | Bool | Unknown -> Ok res
-  | _ -> error res e.pos "Expected a bool, found %s" (string_of_type t)
+  | _ -> error res e.pos "Expected a bool, found %s" (string_of_type ast.typ)
 
 let analyze_expr_for_type (env : env) (t : Semant.typ) (e : Parsed.expr)
   : expr_typed_res err =
-  let^ { ast = (res, res_t); can_raise } = analyze_expr env e
-  in let res : expr_typed_res = { ast = res; can_raise }
-  in if types_match res_t t
+  let^ { ast; can_raise } = analyze_expr env e
+  in let res : expr_typed_res = { ast; can_raise }
+  in if types_match ast.typ t
   then Ok res
   else
     error res e.pos "Incorrect type, expected %s but found %s"
-      (string_of_type t) (string_of_type res_t)
+      (string_of_type t) (string_of_type ast.typ)
 
 type elem_res = { ast : Semant.elem; can_raise : bool }
 
@@ -434,7 +433,7 @@ let analyze_elem (env : env) (e : Parsed.expr) : elem_res err =
   let^ { ast = res; can_raise } = analyze_expr_or_elem env e
   in match res with
   | Elem elem -> Ok { ast = elem; can_raise }
-  | Expr (_, _) ->
+  | Expr _ ->
       error {ast = Semant.StateTop; can_raise } e.pos "Not an element"
 
 (* Semantic analysis of statements, provided the current environment and a
@@ -484,9 +483,9 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
   : stmt_res err =
   match s.ast with
   | ForLoop (v, ex, body) ->
-      let^ { ast = (exp, t); can_raise } = analyze_expr env ex
+      let^ { ast = exp; can_raise } = analyze_expr env ex
       in let^ elem_ty =
-        match t with
+        match exp.typ with
         | List t -> Ok t
         | Unknown -> Ok Semant.Unknown (* an error will already have occured *)
         | t -> error Semant.Unknown ex.pos "Expected a list, found %s"
@@ -533,12 +532,12 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
       in Ok { env; res = Semant.IfThenElse (cond, thn, els);
               cont = cont_branches can_raise thn_cont els_cont }
   | Match (e, (cases, default)) ->
-      let^ { ast = (expr, ty); can_raise } = analyze_expr env e
+      let^ { ast = expr; can_raise } = analyze_expr env e
       in let^ ty_info =
-        match enum_info_of_type env ty with
+        match enum_info_of_type env expr.typ with
         | Some info -> Ok (Some info)
         | None -> error None e.pos "Not an enum type, found %s"
-                    (string_of_type ty)
+                    (string_of_type expr.typ)
       in let case_info pos (enum : Parsed.name) (constr : Parsed.name)
         (vs : Parsed.name list) : (int * Semant.typ list) err =
         match ty_info with
@@ -643,17 +642,17 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
       | _ -> Ok { env; res = Semant.Assert e; cont = may_raise true }
       end
   | Return e ->
-      let^ { ast = (exp, t); can_raise } = analyze_expr env e
+      let^ { ast = exp; can_raise } = analyze_expr env e
       in let res =
         { env; res = Semant.Return exp;
           cont =
             { contu = false; ret = true; raise = can_raise; yield = false } }
-      in if types_match t ctx.ret
+      in if types_match exp.typ ctx.ret
       then Ok res
       else error res s.pos "Incorrect return type, expected %s but found %s"
-            (string_of_type ctx.ret) (string_of_type t)
+            (string_of_type ctx.ret) (string_of_type exp.typ)
   | Yield e ->
-      let^ { ast = (exp, t); can_raise } = analyze_expr env e
+      let^ { ast = exp; can_raise } = analyze_expr env e
       in let res =
         { env; res = Semant.Yield exp;
           cont =
@@ -661,13 +660,13 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
       in begin match ctx.yield with
       | None -> error res s.pos "Invalid yield, not contained in a for-loop"
       | Some ({ contents = Any } as yield_ty) ->
-          yield_ty := t ; Ok res
+          yield_ty := exp.typ ; Ok res
       | Some ({ contents = Unknown }) -> Ok res
       | Some ({ contents = yield_ty }) ->
-          if types_match t yield_ty
+          if types_match exp.typ yield_ty
           then Ok res
           else error res s.pos "Incorrect yield type, expected %s but found %s"
-                (string_of_type yield_ty) (string_of_type t)
+                (string_of_type yield_ty) (string_of_type exp.typ)
       end
   | Raise (excpt, args) ->
       let^ tys =
@@ -688,30 +687,28 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
               cont =
                 { contu = false; ret = false; raise = true; yield = false } }
   | Assign (lhs, rhs) ->
-      let^ { ast = (lhs, ty_lhs); can_raise = lhs_raise } =
-        analyze_expr env lhs
-      in let^ { ast = (rhs, ty_rhs); can_raise = rhs_raise } =
-        analyze_expr env rhs
+      let^ { ast = lhs; can_raise = lhs_raise } = analyze_expr env lhs
+      in let^ { ast = rhs; can_raise = rhs_raise } = analyze_expr env rhs
       in let res =
         { env; res = Semant.Assign (lhs, rhs);
           cont =
             { contu = true; ret = false; raise = lhs_raise || rhs_raise;
               yield = false } }
-      in if types_match ty_lhs ty_rhs
+      in if types_match lhs.typ rhs.typ
       then Ok res
       else error res s.pos "Mismatched types, %s and %s"
-            (string_of_type ty_lhs) (string_of_type ty_rhs)
+            (string_of_type lhs.typ) (string_of_type rhs.typ)
   | LetStmt (v, ty, exp) ->
-      let^ { ast = (exp, t); can_raise = raise } = analyze_expr env exp
+      let^ { ast = exp; can_raise = raise } = analyze_expr env exp
       in let^ t =
         match ty with
-        | None -> Ok t
+        | None -> Ok exp.typ
         | Some ty ->
             let^ ty = analyze_type env ty
-            in if types_match t ty
-            then Ok t
-            else error t s.pos "Type mismatched, expected %s but found %s"
-                  (string_of_type ty) (string_of_type t)
+            in if types_match exp.typ ty
+            then Ok ty
+            else error ty s.pos "Type mismatched, expected %s but found %s"
+                  (string_of_type ty) (string_of_type exp.typ)
       in let (unique, env) = add_local v t env
       in Ok { env; res = Semant.LetStmt (unique, None, exp);
               cont = { contu = true; ret = false; raise; yield = false } }
