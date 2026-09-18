@@ -11,13 +11,13 @@ module type ANNOTATOR = sig
   type typ
 end
 
+type unary = Neg | LNot | BNot
+
+type binary = Mul | Div | Mod | Add | Sub | LShft | RShft
+            | Lt | Le | Gt | Ge | Eq | Ne
+            | BAnd | LAnd | BXor | BOr | LOr
+
 module Ast(A : ANNOTATOR) = struct
-  type unary = Neg | LNot | BNot
-
-  type binary = Mul | Div | Mod | Add | Sub | LShft | RShft
-              | Lt | Le | Gt | Ge | Eq | Ne
-              | BAnd | LAnd | BXor | BOr | LOr
-
   type name = string A.tokannt
 
   type expr_base =
@@ -102,7 +102,7 @@ module Parsed = struct
     | Float32 | Float64
     | Function of typ_annt * typ_annt list (* return type and argument types *)
     (* Types that are mostly internal and not related to C *)
-    | StateRef | String
+    | StateRef | String | Char
     | Product of typ_annt list | Named of string * typ_annt list
     | List of typ_annt
   and typ_annt = typ_base annt

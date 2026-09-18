@@ -24,7 +24,7 @@ module Semant = struct
     | SInt8 | UInt8 | SInt16 | UInt16 | SInt32 | UInt32 | SInt64 | UInt64
     | Float32 | Float64
     | Function of typ_annt * typ_annt list (* return type and argument types *)
-    | StateRef | String
+    | StateRef | String | Char
     | Product of typ_annt list | List of typ_annt
     | Named of string * typ_annt list
 
@@ -80,6 +80,7 @@ let rec string_of_type (t : Semant.typ) : string =
         (string_of_type ret)
   | StateRef  -> "state"
   | String    -> "string"
+  | Char      -> "char"
   | Product ts ->
       Printf.sprintf "(%s)" (String.concat ", " (List.map string_of_type ts))
   | List t -> Printf.sprintf "list::<%s>" (string_of_type t)
@@ -306,7 +307,7 @@ let typ_subst (map : Semant.typ StringMap.t) (t : Semant.typ) : Semant.typ =
     match t with
     | Any | Unknown | Void | Bool | SInt8 | SInt16 | SInt32 | SInt64
     | UInt8 | UInt16 | UInt32 | UInt64 | Float32 | Float64 | StateRef
-    | String -> t
+    | String | Char -> t
     | Function (ret, args) -> Function (subst ret, List.map subst args)
     | Product ts -> Product (List.map subst ts)
     | List t -> List (subst t)
@@ -367,6 +368,7 @@ let analyze_type (env : env) (ty : Parsed.typ) : Semant.typ err =
         in Ok (Function (ret, args) : Semant.typ)
     | StateRef  -> Ok StateRef
     | String    -> Ok String
+    | Char      -> Ok Char
     | Product ts ->
         let^ ts = map_err analyze ts
         in Ok (Semant.Product ts)
@@ -394,47 +396,88 @@ let analyze_type (env : env) (ty : Parsed.typ) : Semant.typ err =
 
 type sem_expr = Expr of Semant.expr
               | Elem of Semant.elem
+
 type expr_res = { ast : sem_expr; can_raise : bool }
-
-let analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
-  failwith "TODO"
-
 type as_expr_res = { ast : Semant.expr; can_raise : bool }
+type as_elem_res = { ast : Semant.elem; can_raise : bool }
 
-let analyze_expr (env : env) (e : Parsed.expr) : as_expr_res err =
+let ok_expr (ast : Semant.expr_base) (typ : Semant.typ) (can_raise : bool)
+  : expr_res err = Ok { ast = Expr { ast; typ }; can_raise }
+
+let err_expr ast typ can_raise =
+  error ({ ast = Expr { ast; typ }; can_raise } : expr_res)
+
+let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
+  match e.ast with
+  (* Literals *)
+  | BoolLit b   -> ok_expr (BoolLit b)    Bool    false
+  | Int8Lit i   -> ok_expr (Int8Lit i)    SInt8   false
+  | Int16Lit i  -> ok_expr (Int16Lit i)   SInt16  false
+  | Int32Lit i  -> ok_expr (Int32Lit i)   SInt32  false
+  | Int64Lit i  -> ok_expr (Int64Lit i)   SInt64  false
+  | UInt8Lit i  -> ok_expr (UInt8Lit i)   UInt8   false
+  | UInt16Lit i -> ok_expr (UInt16Lit i)  UInt16  false
+  | UInt32Lit i -> ok_expr (UInt32Lit i)  UInt32  false
+  | UInt64Lit i -> ok_expr (UInt64Lit i)  UInt64  false
+  | F32Lit f    -> ok_expr (F32Lit f)     Float32 false
+  | F64Lit f    -> ok_expr (F64Lit f)     Float64 false
+  | StringLit s -> ok_expr (StringLit s)  String  false
+  | CharLit c   -> ok_expr (CharLit c)    Char    false
+  | UnitLit     -> ok_expr UnitLit        Void    false
+  (* TODO: Id *)
+  | UnaryExp (op, e) ->
+      let^ { ast = exp; can_raise } = analyze_expr env e
+      in begin match op, exp.typ with
+      | BNot, (Bool | Unknown) ->
+          ok_expr (UnaryExp (BNot, exp)) exp.typ can_raise
+      | BNot, _ ->
+          err_expr (UnaryExp (BNot, exp)) Unknown can_raise e.pos
+            "Expected a bool found %s" (string_of_type exp.typ)
+      | (Neg | LNot),
+        (SInt8 | SInt16 | SInt32 | SInt64 | UInt8 | UInt16 | UInt32 | UInt64
+          | Unknown)
+        -> ok_expr (UnaryExp (op, exp)) exp.typ can_raise
+      | (Neg | LNot), _ ->
+          err_expr (UnaryExp (op, exp)) Unknown can_raise e.pos
+            "Expected an integer found %s" (string_of_type exp.typ)
+      end
+  | BinaryExp (l, op, r) ->
+      let^ { ast = lhs; can_raise = lhs_raise } = analyze_expr env l
+      in let^ { ast = rhs; can_raise = rhs_raise } = analyze_expr env r
+      in let can_raise = lhs_raise || rhs_raise
+      in failwith "TODO"
+
+and analyze_expr (env : env) (e : Parsed.expr) : as_expr_res err =
   let^ { ast; can_raise } = analyze_expr_or_elem env e
   in match ast with
-  | Expr res -> Ok { ast = res; can_raise }
+  | Expr res -> Ok ({ ast = res; can_raise } : as_expr_res)
   | Elem elem -> 
       Ok { ast = { ast = Semant.Element elem; typ = StateRef }; can_raise }
 
-type expr_typed_res = { ast : Semant.expr; can_raise : bool }
-
-let analyze_cond (env : env) (e : Parsed.expr) : expr_typed_res err =
-  let^ { ast; can_raise } = analyze_expr env e
-  in let res : expr_typed_res = { ast; can_raise }
-  in match ast.typ with
-  | Bool | Unknown -> Ok res
-  | _ -> error res e.pos "Expected a bool, found %s" (string_of_type ast.typ)
-
-let analyze_expr_for_type (env : env) (t : Semant.typ) (e : Parsed.expr)
-  : expr_typed_res err =
-  let^ { ast; can_raise } = analyze_expr env e
-  in let res : expr_typed_res = { ast; can_raise }
-  in if types_match ast.typ t
-  then Ok res
-  else
-    error res e.pos "Incorrect type, expected %s but found %s"
-      (string_of_type t) (string_of_type ast.typ)
-
-type elem_res = { ast : Semant.elem; can_raise : bool }
-
-let analyze_elem (env : env) (e : Parsed.expr) : elem_res err =
+and analyze_elem (env : env) (e : Parsed.expr) : as_elem_res err =
   let^ { ast = res; can_raise } = analyze_expr_or_elem env e
   in match res with
   | Elem elem -> Ok { ast = elem; can_raise }
   | Expr _ ->
       error {ast = Semant.StateTop; can_raise } e.pos "Not an element"
+
+(* Utilities for analyzing expressions of certain types *)
+let analyze_cond (env : env) (e : Parsed.expr) : as_expr_res err =
+  let^ { ast; can_raise } = analyze_expr env e
+  in let res : as_expr_res = { ast; can_raise }
+  in match ast.typ with
+  | Bool | Unknown -> Ok res
+  | _ -> error res e.pos "Expected a bool, found %s" (string_of_type ast.typ)
+
+let analyze_expr_for_type (env : env) (t : Semant.typ) (e : Parsed.expr)
+  : as_expr_res err =
+  let^ { ast; can_raise } = analyze_expr env e
+  in let res : as_expr_res = { ast; can_raise }
+  in if types_match ast.typ t
+  then Ok res
+  else
+    error res e.pos "Incorrect type, expected %s but found %s"
+      (string_of_type t) (string_of_type ast.typ)
 
 (* Semantic analysis of statements, provided the current environment and a
  * context that tells us the return type of the current function and whether we

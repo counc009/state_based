@@ -103,6 +103,7 @@ rule token = parse
   | "u64"	    { UINT64 }
   | "f32"     { FLOAT32 }
   | "f64"     { FLOAT64 }
+  | "char"    { CHAR }
   | "string"  { STRING }
   | "state"   { STATE }
   | "list"    { LIST }

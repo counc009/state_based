@@ -76,6 +76,7 @@
 %token UINT64
 %token FLOAT32
 %token FLOAT64
+%token CHAR
 %token STRING
 %token STATE
 %token LIST
@@ -255,6 +256,7 @@ typ_base:
   | FLOAT32 { Float32 }
   | FLOAT64 { Float64 }
   | STRING  { String }
+  | CHAR    { Char }
   | LPAREN; args = sep_list(COMMA, typ); RPAREN; SINGLEARROW; ret = typ
       { Function (ret, args) }
   | STATE { StateRef }
@@ -443,9 +445,9 @@ ns_expr_base:
   | l = ns_expr; LOGOR; r = ns_expr
     { BinaryExp (l, LOr, r) }
 
-  | enum = name; tys = type_vars; COLONCOLON;
+  | enum = ID; tys = type_vars; COLONCOLON;
       constr = name; LPAREN; es = sep_list(COMMA, expr); RPAREN
-    { EnumExp (enum, tys, constr, es) }
+    { EnumExp ({ ast = enum; pos = $loc(enum) }, tys, constr, es) }
   | f = ns_expr; LPAREN; es = sep_list(COMMA, expr); RPAREN
     { FuncExp (f, [], es) }
   (* We can only apply type variables directly to a name, there's also a
@@ -554,9 +556,9 @@ expr_base:
   | l = expr; LOGOR; r = expr
     { BinaryExp (l, LOr, r) }
 
-  | enum = name; tys = type_vars; COLONCOLON;
+  | enum = ID; tys = type_vars; COLONCOLON;
       constr = name; LPAREN; es = sep_list(COMMA, expr); RPAREN
-    { EnumExp (enum, tys, constr, es) }
+    { EnumExp ({ ast = enum; pos = $loc(enum) }, tys, constr, es) }
   | f = expr; LPAREN; es = sep_list(COMMA, expr); RPAREN
     { FuncExp (f, [], es) }
   | f = ID; FISHTAIL; tys = sep_list(COMMA, typ); GT;

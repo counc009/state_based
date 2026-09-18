@@ -1,5 +1,6 @@
 open Stdint
 open Ast.Parsed
+open Ast
 
 module type FORMAT = sig
   type t
@@ -54,6 +55,7 @@ let string_of_ast (prg : decl list) : string =
     | Float64   -> "f64"
     | StateRef  -> "state"
     | String    -> "string"
+    | Char      -> "char"
     | Function (ret, args) ->
         Printf.sprintf "(%s) -> %s"
           (String.concat ", " (List.map string_of_typ args))
