@@ -91,12 +91,40 @@ let rec string_of_type (t : Semant.typ) : string =
             (String.concat ", " (List.map string_of_type ts))
 
 (* Checks type equality but returns true if either type is unknown *)
-let types_match (t : Semant.typ) (s : Semant.typ) : bool =
+(* TODO: Handle named types and inlining definitions *)
+let types_match _env (t : Semant.typ) (s : Semant.typ) : bool =
   if t = s then true
   else
     match t, s with
     | Unknown, _ | _, Unknown -> true
     | _, _ -> false
+
+(* Checks whether a type can be cast to another (and returns the resulting
+ * type) *)
+let check_cast env (from : Semant.typ) (into : Semant.typ)
+  : Semant.typ option =
+  match from, into with
+  (* Don't create additional errors if either type is Unknown *)
+  | Unknown, _ | _, Unknown -> Some Unknown
+  | Void, Void
+  | Bool, Bool
+  | ( SInt8 | SInt16 | SInt32 | SInt64 | UInt8 | UInt16 | UInt32 | UInt64
+    | Float32 | Float64 | Char )
+  , ( SInt8 | SInt16 | SInt32 | SInt64 | UInt8 | UInt16 | UInt32 | UInt64
+    | Float32 | Float64 | Char )
+  | String, String
+  | StateRef, StateRef
+    -> Some into
+  (* Named types can be cast if we can inline the definition(s) and perform the
+   * cast *)
+  | Named (nm, ts), _ ->
+      failwith "TODO"
+  | _, Named (nm, ts) ->
+      failwith "TODO"
+  (* Casts of Product and List types are not allowed. Similarly, we can't cast
+   * Any types (which should actually never appear in an expression type,
+   * it would instead be a Named type) *)
+  | _, _ -> None
 
 module Env : sig
   type ('v, 't, 'e) t
@@ -380,7 +408,8 @@ let analyze_type (env : env) (ty : Parsed.typ) : Semant.typ err =
         in let^ ty_info =
           match Env.find_type nm env with
           | None ->
-              error { ty_args = []; typ = Alias Unknown} ty.pos
+              error { ty_args = "_" :: List.map (fun _ -> "_") ty_args;
+                      typ = Alias Unknown} ty.pos
                 "Undefined type '%s'" nm
           | Some info -> Ok info
         in if List.length ty_args <> List.length ty_info.ty_args
@@ -407,9 +436,71 @@ let ok_expr (ast : Semant.expr_base) (typ : Semant.typ) (can_raise : bool)
 let err_expr ast typ can_raise =
   error ({ ast = Expr { ast; typ }; can_raise } : expr_res)
 
+type kind = Boolean | Numeric | Integer | Primitive | Arbitrary
+type type_check = Correct | Incorrect | IsUnknown
+
+let string_of_kind = function
+  | Boolean -> "bool"
+  | Numeric -> "numeric type"
+  | Integer -> "integer type"
+  | Primitive -> "primitive type"
+  | Arbitrary -> "any type"
+
+let check_types_eq env (k : kind)
+  (ty1 : Semant.typ) pos1 (ty2 : Semant.typ) pos2
+  ast typ can_raise : expr_res err =
+  let check (ty : Semant.typ) : type_check =
+    match k, ty with
+    | _, Unknown -> IsUnknown
+    | Boolean,     Bool
+    | Integer,   ( SInt8 | SInt16 | SInt32 | SInt64
+                 | UInt8 | UInt16 | UInt32 | UInt64 )
+    | Numeric,   ( SInt8 | SInt16 | SInt32 | SInt64
+                 | UInt8 | UInt16 | UInt32 | UInt64
+                 | Float32 | Float64 )
+    | Primitive, ( SInt8 | SInt16 | SInt32 | SInt64
+                 | UInt8 | UInt16 | UInt32 | UInt64
+                 | Float32 | Float64 | String | Char )
+    | Arbitrary, _
+        -> Correct
+    | _, _ -> Incorrect
+  in match check ty1, check ty2 with
+  | Correct, Correct ->
+      if types_match env ty1 ty2
+      then ok_expr ast typ can_raise
+      else
+        err_expr ast Semant.Unknown can_raise pos2
+          "Type error, expected %s but found %s"
+          (string_of_type ty1) (string_of_type ty2)
+  | Correct, Incorrect ->
+      err_expr ast Semant.Unknown can_raise pos2
+        "Type error, expected %s but found %s"
+        (string_of_type ty1) (string_of_type ty2)
+  | Incorrect, Correct ->
+      err_expr ast Semant.Unknown can_raise pos1
+        "Type error, expected %s but found %s"
+        (string_of_type ty2) (string_of_type ty1)
+  | Incorrect, Incorrect ->
+      prepend_error
+        (err_expr ast Semant.Unknown can_raise pos2
+          "Type error, expected %s but found %s"
+          (string_of_kind k) (string_of_type ty2))
+        pos1 "Type error, expected %s but found %s"
+        (string_of_kind k) (string_of_type ty1)
+  | IsUnknown, Correct | Correct, IsUnknown | IsUnknown, IsUnknown ->
+      ok_expr ast Semant.Unknown can_raise
+  | IsUnknown, Incorrect ->
+      err_expr ast Semant.Unknown can_raise pos2
+        "Type error, expected %s but found %s"
+        (string_of_kind k) (string_of_type ty2)
+  | Incorrect, IsUnknown ->
+      err_expr ast Semant.Unknown can_raise pos2
+        "Type error, expected %s but found %s"
+        (string_of_kind k) (string_of_type ty2)
+
 let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
   match e.ast with
-  (* Literals *)
+  (* TODO: Id *)
   | BoolLit b   -> ok_expr (BoolLit b)    Bool    false
   | Int8Lit i   -> ok_expr (Int8Lit i)    SInt8   false
   | Int16Lit i  -> ok_expr (Int16Lit i)   SInt16  false
@@ -424,28 +515,75 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
   | StringLit s -> ok_expr (StringLit s)  String  false
   | CharLit c   -> ok_expr (CharLit c)    Char    false
   | UnitLit     -> ok_expr UnitLit        Void    false
-  (* TODO: Id *)
-  | UnaryExp (op, e) ->
-      let^ { ast = exp; can_raise } = analyze_expr env e
+  | UnaryExp (op, ex) ->
+      let^ { ast = exp; can_raise } = analyze_expr env ex
       in begin match op, exp.typ with
       | BNot, (Bool | Unknown) ->
           ok_expr (UnaryExp (BNot, exp)) exp.typ can_raise
       | BNot, _ ->
-          err_expr (UnaryExp (BNot, exp)) Unknown can_raise e.pos
-            "Expected a bool found %s" (string_of_type exp.typ)
+          err_expr (UnaryExp (BNot, exp)) Unknown can_raise ex.pos
+            "Expected a bool, found %s" (string_of_type exp.typ)
       | (Neg | LNot),
         (SInt8 | SInt16 | SInt32 | SInt64 | UInt8 | UInt16 | UInt32 | UInt64
           | Unknown)
         -> ok_expr (UnaryExp (op, exp)) exp.typ can_raise
       | (Neg | LNot), _ ->
-          err_expr (UnaryExp (op, exp)) Unknown can_raise e.pos
-            "Expected an integer found %s" (string_of_type exp.typ)
+          err_expr (UnaryExp (op, exp)) Unknown can_raise ex.pos
+            "Expected an integer, found %s" (string_of_type exp.typ)
       end
   | BinaryExp (l, op, r) ->
       let^ { ast = lhs; can_raise = lhs_raise } = analyze_expr env l
       in let^ { ast = rhs; can_raise = rhs_raise } = analyze_expr env r
       in let can_raise = lhs_raise || rhs_raise
-      in failwith "TODO"
+      in begin match op with
+      (* Boolean operations *)
+      | LAnd | LOr ->
+          check_types_eq env Boolean lhs.typ l.pos rhs.typ r.pos
+            (BinaryExp (lhs, op, rhs)) Bool can_raise
+      (* Numeric operations *)
+      | Mul | Div | Add | Sub ->
+          check_types_eq env Numeric lhs.typ l.pos rhs.typ r.pos
+            (BinaryExp (lhs, op, rhs)) lhs.typ can_raise
+      (* Integer operations *)
+      | Mod | LShft | RShft | BAnd | BXor | BOr ->
+          check_types_eq env Integer lhs.typ l.pos rhs.typ r.pos
+            (BinaryExp (lhs, op, rhs)) lhs.typ can_raise
+      (* Comparison operations (apply to numeric types, string, and char) *)
+      | Lt | Le | Gt | Ge ->
+          check_types_eq env Primitive lhs.typ l.pos rhs.typ r.pos
+            (BinaryExp (lhs, op, rhs)) Bool can_raise
+      (* Equality operations (apply to any types) *)
+      | Eq | Ne ->
+          check_types_eq env Arbitrary lhs.typ l.pos rhs.typ r.pos
+            (BinaryExp (lhs, op, rhs)) Bool can_raise
+      end
+  (* TODO: FieldExp *)
+  | ProdField (ex, { ast = idx; _ }) ->
+      let^ { ast = exp; can_raise } = analyze_expr env ex
+      in begin match exp.typ with
+      | Product ts ->
+          begin match List.nth_opt ts idx with
+          | None ->
+              err_expr (ProdField (exp, idx)) Semant.Unknown can_raise e.pos
+                "No index %d in type %s" idx (string_of_type exp.typ)
+          | Some t ->
+              ok_expr (ProdField (exp, idx)) t can_raise
+          end
+      | Unknown -> ok_expr (ProdField (exp, idx)) Semant.Unknown can_raise
+      | _ ->
+          err_expr (ProdField (exp, idx)) Semant.Unknown can_raise ex.pos
+            "Expected a product type but found %s" (string_of_type exp.typ)
+      end
+  | CastExp (ex, ty) ->
+      let^ { ast = exp; can_raise } = analyze_expr env ex
+      in let^ typ = analyze_type env ty
+      in begin match check_cast env exp.typ typ with
+      | Some res_ty -> ok_expr (CastExp (exp, typ)) res_ty can_raise
+      | None ->
+          err_expr (CastExp (exp, typ)) Semant.Unknown can_raise e.pos
+            "Invalid cast, cannot cast %s to %s"
+            (string_of_type exp.typ) (string_of_type typ)
+      end
 
 and analyze_expr (env : env) (e : Parsed.expr) : as_expr_res err =
   let^ { ast; can_raise } = analyze_expr_or_elem env e
@@ -473,7 +611,7 @@ let analyze_expr_for_type (env : env) (t : Semant.typ) (e : Parsed.expr)
   : as_expr_res err =
   let^ { ast; can_raise } = analyze_expr env e
   in let res : as_expr_res = { ast; can_raise }
-  in if types_match ast.typ t
+  in if types_match env ast.typ t
   then Ok res
   else
     error res e.pos "Incorrect type, expected %s but found %s"
@@ -690,7 +828,7 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
         { env; res = Semant.Return exp;
           cont =
             { contu = false; ret = true; raise = can_raise; yield = false } }
-      in if types_match exp.typ ctx.ret
+      in if types_match env exp.typ ctx.ret
       then Ok res
       else error res s.pos "Incorrect return type, expected %s but found %s"
             (string_of_type ctx.ret) (string_of_type exp.typ)
@@ -706,7 +844,7 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
           yield_ty := exp.typ ; Ok res
       | Some ({ contents = Unknown }) -> Ok res
       | Some ({ contents = yield_ty }) ->
-          if types_match exp.typ yield_ty
+          if types_match env exp.typ yield_ty
           then Ok res
           else error res s.pos "Incorrect yield type, expected %s but found %s"
                 (string_of_type yield_ty) (string_of_type exp.typ)
@@ -737,7 +875,7 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
           cont =
             { contu = true; ret = false; raise = lhs_raise || rhs_raise;
               yield = false } }
-      in if types_match lhs.typ rhs.typ
+      in if types_match env lhs.typ rhs.typ
       then Ok res
       else error res s.pos "Mismatched types, %s and %s"
             (string_of_type lhs.typ) (string_of_type rhs.typ)
@@ -748,7 +886,7 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
         | None -> Ok exp.typ
         | Some ty ->
             let^ ty = analyze_type env ty
-            in if types_match exp.typ ty
+            in if types_match env exp.typ ty
             then Ok ty
             else error ty s.pos "Type mismatched, expected %s but found %s"
                   (string_of_type ty) (string_of_type exp.typ)
