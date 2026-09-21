@@ -90,42 +90,6 @@ let rec string_of_type (t : Semant.typ) : string =
       else Printf.sprintf "%s::<%s>" nm
             (String.concat ", " (List.map string_of_type ts))
 
-(* Checks type equality but returns true if either type is unknown *)
-(* TODO: Handle named types and inlining definitions *)
-let types_match _env (t : Semant.typ) (s : Semant.typ) : bool =
-  if t = s then true
-  else
-    match t, s with
-    | Unknown, _ | _, Unknown -> true
-    | _, _ -> false
-
-(* Checks whether a type can be cast to another (and returns the resulting
- * type) *)
-let check_cast env (from : Semant.typ) (into : Semant.typ)
-  : Semant.typ option =
-  match from, into with
-  (* Don't create additional errors if either type is Unknown *)
-  | Unknown, _ | _, Unknown -> Some Unknown
-  | Void, Void
-  | Bool, Bool
-  | ( SInt8 | SInt16 | SInt32 | SInt64 | UInt8 | UInt16 | UInt32 | UInt64
-    | Float32 | Float64 | Char )
-  , ( SInt8 | SInt16 | SInt32 | SInt64 | UInt8 | UInt16 | UInt32 | UInt64
-    | Float32 | Float64 | Char )
-  | String, String
-  | StateRef, StateRef
-    -> Some into
-  (* Named types can be cast if we can inline the definition(s) and perform the
-   * cast *)
-  | Named (nm, ts), _ ->
-      failwith "TODO"
-  | _, Named (nm, ts) ->
-      failwith "TODO"
-  (* Casts of Product and List types are not allowed. Similarly, we can't cast
-   * Any types (which should actually never appear in an expression type,
-   * it would instead be a Named type) *)
-  | _, _ -> None
-
 module Env : sig
   type ('v, 't, 'e) t
 
@@ -328,6 +292,87 @@ let add_locals pos (nms : Parsed.name list) (tys : Semant.typ list) (env : env)
   in StringMap.fold (fun v pos res ->
     prepend_error res pos "Variable '%s' already declared" v
   ) duplicates (Ok res)
+
+(* Type Utilities *)
+
+(* Checks type equality but returns true if either type is unknown *)
+let rec types_match env (t : Semant.typ) (s : Semant.typ) : bool =
+  if t = s then true
+  else
+    match t, s with
+    | Unknown, _ | _, Unknown -> true
+    (* If one of our types is a type-alias inline the definition and try
+     * again. We do not inline struct and enum types, though hence our type
+     * system is a nominal type system rather than a structural one *)
+    | Named (nt, _), Named (ns, _) ->
+        begin match Env.find_type nt env with
+        (* Type aliases do not have type arguments *)
+        | Some { typ = Alias t; _ } -> types_match env t s
+        | _ ->
+            match Env.find_type ns env with
+            | Some { typ = Alias s; _ } -> types_match env t s
+            | _ -> false
+        end
+    | Named (nm, _), _ ->
+        begin match Env.find_type nm env with
+        | Some { typ = Alias t; _ } -> types_match env t s
+        | _ -> false
+        end
+    | _, Named (nm, _) ->
+        begin match Env.find_type nm env with
+        | Some { typ = Alias s; _ } -> types_match env t s
+        | _ -> false
+        end
+    | _, _ -> false
+
+(* Checks whether a type can be cast to another (and returns the resulting
+ * type) *)
+let rec check_cast env (from : Semant.typ) (into : Semant.typ)
+  : Semant.typ option =
+  let types_eq (xs : Semant.typ list) (ys : Semant.typ list) : bool =
+    (* xs and ys must be the same length since they were applied to the same
+     * type name *)
+    List.for_all2 (types_match env) xs ys
+  in match from, into with
+  (* Don't create additional errors if either type is Unknown *)
+  | Unknown, _ | _, Unknown -> Some Unknown
+  | Void, Void
+  | Bool, Bool
+  | ( SInt8 | SInt16 | SInt32 | SInt64 | UInt8 | UInt16 | UInt32 | UInt64
+    | Float32 | Float64 | Char )
+  , ( SInt8 | SInt16 | SInt32 | SInt64 | UInt8 | UInt16 | UInt32 | UInt64
+    | Float32 | Float64 | Char )
+  | String, String
+  | StateRef, StateRef
+    -> Some into
+  (* Named types can be cast if either they are the same name and type arguments
+   * or one of the types is an alias and then we inline the definition and
+   * attempt to cast it *)
+  | Named (nf, tf), Named (ni, ti) ->
+      if nf = ni && types_eq tf ti
+      then Some into
+      else
+        begin match Env.find_type nf env with
+        | Some { typ = Alias from; _ } -> check_cast env from into
+        | _ ->
+            match Env.find_type ni env with
+            | Some { typ = Alias into; _ } -> check_cast env from into
+            | _ -> None
+        end
+  | Named (nm, _), _ ->
+      begin match Env.find_type nm env with
+      | Some { typ = Alias from; _ } -> check_cast env from into
+      | _ -> None
+      end
+  | _, Named (nm, _) ->
+      begin match Env.find_type nm env with
+      | Some { typ = Alias into; _ } -> check_cast env from into
+      | _ -> None
+      end
+  (* Casts of Product and List types are not allowed. Similarly, we can't cast
+   * Any types (which should actually never appear in an expression type,
+   * it would instead be a Named type) *)
+  | _, _ -> None
 
 (* Utility for extracting information about a type from the type and env *)
 let typ_subst (map : Semant.typ StringMap.t) (t : Semant.typ) : Semant.typ =
@@ -928,6 +973,9 @@ let analyze_function (env : env) pos (ret : Semant.typ)
  *    named types exist and are properly used
  * The input, tys, contains only decl of the form Enum _, Struct _, or Type _
  *)
+(* TODO: Identify and error on cyclic type definitions. Replace such types with
+ * Unknown because otherwise other analyses (such as type equivalence) may
+ * break *)
 let analyze_types (env : env) (tys : Parsed.decl list) : env err =
   (* Step 1 *)
   let^ env =
