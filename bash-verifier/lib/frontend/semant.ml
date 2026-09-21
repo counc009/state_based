@@ -663,19 +663,19 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
                       (List.map (fun ((f : Parsed.name), _) ->
                         (f.ast, Semant.Unknown)) fields))
               strct.pos "Undefined type '%s'" strct.ast
-      in let^ (fields, can_raise, _) =
+      in let^ (fields, can_raise, unset) =
         List.fold_right (fun ((f : Parsed.name), ex) acc ->
-          let^ (fields, can_raise, prior) = acc
+          let^ (fields, can_raise, unset) = acc
           in let^ { ast = exp; can_raise = ex_raise } = analyze_expr env ex
-          in if StringSet.mem f.ast prior
+          in if not (StringSet.mem f.ast unset)
           then
-            error ((f.ast, exp) :: fields, can_raise || ex_raise, prior)
+            error ((f.ast, exp) :: fields, can_raise || ex_raise, unset)
               f.pos "Duplicate field '%s'" f.ast
           else
             let res = (
               (f.ast, exp) :: fields,
               can_raise || ex_raise,
-              StringSet.add f.ast prior) 
+              StringSet.remove f.ast unset) 
             in match StringMap.find_opt f.ast field_tys with
             | Some t ->
                 if types_match env exp.typ t
@@ -686,10 +686,13 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
                 error res f.pos "No such field '%s' for struct '%s'"
                   f.ast strct.ast
         ) fields (Ok ([], false, StringSet.empty))
-      (* FIXME: Detect and error for missing fields *)
-      in ok_expr
-          (StructExp (strct.ast, tys, fields)) (Semant.Named (strct.ast, tys))
-          can_raise
+      in let res_exp = Semant.StructExp (strct.ast, tys, fields)
+      in let res_typ = Semant.Named (strct.ast, tys)
+      in if StringSet.is_empty unset
+      then ok_expr res_exp res_typ can_raise
+      else
+        err_expr res_exp res_typ can_raise e.pos
+          "Missing fields %s" (String.concat ", " (StringSet.to_list unset))
   | EnumExp (enum, tys, constr, args) ->
       let^ tys = map_err (analyze_type env) tys
       in let^ arg_tys =
