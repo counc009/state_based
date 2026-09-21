@@ -53,6 +53,8 @@ module Semant = struct
 
     type 'a tokannt  = 'a
 
+    type 'a ssep = 'a
+
     type 's cases = 's cases_base
     type typ = typ_annt
   end)
@@ -651,6 +653,8 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
   | Exists e ->
       let^ { ast = elem; can_raise } = analyze_elem env e
       in ok_expr (Exists elem) Bool can_raise
+  (* Separate element and attribute constructors are not used by the parser *)
+  | Element _ | Attribute _ -> .
 
 and analyze_expr (env : env) (e : Parsed.expr) : as_expr_res err =
   let^ { ast; can_raise } = analyze_expr_or_elem env e

@@ -7,6 +7,9 @@ module type ANNOTATOR = sig
   type 'a elemannt (* The type of an element, where 'a is the expr type *)
   type 'a tokannt  (* Annotation for tokens (field names and indices) *)
 
+  type 'a ssep (* Type for separate element and attribute expressions. Setting
+                * to the empty type disables those constructor *)
+
   type 's cases
   type typ
 end
@@ -51,8 +54,8 @@ module Ast(A : ANNOTATOR) = struct
     | ForAll    of elem option * name * name list * stmt list
     (* Not used in parsing but useful after semantic analysis to separate
      * struct accesses and state accesses *)
-    | Element   of elem
-    | Attribute of elem * name
+    | Element   of elem A.ssep
+    | Attribute of (elem * name) A.ssep
   and expr = expr_base A.exprannt
   and elem = expr_base A.elemannt
 
@@ -115,6 +118,8 @@ module Parsed = struct
 
   type 's cases = (pattern * 's) list * 's
 
+  type empty = |
+
   include Ast(struct
     type 'a declannt = 'a annt
     type 'a exprannt = 'a annt
@@ -122,6 +127,8 @@ module Parsed = struct
     type 'a elemannt = 'a annt
 
     type 'a tokannt   = 'a annt
+
+    type 'a ssep = empty
 
     type 's cases = (pattern * 's) list * 's
     type typ = typ_annt
