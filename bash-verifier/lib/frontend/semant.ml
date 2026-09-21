@@ -638,7 +638,58 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
           in Ok (exp :: es, can_raise || e_raise, exp.typ :: ts)
         ) es (Ok ([], false, []))
       in ok_expr (TupleExp es) (Product ts) can_raise
-  (* TODO: StructExp, EnumExp, FuncExp *)
+  | StructExp (strct, tys, fields) ->
+      let^ tys = map_err (analyze_type env) tys
+      in let^ field_tys =
+        match Env.find_type strct.ast env with
+        | Some { ty_args; typ = Struct fields } ->
+            let^ vars_map =
+              let^ tys =
+                if List.length tys = List.length ty_args
+                then Ok tys
+                else error (match_length ty_args tys Semant.Unknown) strct.pos
+                      "Type '%s' expected %d arguments but provided %d"
+                      strct.ast (List.length ty_args) (List.length tys)
+              in Ok (StringMap.of_list (List.combine ty_args tys))
+            in let fields = StringMap.map (typ_subst vars_map) fields
+            in Ok fields
+        | Some _ ->
+            error (StringMap.of_list
+                      (List.map (fun ((f : Parsed.name), _) ->
+                        (f.ast, Semant.Unknown)) fields))
+              strct.pos "Type '%s' is not a struct" strct.ast
+        | None ->
+            error (StringMap.of_list
+                      (List.map (fun ((f : Parsed.name), _) ->
+                        (f.ast, Semant.Unknown)) fields))
+              strct.pos "Undefined type '%s'" strct.ast
+      in let^ (fields, can_raise, _) =
+        List.fold_right (fun ((f : Parsed.name), ex) acc ->
+          let^ (fields, can_raise, prior) = acc
+          in let^ { ast = exp; can_raise = ex_raise } = analyze_expr env ex
+          in if StringSet.mem f.ast prior
+          then
+            error ((f.ast, exp) :: fields, can_raise || ex_raise, prior)
+              f.pos "Duplicate field '%s'" f.ast
+          else
+            let res = (
+              (f.ast, exp) :: fields,
+              can_raise || ex_raise,
+              StringSet.add f.ast prior) 
+            in match StringMap.find_opt f.ast field_tys with
+            | Some t ->
+                if types_match env exp.typ t
+                then Ok res
+                else error res ex.pos "Type mismatch, expected %s but found %s"
+                      (string_of_type t) (string_of_type exp.typ)
+            | None ->
+                error res f.pos "No such field '%s' for struct '%s'"
+                  f.ast strct.ast
+        ) fields (Ok ([], false, StringSet.empty))
+      in ok_expr
+          (StructExp (strct.ast, tys, fields)) (Semant.Named (strct.ast, tys))
+          can_raise
+  (* TODO: EnumExp, FuncExp *)
   | CondExp (c, t, el) ->
       let^ { ast = cond; can_raise = cond_raise } = analyze_cond env c
       in let^ { ast = thn; can_raise = thn_raise } = analyze_expr env t
@@ -653,6 +704,7 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
   | Exists e ->
       let^ { ast = elem; can_raise } = analyze_elem env e
       in ok_expr (Exists elem) Bool can_raise
+  (* TODO: ForEach, ForAll *)
   (* Separate element and attribute constructors are not used by the parser *)
   | Element _ | Attribute _ -> .
 
