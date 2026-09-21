@@ -629,6 +629,33 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
             "Invalid cast, cannot cast %s to %s"
             (string_of_type exp.typ) (string_of_type typ)
       end
+  | TupleExp es ->
+      let^ (es, can_raise, ts) = List.fold_right (fun e acc ->
+          let^ (es, can_raise, ts) = acc
+          in let^ { ast = exp; can_raise = e_raise } = analyze_expr env e
+          in Ok (exp :: es, can_raise || e_raise, exp.typ :: ts)
+        ) es (Ok ([], false, []))
+      in ok_expr (TupleExp es) (Product ts) can_raise
+  (* TODO: StructExp, EnumExp, FuncExp *)
+  | CondExp (c, t, el) ->
+      let^ { ast = cond; can_raise = cond_raise } = analyze_expr env c
+      in let^ () =
+        match cond.typ with
+        | Bool | Unknown -> Ok ()
+        | _ ->
+            error () c.pos "Expected a bool found %s" (string_of_type cond.typ)
+      in let^ { ast = thn; can_raise = thn_raise } = analyze_expr env t
+      in let^ { ast = els; can_raise = els_raise } = analyze_expr env el
+      in let^ () =
+        if types_match env thn.typ els.typ
+        then Ok ()
+        else error () e.pos "Type mismatch in branches, found %s and %s"
+              (string_of_type thn.typ) (string_of_type els.typ)
+      in ok_expr (CondExp (cond, thn, els)) thn.typ
+          (cond_raise || thn_raise || els_raise)
+  | Exists e ->
+      let^ { ast = elem; can_raise } = analyze_elem env e
+      in ok_expr (Exists elem) Bool can_raise
 
 and analyze_expr (env : env) (e : Parsed.expr) : as_expr_res err =
   let^ { ast; can_raise } = analyze_expr_or_elem env e
