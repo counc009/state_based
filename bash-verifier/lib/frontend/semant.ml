@@ -638,21 +638,16 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
       in ok_expr (TupleExp es) (Product ts) can_raise
   (* TODO: StructExp, EnumExp, FuncExp *)
   | CondExp (c, t, el) ->
-      let^ { ast = cond; can_raise = cond_raise } = analyze_expr env c
-      in let^ () =
-        match cond.typ with
-        | Bool | Unknown -> Ok ()
-        | _ ->
-            error () c.pos "Expected a bool found %s" (string_of_type cond.typ)
+      let^ { ast = cond; can_raise = cond_raise } = analyze_cond env c
       in let^ { ast = thn; can_raise = thn_raise } = analyze_expr env t
       in let^ { ast = els; can_raise = els_raise } = analyze_expr env el
-      in let^ () =
-        if types_match env thn.typ els.typ
-        then Ok ()
-        else error () e.pos "Type mismatch in branches, found %s and %s"
-              (string_of_type thn.typ) (string_of_type els.typ)
-      in ok_expr (CondExp (cond, thn, els)) thn.typ
-          (cond_raise || thn_raise || els_raise)
+      in let can_raise = cond_raise || thn_raise || els_raise
+      in if types_match env thn.typ els.typ
+      then ok_expr (CondExp (cond, thn, els)) thn.typ can_raise
+      else
+        err_expr (CondExp (cond, thn, els)) Semant.Unknown can_raise e.pos
+          "Type mismatch in branches, found %s and %s"
+          (string_of_type thn.typ) (string_of_type els.typ)
   | Exists e ->
       let^ { ast = elem; can_raise } = analyze_elem env e
       in ok_expr (Exists elem) Bool can_raise
@@ -672,14 +667,14 @@ and analyze_elem (env : env) (e : Parsed.expr) : as_elem_res err =
       error {ast = Semant.StateTop; can_raise } e.pos "Not an element"
 
 (* Utilities for analyzing expressions of certain types *)
-let analyze_cond (env : env) (e : Parsed.expr) : as_expr_res err =
+and analyze_cond (env : env) (e : Parsed.expr) : as_expr_res err =
   let^ { ast; can_raise } = analyze_expr env e
   in let res : as_expr_res = { ast; can_raise }
   in match ast.typ with
   | Bool | Unknown -> Ok res
   | _ -> error res e.pos "Expected a bool, found %s" (string_of_type ast.typ)
 
-let analyze_expr_for_type (env : env) (t : Semant.typ) (e : Parsed.expr)
+and analyze_expr_for_type (env : env) (t : Semant.typ) (e : Parsed.expr)
   : as_expr_res err =
   let^ { ast; can_raise } = analyze_expr env e
   in let res : as_expr_res = { ast; can_raise }
