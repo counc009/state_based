@@ -686,10 +686,57 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
                 error res f.pos "No such field '%s' for struct '%s'"
                   f.ast strct.ast
         ) fields (Ok ([], false, StringSet.empty))
+      (* FIXME: Detect and error for missing fields *)
       in ok_expr
           (StructExp (strct.ast, tys, fields)) (Semant.Named (strct.ast, tys))
           can_raise
-  (* TODO: EnumExp, FuncExp *)
+  | EnumExp (enum, tys, constr, args) ->
+      let^ tys = map_err (analyze_type env) tys
+      in let^ arg_tys =
+        match Env.find_type enum.ast env with
+        | Some { ty_args; typ = Enum { constrs; typs } } ->
+            let^ vars_map =
+              let^ tys =
+                if List.length tys = List.length ty_args
+                then Ok tys
+                else error (match_length ty_args tys Semant.Unknown) enum.pos
+                      "Type '%s' expected %d arguments but provided %d"
+                      enum.ast (List.length ty_args) (List.length tys)
+              in Ok (StringMap.of_list (List.combine ty_args tys))
+            in begin match StringMap.find_opt constr.ast constrs with
+            | Some i ->
+                let arg_tys = List.map (typ_subst vars_map) (Iarray.get typs i)
+                in if List.length args = List.length arg_tys
+                then Ok arg_tys
+                else
+                  error (match_length args arg_tys Semant.Unknown) constr.pos
+                    "Constructor '%s' expected %d arguments but provded %d"
+                    constr.ast (List.length arg_tys) (List.length args)
+            | None ->
+                error (List.map (fun _ -> Semant.Unknown) args) constr.pos
+                  "No such constructor '%s' for enum '%s'"
+                  constr.ast enum.ast
+            end
+        | Some _ ->
+            error (List.map (fun _ -> Semant.Unknown) args) enum.pos
+              "Type '%s' is not an enum" enum.ast
+        | None ->
+            error (List.map (fun _ -> Semant.Unknown) args) enum.pos
+              "Undefined type '%s'" enum.ast
+      in let^ (args, can_raise) =
+        List.fold_right2 (fun ex ty acc ->
+          let^ (args, can_raise) = acc
+          in let^ { ast = exp; can_raise = ex_raise } = analyze_expr env ex
+          in let res = (exp :: args, can_raise || ex_raise)
+          in if types_match env exp.typ ty
+          then Ok res
+          else
+            error res ex.pos "Type mismatched, expected %s but found %s"
+              (string_of_type ty) (string_of_type exp.typ)
+        ) args arg_tys (Ok ([], false))
+      in ok_expr (EnumExp (enum.ast, tys, constr.ast, args))
+            (Semant.Named (enum.ast, tys)) can_raise
+  (* TODO: FuncExp *)
   | CondExp (c, t, el) ->
       let^ { ast = cond; can_raise = cond_raise } = analyze_cond env c
       in let^ { ast = thn; can_raise = thn_raise } = analyze_expr env t
