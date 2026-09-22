@@ -400,6 +400,7 @@ let typ_subst (map : Semant.typ StringMap.t) (t : Semant.typ) : Semant.typ =
     | Named (nm, args) -> Named (nm, List.map subst args)
   in subst t
 
+(* TODO: Should not produce an error if ty is Unknown *)
 let rec enum_info_of_type (env : env) (ty : Semant.typ)
   : (string * enum_info) option =
   match ty with
@@ -415,16 +416,59 @@ let rec enum_info_of_type (env : env) (ty : Semant.typ)
       end
   | _ -> None
 
+(* TODO: Should not produce an error if ty is Unknown *)
 let rec func_info_of_type (env : env) (ty : Semant.typ)
   : (Semant.typ * Semant.typ list) option =
   match ty with
   | Function (ret, args) -> Some (ret, args)
   | Named (nm, _) ->
       begin match Env.find_type nm env with
-      | Some { typ = Alias ty } -> func_info_of_type env ty
+      | Some { typ = Alias ty; _ } -> func_info_of_type env ty
       | _ -> None
       end
   | _ -> None
+
+type field_info =
+  | IsField     of Semant.typ
+  | IsAttribute of Semant.typ
+  | IsElement   of Semant.typ list
+
+let field_info_of_type (env : env) (ty : Semant.typ) (field : Parsed.name)
+  : field_info err =
+  let rec find (ty : Semant.typ) : field_info err =
+    match ty with
+    | StateRef ->
+        begin match Env.find_value field.ast env with
+        | Some (Attribute { ty; _ }) -> Ok (IsAttribute ty)
+        | Some (Element { tys; _ })  -> Ok (IsElement tys)
+        | Some _ ->
+            error (IsField Unknown) field.pos
+              "Not an attribute or element '%s'" field.ast
+        | _ ->
+            error (IsField Unknown) field.pos "Undefined name '%s'" field.ast
+        end
+    | Named (nm, tys) ->
+        begin match Env.find_type nm env with
+        | Some { typ = Alias ty; _ } -> find ty
+        | Some { typ = Struct field_tys; ty_args } ->
+            let vars_map = StringMap.of_list (List.combine ty_args tys)
+            in begin match StringMap.find_opt field.ast field_tys with
+            | Some ty -> Ok (IsField (typ_subst vars_map ty))
+            | None ->
+                error (IsField Unknown) field.pos
+                  "Type %s has no field %s" (string_of_type ty) field.ast
+            end
+        | Some { typ = Enum _; _ } ->
+            error (IsField Unknown) field.pos
+              "Type %s has no fields" (string_of_type ty)
+        | None ->
+            error (IsField Unknown) field.pos
+              "INTERNAL ERROR: unknown type %s" nm
+        end
+    | Unknown -> Ok (IsField Unknown)
+    | _ -> error (IsField Unknown) field.pos
+            "Type %s has no fields" (string_of_type ty)
+  in find ty
 
 (* Semantic analysis functions *)
 (* Utilities for splitting decls by kind (type, "values", and functions) *)
@@ -695,7 +739,20 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
           check_types_eq env Arbitrary lhs.typ l.pos rhs.typ r.pos
             (BinaryExp (lhs, op, rhs)) Bool can_raise
       end
-  (* TODO: FieldExp *)
+  | FieldExp (ex, field) ->
+      let^ { ast = exp; can_raise } = analyze_expr env ex
+      in let^ info = field_info_of_type env exp.typ field
+      in begin match info with
+      | IsField t -> ok_expr (FieldExp (exp, field.ast)) t can_raise
+      | IsAttribute t ->
+          ok_expr (Extension (Attribute { base = exp; attr = field.ast }))
+            t can_raise
+      | IsElement tys ->
+          Ok {
+            ast = UElem { base = exp; elem = field; tys = tys };
+            can_raise
+          }
+      end
   | ProdField (ex, { ast = idx; _ }) ->
       let^ { ast = exp; can_raise } = analyze_expr env ex
       in begin match exp.typ with
@@ -883,6 +940,7 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
       let^ { ast = elem; can_raise } = analyze_elem env e
       in ok_expr (Exists elem) Bool can_raise
   (* TODO: ForEach, ForAll *)
+  | Extension _ -> .
 
 and analyze_expr (env : env) (e : Parsed.expr) : as_expr_res err =
   let^ { ast; can_raise } = analyze_expr_or_elem env e
