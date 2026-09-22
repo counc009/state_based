@@ -55,8 +55,8 @@ module Semant = struct
     type 'a tokannt  = 'a
 
     type 'a ssep = 'a
-    type 'a func = (string * typ_annt) * typ_annt * 'a list ref
-    type uninterp = (string * typ_annt) * typ_annt * string
+    type 'a func = (string * typ_annt) list * typ_annt * 'a list ref
+    type uninterp = typ_annt list * typ_annt * string
 
     type 's cases = 's cases_base
     type typ = typ_annt
@@ -174,7 +174,7 @@ type func_binding = {
   ty_args : string list;
   args : (Parsed.name * Semant.typ) list;
   ret : Semant.typ;
-  mutable body : Semant.stmt list
+  body : Semant.stmt list ref
 }
 
 type value_binding =
@@ -475,6 +475,8 @@ let analyze_type (env : env) (ty : Parsed.typ) : Semant.typ err =
 
 type sem_expr = Expr of Semant.expr
               | Elem of Semant.elem
+              (* An unapplied element *)
+              | UElem of Semant.elem * Parsed.name * Semant.typ list
 
 type expr_res = { ast : sem_expr; can_raise : bool }
 type as_expr_res = { ast : Semant.expr; can_raise : bool }
@@ -550,6 +552,65 @@ let check_types_eq env (k : kind)
 
 let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
   match e.ast with
+  | Id (nm, tys) ->
+      begin match Env.find_value nm env with
+      | Some (Local { unique; typ }) ->
+          if List.is_empty tys
+          then ok_expr (Id (unique, [])) typ false
+          else err_expr (Id (unique, [])) typ false e.pos
+                "Cannot apply types to local variable '%s'" nm
+      | Some (Attribute { local; ty }) ->
+          let res : Semant.expr_base =
+            Attribute ((if local then LocalTop else StateTop), nm)
+          in if List.is_empty tys
+          then ok_expr res ty false
+          else err_expr res ty false e.pos
+                "Cannot apply types to attribute '%s'" nm
+      | Some (Element { local; tys = arg_tys }) ->
+          let res : expr_res =
+            { ast = UElem (
+                (if local then LocalTop else StateTop),
+                { ast = nm; pos = e.pos },
+                arg_tys);
+              can_raise = false }
+          in if List.is_empty tys
+          then Ok res
+          else error res e.pos "Cannot apply types to element '%s'" nm
+      | Some (Uninterp { ty_args; args; ret }) ->
+          let^ tys = map_err (analyze_type env) tys
+          in let^ vars_map =
+            let^ tys =
+              if List.length tys = List.length ty_args
+              then Ok tys
+              else error (match_length ty_args tys Semant.Unknown) e.pos
+                    "Function '%s' expected %d arguments but provided %d"
+                    nm (List.length ty_args) (List.length tys)
+            in Ok (StringMap.of_list (List.combine ty_args tys))
+          in let args = List.map (typ_subst vars_map) args
+          in let ret = typ_subst vars_map ret
+          in ok_expr (Uninterpreted (args, ret, nm)) (Function (ret, args))
+              false
+      | Some (Function { ty_args; args; ret; body }) ->
+          let^ tys = map_err (analyze_type env) tys
+          in let^ vars_map =
+            let^ tys =
+              if List.length tys = List.length ty_args
+              then Ok tys
+              else error (match_length ty_args tys Semant.Unknown) e.pos
+                    "Function '%s' expected %d arguments but provided %d"
+                    nm (List.length ty_args) (List.length tys)
+            in Ok (StringMap.of_list (List.combine ty_args tys))
+          in let args = List.map (fun ((nm : Parsed.name), t) ->
+              (nm.ast, typ_subst vars_map t)
+            ) args
+          in let arg_tys = List.map snd args
+          in let ret = typ_subst vars_map ret
+          in ok_expr (Interpreted (args, ret, body)) (Function (ret, arg_tys))
+              false
+      | None ->
+          err_expr (Id (nm, [])) Unknown false e.pos
+            "Undefined variable '%s'" nm
+      end
   | BoolLit b   -> ok_expr (BoolLit b)    Bool    false
   | Int8Lit i   -> ok_expr (Int8Lit i)    SInt8   false
   | Int16Lit i  -> ok_expr (Int16Lit i)   SInt16  false
@@ -766,11 +827,19 @@ and analyze_expr (env : env) (e : Parsed.expr) : as_expr_res err =
   | Expr res -> Ok ({ ast = res; can_raise } : as_expr_res)
   | Elem elem -> 
       Ok { ast = { ast = Semant.Element elem; typ = StateRef }; can_raise }
+  | UElem (base, elem, _) ->
+      error ({ ast =
+        { ast = Semant.Element (Nested (base, elem.ast, [])); typ = Unknown };
+        can_raise 
+      } : as_expr_res) elem.pos "Missing argument application"
 
 and analyze_elem (env : env) (e : Parsed.expr) : as_elem_res err =
   let^ { ast = res; can_raise } = analyze_expr_or_elem env e
   in match res with
   | Elem elem -> Ok { ast = elem; can_raise }
+  | UElem (base, elem, _) ->
+      error { ast = Nested (base, elem.ast, []); can_raise } elem.pos
+        "Missing argument application"
   | Expr _ ->
       error {ast = Semant.StateTop; can_raise } e.pos "Not an element"
 
@@ -1259,7 +1328,7 @@ let analyze_funcs (env : env) (funcs : Parsed.decl list) : env err =
               (Env.add_unique name.ast
                 (Function {
                   ty_args = List.map (fun (t : Parsed.name) -> t.ast) ty_args;
-                  args; ret; body = [] }) env)
+                  args; ret; body = ref [] }) env)
       | _ -> failwith "Match error"
     ) (Ok env) funcs
   (* Step 2 *)
@@ -1283,7 +1352,7 @@ let analyze_funcs (env : env) (funcs : Parsed.decl list) : env err =
               in env
             ) typ_env info.args
           in let^ body = analyze_function body_env d.pos info.ret body
-          in Ok (info.body <- body)
+          in Ok (info.body := body)
       | _ -> failwith "Match error"
     ) (Ok ()) funcs
   in Ok env
