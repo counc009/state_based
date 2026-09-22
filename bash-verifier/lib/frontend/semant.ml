@@ -1011,7 +1011,41 @@ let rec analyze_expr_or_elem (env : env) (ctx : context) (e : Parsed.expr)
   | Exists e ->
       let^ { ast = elem; cont } = analyze_elem env ctx e
       in ok_expr (Exists elem) Bool cont
-  (* TODO: ForEach, ForAll *)
+  | ForEach (v, ex, body) ->
+      let^ { ast = exp; cont = lst_cont } = analyze_expr env ctx ex
+      in let^ elem_ty = list_elem_of_type env ex.pos exp.typ
+      in let (unique, body_env) = add_local v elem_ty env
+      in let res_ty = ref Semant.Any
+      in let body_ctx = { ret = ctx.ret; yield = Some res_ty }
+      in let^ (body, cont) = analyze_stmts body_env body_ctx body
+      in ok_expr (ForEach (unique, exp, body)) (List !res_ty)
+          (loop_cont lst_cont cont)
+  | ForAll (base, elem, vs, body) ->
+      let^ { ast = base; cont = base_cont } =
+        match base with
+        | None ->
+            (* FIXME: Handle the case that the element is local *)
+            Ok ({ ast = { ast = Extension StateTop; typ = StateRef };
+                  cont = continue } : as_expr_res)
+        | Some base -> analyze_expr env ctx base
+      in let^ var_tys =
+        match Env.find_value elem.ast env with
+        | Some (Element { tys; _ }) ->
+            if List.length tys = List.length vs
+            then Ok tys
+            else error (match_length vs tys Semant.Unknown) elem.pos
+                  "Element '%s' has %d arguments but %d variables provided"
+                  elem.ast (List.length tys) (List.length vs)
+        | None -> error (List.map (fun _ -> Semant.Unknown) vs) elem.pos
+                    "Undefined element '%s'" elem.ast
+        | Some _ -> error (List.map (fun _ -> Semant.Unknown) vs) elem.pos
+                      "Value '%s' is not an element" elem.ast
+      in let^ (uniques, body_env) = add_locals e.pos vs var_tys env
+      in let res_ty = ref Semant.Any
+      in let body_ctx = { ret = ctx.ret; yield = Some res_ty }
+      in let^ (body, cont) = analyze_stmts body_env body_ctx body
+      in ok_expr (ForAll (Some base, elem.ast, uniques, body)) (List !res_ty)
+          (loop_cont base_cont cont)
   | Extension _ -> .
 
 and analyze_expr (env : env) (ctx : context) (e : Parsed.expr)
