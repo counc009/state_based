@@ -43,6 +43,7 @@ module Semant = struct
 
   type 'e element =
     | StateTop
+    | LocalTop
     | Nested of 'e element * string * 'e list
 
   include Ast(struct
@@ -54,6 +55,8 @@ module Semant = struct
     type 'a tokannt  = 'a
 
     type 'a ssep = 'a
+    type 'a func = (string * typ_annt) * typ_annt * 'a list ref
+    type uninterp = (string * typ_annt) * typ_annt * string
 
     type 's cases = 's cases_base
     type typ = typ_annt
@@ -547,7 +550,6 @@ let check_types_eq env (k : kind)
 
 let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
   match e.ast with
-  (* TODO: Id *)
   | BoolLit b   -> ok_expr (BoolLit b)    Bool    false
   | Int8Lit i   -> ok_expr (Int8Lit i)    SInt8   false
   | Int16Lit i  -> ok_expr (Int16Lit i)   SInt16  false
@@ -755,8 +757,8 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
       let^ { ast = elem; can_raise } = analyze_elem env e
       in ok_expr (Exists elem) Bool can_raise
   (* TODO: ForEach, ForAll *)
-  (* Separate element and attribute constructors are not used by the parser *)
-  | Element _ | Attribute _ -> .
+  (* Constructors not used by the parser *)
+  | Element _ | Attribute _ | Interpreted _ | Uninterpreted _ -> .
 
 and analyze_expr (env : env) (e : Parsed.expr) : as_expr_res err =
   let^ { ast; can_raise } = analyze_expr_or_elem env e

@@ -337,24 +337,21 @@ default_case:
 lval: l = lval_base { { ast = l; pos = $loc } }
 
 lval_base:
-  | v = ID
-    { Id v }
+    | v = ID; tys = type_vars
+    { Id (v, tys) }
   | l = lval; DOT; f = name
     { FieldExp (l, f) }
   | l = lval; DOT; f = INTLIT
     { ProdField (l, { ast = f; pos = $loc(f) }) }
   | f = lval; LPAREN; es = sep_list(COMMA, expr); RPAREN
-    { FuncExp (f, [], es) }
-  | f = ID; FISHTAIL; tys = sep_list(COMMA, typ); GT;
-      LPAREN; es = sep_list(COMMA, expr); RPAREN
-    { FuncExp ({ ast = Id f; pos = $loc(f) }, tys, es) }
+    { FuncExp (f, es) }
 
 (* Non-struct expressions *)
 ns_expr: e = ns_expr_base { { ast = e; pos = $loc } }
 
 ns_expr_base:
-  | v = ID
-    { Id v }
+  | v = ID; tys = type_vars
+    { Id (v, tys) }
   | b = BOOLLIT
     { BoolLit b }
   | s = STRINGLIT
@@ -449,13 +446,7 @@ ns_expr_base:
       constr = name; LPAREN; es = sep_list(COMMA, expr); RPAREN
     { EnumExp ({ ast = enum; pos = $loc(enum) }, tys, constr, es) }
   | f = ns_expr; LPAREN; es = sep_list(COMMA, expr); RPAREN
-    { FuncExp (f, [], es) }
-  (* We can only apply type variables directly to a name, there's also a
-   * shift/reduce conflict without this rule because ID FISHTAIL has to be
-   * reduced to expr FISHTAIL for function application but not for an enum *)
-  | f = ID; FISHTAIL; tys = sep_list(COMMA, typ); GT;
-      LPAREN; es = sep_list(COMMA, expr); RPAREN
-    { FuncExp ({ ast = Id f; pos = $loc(f) }, tys, es) }
+    { FuncExp (f, es) }
 
   | IF; c = ns_expr; THEN; th = ns_expr; ELSE; el = ns_expr
     { CondExp (c, th, el) }
@@ -465,8 +456,8 @@ ns_expr_base:
 expr: e = expr_base { { ast = e; pos = $loc } }
 
 expr_base:
-  | v = ID
-    { Id v }
+  | v = ID; tys = type_vars
+    { Id (v, tys) }
   | b = BOOLLIT
     { BoolLit b }
   | s = STRINGLIT
@@ -560,10 +551,7 @@ expr_base:
       constr = name; LPAREN; es = sep_list(COMMA, expr); RPAREN
     { EnumExp ({ ast = enum; pos = $loc(enum) }, tys, constr, es) }
   | f = expr; LPAREN; es = sep_list(COMMA, expr); RPAREN
-    { FuncExp (f, [], es) }
-  | f = ID; FISHTAIL; tys = sep_list(COMMA, typ); GT;
-      LPAREN; es = sep_list(COMMA, expr); RPAREN
-    { FuncExp ({ ast = Id f; pos = $loc(f) }, tys, es) }
+    { FuncExp (f, es) }
 
   | IF; c = expr; THEN; th = expr; ELSE; el = expr
     { CondExp (c, th, el) }

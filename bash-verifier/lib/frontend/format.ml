@@ -119,7 +119,7 @@ let string_of_ast (prg : decl list) : string =
         | Mod   -> "%"
       in let rec to_string (prec : int) (e : expr) : string =
         match e.ast with
-        | Id nm -> nm
+        | Id (nm, ts) -> Printf.sprintf "%s%s" nm (string_of_type_params ts)
         | BoolLit true  -> "true"
         | BoolLit false -> "false"
         | Int8Lit i   -> Printf.sprintf "%si8" (Int8.to_string i)
@@ -191,10 +191,9 @@ let string_of_ast (prg : decl list) : string =
               (string_of_type_params tys)
               constr.ast
               (String.concat ", " (List.map (to_string 0) es))
-        | FuncExp (f, ts, es) ->
-            Printf.sprintf "%s%s(%s)"
+        | FuncExp (f, es) ->
+            Printf.sprintf "%s(%s)"
               (to_string 14 f)
-              (string_of_type_params ts)
               (String.concat ", " (List.map (to_string 0) es))
         | CondExp (c, th, el) ->
             if prec <= 0
@@ -222,7 +221,7 @@ let string_of_ast (prg : decl list) : string =
               (Option.value ~default:""
                 (Option.map (fun e -> " in " ^ to_string 0 e) on))
               (fmt_block (module FmtFlat : FORMAT) b)
-        | Element _ | Attribute _ -> .
+        | Element _ | Attribute _ | Interpreted _ | Uninterpreted _ -> .
       in to_string 0 e
     in let rec fmt_stmts (f : F.t) (b : stmt list) : string =
       let fmt_stmt (s : stmt) : string =
