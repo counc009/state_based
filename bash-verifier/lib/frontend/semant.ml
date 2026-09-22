@@ -41,22 +41,30 @@ module Semant = struct
 
   type 'a eannt = { ast : 'a; typ : typ }
 
-  type 'e element =
+  type ('e, 's) semant_exprs =
+    | Attribute     of { base : 'e; attr : string }
+    | Element       of { base : 'e; elem : string; args : 'e list }
+    | Interpreted   of { args : (string * typ_annt) list;
+                         ret  : typ_annt;
+                         body : 's list ref }
+    | Uninterpreted of { args : typ_annt list;
+                         ret : typ_annt;
+                         name: string }
     | StateTop
     | LocalTop
-    | Nested of 'e element * string * 'e list
+
+  type 'e element = { base : 'e; elem : string; args : 'e eannt list }
 
   include Ast(struct
     type 'a declannt = 'a
     type 'a exprannt = 'a eannt
     type 'a stmtannt = 'a
-    type 'a elemannt = 'a eannt element
+
+    type 'a elemannt = 'a element
 
     type 'a tokannt  = 'a
 
-    type 'a ssep = 'a
-    type 'a func = (string * typ_annt) list * typ_annt * 'a list ref
-    type uninterp = typ_annt list * typ_annt * string
+    type ('e, 's) eext = ('e, 's) semant_exprs
 
     type 's cases = 's cases_base
     type typ = typ_annt
@@ -486,9 +494,10 @@ let analyze_type (env : env) (ty : Parsed.typ) : Semant.typ err =
   in analyze ty
 
 type sem_expr = Expr of Semant.expr
-              | Elem of Semant.elem
               (* An unapplied element *)
-              | UElem of Semant.elem * Parsed.name * Semant.typ list
+              | UElem of { base : Semant.expr;
+                           elem : Parsed.name;
+                           tys : Semant.typ list }
 
 type expr_res = { ast : sem_expr; can_raise : bool }
 type as_expr_res = { ast : Semant.expr; can_raise : bool }
@@ -573,17 +582,24 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
                 "Cannot apply types to local variable '%s'" nm
       | Some (Attribute { local; ty }) ->
           let res : Semant.expr_base =
-            Attribute ((if local then LocalTop else StateTop), nm)
+            Extension (Attribute {
+              base = {
+                ast = Extension (if local then LocalTop else StateTop);
+                typ = StateRef };
+              attr = nm
+            })
           in if List.is_empty tys
           then ok_expr res ty false
           else err_expr res ty false e.pos
                 "Cannot apply types to attribute '%s'" nm
       | Some (Element { local; tys = arg_tys }) ->
           let res : expr_res =
-            { ast = UElem (
-                (if local then LocalTop else StateTop),
-                { ast = nm; pos = e.pos },
-                arg_tys);
+            { ast = UElem {
+                base = {
+                  ast = Extension (if local then LocalTop else StateTop);
+                  typ = StateRef };
+                elem = { ast = nm; pos = e.pos };
+                tys = arg_tys };
               can_raise = false }
           in if List.is_empty tys
           then Ok res
@@ -600,8 +616,8 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
             in Ok (StringMap.of_list (List.combine ty_args tys))
           in let args = List.map (typ_subst vars_map) args
           in let ret = typ_subst vars_map ret
-          in ok_expr (Uninterpreted (args, ret, nm)) (Function (ret, args))
-              false
+          in ok_expr (Extension (Uninterpreted { args; ret; name = nm }))
+              (Function (ret, args)) false
       | Some (Function { ty_args; args; ret; body }) ->
           let^ tys = map_err (analyze_type env) tys
           in let^ vars_map =
@@ -617,8 +633,8 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
             ) args
           in let arg_tys = List.map snd args
           in let ret = typ_subst vars_map ret
-          in ok_expr (Interpreted (args, ret, body)) (Function (ret, arg_tys))
-              false
+          in ok_expr (Extension (Interpreted { args; ret; body }))
+              (Function (ret, arg_tys)) false
       | None ->
           err_expr (Id (nm, [])) Unknown false e.pos
             "Undefined variable '%s'" nm
@@ -830,18 +846,11 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
                     func.pos "Expected function, found %s"
                     (string_of_type f.typ)
             in Ok (args, res ret)
-        | Elem elem ->
-            error (List.map (fun _ -> Semant.Unknown) args,
-              fun exps args_raise ->
-                ok_expr 
-                  (FuncExp ({ ast = Element elem; typ = StateRef },
-                        exps))
-                  Unknown (can_raise || args_raise))
-              func.pos "Expected function, found element"
-        | UElem (base, elem, tys) ->
+        | UElem { base; elem; tys } ->
             Ok (tys, fun exps args_raise ->
-              Ok { ast = Elem (Nested (base, elem.ast, exps));
-                   can_raise = can_raise || args_raise })
+              ok_expr
+                (Extension (Element { base; elem = elem.ast; args = exps }))
+                StateRef (can_raise || args_raise))
       in let^ arg_tys =
         if List.length args = List.length arg_tys
         then Ok arg_tys
@@ -874,30 +883,31 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
       let^ { ast = elem; can_raise } = analyze_elem env e
       in ok_expr (Exists elem) Bool can_raise
   (* TODO: ForEach, ForAll *)
-  (* Constructors not used by the parser *)
-  | Element _ | Attribute _ | Interpreted _ | Uninterpreted _ -> .
 
 and analyze_expr (env : env) (e : Parsed.expr) : as_expr_res err =
   let^ { ast; can_raise } = analyze_expr_or_elem env e
   in match ast with
   | Expr res -> Ok ({ ast = res; can_raise } : as_expr_res)
-  | Elem elem -> 
-      Ok { ast = { ast = Semant.Element elem; typ = StateRef }; can_raise }
-  | UElem (base, elem, _) ->
+  | UElem { base; elem; _ } ->
       error ({ ast =
-        { ast = Semant.Element (Nested (base, elem.ast, [])); typ = Unknown };
-        can_raise 
-      } : as_expr_res) elem.pos "Missing argument application"
+        { ast = Extension (Element { base; elem = elem.ast; args = [] });
+          typ = Unknown };
+        can_raise } : as_expr_res)
+        elem.pos "Missing argument application"
 
 and analyze_elem (env : env) (e : Parsed.expr) : as_elem_res err =
   let^ { ast = res; can_raise } = analyze_expr_or_elem env e
   in match res with
-  | Elem elem -> Ok { ast = elem; can_raise }
-  | UElem (base, elem, _) ->
-      error { ast = Nested (base, elem.ast, []); can_raise } elem.pos
-        "Missing argument application"
+  | Expr { ast = Extension (Element { base; elem; args }); _ } ->
+      Ok { ast = { base = base.ast; elem; args }; can_raise }
   | Expr _ ->
-      error {ast = Semant.StateTop; can_raise } e.pos "Not an element"
+      error { ast = { base = Extension StateTop; elem = ""; args = [] };
+              can_raise }
+        e.pos "Not an element"
+  | UElem { base; elem; _ } ->
+      error { ast = { base = base.ast; elem = elem.ast; args = [] };
+              can_raise }
+        elem.pos "Missing argument application"
 
 (* Utilities for analyzing expressions of certain types *)
 and analyze_cond (env : env) (e : Parsed.expr) : as_expr_res err =
@@ -980,8 +990,10 @@ let rec analyze_stmt (env : env) (ctx : stmt_context) (s : Parsed.stmt)
   | ForElem (base, elem, vs, body) ->
       let^ { ast = base; can_raise } =
         match base with
-        | None -> Ok { ast = Semant.StateTop; can_raise = false }
-        | Some base -> analyze_elem env base
+        | None ->
+            Ok ({ ast = { ast = Extension StateTop; typ = StateRef };
+                  can_raise = false } : as_expr_res)
+        | Some base -> analyze_expr env base
       in let^ var_tys =
         match Env.find_value elem.ast env with
         | Some (Element { tys; _ }) ->

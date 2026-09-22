@@ -221,7 +221,7 @@ let string_of_ast (prg : decl list) : string =
               (Option.value ~default:""
                 (Option.map (fun e -> " in " ^ to_string 0 e) on))
               (fmt_block (module FmtFlat : FORMAT) b)
-        | Element _ | Attribute _ | Interpreted _ | Uninterpreted _ -> .
+        | Extension _ -> .
       in to_string 0 e
     in let rec fmt_stmts (f : F.t) (b : stmt list) : string =
       let fmt_stmt (s : stmt) : string =

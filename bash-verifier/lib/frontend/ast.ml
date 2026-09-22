@@ -7,11 +7,7 @@ module type ANNOTATOR = sig
   type 'a elemannt (* The type of an element, where 'a is the expr type *)
   type 'a tokannt  (* Annotation for tokens (field names and indices) *)
 
-  type 'a ssep (* Type for separate element and attribute expressions. Setting
-                * to the empty type disables those constructor *)
-
-  type 'a func (* the 'a is the stmt type *)
-  type uninterp
+  type ('e, 's) eext (* Expression extensions (i.e., new kinds of exprs) *)
 
   type 's cases
   type typ
@@ -54,21 +50,14 @@ module Ast(A : ANNOTATOR) = struct
     | CondExp   of expr * expr * expr
     | Exists    of elem
     | ForEach   of name * expr * stmt list
-    | ForAll    of elem option * name * name list * stmt list
-    (* Not used in parsing but useful after semantic analysis to distinguish
-     * expresssions which are different in the State Calculus but the same in
-     * the front-end (like struct accesses vs state accesses and variables 
-     * vs functions) *)
-    | Element       of elem A.ssep
-    | Attribute     of (elem * name) A.ssep
-    | Interpreted   of stmt A.func
-    | Uninterpreted of A.uninterp
+    | ForAll    of expr option * name * name list * stmt list
+    | Extension of (expr, stmt) A.eext
   and expr = expr_base A.exprannt
   and elem = expr_base A.elemannt
 
   and stmt_base =
     | ForLoop    of name * expr * stmt list
-    | ForElem    of elem option * name * name list * stmt list
+    | ForElem    of expr option * name * name list * stmt list
     | WhileLoop  of expr * stmt list
     | IfThenElse of expr * stmt list * stmt list
     | Match      of expr * (stmt list) A.cases
@@ -135,9 +124,7 @@ module Parsed = struct
 
     type 'a tokannt   = 'a annt
 
-    type 'a ssep = empty
-    type 'a func = empty
-    type uninterp = empty
+    type ('e, 's) eext = empty
 
     type 's cases = (pattern * 's) list * 's
     type typ = typ_annt
