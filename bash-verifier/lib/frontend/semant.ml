@@ -50,7 +50,7 @@ module Semant = struct
     type 'a declannt = 'a
     type 'a exprannt = 'a eannt
     type 'a stmtannt = 'a
-    type 'a elemannt = 'a element
+    type 'a elemannt = 'a eannt element
 
     type 'a tokannt  = 'a
 
@@ -802,7 +802,49 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
         ) args arg_tys (Ok ([], false))
       in ok_expr (EnumExp (enum.ast, tys, constr.ast, args))
             (Semant.Named (enum.ast, tys)) can_raise
-  (* TODO: FuncExp *)
+  | FuncExp (func, args) ->
+      let^ (arg_tys, (ret : Semant.expr list -> bool -> _)) =
+        let^ { ast; can_raise } = analyze_expr_or_elem env func
+        in match ast with
+        | Expr f ->
+            (* Function calls are always assumed to potentially raise *)
+            let res typ = fun exps _ -> ok_expr (FuncExp (f, exps)) typ true
+            in begin match f.typ with
+            | Function (ret, args) ->
+                Ok (args, res ret)
+            | t ->
+                error (List.map (fun _ -> Semant.Unknown) args, res Unknown)
+                  func.pos "Expected function, found %s" (string_of_type t)
+            end
+        | Elem elem ->
+            error (List.map (fun _ -> Semant.Unknown) args,
+              fun exps args_raise ->
+                ok_expr 
+                  (FuncExp ({ ast = Element elem; typ = StateRef },
+                        exps))
+                  Unknown (can_raise || args_raise))
+              func.pos "Expected function, found element"
+        | UElem (base, elem, tys) ->
+            Ok (tys, fun exps args_raise ->
+              Ok { ast = Elem (Nested (base, elem.ast, exps));
+                   can_raise = can_raise || args_raise })
+      in let^ arg_tys =
+        if List.length args = List.length arg_tys
+        then Ok arg_tys
+        else error (match_length args arg_tys Semant.Unknown) e.pos
+              "Expected %d arguments but provided %d"
+              (List.length arg_tys) (List.length args)
+      in let^ (args, can_raise) =
+        List.fold_right2 (fun arg ty acc ->
+          let^ (args, can_raise) = acc
+          in let^ { ast = exp; can_raise = arg_raise } = analyze_expr env arg
+          in let res = (exp :: args, can_raise || arg_raise)
+          in if types_match env exp.typ ty
+          then Ok res
+          else error res arg.pos "Type ereror, expected %s but found %s"
+                (string_of_type ty) (string_of_type exp.typ)
+        ) args arg_tys (Ok ([], false))
+      in ret args can_raise
   | CondExp (c, t, el) ->
       let^ { ast = cond; can_raise = cond_raise } = analyze_cond env c
       in let^ { ast = thn; can_raise = thn_raise } = analyze_expr env t
