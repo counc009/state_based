@@ -392,7 +392,7 @@ let typ_subst (map : Semant.typ StringMap.t) (t : Semant.typ) : Semant.typ =
     | Named (nm, args) -> Named (nm, List.map subst args)
   in subst t
 
-let enum_info_of_type (env : env) (ty : Semant.typ)
+let rec enum_info_of_type (env : env) (ty : Semant.typ)
   : (string * enum_info) option =
   match ty with
   | Named (nm, tys) ->
@@ -402,6 +402,18 @@ let enum_info_of_type (env : env) (ty : Semant.typ)
           in let { constrs; typs } = info
           in let typs = Iarray.map (List.map (typ_subst vars_map)) typs
           in Some (nm, { constrs; typs })
+      | Some { typ = Alias ty } -> enum_info_of_type env ty
+      | _ -> None
+      end
+  | _ -> None
+
+let rec func_info_of_type (env : env) (ty : Semant.typ)
+  : (Semant.typ * Semant.typ list) option =
+  match ty with
+  | Function (ret, args) -> Some (ret, args)
+  | Named (nm, _) ->
+      begin match Env.find_type nm env with
+      | Some { typ = Alias ty } -> func_info_of_type env ty
       | _ -> None
       end
   | _ -> None
@@ -809,13 +821,15 @@ let rec analyze_expr_or_elem (env : env) (e : Parsed.expr) : expr_res err =
         | Expr f ->
             (* Function calls are always assumed to potentially raise *)
             let res typ = fun exps _ -> ok_expr (FuncExp (f, exps)) typ true
-            in begin match f.typ with
-            | Function (ret, args) ->
-                Ok (args, res ret)
-            | t ->
-                error (List.map (fun _ -> Semant.Unknown) args, res Unknown)
-                  func.pos "Expected function, found %s" (string_of_type t)
-            end
+            in let^ (ret, args) =
+              match func_info_of_type env f.typ with
+              | Some res -> Ok res
+              | None ->
+                  error
+                    (Semant.Unknown, List.map (fun _ -> Semant.Unknown) args)
+                    func.pos "Expected function, found %s"
+                    (string_of_type f.typ)
+            in Ok (args, res ret)
         | Elem elem ->
             error (List.map (fun _ -> Semant.Unknown) args,
               fun exps args_raise ->
