@@ -1021,25 +1021,26 @@ let rec analyze_expr_or_elem (env : env) (ctx : context) (e : Parsed.expr)
       in ok_expr (ForEach (unique, exp, body)) (List !res_ty)
           (loop_cont lst_cont cont)
   | ForAll (base, elem, vs, body) ->
-      let^ { ast = base; cont = base_cont } =
-        match base with
-        | None ->
-            (* FIXME: Handle the case that the element is local *)
-            Ok ({ ast = { ast = Extension StateTop; typ = StateRef };
-                  cont = continue } : as_expr_res)
-        | Some base -> analyze_expr env ctx base
-      in let^ var_tys =
+      let^ (var_tys, local) =
         match Env.find_value elem.ast env with
-        | Some (Element { tys; _ }) ->
+        | Some (Element { local; tys }) ->
             if List.length tys = List.length vs
-            then Ok tys
-            else error (match_length vs tys Semant.Unknown) elem.pos
+            then Ok (tys, local)
+            else error (match_length vs tys Semant.Unknown, local) elem.pos
                   "Element '%s' has %d arguments but %d variables provided"
                   elem.ast (List.length tys) (List.length vs)
-        | None -> error (List.map (fun _ -> Semant.Unknown) vs) elem.pos
-                    "Undefined element '%s'" elem.ast
-        | Some _ -> error (List.map (fun _ -> Semant.Unknown) vs) elem.pos
-                      "Value '%s' is not an element" elem.ast
+        | None -> error (List.map (fun _ -> Semant.Unknown) vs, false)
+                    elem.pos "Undefined element '%s'" elem.ast
+        | Some _ -> error (List.map (fun _ -> Semant.Unknown) vs, false)
+                      elem.pos "Value '%s' is not an element" elem.ast
+      in let^ { ast = base; cont = base_cont } =
+        match base with
+        | None ->
+            Ok ({ ast = {
+                    ast = Extension (if local then LocalTop else StateTop);
+                    typ = StateRef };
+                  cont = continue } : as_expr_res)
+        | Some base -> analyze_expr env ctx base
       in let^ (uniques, body_env) = add_locals e.pos vs var_tys env
       in let res_ty = ref Semant.Any
       in let body_ctx = { ret = ctx.ret; yield = Some res_ty }
@@ -1107,25 +1108,26 @@ and analyze_stmt (env : env) (ctx : context) (s : Parsed.stmt)
       in Ok { env; res = Semant.ForLoop (unique, exp, body);
               cont = loop_cont lst_cont cont }
   | ForElem (base, elem, vs, body) ->
-      let^ { ast = base; cont = base_cont } =
-        match base with
-        | None ->
-            (* FIXME: Handle the case that the element is local *)
-            Ok ({ ast = { ast = Extension StateTop; typ = StateRef };
-                  cont = continue } : as_expr_res)
-        | Some base -> analyze_expr env ctx base
-      in let^ var_tys =
+      let^ (var_tys, local) =
         match Env.find_value elem.ast env with
-        | Some (Element { tys; _ }) ->
+        | Some (Element { local; tys }) ->
             if List.length tys = List.length vs
-            then Ok tys
-            else error (match_length vs tys Semant.Unknown) elem.pos
+            then Ok (tys, local)
+            else error (match_length vs tys Semant.Unknown, local) elem.pos
                   "Element '%s' has %d arguments but %d variables provided"
                   elem.ast (List.length tys) (List.length vs)
-        | None -> error (List.map (fun _ -> Semant.Unknown) vs) elem.pos
-                    "Undefined element '%s'" elem.ast
-        | Some _ -> error (List.map (fun _ -> Semant.Unknown) vs) elem.pos
-                      "Value '%s' is not an element" elem.ast
+        | None -> error (List.map (fun _ -> Semant.Unknown) vs, false)
+                    elem.pos "Undefined element '%s'" elem.ast
+        | Some _ -> error (List.map (fun _ -> Semant.Unknown) vs, false)
+                      elem.pos "Value '%s' is not an element" elem.ast
+      in let^ { ast = base; cont = base_cont } =
+        match base with
+        | None ->
+            Ok ({ ast = {
+                    ast = Extension (if local then LocalTop else StateTop);
+                    typ = StateRef };
+                  cont = continue } : as_expr_res)
+        | Some base -> analyze_expr env ctx base
       in let^ (uniques, body_env) = add_locals s.pos vs var_tys env
       in let body_ctx = { ret = ctx.ret; yield = None }
       in let^ (body, cont) = analyze_stmts body_env body_ctx body
