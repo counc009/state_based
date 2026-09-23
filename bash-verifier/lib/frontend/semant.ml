@@ -400,9 +400,8 @@ let typ_subst (map : Semant.typ StringMap.t) (t : Semant.typ) : Semant.typ =
     | Named (nm, args) -> Named (nm, List.map subst args)
   in subst t
 
-(* TODO: Should not produce an error if ty is Unknown *)
-let rec enum_info_of_type (env : env) (ty : Semant.typ)
-  : (string * enum_info) option =
+let rec enum_info_of_type (env : env) pos (ty : Semant.typ)
+  : (string * enum_info) option err =
   match ty with
   | Named (nm, tys) ->
       begin match Env.find_type nm env with
@@ -410,23 +409,26 @@ let rec enum_info_of_type (env : env) (ty : Semant.typ)
           let vars_map = StringMap.of_list (List.combine ty_args tys)
           in let { constrs; typs } = info
           in let typs = Iarray.map (List.map (typ_subst vars_map)) typs
-          in Some (nm, { constrs; typs })
-      | Some { typ = Alias ty } -> enum_info_of_type env ty
-      | _ -> None
+          in Ok (Some (nm, { constrs; typs }))
+      | Some { typ = Alias ty } -> enum_info_of_type env pos ty
+      | _ -> error None pos "Not an enum type, found %s" (string_of_type ty)
       end
-  | _ -> None
+  | Unknown -> Ok None
+  | _ -> error None pos "Not an enum type, found %s" (string_of_type ty)
 
-(* TODO: Should not produce an error if ty is Unknown *)
-let rec func_info_of_type (env : env) (ty : Semant.typ)
-  : (Semant.typ * Semant.typ list) option =
+let rec func_info_of_type (env : env) pos (ty : Semant.typ) (args : 'a list)
+  : (Semant.typ * Semant.typ list) err =
   match ty with
-  | Function (ret, args) -> Some (ret, args)
+  | Function (ret, args) -> Ok (ret, args)
   | Named (nm, _) ->
       begin match Env.find_type nm env with
-      | Some { typ = Alias ty; _ } -> func_info_of_type env ty
-      | _ -> None
+      | Some { typ = Alias ty; _ } -> func_info_of_type env pos ty args
+      | _ -> error (Semant.Unknown, List.map (fun _ -> Semant.Unknown) args)
+              pos "Expected a function, found %s" (string_of_type ty)
       end
-  | _ -> None
+  | Unknown -> Ok (Semant.Unknown, List.map (fun _ -> Semant.Unknown) args)
+  | _ -> error (Semant.Unknown, List.map (fun _ -> Semant.Unknown) args) pos
+          "Expected a function, found %s" (string_of_type ty)
 
 let rec list_elem_of_type (env : env) pos (ty : Semant.typ)
   : Semant.typ err =
@@ -966,14 +968,7 @@ let rec analyze_expr_or_elem (env : env) (ctx : context) (e : Parsed.expr)
             (* Function calls are always assumed to potentially raise *)
             let res typ = fun exps _ ->
               ok_expr (FuncExp (f, exps)) typ may_raise
-            in let^ (ret, args) =
-              match func_info_of_type env f.typ with
-              | Some res -> Ok res
-              | None ->
-                  error
-                    (Semant.Unknown, List.map (fun _ -> Semant.Unknown) args)
-                    func.pos "Expected function, found %s"
-                    (string_of_type f.typ)
+            in let^ (ret, args) = func_info_of_type env func.pos f.typ args
             in Ok (args, res ret)
         | UElem { base; elem; tys } ->
             Ok (tys, fun exps args_cont ->
@@ -1148,11 +1143,7 @@ and analyze_stmt (env : env) (ctx : context) (s : Parsed.stmt)
               cont = cont_branches cond_cont thn_cont els_cont }
   | Match (e, (cases, default)) ->
       let^ { ast = expr; cont = ex_cont } = analyze_expr env ctx e
-      in let^ ty_info =
-        match enum_info_of_type env expr.typ with
-        | Some info -> Ok (Some info)
-        | None -> error None e.pos "Not an enum type, found %s"
-                    (string_of_type expr.typ)
+      in let^ ty_info = enum_info_of_type env e.pos expr.typ
       in let case_info pos (enum : Parsed.name) (constr : Parsed.name)
         (vs : Parsed.name list) : (int * Semant.typ list) err =
         match ty_info with
