@@ -647,7 +647,7 @@ let string_of_kind = function
 let check_types_eq env (k : kind)
   (ty1 : Semant.typ) pos1 (ty2 : Semant.typ) pos2
   ast typ cont : expr_res err =
-  let check (ty : Semant.typ) : type_check =
+  let rec check (ty : Semant.typ) : type_check =
     match k, ty with
     | _, Unknown -> IsUnknown
     | Boolean,     Bool
@@ -661,6 +661,12 @@ let check_types_eq env (k : kind)
                  | Float32 | Float64 | String | Char )
     | Arbitrary, _
         -> Correct
+    (* Handle alias types *)
+    | _, Named (nm, _) ->
+        begin match Env.find_type nm env with
+        | Some { typ = Alias t; _ } -> check t
+        | _ -> Incorrect
+        end
     | _, _ -> Incorrect
   in match check ty1, check ty2 with
   | Correct, Correct ->
@@ -692,9 +698,9 @@ let check_types_eq env (k : kind)
         "Type error, expected %s but found %s"
         (string_of_kind k) (string_of_type ty2)
   | Incorrect, IsUnknown ->
-      err_expr ast Semant.Unknown cont pos2
+      err_expr ast Semant.Unknown cont pos1
         "Type error, expected %s but found %s"
-        (string_of_kind k) (string_of_type ty2)
+        (string_of_kind k) (string_of_type ty1)
 
 let rec analyze_expr_or_elem (env : env) (ctx : context) (e : Parsed.expr)
   : expr_res err =
@@ -737,7 +743,7 @@ let rec analyze_expr_or_elem (env : env) (ctx : context) (e : Parsed.expr)
               if List.length tys = List.length ty_args
               then Ok tys
               else error (match_length ty_args tys Semant.Unknown) e.pos
-                    "Function '%s' expected %d arguments but provided %d"
+                    "Function '%s' expected %d type arguments but provided %d"
                     nm (List.length ty_args) (List.length tys)
             in Ok (StringMap.of_list (List.combine ty_args tys))
           in let args = List.map (typ_subst vars_map) args
@@ -751,7 +757,7 @@ let rec analyze_expr_or_elem (env : env) (ctx : context) (e : Parsed.expr)
               if List.length tys = List.length ty_args
               then Ok tys
               else error (match_length ty_args tys Semant.Unknown) e.pos
-                    "Function '%s' expected %d arguments but provided %d"
+                    "Function '%s' expected %d type arguments but provided %d"
                     nm (List.length ty_args) (List.length tys)
             in Ok (StringMap.of_list (List.combine ty_args tys))
           in let args = List.map (fun ((nm : Parsed.name), t) ->
@@ -997,7 +1003,7 @@ let rec analyze_expr_or_elem (env : env) (ctx : context) (e : Parsed.expr)
           in let res = (exp :: args, cont_seq arg_cont cont)
           in if types_match env exp.typ ty
           then Ok res
-          else error res arg.pos "Type ereror, expected %s but found %s"
+          else error res arg.pos "Type error, expected %s but found %s"
                 (string_of_type ty) (string_of_type exp.typ)
         ) args arg_tys (Ok ([], continue))
       in ret args cont

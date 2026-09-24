@@ -6,6 +6,20 @@
   let next_line lexbuf = new_line lexbuf
 
   exception LexerError of string
+
+  let int8_of_string s = Int8.of_string (String.sub s 0 (String.length s - 2))
+  let int16_of_string s = Int16.of_string (String.sub s 0 (String.length s - 3))
+  let int32_of_string s = Int32.of_string (String.sub s 0 (String.length s - 3))
+  let int64_of_string s = Int64.of_string (String.sub s 0 (String.length s - 3))
+  let uint8_of_string s = Uint8.of_string (String.sub s 0 (String.length s - 2))
+  let uint16_of_string s = Uint16.of_string (String.sub s 0 (String.length s - 3))
+  let uint32_of_string s = Uint32.of_string (String.sub s 0 (String.length s - 3))
+  let uint64_of_string s = Uint64.of_string (String.sub s 0 (String.length s - 3))
+
+  let f32_of_string s =
+    F32.of_float (float_of_string (String.sub s 0 (String.length s - 3)))
+  let f64_of_string s =
+    float_of_string (String.sub s 0 (String.length s - 3))
 }
 
 let digit = ['0'-'9']
@@ -111,38 +125,38 @@ rule token = parse
   | "true"  { BOOLLIT true }
   | "false" { BOOLLIT false }
 
-  | decimal "i8"    { INT8LIT (Int8.of_string (lexeme lexbuf)) }
-  | decimal "i16"   { INT16LIT (Int16.of_string (lexeme lexbuf)) }
-  | decimal "i32"   { INT32LIT (Int32.of_string (lexeme lexbuf)) }
-  | decimal "i64"   { INT64LIT (Int64.of_string (lexeme lexbuf)) }
-  | decimal "u8"    { UINT8LIT (Uint8.of_string (lexeme lexbuf)) }
-  | decimal "u16"   { UINT16LIT (Uint16.of_string (lexeme lexbuf)) }
-  | decimal "u32"   { UINT32LIT (Uint32.of_string (lexeme lexbuf)) }
-  | decimal "u64"   { UINT64LIT (Uint64.of_string (lexeme lexbuf)) }
-  | binary "i8"     { INT8LIT (Int8.of_string (lexeme lexbuf)) }
-  | binary "i16"    { INT16LIT (Int16.of_string (lexeme lexbuf)) }
-  | binary "i32"    { INT32LIT (Int32.of_string (lexeme lexbuf)) }
-  | binary "i64"    { INT64LIT (Int64.of_string (lexeme lexbuf)) }
-  | binary "u8"     { UINT8LIT (Uint8.of_string (lexeme lexbuf)) }
-  | binary "u16"    { UINT16LIT (Uint16.of_string (lexeme lexbuf)) }
-  | binary "u32"    { UINT32LIT (Uint32.of_string (lexeme lexbuf)) }
-  | binary "u64"    { UINT64LIT (Uint64.of_string (lexeme lexbuf)) }
-  | octal "i8"      { INT8LIT (Int8.of_string (lexeme lexbuf)) }
-  | octal "i16"     { INT16LIT (Int16.of_string (lexeme lexbuf)) }
-  | octal "i32"     { INT32LIT (Int32.of_string (lexeme lexbuf)) }
-  | octal "i64"     { INT64LIT (Int64.of_string (lexeme lexbuf)) }
-  | octal "u8"      { UINT8LIT (Uint8.of_string (lexeme lexbuf)) }
-  | octal "u16"     { UINT16LIT (Uint16.of_string (lexeme lexbuf)) }
-  | octal "u32"     { UINT32LIT (Uint32.of_string (lexeme lexbuf)) }
-  | octal "u64"     { UINT64LIT (Uint64.of_string (lexeme lexbuf)) }
-  | hex "i8"        { INT8LIT (Int8.of_string (lexeme lexbuf)) }
-  | hex "i16"       { INT16LIT (Int16.of_string (lexeme lexbuf)) }
-  | hex "i32"       { INT32LIT (Int32.of_string (lexeme lexbuf)) }
-  | hex "i64"       { INT64LIT (Int64.of_string (lexeme lexbuf)) }
-  | hex "u8"        { UINT8LIT (Uint8.of_string (lexeme lexbuf)) }
-  | hex "u16"       { UINT16LIT (Uint16.of_string (lexeme lexbuf)) }
-  | hex "u32"       { UINT32LIT (Uint32.of_string (lexeme lexbuf)) }
-  | hex "u64"       { UINT64LIT (Uint64.of_string (lexeme lexbuf)) }
+  | decimal "i8"    { INT8LIT (int8_of_string (lexeme lexbuf)) }
+  | decimal "i16"   { INT16LIT (int16_of_string (lexeme lexbuf)) }
+  | decimal "i32"   { INT32LIT (int32_of_string (lexeme lexbuf)) }
+  | decimal "i64"   { INT64LIT (int64_of_string (lexeme lexbuf)) }
+  | decimal "u8"    { UINT8LIT (uint8_of_string (lexeme lexbuf)) }
+  | decimal "u16"   { UINT16LIT (uint16_of_string (lexeme lexbuf)) }
+  | decimal "u32"   { UINT32LIT (uint32_of_string (lexeme lexbuf)) }
+  | decimal "u64"   { UINT64LIT (uint64_of_string (lexeme lexbuf)) }
+  | binary "i8"     { INT8LIT (int8_of_string (lexeme lexbuf)) }
+  | binary "i16"    { INT16LIT (int16_of_string (lexeme lexbuf)) }
+  | binary "i32"    { INT32LIT (int32_of_string (lexeme lexbuf)) }
+  | binary "i64"    { INT64LIT (int64_of_string (lexeme lexbuf)) }
+  | binary "u8"     { UINT8LIT (uint8_of_string (lexeme lexbuf)) }
+  | binary "u16"    { UINT16LIT (uint16_of_string (lexeme lexbuf)) }
+  | binary "u32"    { UINT32LIT (uint32_of_string (lexeme lexbuf)) }
+  | binary "u64"    { UINT64LIT (uint64_of_string (lexeme lexbuf)) }
+  | octal "i8"      { INT8LIT (int8_of_string (lexeme lexbuf)) }
+  | octal "i16"     { INT16LIT (int16_of_string (lexeme lexbuf)) }
+  | octal "i32"     { INT32LIT (int32_of_string (lexeme lexbuf)) }
+  | octal "i64"     { INT64LIT (int64_of_string (lexeme lexbuf)) }
+  | octal "u8"      { UINT8LIT (uint8_of_string (lexeme lexbuf)) }
+  | octal "u16"     { UINT16LIT (uint16_of_string (lexeme lexbuf)) }
+  | octal "u32"     { UINT32LIT (uint32_of_string (lexeme lexbuf)) }
+  | octal "u64"     { UINT64LIT (uint64_of_string (lexeme lexbuf)) }
+  | hex "i8"        { INT8LIT (int8_of_string (lexeme lexbuf)) }
+  | hex "i16"       { INT16LIT (int16_of_string (lexeme lexbuf)) }
+  | hex "i32"       { INT32LIT (int32_of_string (lexeme lexbuf)) }
+  | hex "i64"       { INT64LIT (int64_of_string (lexeme lexbuf)) }
+  | hex "u8"        { UINT8LIT (uint8_of_string (lexeme lexbuf)) }
+  | hex "u16"       { UINT16LIT (uint16_of_string (lexeme lexbuf)) }
+  | hex "u32"       { UINT32LIT (uint32_of_string (lexeme lexbuf)) }
+  | hex "u64"       { UINT64LIT (uint64_of_string (lexeme lexbuf)) }
 
   (* Just plain decimal becomes an INTLIT which is also used for tuple field
    * accesses (and is otherwise promoted to i64) *)
@@ -151,8 +165,8 @@ rule token = parse
   | octal           { INT64LIT (Int64.of_string (lexeme lexbuf)) }
   | hex             { INT64LIT (Int64.of_string (lexeme lexbuf)) }
 
-  | floating "f32"  { FLOAT32LIT (F32.of_float (float_of_string (lexeme lexbuf))) }
-  | floating "f64"  { FLOAT64LIT (float_of_string (lexeme lexbuf)) }
+  | floating "f32"  { FLOAT32LIT (f32_of_string (lexeme lexbuf)) }
+  | floating "f64"  { FLOAT64LIT (f64_of_string (lexeme lexbuf)) }
   | floating        { FLOAT64LIT (float_of_string (lexeme lexbuf)) }
   | "'" _ "'" { CHARLIT (String.get (lexeme lexbuf) 1) }
   | '"' ([^'\n''\r''"''\\'] | '\\' _)* '"'

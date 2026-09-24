@@ -18,6 +18,7 @@ element inode(num : int)
 attribute contents : string
 
 // TODO: split_path as a builtin function
+fn split_path(p : path) -> list::<string> { assert false; }
 
 fn fs(p : path) -> state {
   let ps = split_path(p);
