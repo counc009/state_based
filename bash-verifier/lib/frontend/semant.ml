@@ -1339,14 +1339,13 @@ and analyze_stmts (env : env) (ctx : context) (stmts : Parsed.stmt list)
   | s :: tl ->
       let^ { env; res = s_res; cont = s_cont } = analyze_stmt env ctx s
       in let^ (tl_res, tl_cont) = analyze_stmts env ctx tl
-      in let res_cont = (s_res :: tl_res, tl_cont)
-      in let res_nocont = (s_res :: tl_res, s_cont)
+      in let res = (s_res :: tl_res, cont_seq s_cont tl_cont)
       in if s_cont.contu
-      then Ok res_cont
+      then Ok res
       else
         match tl with
-        | [] -> Ok res_nocont
-        | un :: _ -> error res_nocont un.pos "Unreachable statement"
+        | [] -> Ok res
+        | un :: _ -> error res un.pos "Unreachable statement"
 
 let analyze_function (env : env) pos (ret : Semant.typ)
   (stmts : Parsed.stmt list) : Semant.stmt list err =
