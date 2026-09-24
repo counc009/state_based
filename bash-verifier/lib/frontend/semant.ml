@@ -314,11 +314,20 @@ let rec types_match env (t : Semant.typ) (s : Semant.typ) : bool =
   else
     match t, s with
     | Unknown, _ | _, Unknown -> true
+    (* Check type constructors *)
+    | Function (tr, ta), Function (sr, sa) ->
+        types_match env tr sr
+        && List.for_all2 (types_match env) ta sa
+    | Product tts, Product sts ->
+        List.for_all2 (types_match env) tts sts
+    | List t, List s -> types_match env t s
     (* If one of our types is a type-alias inline the definition and try
      * again. We do not inline struct and enum types, though hence our type
      * system is a nominal type system rather than a structural one *)
-    | Named (nt, _), Named (ns, _) ->
-        begin match Env.find_type nt env with
+    | Named (nt, tts), Named (ns, sts) ->
+        if nt = ns
+        then List.for_all2 (types_match env) tts sts
+        else begin match Env.find_type nt env with
         (* Type aliases do not have type arguments *)
         | Some { typ = Alias t; _ } -> types_match env t s
         | _ ->
@@ -1330,13 +1339,14 @@ and analyze_stmts (env : env) (ctx : context) (stmts : Parsed.stmt list)
   | s :: tl ->
       let^ { env; res = s_res; cont = s_cont } = analyze_stmt env ctx s
       in let^ (tl_res, tl_cont) = analyze_stmts env ctx tl
-      in let res = (s_res :: tl_res, tl_cont)
+      in let res_cont = (s_res :: tl_res, tl_cont)
+      in let res_nocont = (s_res :: tl_res, s_cont)
       in if s_cont.contu
-      then Ok res
+      then Ok res_cont
       else
         match tl with
-        | [] -> Ok res
-        | un :: _ -> error res un.pos "Unreachable statement"
+        | [] -> Ok res_nocont
+        | un :: _ -> error res_nocont un.pos "Unreachable statement"
 
 let analyze_function (env : env) pos (ret : Semant.typ)
   (stmts : Parsed.stmt list) : Semant.stmt list err =

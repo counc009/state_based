@@ -47,7 +47,7 @@ fn list_dir(p : path) -> list::<path> {
 
   match f.fs_contents {
     file_kind::directory => {
-      return forall fs(n) in f { yield n; };
+      return forall fs_elem(n) in f { yield n; };
     }
     _ => { assert false; }
   }
