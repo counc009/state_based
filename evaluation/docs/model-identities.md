@@ -1,36 +1,37 @@
-# Verified model identity and pricing
+# Current main lineup and reasoning settings
 
-Checked against primary provider documentation on 2026-11-04. The candidate models are publicly documented text/code-capable models. Provider availability to this account remains separate from documentation: only OpenAI Sol was actually sampled. Names used as internal config keys are not sent as agent-model aliases.
+Updated for Darsh's ten-repeat decision, 2026-11-04. Earlier six-model proposals are historical and are not the current matrix.
 
-| Config key | Provider; exact requested model ID | Primary identity source | Standard input / output USD per MTok |
-|---|---|---|---:|
-| astra | OpenAI; `gpt-6-astra` | [Official model page](https://developers.openai.com/api/docs/models/gpt-6-astra) | 10 / 50 |
-| sol | OpenAI; `gpt-6.1-sol` | [Official model page](https://developers.openai.com/api/docs/models/gpt-6.1-sol) | 2 / 10 |
-| fable | Anthropic; `claude-fable-5-1` | [Official model page](https://platform.claude.com/docs/en/models/fable-5-1/overview) | 10 / 50 |
-| sonnet | Anthropic; `claude-sonnet-5-5` | [Official model page](https://platform.claude.com/docs/en/models/sonnet-5-5/overview) | 2 / 10 |
-| qwen4 | Qwen publisher; `Qwen/Qwen3.5-4B` | [Publisher card](https://huggingface.co/Qwen/Qwen3.5-4B) | Local compute, unpriced |
-| qwen9 | Qwen publisher; `Qwen/Qwen3.5-9B` | [Publisher card](https://huggingface.co/Qwen/Qwen3.5-9B) | Local compute, unpriced |
+| Config key / exact model ID | Provider | Effort sent | Source / availability |
+|---|---|---|---|
+| sol / `gpt-6.1-sol` | OpenAI Responses API | `reasoning.effort: high` | [Official model](https://developers.openai.com/api/docs/models/gpt-6.1-sol); ten earlier smoke completions |
+| opus / `claude-opus-5-5` | Anthropic Messages API | `output_config.effort: high` | [Latest Opus](https://platform.claude.com/docs/en/models/opus-5-5/overview); optional, key pending |
+| `deepseek-v4.1-flash` | AgentFanClub Chat Completions | `reasoning_effort: high` | Authenticated router catalog; one accepted check |
+| `deepseek-v4-flash` | AgentFanClub Chat Completions | `reasoning_effort: high` | Authenticated router catalog; one accepted check |
+| `glm-5.3` | AgentFanClub Chat Completions | `reasoning_effort: high` | Authenticated router catalog; one accepted check |
+| `qwen3.8-flash` | AgentFanClub Chat Completions | `reasoning_effort: xhigh` | HIGH rejected; router reports XHIGH as supported default |
 
-The two OpenAI pages provide pricing and cache-write/read rates. [Anthropic's pricing page](https://platform.claude.com/docs/en/about-claude/pricing) independently confirms both Claude rates, 5-minute cache writes at 1.25× input, one-hour writes at 2×, and current read prices. The implementation does not request one-hour caching, tools, search, fast mode or regional processing. It conservatively reserves the higher of base input and configured 5-minute-write rates. API aliases are not immutable dated snapshots; retain returned IDs and dates. The Qwen weight revision SHAs are in `configs/models.json`; no local inference has been performed.
+All future matrix requests cap total provider output at 4,096 tokens (`max_output_tokens` for OpenAI, `max_tokens` for Chat Completions and Anthropic). No temperature/top-p/seed overrides or model tools are sent. Effort is per model in `configs/models.json`, not merely an agent preference. Exact body and URL are saved durably in the attempt ledger before network access and in response records, including failures. Frozen manifests contain all selected config and source hashes. Opus is excluded from default active selection and missing optional credentials never consume budget or block other models.
 
-## Exact smoke identity
+Anthropic's latest Opus page identifies `claude-opus-5-5`, with adaptive thinking always on and a default effort of medium; the runner explicitly selects HIGH. No Anthropic requests have been made. Its documented standard rates are $4 input / $20 output per million tokens, with $5 for 5-minute cache writes. Sol's documented rates are $2/$10 with $2.50 for cache writes. APIs remain provider model aliases, not invented immutable dated snapshots.
 
-- Transport: Python `urllib.request` over HTTPS to **`https://api.openai.com/v1/responses`** with the securely supplied OpenAI API key.
-- Request body model: **`gpt-6.1-sol`**, ten requests; no agent CLI, model router, tools or browsing.
-- Response body model: **`gpt-6.1-sol`** on all ten responses; raw bodies and usage are retained locally.
-- Official suitability: the provider lists this API model for complex coding/text work, with selectable reasoning effort. The experiment used `high`, not the default medium.
-- Therefore “Sol” in the smoke report is shorthand for the documented OpenAI API ID, not a substitute inferred from the coding agent's name. The API's returned ID does not expose immutable underlying weight identity; that remains a provider reproducibility limitation.
+Router IDs/prices are documented in the captured [catalog](../configs/router-catalog-2026-11-04.json) and [connectivity report](router-connectivity.md). Routing effort acceptance, Qwen's catalog/error inconsistency and unconfirmed price units are retained explicitly. No local GPU or Delta allocation is needed for the new all-API matrix.
 
-## Budget for a decision
+## Ten-repeat budget proposal
 
-All options below keep five repetitions and the same 21 task prompts. These are conservative envelopes from actual prompt-byte sizes plus framing margin and the 4,096 billable-output cap. They include configured 5-minute cache-write overhead, no cache/batch discount, no retries and no extra judging calls. Local compute/storage cost must be added separately.
+21 tasks × two prompt variants × ten repeats × five enabled models = **2,100 calls**, 420 per model. Claude is pending; including it would make 2,520 calls. Planning uses actual prompt-byte sizes plus framing margin and the 4,096 output cap, with no retry, batch or cache-hit discounts.
 
-| Option | API completions | Local completions | API planning envelope |
-|---|---:|---:|---:|
-| Full six models, baseline only | 420 | 210 | $71.80 |
-| Sol only, both prompts | 210 | 0 | $14.41 |
-| Sol + Sonnet, both prompts | 420 | 0 | $28.81 |
-| Astra + Sol, both prompts | 420 | 0 | $86.44 |
-| Full six models, both prompts | 840 | 420 | $172.88 |
+| Model | Calls without Claude | API envelope, USD |
+|---|---:|---:|
+| gpt-6.1-sol | 420 | 28.813275 |
+| deepseek-v4.1-flash | 420 | 2.793868 |
+| deepseek-v4-flash | 420 | 1.390699 |
+| glm-5.3 | 420 | 13.445148 |
+| qwen3.8-flash | 420 | 1.442295 |
+| **Without Claude** | **2,100** | **47.885284** |
+| Pending Claude addition | +420 | +57.626550 |
+| All six, if enabled later | 2,520 | 105.511834 |
 
-The earlier $158.94756 estimate used base input rates; it is superseded for new full-run decisions because it omitted explicit cache-write overhead. The old manifests and actual $0.62773 smoke reservation are preserved as historical records. Reported smoke usage reconciles to $0.012844 at current standard/cache/write prices, not an invoice. A full matrix has not been authorized or run.
+Router prices are assumed to be USD/MTok because its catalog omits units. Confirm that assumption before paid matrix approval; these are planning envelopes, not invoice guarantees. Baseline-only active five-model option is 1,050 calls, approximately $19.664098 under the same assumptions.
+
+The old Sol smoke is preserved at five repeats per arm and is not relabeled as ten-repeat data. It called OpenAI directly at `https://api.openai.com/v1/responses` using exact request/returned ID `gpt-6.1-sol`, `reasoning.effort=high`, `max_output_tokens=4096`, `store=false` and no sampling overrides. Its usage-based estimate remains $0.012844, subject to provider billing.

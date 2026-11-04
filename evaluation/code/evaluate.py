@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Frozen five-repeat NL-to-FQL experiments; standard library only, no tools in requests."""
+"""Frozen repeated NL-to-FQL experiments; standard library only, no tools in requests."""
 import argparse
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -37,7 +37,10 @@ def write_new(path, value):
 
 def freeze(dataset, models, variants, cases=None):
     config = load(ROOT / 'configs/models.json')
-    assert config['repetitions'] == 5, 'Protocol requires five repetitions'
+    repetitions = config['repetitions']
+    assert type(repetitions) is int and repetitions > 0, 'Invalid repetition count'
+    if models is None:
+        models = [key for key, value in config['models'].items() if value.get('enabled', True)]
     registry = load(ROOT / 'prompts/registry.json')
     tasks = load(dataset)['tasks']
     selected = [t for t in tasks if cases is None or t['task_id'] in cases]
@@ -63,12 +66,12 @@ def freeze(dataset, models, variants, cases=None):
             revised = [{'role':'system', 'content':prompt}] + messages[1:]
             assert revised[1:] == messages[1:], 'Demonstrations or target changed'
             for model in models:
-                for repeat in range(5):
+                for repeat in range(repetitions):
                     cells.append({'id':f'{model}--{variant}--{task["task_id"]}--r{repeat}',
                                   'model':model, 'variant':variant, 'task_id':task['task_id'],
                                   'repeat':repeat, 'demonstration_ids':task['demonstration_ids'],
                                   'messages':revised})
-    return {'schema_version':1, 'repetitions':5, 'sources':sources, 'config':config,
+    return {'schema_version':1, 'repetitions':repetitions, 'sources':sources, 'config':config,
             'cells':sorted(cells, key=lambda c:digest(c['id'])),
             'scope':'Development suite; no unseen-task or user-intent correctness claim'}
 
@@ -92,10 +95,12 @@ def estimate(manifest):
         by_model[model] = {'calls':len(cells), 'usd_envelope':round(sum(reserve(c, config) for c in cells), 6)}
     return {'calls':len(manifest['cells']), 'by_model':by_model,
             'usd_envelope':round(sum(reserve(c, config) for c in manifest['cells']), 6),
+            'pricing_assumptions':sorted({config['models'][c['model']]['pricing_unit_assumption']
+                                          for c in manifest['cells'] if 'pricing_unit_assumption' in config['models'][c['model']]}),
             'notes':'Includes configured 5m cache-write input ceiling; local compute excluded. No automatic retries. Reprice before a full run.'}
 
 
-def request(cell, config):
+def build_request(cell, config):
     model = config['models'][cell['model']]
     provider = model['provider']
     headers = {'Content-Type':'application/json'}
@@ -104,18 +109,38 @@ def request(cell, config):
         headers['Authorization'] = 'Bearer ' + os.environ['OPENAI_API_KEY']
         payload = {'model':model['id'], 'input':cell['messages'], 'store':False,
                    'max_output_tokens':config['max_output_tokens'],
-                   'reasoning':{'effort':config['reasoning_effort']}}
+                   'reasoning':{'effort':model.get('reasoning_effort', config['reasoning_effort'])}}
     elif provider == 'anthropic':
         url = 'https://api.anthropic.com/v1/messages'
         headers.update({'x-api-key':os.environ['ANTHROPIC_API_KEY'], 'anthropic-version':'2023-06-01'})
         payload = {'model':model['id'], 'system':cell['messages'][0]['content'],
                    'messages':cell['messages'][1:], 'max_tokens':config['max_output_tokens'],
-                   'output_config':{'effort':config['reasoning_effort']}}
-    else:
+                   'output_config':{'effort':model.get('reasoning_effort', config['reasoning_effort'])}}
+    elif provider == 'agentfanclub':
+        base = os.environ['AGENTFANCLUB_BASE_URL'].rstrip('/')
+        if base != model['base_url'].rstrip('/'):
+            raise ValueError('Router URL differs from frozen model config')
+        url = base + '/chat/completions'
+        headers['Authorization'] = 'Bearer ' + os.environ['AGENTFANCLUB_API_KEY']
+        headers['User-Agent'] = 'Astrogator-Evaluation/1.0'
+        payload = {'model':model['id'], 'messages':cell['messages'],
+                   'max_tokens':config['max_output_tokens'], 'stream':False}
+        if model.get('reasoning_effort'):
+            payload['reasoning_effort'] = model['reasoning_effort']
+    elif provider == 'local':
         # Operator must provide a pinned local model server. Never download or start one implicitly.
         url = os.environ['EVALUATION_LOCAL_URL'].rstrip('/') + '/chat/completions'
         payload = {'model':model['id'], 'messages':cell['messages'],
                    'max_tokens':config['max_output_tokens'], 'stream':False}
+    else:
+        raise ValueError('Unknown provider: ' + provider)
+    return url, payload, headers
+
+
+def request(cell, config):
+    model = config['models'][cell['model']]
+    provider = model['provider']
+    url, payload, headers = build_request(cell, config)
     req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers=headers)
     with urllib.request.urlopen(req, timeout=180) as response:
         raw = json.load(response)
@@ -131,7 +156,7 @@ def request(cell, config):
         completed = raw['choices'][0]['finish_reason'] == 'stop'
     return {'status':'completed' if completed else 'incomplete', 'text':text,
             'response':raw, 'requested_model':model['id'], 'returned_model':raw.get('model'),
-            'usage':raw.get('usage'), 'request_body':payload}
+            'usage':raw.get('usage'), 'request_body':payload, 'request_url':url}
 
 
 def run(manifest, out, budget, max_calls):
@@ -149,19 +174,28 @@ def run(manifest, out, budget, max_calls):
         seen = {a['id'] for a in attempts}
         spent = sum(a['reserved_usd'] for a in attempts)
         calls = 0
+        skipped = []
         for cell in manifest['cells']:
             if cell['id'] in seen:
                 continue
             if calls >= max_calls:
                 break
+            provider = manifest['config']['models'][cell['model']]['provider']
+            needed = {'openai':['OPENAI_API_KEY'], 'anthropic':['ANTHROPIC_API_KEY'],
+                      'agentfanclub':['AGENTFANCLUB_API_KEY','AGENTFANCLUB_BASE_URL'],
+                      'local':['EVALUATION_LOCAL_URL']}[provider]
+            missing = [key for key in needed if not os.environ.get(key)]
+            if missing:
+                if manifest['config']['models'][cell['model']].get('optional'):
+                    skipped.append(cell['id'])
+                    continue
+                raise RuntimeError('Missing environment variable: ' + ', '.join(missing))
             cost = reserve(cell, manifest['config'])
             if spent + cost > budget + 1e-9:
                 break
-            provider = manifest['config']['models'][cell['model']]['provider']
-            needed = {'openai':'OPENAI_API_KEY','anthropic':'ANTHROPIC_API_KEY','local':'EVALUATION_LOCAL_URL'}[provider]
-            if not os.environ.get(needed):
-                raise RuntimeError('Missing environment variable: ' + needed)
-            receipt = {'id':cell['id'], 'reserved_usd':cost, 'started_at':datetime.now(timezone.utc).isoformat()}
+            request_url, request_body, _ = build_request(cell, manifest['config'])
+            receipt = {'id':cell['id'], 'reserved_usd':cost, 'started_at':datetime.now(timezone.utc).isoformat(),
+                       'request_url':request_url, 'request_body':request_body}
             with ledger.open('a') as f:
                 f.write(json.dumps(receipt)+'\n'); f.flush(); os.fsync(f.fileno())
             start = time.monotonic()
@@ -173,12 +207,14 @@ def run(manifest, out, budget, max_calls):
                 # Do not serialize exception strings, headers or key values.
                 result = {'status':'transport_error', 'error_type':type(e).__name__}
             result.update(cell_id=cell['id'], manifest_sha256=digest(manifest),
+                          request_url=request_url, request_body=request_body,
                           seconds=round(time.monotonic()-start, 3))
             write_new(out / 'responses' / (cell['id']+'.json'), result)
             spent += cost; calls += 1
             print(json.dumps({'cell':cell['id'], 'status':result['status']}), flush=True)
         return {'new_calls':calls, 'reserved_usd':round(spent, 6),
-                'attempts':len(seen)+calls, 'planned_cells':len(manifest['cells'])}
+                'attempts':len(seen)+calls, 'planned_cells':len(manifest['cells']),
+                'optional_cells_skipped_for_credentials':skipped}
 
 
 def analyze(out, checker=None):
@@ -216,7 +252,7 @@ def main():
     sub = p.add_subparsers(dest='command', required=True)
     f = sub.add_parser('freeze')
     f.add_argument('--dataset', type=Path, required=True)
-    f.add_argument('--models', nargs='+', required=True)
+    f.add_argument('--models', nargs='+', help='Defaults to enabled models; pending optional entries excluded')
     f.add_argument('--variants', nargs='+', default=['compact-v1','handbook-v2'])
     f.add_argument('--cases', nargs='+')
     f.add_argument('--output', type=Path, required=True)

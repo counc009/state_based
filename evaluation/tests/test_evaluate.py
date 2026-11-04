@@ -31,12 +31,12 @@ class ProtocolTests(unittest.TestCase):
     def manifest(self):
         return ev.freeze(self.data, ['sol'], ['compact-v1','handbook-v2'])
 
-    def test_paired_prompts_keep_every_demo_and_target_and_five_repeats(self):
+    def test_paired_prompts_keep_every_demo_and_target_and_ten_repeats(self):
         m = self.manifest()
-        self.assertEqual(len(m['cells']), 10)
+        self.assertEqual(len(m['cells']), 20)
         for variant in ['compact-v1','handbook-v2']:
             cells = [c for c in m['cells'] if c['variant']==variant]
-            self.assertEqual({c['repeat'] for c in cells}, set(range(5)))
+            self.assertEqual({c['repeat'] for c in cells}, set(range(10)))
             for c in cells:
                 self.assertEqual(c['messages'][1:], self.messages[1:])
         baseline = next(c for c in m['cells'] if c['variant']=='compact-v1')
@@ -66,6 +66,36 @@ class ProtocolTests(unittest.TestCase):
         self.assertNotIn('tools',body)
         self.assertEqual(result['returned_model'],'gpt-6.1-sol')
 
+    def test_pending_opus_does_not_block_sol_or_consume_budget(self):
+        m=ev.freeze(self.data,['opus','sol'],['compact-v1'])
+        m['cells'].sort(key=lambda c:c['model']=='sol')
+        out=self.root/'optional-run'
+        sol=next(c for c in m['cells'] if c['model']=='sol')
+        with patch.dict('os.environ',{'OPENAI_API_KEY':'fixture'},clear=True), patch.object(ev,'request',return_value={'status':'completed','text':'query'}) as req:
+            result=ev.run(m,out,ev.reserve(sol,m['config']),1)
+        self.assertEqual(result['new_calls'],1)
+        self.assertEqual(len(result['optional_cells_skipped_for_credentials']),10)
+        self.assertEqual(req.call_args.args[0]['model'],'sol')
+
+    def test_default_slate_excludes_pending_opus_and_dropped_models(self):
+        m=ev.freeze(self.data,None,['compact-v1'])
+        self.assertEqual(m['repetitions'],10)
+        self.assertEqual({c['model'] for c in m['cells']},{'sol','deepseek-v4.1-flash','deepseek-v4-flash','glm-5.3','qwen3.8-flash'})
+        self.assertEqual(len(m['cells']),50)
+
+    def test_router_records_exact_model_effort_and_url(self):
+        for ident,effort in [('glm-5.3','high'),('qwen3.8-flash','xhigh')]:
+            m=ev.freeze(self.data,[ident],['compact-v1']);cell=m['cells'][0]
+            response={'model':ident,'choices':[{'message':{'content':'OK'},'finish_reason':'stop'}]}
+            with patch.dict('os.environ',{'AGENTFANCLUB_API_KEY':'fixture','AGENTFANCLUB_BASE_URL':'https://api.router.agentfan.club/inference/v1'}), patch.object(ev.urllib.request,'urlopen',return_value=io.BytesIO(json.dumps(response).encode())) as mock:
+                result=ev.request(cell,m['config'])
+            req=mock.call_args.args[0];body=json.loads(req.data)
+            self.assertEqual(req.full_url,'https://api.router.agentfan.club/inference/v1/chat/completions')
+            self.assertEqual(body['model'],ident)
+            self.assertEqual(body['reasoning_effort'],effort)
+            self.assertEqual(result['request_body'],body)
+            self.assertEqual(result['request_url'],req.full_url)
+
     def test_target_leak_rejected(self):
         self.task['demonstration_ids'] = ['probe']
         self.data.write_text(json.dumps({'tasks':[self.task]}))
@@ -83,7 +113,7 @@ class ProtocolTests(unittest.TestCase):
             self.assertEqual(req.call_count,1)
         summary = ev.analyze(out)
         statuses = [v['statuses'] for v in summary['results'].values()]
-        self.assertEqual(sum(v.get('missing',0) for v in statuses),9)
+        self.assertEqual(sum(v.get('missing',0) for v in statuses),19)
 
     def test_interrupted_receipt_is_not_silently_retried(self):
         m = self.manifest(); out=self.root/'run'; out.mkdir()

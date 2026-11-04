@@ -1,6 +1,6 @@
 # NL-to-FQL evaluation
 
-Translate natural-language requests into Astrogator's formal query language, with five fresh calls per task/model/prompt variant. This evaluates the formalizer. Compiler acceptance does not establish that a specification satisfies a person's intent; user validation remains necessary.
+Translate natural-language requests into Astrogator's formal query language, with ten fresh calls per task/model/prompt variant. This evaluates the formalizer. Compiler acceptance does not establish that a specification satisfies a person's intent; user validation remains necessary.
 
 ## Setup and repository map
 
@@ -28,7 +28,7 @@ python3 -m unittest discover -s evaluation/tests -v
 # Supply the authorized existing frozen-inputs.json from the research checkout.
 python3 evaluation/code/import_frozen.py /path/to/frozen-inputs.json evaluation/datasets/imported-private.json
 
-# Freeze 21 tasks × 2 variants × 5 repetitions for one accessible model.
+# Freeze 21 tasks × 2 variants × 10 repetitions for one accessible model.
 python3 evaluation/code/evaluate.py freeze \
   --dataset evaluation/datasets/imported-private.json --models sol \
   --output /tmp/nl-fql-manifest.json
@@ -47,10 +47,12 @@ python3 evaluation/code/evaluate.py analyze --output evaluation/results/my-run \
 
 The last command is an argv template, not a shell. The wrapper supplies sorted absolute module paths. `query-interp` also symbolically interprets; a nonzero result is broader than a parsing error. The recorded smoke used the recovered narrow diagnostic driver instead; see its precise limits in `results/smoke-2026-11-04.md`.
 
-A run can be resumed with the same manifest and directory. The dollar ceiling covers accumulated reserved attempts in that directory, not just the new invocation. An interrupted attempt is never silently resent. Use a new run for a protocol change. Calls reaching a configured cap leave the remaining five-repeat cells explicitly missing; do not publish them as complete.
+A run can be resumed with the same manifest and directory. The dollar ceiling covers accumulated reserved attempts in that directory, not just the new invocation. An interrupted attempt is never silently resent. Use a new run for a protocol change. Calls reaching a configured cap leave the remaining ten-repeat cells explicitly missing; do not publish them as complete.
 
-OpenAI `sol` is live-tested. Anthropic and local transports are implemented but untested here. Before local inference, pin model/tokenizer/chat-template revisions and runtime/precision, supply `EVALUATION_LOCAL_URL` for an authorized existing OpenAI-compatible server, and verify which model it actually serves. No model download, GPU allocation or service launch is implicit. The current local transport has no entitlement or revision attestation; full local runs need that preflight. Anthropic effort is explicitly configured through `output_config.effort`; its thinking behavior differs from OpenAI and still needs a bounded entitlement/preflight check.
+OpenAI `sol` and all four approved router routes are connectivity-tested. Claude Opus is optional/pending until its key arrives; default freeze excludes it. Before local inference, pin model/tokenizer/chat-template revisions and runtime/precision, supply `EVALUATION_LOCAL_URL` for an authorized existing OpenAI-compatible server, and verify which model it actually serves. No model download, GPU allocation or service launch is implicit. The current local transport has no entitlement or revision attestation; full local runs need that preflight. Anthropic effort is explicitly configured through `output_config.effort`; its thinking behavior differs from OpenAI and still needs a bounded entitlement/preflight check.
 
 See [protocol](docs/protocol.md), [sources and paper alignment](docs/provenance.md), and [actual smoke results](results/smoke-2026-11-04.md).
 
 Fresh native build and reference/semantic validation are documented in [native validation](docs/native-validation.md). [Verified model identities and budget options](docs/model-identities.md) supersede the original base-input-only full-run estimate.
+
+Current selection, ten-repeat costs and the Qwen HIGH rejection are recorded in [model settings](docs/model-identities.md), [router checks](docs/router-connectivity.md) and [Darsh decisions](docs/decisions.md). Prior five-repeat smoke data remain historical.
