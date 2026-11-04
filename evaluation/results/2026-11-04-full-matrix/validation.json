@@ -1,0 +1,12 @@
+{
+  "validated_cells": 2520,
+  "model_variant_groups": 12,
+  "task_groups": 252,
+  "statuses": {
+    "completed": 2442,
+    "incomplete": 32,
+    "provider_error": 46
+  },
+  "primary_correct": 1479,
+  "accounted_usd": 9.242650052078
+}

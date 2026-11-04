@@ -24,7 +24,7 @@ def wilson(correct,n):
 
 def write_csv(path,rows):
     with path.open('w',newline='') as f:
-        writer=csv.DictWriter(f,fieldnames=list(rows[0]))
+        writer=csv.DictWriter(f,fieldnames=list(rows[0]),lineterminator='\n')
         writer.writeheader();writer.writerows(rows)
 
 
@@ -60,6 +60,7 @@ def summarize(rows,keys):
             provider_or_transport_fail=sum(r['status'] in ('provider_error','transport_error','interrupted_unknown_billing') for r in rs),
             cost_usd=sum(r['cost_usd'] for r in rs),
             mean_latency_s=statistics.mean(latency) if latency else None,
+            discrepant_reference_cells=sum(r['reference_discrepancy'] for r in rs),
             n_without_discrepant_references=len(eligible),correct_without_discrepant_references=sum(r['ref_match'] is True for r in eligible)))
     return result
 
@@ -137,18 +138,42 @@ def export(run,references):
             'returned_model':response.get('returned_model'),
             'reasoning_effort':model.get('reasoning_effort'),'cost_is_estimate':True})
         if index%250==0:print(f'Scored {index}/{len(m["cells"])}',flush=True)
+    attempt_rows=[]
+    cells_by_id={c['id']:c for c in m['cells']}
+    for a in state['attempts']:
+        c=cells_by_id[a['cell_id']];model=m['config']['models'][c['model']]
+        path=run/'attempts'/(a['cell_id']+f'--attempt{a["attempt"]}.json')
+        raw=load(path) if path.exists() else {}
+        inp,out,reason=totals([raw],model['provider'])
+        cost=a.get('cost_usd',a['reserved_usd'])
+        if a.get('cost_source')=='reported_tokens_at_frozen_rates':cost=usage_cost(raw,model,a['reserved_usd'])[0]
+        attempt_rows.append({'model':model['id'],'variant':c['variant'],'task_id':c['task_id'],
+            'repeat':c['repeat'],'attempt':a['attempt'],'status':a['status'],
+            'http_status':a.get('http_status',raw.get('http_status')),
+            'input_tokens':inp,'output_tokens':out,'reasoning_tokens':reason,
+            'cost_usd':cost,'cost_source':a.get('cost_source'),'latency_s':a.get('seconds'),
+            'error':raw.get('error'),'started_at':a['started_at']})
+    attempt_rows.sort(key=lambda r:(r['model'],r['variant'],r['task_id'],r['repeat'],r['attempt']))
+    (run/'per-attempt.json').write_text(json.dumps(attempt_rows,indent=2)+'\n')
+    if attempt_rows:write_csv(run/'per-attempt.csv',attempt_rows)
     rows.sort(key=lambda r:(r['model'],r['variant'],r['task_id'],r['repeat']))
     (run/'per-call.json').write_text(json.dumps(rows,indent=2)+'\n');write_csv(run/'per-call.csv',rows)
     summary=summarize(rows,['model','variant']);write_csv(run/'model-variant-summary.csv',summary)
     write_csv(run/'task-model-variant.csv',summarize(rows,['task_id','model','variant']))
     (run/'diagnostics-private.json').write_text(json.dumps({'reference_probes':refprobes,'query_diagnostics':cache,'cells':evidence},indent=2)+'\n')
-    costs={'by_model':{model:sum(r['cost_usd'] for r in rows if r['model']==model) for model in sorted({r['model'] for r in rows})},
+    from datetime import datetime, timezone
+    costs={'execution_started_at':min(a['started_at'] for a in state['attempts']) if state['attempts'] else None,
+           'execution_finished_at':datetime.fromtimestamp((run/'run-status.json').stat().st_mtime,timezone.utc).isoformat() if (run/'run-status.json').exists() else None,
+           'by_model':{model:sum(r['cost_usd'] for r in rows if r['model']==model) for model in sorted({r['model'] for r in rows})},
            'matrix_cost_usd':sum(r['cost_usd'] for r in rows),'prior_cost_reserve_usd':state['prior_cost_usd'],
            'budget_accounted_usd':state['prior_cost_usd']+sum(r['cost_usd'] for r in rows),
            'cache_detail_reconciliation_usd':sum(r['cost_usd'] for r in rows)-sum(a.get('cost_usd',a['reserved_usd']) for a in state['attempts']),
            'rates':m['config']['models'],'manifest_sha256':digest(m),
            'runner_sha256':digest((REPO/'evaluation/code/matrix_run.py').read_bytes()),
            'exporter_sha256':digest(Path(__file__).read_bytes()),
+           'initial_runner_sha256':digest((run/'runner-at-first-launch.py').read_bytes()) if (run/'runner-at-first-launch.py').exists() else None,
+           'references_sha256':digest(Path(references).read_bytes()),
+           'paper_sha256':'02e020763955e0a79712423bda93b7d02fd5fa763135988ccc7127097b067bb3',
            'binary_sha256':{str(p.relative_to(REPO)):digest(p.read_bytes()) for p in [binary,interpreter,verifier]},
            'module_sha256':{str(Path(p).relative_to(REPO)):digest(Path(p).read_bytes()) for p in modules},
            'sources':m['sources'],'repetitions':m['repetitions'],
