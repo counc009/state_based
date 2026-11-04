@@ -29,12 +29,12 @@ class ProtocolTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def manifest(self):
-        return ev.freeze(self.data, ['sol'], ['compact-v1','handbook-v2'])
+        return ev.freeze(self.data, ['sol'], ['compact-v1','handbook-v3'])
 
     def test_paired_prompts_keep_every_demo_and_target_and_ten_repeats(self):
         m = self.manifest()
         self.assertEqual(len(m['cells']), 20)
-        for variant in ['compact-v1','handbook-v2']:
+        for variant in ['compact-v1','handbook-v3']:
             cells = [c for c in m['cells'] if c['variant']==variant]
             self.assertEqual({c['repeat'] for c in cells}, set(range(10)))
             for c in cells:
@@ -80,8 +80,8 @@ class ProtocolTests(unittest.TestCase):
     def test_default_slate_excludes_pending_opus_and_dropped_models(self):
         m=ev.freeze(self.data,None,['compact-v1'])
         self.assertEqual(m['repetitions'],10)
-        self.assertEqual({c['model'] for c in m['cells']},{'sol','deepseek-v4.1-flash','deepseek-v4-flash','glm-5.3','qwen3.8-flash'})
-        self.assertEqual(len(m['cells']),50)
+        self.assertEqual({c['model'] for c in m['cells']},{'sol','opus','deepseek-v4.1-flash','deepseek-v4-flash','glm-5.3','qwen3.8-flash'})
+        self.assertEqual(len(m['cells']),60)
 
     def test_router_records_exact_model_effort_and_url(self):
         for ident,effort in [('glm-5.3','high'),('qwen3.8-flash','xhigh')]:
@@ -95,6 +95,22 @@ class ProtocolTests(unittest.TestCase):
             self.assertEqual(body['reasoning_effort'],effort)
             self.assertEqual(result['request_body'],body)
             self.assertEqual(result['request_url'],req.full_url)
+
+    def test_provider_cap_skips_only_claude_and_resumes_after_topup(self):
+        m=ev.freeze(self.data,['opus','sol'],['compact-v1'])
+        m['cells'].sort(key=lambda c:c['model']=='sol')
+        cost=ev.reserve(m['cells'][0],m['config'])
+        m['config']['provider_budgets_usd']={'anthropic':cost}
+        out=self.root/'capped-run'
+        with patch.dict('os.environ',{'OPENAI_API_KEY':'fixture','ANTHROPIC_API_KEY':'fixture'},clear=True), patch.object(ev,'request',return_value={'status':'completed','text':'query'}):
+            first=ev.run(m,out,100,100)
+            self.assertEqual(first['new_calls'],11)
+            self.assertEqual(len(first['cells_skipped_for_provider_budget']),9)
+            second=ev.run(m,out,100,100,{'anthropic':cost*10})
+            self.assertEqual(second['new_calls'],9)
+            third=ev.run(m,out,100,100,{'anthropic':cost*10})
+            self.assertEqual(third['new_calls'],0)
+        self.assertEqual(len({json.loads(line)['id'] for line in (out/'attempts.jsonl').read_text().splitlines()}),20)
 
     def test_target_leak_rejected(self):
         self.task['demonstration_ids'] = ['probe']

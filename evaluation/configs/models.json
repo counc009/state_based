@@ -20,9 +20,8 @@
       "provider": "anthropic",
       "id": "claude-opus-5-5",
       "stratum": "frontier",
-      "enabled": false,
+      "enabled": true,
       "optional": true,
-      "pending_reason": "ANTHROPIC_API_KEY pending; excluded from default active selection",
       "reasoning_effort": "high",
       "input_per_million": 4,
       "output_per_million": 20,
@@ -112,5 +111,8 @@
       "reasoning_validation": "HIGH rejected HTTP 400; error reports xhigh (default), medium, low. Explicit XHIGH configured from that supported-values response; first effort-omitted call completed. No third call made."
     }
   },
-  "matrix_status": "Awaiting Darsh budget approval; no paid matrix run authorized"
+  "matrix_status": "Awaiting Darsh budget approval; no paid matrix run authorized",
+  "provider_budgets_usd": {
+    "anthropic": 22
+  }
 }

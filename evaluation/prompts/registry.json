@@ -13,7 +13,14 @@
   },
   "handbook-v2": {
     "file": "handbook-v2.txt",
-    "role": "new proposed variant",
+    "role": "preserved prior improved variant",
     "source": "handbook-v1 plus generic requirement/condition/identifier self-check; no target outcomes used"
+  },
+  "handbook-v3": {
+    "file": "handbook-v3.txt",
+    "role": "current improved matrix variant",
+    "source": "Darsh-directed positive-reference trim of handbook-v2; syntax, paths, metadata, actions, conditions and KB retained; defensive instructions and self-checks removed",
+    "parent_sha256": "a1cd6016e4db26f121a42e34d03c997c18c9046ef4b752701fcfc52a35eb38c9",
+    "design_status": "Style revision after v2 smoke and diagnostics; no new model calls or target-specific tuning"
   }
 }

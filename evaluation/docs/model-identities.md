@@ -35,3 +35,5 @@ Router IDs/prices are documented in the captured [catalog](../configs/router-cat
 Router prices are assumed to be USD/MTok because its catalog omits units. Confirm that assumption before paid matrix approval; these are planning envelopes, not invoice guarantees. Baseline-only active five-model option is 1,050 calls, approximately $19.664098 under the same assumptions.
 
 The old Sol smoke is preserved at five repeats per arm and is not relabeled as ten-repeat data. It called OpenAI directly at `https://api.openai.com/v1/responses` using exact request/returned ID `gpt-6.1-sol`, `reasoning.effort=high`, `max_output_tokens=4096`, `store=false` and no sampling overrides. Its usage-based estimate remains $0.012844, subject to provider billing.
+
+2026-11-04 update: Anthropic key loaded securely; authenticated `/v1/models` includes latest `claude-opus-5-5`, matching official docs. Enabled in default matrix. One HIGH-effort Messages connectivity call completed (17 input/4 output); free token counts collected for all 42 unique baseline/V3 requests. See `v3-funding.md`.

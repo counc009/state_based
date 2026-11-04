@@ -159,7 +159,7 @@ def request(cell, config):
             'usage':raw.get('usage'), 'request_body':payload, 'request_url':url}
 
 
-def run(manifest, out, budget, max_calls):
+def run(manifest, out, budget, max_calls, provider_budgets=None):
     # One writer and one immutable freeze per run. Reserved attempts survive interrupted requests.
     out.mkdir(parents=True, exist_ok=True)
     with (out / '.lock').open('a') as lock:
@@ -173,8 +173,16 @@ def run(manifest, out, budget, max_calls):
         attempts = [json.loads(l) for l in ledger.read_text().splitlines()] if ledger.exists() else []
         seen = {a['id'] for a in attempts}
         spent = sum(a['reserved_usd'] for a in attempts)
+        limits = dict(manifest['config'].get('provider_budgets_usd', {}))
+        limits.update(provider_budgets or {})
+        assert all(isinstance(v, (int, float)) and v >= 0 for v in limits.values()), 'Invalid provider budget'
+        providers = {c['id']:manifest['config']['models'][c['model']]['provider'] for c in manifest['cells']}
+        provider_spent = defaultdict(float)
+        for attempt in attempts:
+            provider_spent[providers[attempt['id']]] += attempt['reserved_usd']
         calls = 0
         skipped = []
+        budget_skipped = []
         for cell in manifest['cells']:
             if cell['id'] in seen:
                 continue
@@ -191,10 +199,13 @@ def run(manifest, out, budget, max_calls):
                     continue
                 raise RuntimeError('Missing environment variable: ' + ', '.join(missing))
             cost = reserve(cell, manifest['config'])
+            if provider in limits and provider_spent[provider] + cost > limits[provider] + 1e-9:
+                budget_skipped.append(cell['id'])
+                continue
             if spent + cost > budget + 1e-9:
                 break
             request_url, request_body, _ = build_request(cell, manifest['config'])
-            receipt = {'id':cell['id'], 'reserved_usd':cost, 'started_at':datetime.now(timezone.utc).isoformat(),
+            receipt = {'id':cell['id'], 'provider':provider, 'reserved_usd':cost, 'started_at':datetime.now(timezone.utc).isoformat(),
                        'request_url':request_url, 'request_body':request_body}
             with ledger.open('a') as f:
                 f.write(json.dumps(receipt)+'\n'); f.flush(); os.fsync(f.fileno())
@@ -210,11 +221,14 @@ def run(manifest, out, budget, max_calls):
                           request_url=request_url, request_body=request_body,
                           seconds=round(time.monotonic()-start, 3))
             write_new(out / 'responses' / (cell['id']+'.json'), result)
-            spent += cost; calls += 1
+            spent += cost; provider_spent[provider] += cost; calls += 1
             print(json.dumps({'cell':cell['id'], 'status':result['status']}), flush=True)
         return {'new_calls':calls, 'reserved_usd':round(spent, 6),
                 'attempts':len(seen)+calls, 'planned_cells':len(manifest['cells']),
-                'optional_cells_skipped_for_credentials':skipped}
+                'optional_cells_skipped_for_credentials':skipped,
+                'provider_budget_limits_usd':limits,
+                'provider_reserved_usd':dict(provider_spent),
+                'cells_skipped_for_provider_budget':budget_skipped}
 
 
 def analyze(out, checker=None):
@@ -253,7 +267,7 @@ def main():
     f = sub.add_parser('freeze')
     f.add_argument('--dataset', type=Path, required=True)
     f.add_argument('--models', nargs='+', help='Defaults to enabled models; pending optional entries excluded')
-    f.add_argument('--variants', nargs='+', default=['compact-v1','handbook-v2'])
+    f.add_argument('--variants', nargs='+', default=['compact-v1','handbook-v3'])
     f.add_argument('--cases', nargs='+')
     f.add_argument('--output', type=Path, required=True)
     for name in ['estimate','run','analyze']:
@@ -263,6 +277,7 @@ def main():
         if name == 'run':
             c.add_argument('--budget-usd', type=float, required=True)
             c.add_argument('--max-calls', type=int, required=True)
+            c.add_argument('--anthropic-budget-usd', type=float, help='Accounting-only override after top-up; existing reservations remain charged')
         if name == 'analyze': c.add_argument('--checker', help='Trusted argv template, {query} and {repo}; no shell')
     a = p.parse_args()
     if a.command == 'freeze':
@@ -272,7 +287,9 @@ def main():
     elif a.command == 'estimate': result = estimate(load(a.manifest))
     elif a.command == 'run':
         if a.budget_usd < 0 or a.max_calls < 1: p.error('Invalid run bounds')
-        result = run(load(a.manifest), a.output, a.budget_usd, a.max_calls)
+        if a.anthropic_budget_usd is not None and a.anthropic_budget_usd < 0: p.error('Invalid Anthropic budget')
+        overrides = {} if a.anthropic_budget_usd is None else {'anthropic':a.anthropic_budget_usd}
+        result = run(load(a.manifest), a.output, a.budget_usd, a.max_calls, overrides)
     else: result = analyze(a.output, a.checker)
     print(json.dumps(result, indent=2))
 

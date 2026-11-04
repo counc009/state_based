@@ -56,3 +56,7 @@ See [protocol](docs/protocol.md), [sources and paper alignment](docs/provenance.
 Fresh native build and reference/semantic validation are documented in [native validation](docs/native-validation.md). [Verified model identities and budget options](docs/model-identities.md) supersede the original base-input-only full-run estimate.
 
 Current selection, ten-repeat costs and the Qwen HIGH rejection are recorded in [model settings](docs/model-identities.md), [router checks](docs/router-connectivity.md) and [Darsh decisions](docs/decisions.md). Prior five-repeat smoke data remain historical.
+
+The default paired prompts are now `compact-v1` and `handbook-v3`. V3 trims warnings and self-checks from v2 while preserving the positive language reference. V2 and the baseline remain byte-preserved for provenance. Exact texts are in `prompts/`.
+
+Claude now defaults to a $22 cumulative provider reservation guard. Resume after an approved top-up with `--anthropic-budget-usd LIMIT` against the same manifest/output; prior attempts remain charged and are not repeated. See [V3 funding and validation](docs/v3-funding.md).
