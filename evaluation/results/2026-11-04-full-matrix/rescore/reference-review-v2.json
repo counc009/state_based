@@ -1,0 +1,92 @@
+{
+  "version": "reference-review-v2",
+  "date": "2026-11-04",
+  "original_references_sha256": "fe8fb05106da4e857fe4dc458909307831f622712e3918a365a22457f7ba94eb",
+  "scope": "Only four reviewed tasks. Proposals were developed after observing outputs. Original-reference results remain immutable. Corrected rescore includes declared scoped comparison policies; strict-reference-only sensitivity isolates FQL changes.",
+  "os_worlds": [
+    "Debian",
+    "Ubuntu",
+    "RedHat",
+    "OtherDebianFamily",
+    "OtherRedHatFamily",
+    "Other"
+  ],
+  "tasks": [
+    {
+      "task_id": "a03",
+      "natural_language": "Delete the contents of the /home/mydata/web directory",
+      "original_formal_query": "delete files in /home/mydata/web",
+      "proposed_formal_query": "delete files in /home/mydata/web",
+      "original_reference_solution": "---\n- name: Delete contents of directory /home/mydata/web\n  hosts: all\n  become: true\n  tasks:\n    - name: Delete contets of directory\n      ansible.builtin.file:\n        state: \"{{ item }}\"\n        path: /home/mydata/web\n      with_items:\n        - absent\n        - directory\n",
+      "proposed_reference_solution": "---\n- name: Empty directory while preserving its parent\n  hosts: all\n  become: true\n  tasks:\n    - name: List immediate entries including hidden files and directories\n      ansible.builtin.find:\n        paths: /home/mydata/web\n        file_type: any\n        hidden: true\n        recurse: false\n      register: contents\n    - name: Remove each entry while retaining the parent directory\n      ansible.builtin.file:\n        path: \"{{ item.path }}\"\n        state: absent\n      loop: \"{{ contents.files }}\"\n",
+      "policy": "unresolved_query_expressiveness_and_reference_program",
+      "rationale": "Preserve the FQL for score continuity: DeleteFiles(InPath) asserts every child is a regular file; it does not cover arbitrary directory contents. The supplied playbook deletes/recreates the parent and also fails native lowering for templated state. Do not credit destructive reconstruction as equivalent to preserving the parent. Proposed find/file playbook keeps the parent, handles hidden/directories, and still needs execution validation; no fully faithful corrected FQL is claimed.",
+      "status": "post-hoc proposed; not independent human gold; original untouched",
+      "playbook_status": "not executed; candidate for future isolated tests",
+      "sources": [
+        "lib/fql/semant.ml",
+        "lib/fql/codegen.ml",
+        "modules/fs.type",
+        "evaluation/prompts/handbook-v3.txt"
+      ]
+    },
+    {
+      "task_id": "a18",
+      "natural_language": "For RedHat and Ubuntu, install the lastest version of postfix, backup its default configuration file, and download the configuration file from http://example.com/cfg.ubuntu for Ubuntu and http://example.com/cfg.redhat for RedHat",
+      "original_formal_query": "if os is RedHat or os is Ubuntu then install postfix with version=latest; copy postfix configuration file to ?backup. if os is Ubuntu then download postfix configuration file from \"http://example.com/cfg.ubuntu\". if os is \"RedHat\" then download postfix configuration file from \"http://example.com/cfg.redhat\"",
+      "proposed_formal_query": "if os is RedHat or os is Ubuntu then install postfix with version=latest; copy postfix configuration file to ?backup. if os is Ubuntu then download postfix configuration file from \"http://example.com/cfg.ubuntu\". if os is \"RedHat\" then download postfix configuration file from \"http://example.com/cfg.redhat\"",
+      "original_reference_solution": "---\n- name: Various postfix configuration tasks\n  hosts: redhat,ubuntu\n  become: true\n  tasks:\n    - name: Install postfix\n      ansible.builtin.package:\n        name: postfix\n        state: latest\n    - name: Backup original main.cf\n      ansible.builtin.copy:\n        src: /etc/postfix/main.cf\n        dest: /etc/postfix/main.bak\n        force: false\n        remote_src: true\n    - name: Download main.cf\n      ansible.builtin.get_url:\n        url: \"http://example.com/cfg.{{ ansible_distribution | lower }}\"\n        dest: /etc/postfix/main.cf\n        #validate_certs: false\n        mode: '644'\n        owner: root\n        group: root\n        force: true\n",
+      "proposed_reference_solution": "---\n- name: Various postfix configuration tasks\n  hosts: redhat,ubuntu\n  become: true\n  tasks:\n    - name: Install postfix\n      ansible.builtin.package:\n        name: postfix\n        state: latest\n    - name: Backup original main.cf\n      ansible.builtin.copy:\n        src: /etc/postfix/main.cf\n        dest: /etc/postfix/main.bak\n        force: false\n        remote_src: true\n    - name: Download main.cf\n      ansible.builtin.get_url:\n        url: \"http://example.com/cfg.{{ ansible_distribution | lower }}\"\n        dest: /etc/postfix/main.cf\n        #validate_certs: false\n        mode: '644'\n        owner: root\n        group: root\n        force: true\n",
+      "policy": "os_trace_and_backup_refinement",
+      "rationale": "Original reference FQL is not demonstrably wrong. Structural trees differ for equivalent OS branch layouts. Compare ordered action traces on all six OS predicate equivalence classes; instantiate only the reference copy-destination unknown with a distinct remote absolute backup path (or an unknown). Latest version, URLs, source, destination, OS scope, metadata and order remain required.",
+      "status": "post-hoc proposed; not independent human gold; original untouched",
+      "playbook_status": "not executed; candidate for future isolated tests",
+      "sources": [
+        "lib/fql/semant.ml",
+        "lib/fql/codegen.ml",
+        "modules/fs.type",
+        "evaluation/prompts/handbook-v3.txt"
+      ]
+    },
+    {
+      "task_id": "a20",
+      "natural_language": "Enable passwordless sudo for a `wheel' group and create an `ansible' user in that group",
+      "original_formal_query": "enable passwordless sudo for group=wheel; create user with name=ansible in supplemental groups=wheel",
+      "proposed_formal_query": "enable passwordless sudo for group=wheel; create user with name=ansible in supplemental groups=wheel",
+      "original_reference_solution": "---\n- name: Enable passwordless sudo for wheel and create an ansible user in that group\n  hosts: all\n  become: true\n  tasks:\n    - name: Install sudo\n      ansible.builtin.package:\n        name: sudo\n        state: present\n    - name: Wheel group\n      ansible.builtin.group:\n        name: wheel\n        system: true\n        state: present\n    - name: Ansible user\n      ansible.builtin.user:\n        name: ansible\n        comment: Ansible User\n        groups:\n          - wheel\n        state: present\n    - name: Allow group wheel to sudo\n      ansible.builtin.lineinfile:\n        path: \"/etc/sudoers\"\n        line: \"%wheel        ALL=(ALL:ALL) NOPASSWD:ALL\"\n        regexp: \"^%wheel\"\n        owner: root\n        group: root\n        mode: \"640\"\n        state: present\n",
+      "proposed_reference_solution": "---\n- name: Enable passwordless sudo for wheel and create an ansible user in that group\n  hosts: all\n  become: true\n  tasks:\n    - name: Install sudo\n      ansible.builtin.package:\n        name: sudo\n        state: present\n    - name: Wheel group\n      ansible.builtin.group:\n        name: wheel\n        system: true\n        state: present\n    - name: Ansible user\n      ansible.builtin.user:\n        name: ansible\n        comment: Ansible User\n        groups:\n          - wheel\n        state: present\n    - name: Allow group wheel to sudo\n      ansible.builtin.lineinfile:\n        path: \"/etc/sudoers\"\n        line: \"%wheel\\tALL=(ALL:ALL) NOPASSWD:ALL\"\n        regexp: \"^%wheel\"\n        owner: root\n        group: root\n        mode: \"640\"\n        state: present\n",
+      "policy": "membership_obligation",
+      "rationale": "The NL does not choose primary versus supplemental membership. Accept either/both wheel membership with exactly the requested account and passwordless wheel sudo. Allow a single leading create-group wheel as a prerequisite supported by the supplied reference playbook. Do not equate their full effects; this is an NL-obligation sensitivity. Eight spaces and tab sudoers forms both pass local visudo; the native byte-string comparator is too strict.",
+      "status": "post-hoc proposed; not independent human gold; original untouched",
+      "playbook_status": "not executed; candidate for future isolated tests",
+      "sources": [
+        "lib/fql/semant.ml",
+        "lib/fql/codegen.ml",
+        "modules/fs.type",
+        "evaluation/prompts/handbook-v3.txt"
+      ]
+    },
+    {
+      "task_id": "a21",
+      "natural_language": "For Debian and RedHat, install and start an ssh client and server and generated an ssh key for `fizbaz' at /.ssh/fizbaz_rsa",
+      "original_formal_query": "if os is Debian or os is RedHat then install ssh client; install ssh server; start ssh server service; create ssh key for user=\"fizbaz\", name=\"fizbaz_rsa\"",
+      "proposed_formal_query": "if os is Debian or os is RedHat then install ssh client; install ssh server; start ssh server service; create ssh key for user=\"fizbaz\" at \"/.ssh/fizbaz_rsa\"",
+      "original_reference_solution": "---\n- name: Install and start ssh client and server and generate an ssh key for fizbaz\n  hosts: debian,redhat\n  become: true\n  tasks:\n    - name: Install SSH (Debian)\n      ansible.builtin.package:\n        name:\n          - openssh-client\n          - openssh-server\n        state: present\n      when: ansible_os_family == \"Debian\"\n    - name: Install SSH (RedHat)\n      ansible.builtin.package:\n        name:\n          - openssh-server\n          - openssh-clients\n        state: present\n      when: ansible_os_family == \"RedHat\"\n    - name: Create SSH key\n      ansible.builtin.user:\n        name: \"fizbaz\"\n        generate_ssh_key: true\n        ssh_key_file: \".ssh/fizbaz_rsa\"\n    - name: Enable SSH server\n      ansible.builtin.service:\n        name: sshd\n        state: started\n",
+      "proposed_reference_solution": "---\n- name: Install and start ssh client and server and generate an ssh key for fizbaz\n  hosts: debian,redhat\n  become: true\n  tasks:\n    - name: Install SSH (Debian)\n      ansible.builtin.package:\n        name:\n          - openssh-client\n          - openssh-server\n        state: present\n      when: ansible_os_family == \"Debian\"\n    - name: Install SSH (RedHat)\n      ansible.builtin.package:\n        name:\n          - openssh-server\n          - openssh-clients\n        state: present\n      when: ansible_os_family == \"RedHat\"\n    - name: Create SSH key\n      ansible.builtin.user:\n        name: \"fizbaz\"\n        generate_ssh_key: true\n        ssh_key_file: \"/.ssh/fizbaz_rsa\"\n    - name: Enable SSH server\n      ansible.builtin.service:\n        name: sshd\n        state: started\n",
+      "policy": "literal_path_and_os_trace",
+      "rationale": "Correct the home-relative reference key to the explicitly stated absolute /.ssh/fizbaz_rsa. Keep exact Debian/RedHat scope and ordered actions; allow equivalent OS branching. The user attribution is consumed/dropped for explicit-path CreateSshKey in the native AST, and starting an SSH client is underspecified; the scoring cannot establish ownership/client behavior. Source intent may instead have meant a home-relative path, requiring author confirmation.",
+      "status": "post-hoc proposed; not independent human gold; original untouched",
+      "playbook_status": "not executed; candidate for future isolated tests",
+      "sources": [
+        "lib/fql/semant.ml",
+        "lib/fql/codegen.ml",
+        "modules/fs.type",
+        "evaluation/prompts/handbook-v3.txt"
+      ]
+    }
+  ],
+  "primary_sources": [
+    "https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/user_module.html",
+    "https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/find_module.html"
+  ]
+}

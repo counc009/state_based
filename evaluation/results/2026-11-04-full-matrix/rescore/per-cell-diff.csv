@@ -1,0 +1,481 @@
+model,variant,task_id,repeat,status,parsed,interpreted,original_ref_match,strict_corrected_ref_match,corrected_review_match,policy,reason
+claude-opus-5-5,compact-v1,a03,0,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a03,1,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a03,2,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a03,3,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a03,4,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+claude-opus-5-5,compact-v1,a03,5,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a03,6,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a03,7,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+claude-opus-5-5,compact-v1,a03,8,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a03,9,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a18,0,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a18,1,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a18,2,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a18,3,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a18,4,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a18,5,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a18,6,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a18,7,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a18,8,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a18,9,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a20,0,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a20,1,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a20,2,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a20,3,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a20,4,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a20,5,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a20,6,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a20,7,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a20,8,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a20,9,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a21,0,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a21,1,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a21,2,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a21,3,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a21,4,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a21,5,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a21,6,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a21,7,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a21,8,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+claude-opus-5-5,compact-v1,a21,9,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+claude-opus-5-5,handbook-v3,a03,0,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a03,1,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a03,2,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a03,3,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a03,4,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a03,5,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a03,6,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a03,7,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a03,8,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a03,9,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a18,0,completed,True,True,False,False,False,os_trace_and_backup_refinement,genuine_missing_latest_version
+claude-opus-5-5,handbook-v3,a18,1,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+claude-opus-5-5,handbook-v3,a18,2,completed,True,True,False,False,False,os_trace_and_backup_refinement,genuine_missing_latest_version
+claude-opus-5-5,handbook-v3,a18,3,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+claude-opus-5-5,handbook-v3,a18,4,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+claude-opus-5-5,handbook-v3,a18,5,completed,True,True,False,False,False,os_trace_and_backup_refinement,genuine_missing_latest_version
+claude-opus-5-5,handbook-v3,a18,6,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+claude-opus-5-5,handbook-v3,a18,7,completed,True,True,False,False,False,os_trace_and_backup_refinement,genuine_missing_latest_version
+claude-opus-5-5,handbook-v3,a18,8,completed,True,True,False,False,False,os_trace_and_backup_refinement,genuine_missing_latest_version
+claude-opus-5-5,handbook-v3,a18,9,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+claude-opus-5-5,handbook-v3,a20,0,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a20,1,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a20,2,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a20,3,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a20,4,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a20,5,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+claude-opus-5-5,handbook-v3,a20,6,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a20,7,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a20,8,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a20,9,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+claude-opus-5-5,handbook-v3,a21,0,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+claude-opus-5-5,handbook-v3,a21,1,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+claude-opus-5-5,handbook-v3,a21,2,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+claude-opus-5-5,handbook-v3,a21,3,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+claude-opus-5-5,handbook-v3,a21,4,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+claude-opus-5-5,handbook-v3,a21,5,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+claude-opus-5-5,handbook-v3,a21,6,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+claude-opus-5-5,handbook-v3,a21,7,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+claude-opus-5-5,handbook-v3,a21,8,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+claude-opus-5-5,handbook-v3,a21,9,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+deepseek-v4-flash,compact-v1,a03,0,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+deepseek-v4-flash,compact-v1,a03,1,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+deepseek-v4-flash,compact-v1,a03,2,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+deepseek-v4-flash,compact-v1,a03,3,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a03,4,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a03,5,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a03,6,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a03,7,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a03,8,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a03,9,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a18,0,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a18,1,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a18,2,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a18,3,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a18,4,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a18,5,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a18,6,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a18,7,incomplete,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: incomplete
+deepseek-v4-flash,compact-v1,a18,8,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a18,9,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a20,0,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a20,1,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+deepseek-v4-flash,compact-v1,a20,2,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a20,3,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a20,4,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a20,5,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a20,6,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a20,7,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a20,8,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+deepseek-v4-flash,compact-v1,a20,9,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a21,0,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a21,1,completed,False,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a21,2,completed,False,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a21,3,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a21,4,completed,False,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a21,5,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a21,6,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a21,7,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a21,8,completed,False,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4-flash,compact-v1,a21,9,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4-flash,handbook-v3,a03,0,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4-flash,handbook-v3,a03,1,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+deepseek-v4-flash,handbook-v3,a03,2,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4-flash,handbook-v3,a03,3,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4-flash,handbook-v3,a03,4,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4-flash,handbook-v3,a03,5,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4-flash,handbook-v3,a03,6,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4-flash,handbook-v3,a03,7,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4-flash,handbook-v3,a03,8,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4-flash,handbook-v3,a03,9,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4-flash,handbook-v3,a18,0,completed,True,True,False,False,False,os_trace_and_backup_refinement,genuine_missing_latest_version
+deepseek-v4-flash,handbook-v3,a18,1,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+deepseek-v4-flash,handbook-v3,a18,2,completed,True,True,False,False,False,os_trace_and_backup_refinement,genuine_missing_latest_version
+deepseek-v4-flash,handbook-v3,a18,3,incomplete,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: incomplete
+deepseek-v4-flash,handbook-v3,a18,4,completed,True,True,False,False,False,os_trace_and_backup_refinement,genuine_missing_latest_version
+deepseek-v4-flash,handbook-v3,a18,5,completed,True,True,False,False,False,os_trace_and_backup_refinement,genuine_missing_latest_version
+deepseek-v4-flash,handbook-v3,a18,6,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+deepseek-v4-flash,handbook-v3,a18,7,incomplete,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: incomplete
+deepseek-v4-flash,handbook-v3,a18,8,completed,True,True,False,False,False,os_trace_and_backup_refinement,genuine_missing_latest_version
+deepseek-v4-flash,handbook-v3,a18,9,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+deepseek-v4-flash,handbook-v3,a20,0,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+deepseek-v4-flash,handbook-v3,a20,1,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+deepseek-v4-flash,handbook-v3,a20,2,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+deepseek-v4-flash,handbook-v3,a20,3,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+deepseek-v4-flash,handbook-v3,a20,4,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+deepseek-v4-flash,handbook-v3,a20,5,incomplete,True,False,False,False,False,membership_obligation,no_supported_effects: incomplete
+deepseek-v4-flash,handbook-v3,a20,6,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+deepseek-v4-flash,handbook-v3,a20,7,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+deepseek-v4-flash,handbook-v3,a20,8,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+deepseek-v4-flash,handbook-v3,a20,9,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+deepseek-v4-flash,handbook-v3,a21,0,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+deepseek-v4-flash,handbook-v3,a21,1,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+deepseek-v4-flash,handbook-v3,a21,2,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+deepseek-v4-flash,handbook-v3,a21,3,completed,True,True,False,False,False,literal_path_and_os_trace,remaining_os_scope_action_or_path_difference
+deepseek-v4-flash,handbook-v3,a21,4,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+deepseek-v4-flash,handbook-v3,a21,5,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+deepseek-v4-flash,handbook-v3,a21,6,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+deepseek-v4-flash,handbook-v3,a21,7,completed,True,True,False,False,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+deepseek-v4-flash,handbook-v3,a21,8,completed,True,True,False,False,False,literal_path_and_os_trace,remaining_os_scope_action_or_path_difference
+deepseek-v4-flash,handbook-v3,a21,9,completed,True,True,False,False,False,literal_path_and_os_trace,remaining_os_scope_action_or_path_difference
+deepseek-v4.1-flash,compact-v1,a03,0,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a03,1,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a03,2,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a03,3,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a03,4,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a03,5,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a03,6,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+deepseek-v4.1-flash,compact-v1,a03,7,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a03,8,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+deepseek-v4.1-flash,compact-v1,a03,9,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a18,0,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,compact-v1,a18,1,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,compact-v1,a18,2,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,compact-v1,a18,3,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,compact-v1,a18,4,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,compact-v1,a18,5,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,compact-v1,a18,6,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,compact-v1,a18,7,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,compact-v1,a18,8,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,compact-v1,a18,9,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a20,0,provider_error,,,,,,membership_obligation,no_supported_effects: provider_error
+deepseek-v4.1-flash,compact-v1,a20,1,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a20,2,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a20,3,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a20,4,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a20,5,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a20,6,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a20,7,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a20,8,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a20,9,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a21,0,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a21,1,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a21,2,completed,False,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a21,3,completed,False,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a21,4,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a21,5,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a21,6,provider_error,,,,,,literal_path_and_os_trace,no_supported_effects: provider_error
+deepseek-v4.1-flash,compact-v1,a21,7,provider_error,,,,,,literal_path_and_os_trace,no_supported_effects: provider_error
+deepseek-v4.1-flash,compact-v1,a21,8,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4.1-flash,compact-v1,a21,9,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+deepseek-v4.1-flash,handbook-v3,a03,0,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a03,1,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a03,2,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a03,3,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a03,4,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a03,5,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a03,6,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a03,7,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a03,8,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a03,9,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a18,0,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,handbook-v3,a18,1,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,handbook-v3,a18,2,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,handbook-v3,a18,3,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,handbook-v3,a18,4,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,handbook-v3,a18,5,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,handbook-v3,a18,6,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,handbook-v3,a18,7,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,handbook-v3,a18,8,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,handbook-v3,a18,9,provider_error,,,,,,os_trace_and_backup_refinement,no_supported_effects: provider_error
+deepseek-v4.1-flash,handbook-v3,a20,0,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a20,1,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a20,2,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a20,3,completed,False,False,False,False,False,membership_obligation,no_supported_effects: completed
+deepseek-v4.1-flash,handbook-v3,a20,4,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a20,5,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a20,6,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a20,7,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a20,8,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a20,9,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+deepseek-v4.1-flash,handbook-v3,a21,0,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+deepseek-v4.1-flash,handbook-v3,a21,1,provider_error,,,,,,literal_path_and_os_trace,no_supported_effects: provider_error
+deepseek-v4.1-flash,handbook-v3,a21,2,provider_error,,,,,,literal_path_and_os_trace,no_supported_effects: provider_error
+deepseek-v4.1-flash,handbook-v3,a21,3,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+deepseek-v4.1-flash,handbook-v3,a21,4,provider_error,,,,,,literal_path_and_os_trace,no_supported_effects: provider_error
+deepseek-v4.1-flash,handbook-v3,a21,5,provider_error,,,,,,literal_path_and_os_trace,no_supported_effects: provider_error
+deepseek-v4.1-flash,handbook-v3,a21,6,provider_error,,,,,,literal_path_and_os_trace,no_supported_effects: provider_error
+deepseek-v4.1-flash,handbook-v3,a21,7,provider_error,,,,,,literal_path_and_os_trace,no_supported_effects: provider_error
+deepseek-v4.1-flash,handbook-v3,a21,8,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+deepseek-v4.1-flash,handbook-v3,a21,9,provider_error,,,,,,literal_path_and_os_trace,no_supported_effects: provider_error
+glm-5.3,compact-v1,a03,0,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+glm-5.3,compact-v1,a03,1,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+glm-5.3,compact-v1,a03,2,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+glm-5.3,compact-v1,a03,3,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+glm-5.3,compact-v1,a03,4,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+glm-5.3,compact-v1,a03,5,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+glm-5.3,compact-v1,a03,6,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+glm-5.3,compact-v1,a03,7,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+glm-5.3,compact-v1,a03,8,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+glm-5.3,compact-v1,a03,9,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+glm-5.3,compact-v1,a18,0,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+glm-5.3,compact-v1,a18,1,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+glm-5.3,compact-v1,a18,2,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+glm-5.3,compact-v1,a18,3,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+glm-5.3,compact-v1,a18,4,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+glm-5.3,compact-v1,a18,5,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+glm-5.3,compact-v1,a18,6,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+glm-5.3,compact-v1,a18,7,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+glm-5.3,compact-v1,a18,8,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+glm-5.3,compact-v1,a18,9,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+glm-5.3,compact-v1,a20,0,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+glm-5.3,compact-v1,a20,1,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+glm-5.3,compact-v1,a20,2,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+glm-5.3,compact-v1,a20,3,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+glm-5.3,compact-v1,a20,4,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+glm-5.3,compact-v1,a20,5,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+glm-5.3,compact-v1,a20,6,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+glm-5.3,compact-v1,a20,7,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+glm-5.3,compact-v1,a20,8,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+glm-5.3,compact-v1,a20,9,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+glm-5.3,compact-v1,a21,0,completed,False,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+glm-5.3,compact-v1,a21,1,completed,False,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+glm-5.3,compact-v1,a21,2,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+glm-5.3,compact-v1,a21,3,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+glm-5.3,compact-v1,a21,4,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+glm-5.3,compact-v1,a21,5,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+glm-5.3,compact-v1,a21,6,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+glm-5.3,compact-v1,a21,7,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+glm-5.3,compact-v1,a21,8,completed,False,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+glm-5.3,compact-v1,a21,9,completed,False,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+glm-5.3,handbook-v3,a03,0,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+glm-5.3,handbook-v3,a03,1,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+glm-5.3,handbook-v3,a03,2,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+glm-5.3,handbook-v3,a03,3,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+glm-5.3,handbook-v3,a03,4,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+glm-5.3,handbook-v3,a03,5,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+glm-5.3,handbook-v3,a03,6,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+glm-5.3,handbook-v3,a03,7,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+glm-5.3,handbook-v3,a03,8,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+glm-5.3,handbook-v3,a03,9,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+glm-5.3,handbook-v3,a18,0,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+glm-5.3,handbook-v3,a18,1,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+glm-5.3,handbook-v3,a18,2,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+glm-5.3,handbook-v3,a18,3,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+glm-5.3,handbook-v3,a18,4,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+glm-5.3,handbook-v3,a18,5,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+glm-5.3,handbook-v3,a18,6,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+glm-5.3,handbook-v3,a18,7,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+glm-5.3,handbook-v3,a18,8,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+glm-5.3,handbook-v3,a18,9,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+glm-5.3,handbook-v3,a20,0,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+glm-5.3,handbook-v3,a20,1,completed,False,False,False,False,False,membership_obligation,no_supported_effects: completed
+glm-5.3,handbook-v3,a20,2,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+glm-5.3,handbook-v3,a20,3,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+glm-5.3,handbook-v3,a20,4,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+glm-5.3,handbook-v3,a20,5,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+glm-5.3,handbook-v3,a20,6,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+glm-5.3,handbook-v3,a20,7,completed,False,False,False,False,False,membership_obligation,no_supported_effects: completed
+glm-5.3,handbook-v3,a20,8,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+glm-5.3,handbook-v3,a20,9,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+glm-5.3,handbook-v3,a21,0,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+glm-5.3,handbook-v3,a21,1,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+glm-5.3,handbook-v3,a21,2,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+glm-5.3,handbook-v3,a21,3,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+glm-5.3,handbook-v3,a21,4,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+glm-5.3,handbook-v3,a21,5,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+glm-5.3,handbook-v3,a21,6,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+glm-5.3,handbook-v3,a21,7,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+glm-5.3,handbook-v3,a21,8,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+glm-5.3,handbook-v3,a21,9,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+gpt-6.1-sol,compact-v1,a03,0,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+gpt-6.1-sol,compact-v1,a03,1,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+gpt-6.1-sol,compact-v1,a03,2,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a03,3,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+gpt-6.1-sol,compact-v1,a03,4,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a03,5,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+gpt-6.1-sol,compact-v1,a03,6,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+gpt-6.1-sol,compact-v1,a03,7,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+gpt-6.1-sol,compact-v1,a03,8,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+gpt-6.1-sol,compact-v1,a03,9,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a18,0,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a18,1,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a18,2,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a18,3,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a18,4,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a18,5,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a18,6,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a18,7,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a18,8,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a18,9,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a20,0,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a20,1,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a20,2,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a20,3,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a20,4,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a20,5,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a20,6,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a20,7,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a20,8,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a20,9,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a21,0,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a21,1,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a21,2,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a21,3,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a21,4,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a21,5,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a21,6,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a21,7,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a21,8,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+gpt-6.1-sol,compact-v1,a21,9,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+gpt-6.1-sol,handbook-v3,a03,0,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+gpt-6.1-sol,handbook-v3,a03,1,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+gpt-6.1-sol,handbook-v3,a03,2,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+gpt-6.1-sol,handbook-v3,a03,3,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+gpt-6.1-sol,handbook-v3,a03,4,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+gpt-6.1-sol,handbook-v3,a03,5,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+gpt-6.1-sol,handbook-v3,a03,6,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+gpt-6.1-sol,handbook-v3,a03,7,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+gpt-6.1-sol,handbook-v3,a03,8,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+gpt-6.1-sol,handbook-v3,a03,9,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+gpt-6.1-sol,handbook-v3,a18,0,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+gpt-6.1-sol,handbook-v3,a18,1,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+gpt-6.1-sol,handbook-v3,a18,2,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+gpt-6.1-sol,handbook-v3,a18,3,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+gpt-6.1-sol,handbook-v3,a18,4,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+gpt-6.1-sol,handbook-v3,a18,5,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+gpt-6.1-sol,handbook-v3,a18,6,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+gpt-6.1-sol,handbook-v3,a18,7,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+gpt-6.1-sol,handbook-v3,a18,8,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+gpt-6.1-sol,handbook-v3,a18,9,completed,True,True,False,False,True,os_trace_and_backup_refinement,accepted_by_os_trace_and_backup_refinement
+gpt-6.1-sol,handbook-v3,a20,0,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+gpt-6.1-sol,handbook-v3,a20,1,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+gpt-6.1-sol,handbook-v3,a20,2,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+gpt-6.1-sol,handbook-v3,a20,3,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+gpt-6.1-sol,handbook-v3,a20,4,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+gpt-6.1-sol,handbook-v3,a20,5,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+gpt-6.1-sol,handbook-v3,a20,6,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+gpt-6.1-sol,handbook-v3,a20,7,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+gpt-6.1-sol,handbook-v3,a20,8,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+gpt-6.1-sol,handbook-v3,a20,9,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+gpt-6.1-sol,handbook-v3,a21,0,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+gpt-6.1-sol,handbook-v3,a21,1,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+gpt-6.1-sol,handbook-v3,a21,2,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+gpt-6.1-sol,handbook-v3,a21,3,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+gpt-6.1-sol,handbook-v3,a21,4,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+gpt-6.1-sol,handbook-v3,a21,5,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+gpt-6.1-sol,handbook-v3,a21,6,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+gpt-6.1-sol,handbook-v3,a21,7,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+gpt-6.1-sol,handbook-v3,a21,8,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+gpt-6.1-sol,handbook-v3,a21,9,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+qwen3.8-flash,compact-v1,a03,0,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a03,1,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a03,2,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a03,3,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+qwen3.8-flash,compact-v1,a03,4,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a03,5,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a03,6,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a03,7,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a03,8,completed,True,True,False,False,False,unresolved_query_expressiveness_and_reference_program,parent_reconstruction_not_equated_to_contents_deletion
+qwen3.8-flash,compact-v1,a03,9,completed,True,False,False,False,False,unresolved_query_expressiveness_and_reference_program,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a18,0,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a18,1,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a18,2,incomplete,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: incomplete
+qwen3.8-flash,compact-v1,a18,3,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a18,4,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a18,5,incomplete,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: incomplete
+qwen3.8-flash,compact-v1,a18,6,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a18,7,completed,False,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a18,8,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a18,9,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a20,0,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a20,1,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a20,2,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a20,3,incomplete,True,False,False,False,False,membership_obligation,no_supported_effects: incomplete
+qwen3.8-flash,compact-v1,a20,4,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a20,5,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a20,6,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a20,7,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a20,8,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a20,9,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a21,0,completed,False,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a21,1,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a21,2,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a21,3,completed,False,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a21,4,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a21,5,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a21,6,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a21,7,completed,False,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a21,8,completed,False,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+qwen3.8-flash,compact-v1,a21,9,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+qwen3.8-flash,handbook-v3,a03,0,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+qwen3.8-flash,handbook-v3,a03,1,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+qwen3.8-flash,handbook-v3,a03,2,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+qwen3.8-flash,handbook-v3,a03,3,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+qwen3.8-flash,handbook-v3,a03,4,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+qwen3.8-flash,handbook-v3,a03,5,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+qwen3.8-flash,handbook-v3,a03,6,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+qwen3.8-flash,handbook-v3,a03,7,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+qwen3.8-flash,handbook-v3,a03,8,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+qwen3.8-flash,handbook-v3,a03,9,completed,True,True,True,True,True,unresolved_query_expressiveness_and_reference_program,unchanged_original_metric
+qwen3.8-flash,handbook-v3,a18,0,incomplete,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: incomplete
+qwen3.8-flash,handbook-v3,a18,1,incomplete,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: incomplete
+qwen3.8-flash,handbook-v3,a18,2,incomplete,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: incomplete
+qwen3.8-flash,handbook-v3,a18,3,completed,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: completed
+qwen3.8-flash,handbook-v3,a18,4,completed,True,True,False,False,False,os_trace_and_backup_refinement,genuine_missing_latest_version
+qwen3.8-flash,handbook-v3,a18,5,incomplete,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: incomplete
+qwen3.8-flash,handbook-v3,a18,6,completed,True,True,False,False,False,os_trace_and_backup_refinement,genuine_missing_latest_version
+qwen3.8-flash,handbook-v3,a18,7,incomplete,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: incomplete
+qwen3.8-flash,handbook-v3,a18,8,incomplete,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: incomplete
+qwen3.8-flash,handbook-v3,a18,9,incomplete,True,False,False,False,False,os_trace_and_backup_refinement,no_supported_effects: incomplete
+qwen3.8-flash,handbook-v3,a20,0,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+qwen3.8-flash,handbook-v3,a20,1,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+qwen3.8-flash,handbook-v3,a20,2,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+qwen3.8-flash,handbook-v3,a20,3,completed,True,False,False,False,False,membership_obligation,no_supported_effects: completed
+qwen3.8-flash,handbook-v3,a20,4,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+qwen3.8-flash,handbook-v3,a20,5,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+qwen3.8-flash,handbook-v3,a20,6,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+qwen3.8-flash,handbook-v3,a20,7,completed,True,True,True,True,True,membership_obligation,unchanged_original_metric
+qwen3.8-flash,handbook-v3,a20,8,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+qwen3.8-flash,handbook-v3,a20,9,completed,True,True,False,False,True,membership_obligation,accepted_by_membership_obligation
+qwen3.8-flash,handbook-v3,a21,0,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+qwen3.8-flash,handbook-v3,a21,1,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+qwen3.8-flash,handbook-v3,a21,2,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+qwen3.8-flash,handbook-v3,a21,3,completed,True,True,False,False,False,literal_path_and_os_trace,remaining_os_scope_action_or_path_difference
+qwen3.8-flash,handbook-v3,a21,4,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+qwen3.8-flash,handbook-v3,a21,5,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+qwen3.8-flash,handbook-v3,a21,6,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+qwen3.8-flash,handbook-v3,a21,7,completed,True,False,False,False,False,literal_path_and_os_trace,no_supported_effects: completed
+qwen3.8-flash,handbook-v3,a21,8,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace
+qwen3.8-flash,handbook-v3,a21,9,completed,True,True,False,True,True,literal_path_and_os_trace,accepted_by_literal_path_and_os_trace

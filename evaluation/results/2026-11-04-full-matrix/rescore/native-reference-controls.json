@@ -1,0 +1,479 @@
+{
+  "reference_queries": {
+    "a03": {
+      "status": "ok",
+      "parsed": true,
+      "effects": [
+        {
+          "kind": "delete_files",
+          "paths": {
+            "kind": "in_path",
+            "path": {
+              "kind": "remote",
+              "destination": {
+                "kind": "absolute",
+                "value": "/home/mydata/web"
+              }
+            }
+          }
+        }
+      ],
+      "returncode": 0
+    },
+    "a18": {
+      "status": "ok",
+      "parsed": true,
+      "effects": [
+        {
+          "kind": "conditional",
+          "condition": {
+            "kind": "os",
+            "value": "RedHat"
+          },
+          "then": [
+            {
+              "kind": "install",
+              "packages": [
+                {
+                  "name": "postfix",
+                  "manager": "system"
+                }
+              ],
+              "version": "latest"
+            },
+            {
+              "kind": "copy_file",
+              "source": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/etc/postfix/main.cf"
+                }
+              },
+              "destination": {
+                "path": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": {
+                      "unknown": 0
+                    }
+                  }
+                },
+                "owner": null,
+                "group": null,
+                "permissions": {
+                  "read": null,
+                  "write": null,
+                  "execute": null,
+                  "list_directory": null,
+                  "setuid": null,
+                  "setgid": null,
+                  "sticky": null
+                }
+              }
+            }
+          ],
+          "else": [
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "postfix",
+                      "manager": "system"
+                    }
+                  ],
+                  "version": "latest"
+                },
+                {
+                  "kind": "copy_file",
+                  "source": {
+                    "kind": "remote",
+                    "destination": {
+                      "kind": "absolute",
+                      "value": "/etc/postfix/main.cf"
+                    }
+                  },
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": {
+                          "unknown": 0
+                        }
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          ]
+        },
+        {
+          "kind": "conditional",
+          "condition": {
+            "kind": "os",
+            "value": "Ubuntu"
+          },
+          "then": [
+            {
+              "kind": "download",
+              "source": "http://example.com/cfg.ubuntu",
+              "destination": {
+                "path": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": "/etc/postfix/main.cf"
+                  }
+                },
+                "owner": null,
+                "group": null,
+                "permissions": {
+                  "read": null,
+                  "write": null,
+                  "execute": null,
+                  "list_directory": null,
+                  "setuid": null,
+                  "setgid": null,
+                  "sticky": null
+                }
+              }
+            }
+          ],
+          "else": []
+        },
+        {
+          "kind": "conditional",
+          "condition": {
+            "kind": "os",
+            "value": "RedHat"
+          },
+          "then": [
+            {
+              "kind": "download",
+              "source": "http://example.com/cfg.redhat",
+              "destination": {
+                "path": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": "/etc/postfix/main.cf"
+                  }
+                },
+                "owner": null,
+                "group": null,
+                "permissions": {
+                  "read": null,
+                  "write": null,
+                  "execute": null,
+                  "list_directory": null,
+                  "setuid": null,
+                  "setgid": null,
+                  "sticky": null
+                }
+              }
+            }
+          ],
+          "else": []
+        }
+      ],
+      "returncode": 0
+    },
+    "a20": {
+      "status": "ok",
+      "parsed": true,
+      "effects": [
+        {
+          "kind": "enable_sudo",
+          "account": {
+            "kind": "group",
+            "name": "wheel"
+          },
+          "passwordless": true
+        },
+        {
+          "kind": "create_user",
+          "name": "ansible",
+          "primary_group": null,
+          "supplemental_groups": [
+            "wheel"
+          ]
+        }
+      ],
+      "returncode": 0
+    },
+    "a21": {
+      "status": "ok",
+      "parsed": true,
+      "effects": [
+        {
+          "kind": "conditional",
+          "condition": {
+            "kind": "os",
+            "value": "Debian"
+          },
+          "then": [
+            {
+              "kind": "install",
+              "packages": [
+                {
+                  "name": "openssh-client",
+                  "manager": "apt"
+                }
+              ],
+              "version": null
+            },
+            {
+              "kind": "install",
+              "packages": [
+                {
+                  "name": "openssh-server",
+                  "manager": "system"
+                }
+              ],
+              "version": null
+            },
+            {
+              "kind": "start_service",
+              "name": {
+                "kind": "existential",
+                "type": "string",
+                "binder": "__kb_bound_0",
+                "predicate": {
+                  "kind": "or",
+                  "left": {
+                    "kind": "eq",
+                    "left": {
+                      "kind": "id",
+                      "name": "__kb_bound_0"
+                    },
+                    "right": {
+                      "kind": "string",
+                      "value": "ssh"
+                    }
+                  },
+                  "right": {
+                    "kind": "or",
+                    "left": {
+                      "kind": "eq",
+                      "left": {
+                        "kind": "id",
+                        "name": "__kb_bound_0"
+                      },
+                      "right": {
+                        "kind": "string",
+                        "value": "sshd"
+                      }
+                    },
+                    "right": {
+                      "kind": "bool",
+                      "value": false
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "kind": "create_ssh_key",
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/.ssh/fizbaz_rsa"
+                }
+              }
+            }
+          ],
+          "else": [
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "RedHat"
+              },
+              "then": [
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-clients",
+                      "manager": "dnf"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-server",
+                      "manager": "system"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "start_service",
+                  "name": {
+                    "kind": "existential",
+                    "type": "string",
+                    "binder": "__kb_bound_0",
+                    "predicate": {
+                      "kind": "or",
+                      "left": {
+                        "kind": "eq",
+                        "left": {
+                          "kind": "id",
+                          "name": "__kb_bound_0"
+                        },
+                        "right": {
+                          "kind": "string",
+                          "value": "ssh"
+                        }
+                      },
+                      "right": {
+                        "kind": "or",
+                        "left": {
+                          "kind": "eq",
+                          "left": {
+                            "kind": "id",
+                            "name": "__kb_bound_0"
+                          },
+                          "right": {
+                            "kind": "string",
+                            "value": "sshd"
+                          }
+                        },
+                        "right": {
+                          "kind": "bool",
+                          "value": false
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "create_ssh_key",
+                  "path": {
+                    "kind": "remote",
+                    "destination": {
+                      "kind": "absolute",
+                      "value": "/.ssh/fizbaz_rsa"
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          ]
+        }
+      ],
+      "returncode": 0
+    }
+  },
+  "original_playbook_diagnostics": {
+    "a03": {
+      "status": "program_lowering_error",
+      "returncode": 4,
+      "stdout": "\nERROR: While lowering Ansible, encountered\n(A) Type error, found string but expected file_state\n",
+      "stderr": "",
+      "query_sha256": "a835dc1aa81ab37d3f2a60f7bc5d8cda035f7bd62041ee015a4c74294a41e308",
+      "program_sha256": "a73c07cabbc9e2683d1c1a194536ffb9e4a3e4b280071619fd6649855a5ddac5"
+    },
+    "a18": {
+      "status": "accepted_with_possible_assumptions_or_residuals",
+      "returncode": 0,
+      "stdout": "\nVERIFIED\n\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"RedHat\", os_family = \"RedHat\", time_counter = 0 >, fs(('/etc/postfix/main.cf', file_system::remote(()))): <fs_type = file_type::file(\u220017) > >\u001b[39m \u001b[33m{ 1 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< env(()) : < hostname = [ 0: \u220048 ], umask = [ 0: \u220095 ] >, fs(('/etc/postfix/main.bak', file_system::remote(()))) [ 0 : neg ] , fs(('/etc/postfix/main.cf', file_system::remote(()))) : < owner = [ 0: \u220093 ], owner_group = [ 0: \u220091 ] > >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_certificate('http://example.com/cfg.redhat') = [ 0 : true ], host_included((\u220048, \"redhat,ubuntu\")) = [ 0 : true ], can_become((\"#local_user\", \"root\")) = [ 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< fs(('/etc/postfix/main.bak', file_system::remote(()))) : < mode = [ 0: mode_of_umask(\u220095) ], owner = [ 0: \u220093 ], owner_group = [ 0: \u220091 ] >, fs(('/etc/postfix/main.cf', file_system::remote(()))) : < mode = [ 0: \"644\" ], owner = [ 0: \"root\" ], owner_group = [ 0: \"root\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"Ubuntu\", os_family = \"Debian\", time_counter = 0 >, fs(('/etc/postfix/main.cf', file_system::remote(()))): <fs_type = file_type::file(\u220033) > >\u001b[39m \u001b[33m{ 1 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< env(()) : < hostname = [ 0: \u220048 ], umask = [ 0: \u220060 ] >, fs(('/etc/postfix/main.bak', file_system::remote(()))) [ 0 : neg ] , fs(('/etc/postfix/main.cf', file_system::remote(()))) : < owner = [ 0: \u220058 ], owner_group = [ 0: \u220056 ] > >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_certificate('http://example.com/cfg.ubuntu') = [ 0 : true ], host_included((\u220048, \"redhat,ubuntu\")) = [ 0 : true ], can_become((\"#local_user\", \"root\")) = [ 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< fs(('/etc/postfix/main.bak', file_system::remote(()))) : < mode = [ 0: mode_of_umask(\u220060) ], owner = [ 0: \u220058 ], owner_group = [ 0: \u220056 ] >, fs(('/etc/postfix/main.cf', file_system::remote(()))) : < mode = [ 0: \"644\" ], owner = [ 0: \"root\" ], owner_group = [ 0: \"root\" ] > >\n",
+      "stderr": "",
+      "query_sha256": "0a4071ca69c8fe035e7223d005ebea2de336ed1df9ec575d61fa811eedf29226",
+      "program_sha256": "cd82255aa1043ac7917a63274ed69c76ba3f905bfce5b534d6f4b8206ad98b5e"
+    },
+    "a20": {
+      "status": "rejected",
+      "returncode": 5,
+      "stdout": "\nFAILED TO VERIFY\n",
+      "stderr": "",
+      "query_sha256": "f3d9ef764504bdf6122018716d7c1866f10b3b502c5ee13123525441301bb1ab",
+      "program_sha256": "259408f6d7cb2e711cb52258117e204d9008aacf6c56aa088f882096e1d83c94"
+    },
+    "a21": {
+      "status": "accepted_with_possible_assumptions_or_residuals",
+      "returncode": 0,
+      "stdout": "\nVERIFIED\n\u001b[36m< #local(()), e_user(\"fizbaz\"): <homedir = '/home/fizbaz' >, env(()): <last_reboot = -1, os_distribution = \"RedHat\", os_family = \"RedHat\", time_counter = 0 > >\u001b[39m \u001b[33m{ 4 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(?loop(149)) [ 3, 2, 1, 0 : pos ] , e_group(\u2200144) [ 3, 2, 1, 0 : pos ] , e_service(\"sshd\") [ 3, 1 : pos | 2, 0 : neg ] : < running = [ 3, 1: false ] >, e_user(\"fizbaz\") : < default_shell = [ 1, 0: \u2200154 | 3, 2: \u2200166 ], primary_group = [ 3, 2, 1, 0: \u2200144 ], supplemental_groups = [ 3, 2, 1, 0: \u2200148 ] >, env(()) : < hostname = [ 3, 2, 1, 0: \u220063 ] >, fs(('/home/fizbaz', file_system::remote(()))) [ 3, 2 : pos | 1, 0 : neg ] , fs(('/home/fizbaz/.ssh/fizbaz_rsa', file_system::remote(()))) [ 3, 2, 1, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mhost_included((\u220063, \"debian,redhat\")) = [ 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 3, 2, 1, 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_service(\"sshd\") : < loaded = [ 3, 2, 1, 0: 1 ], started = [ 3, 2, 1, 0: 1 ] >, env(()) [ 3, 2, 1, 0 : pos ] : < time_counter = [ 3, 2, 1, 0: 2 ] >, fs(('/home/fizbaz', file_system::remote(()))) [ 1, 0 : pos ] : < fs_type = [ 1, 0: file_type::directory(nil::<path>()) ], owner = [ 1, 0: \"fizbaz\" ] >, fs(('/home/fizbaz/.ssh/fizbaz_rsa', file_system::remote(()))) : < owner = [ 3, 2, 1, 0: \"fizbaz\" ], owner_group = [ 3, 2, 1, 0: \u2200144 ] >, fs(('/home/fizbaz/.ssh/fizbaz_rsa.pub', file_system::remote(()))) : < owner = [ 3, 2, 1, 0: \"fizbaz\" ], owner_group = [ 3, 2, 1, 0: \u2200144 ] > >\n\u001b[39m\u001b[36m< #local(()), e_user(\"fizbaz\"): <homedir = '/home/fizbaz' >, env(()): <last_reboot = -1, os_distribution = \"Debian\", os_family = \"Debian\", time_counter = 0 > >\u001b[39m \u001b[33m{ 4 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(?loop(93)) [ 3, 2, 1, 0 : pos ] , e_group(\u220088) [ 3, 2, 1, 0 : pos ] , e_service(\"sshd\") [ 3, 1 : pos | 2, 0 : neg ] : < running = [ 3, 1: false ] >, e_user(\"fizbaz\") : < default_shell = [ 1, 0: \u220098 | 3, 2: \u2200110 ], primary_group = [ 3, 2, 1, 0: \u220088 ], supplemental_groups = [ 3, 2, 1, 0: \u220092 ] >, env(()) : < hostname = [ 3, 2, 1, 0: \u220063 ] >, fs(('/home/fizbaz', file_system::remote(()))) [ 3, 2 : pos | 1, 0 : neg ] , fs(('/home/fizbaz/.ssh/fizbaz_rsa', file_system::remote(()))) [ 3, 2, 1, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mhost_included((\u220063, \"debian,redhat\")) = [ 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 3, 2, 1, 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_service(\"sshd\") : < loaded = [ 3, 2, 1, 0: 1 ], started = [ 3, 2, 1, 0: 1 ] >, env(()) [ 3, 2, 1, 0 : pos ] : < time_counter = [ 3, 2, 1, 0: 2 ] >, fs(('/home/fizbaz', file_system::remote(()))) [ 1, 0 : pos ] : < fs_type = [ 1, 0: file_type::directory(nil::<path>()) ], owner = [ 1, 0: \"fizbaz\" ] >, fs(('/home/fizbaz/.ssh/fizbaz_rsa', file_system::remote(()))) : < owner = [ 3, 2, 1, 0: \"fizbaz\" ], owner_group = [ 3, 2, 1, 0: \u220088 ] >, fs(('/home/fizbaz/.ssh/fizbaz_rsa.pub', file_system::remote(()))) : < owner = [ 3, 2, 1, 0: \"fizbaz\" ], owner_group = [ 3, 2, 1, 0: \u220088 ] > >\n",
+      "stderr": "",
+      "query_sha256": "9d7e613dd8fb86755ed87dd8d2a1ba0173ae334dda86a0dbb2df7e2d9aa90e8d",
+      "program_sha256": "ed0b1a93580ee024439dc738579aff74aa17e7f9ef54106f78b99779fd452340"
+    }
+  },
+  "proposed_playbook_diagnostics": {
+    "a03": {
+      "status": "program_lowering_error",
+      "returncode": 4,
+      "stdout": "\nERROR: While lowering Ansible, encountered\nNo argument hidden for module ansible.builtin.find\n",
+      "stderr": "",
+      "query_sha256": "a835dc1aa81ab37d3f2a60f7bc5d8cda035f7bd62041ee015a4c74294a41e308",
+      "program_sha256": "f82784cd4c102d0ebd6f530fdaef7992acd22fac791c5cda844b55ee3c90cf28"
+    },
+    "a18": {
+      "status": "accepted_with_possible_assumptions_or_residuals",
+      "returncode": 0,
+      "stdout": "\nVERIFIED\n\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"RedHat\", os_family = \"RedHat\", time_counter = 0 >, fs(('/etc/postfix/main.cf', file_system::remote(()))): <fs_type = file_type::file(\u220017) > >\u001b[39m \u001b[33m{ 1 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< env(()) : < hostname = [ 0: \u220048 ], umask = [ 0: \u220095 ] >, fs(('/etc/postfix/main.bak', file_system::remote(()))) [ 0 : neg ] , fs(('/etc/postfix/main.cf', file_system::remote(()))) : < owner = [ 0: \u220093 ], owner_group = [ 0: \u220091 ] > >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_certificate('http://example.com/cfg.redhat') = [ 0 : true ], host_included((\u220048, \"redhat,ubuntu\")) = [ 0 : true ], can_become((\"#local_user\", \"root\")) = [ 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< fs(('/etc/postfix/main.bak', file_system::remote(()))) : < mode = [ 0: mode_of_umask(\u220095) ], owner = [ 0: \u220093 ], owner_group = [ 0: \u220091 ] >, fs(('/etc/postfix/main.cf', file_system::remote(()))) : < mode = [ 0: \"644\" ], owner = [ 0: \"root\" ], owner_group = [ 0: \"root\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"Ubuntu\", os_family = \"Debian\", time_counter = 0 >, fs(('/etc/postfix/main.cf', file_system::remote(()))): <fs_type = file_type::file(\u220033) > >\u001b[39m \u001b[33m{ 1 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< env(()) : < hostname = [ 0: \u220048 ], umask = [ 0: \u220060 ] >, fs(('/etc/postfix/main.bak', file_system::remote(()))) [ 0 : neg ] , fs(('/etc/postfix/main.cf', file_system::remote(()))) : < owner = [ 0: \u220058 ], owner_group = [ 0: \u220056 ] > >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_certificate('http://example.com/cfg.ubuntu') = [ 0 : true ], host_included((\u220048, \"redhat,ubuntu\")) = [ 0 : true ], can_become((\"#local_user\", \"root\")) = [ 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< fs(('/etc/postfix/main.bak', file_system::remote(()))) : < mode = [ 0: mode_of_umask(\u220060) ], owner = [ 0: \u220058 ], owner_group = [ 0: \u220056 ] >, fs(('/etc/postfix/main.cf', file_system::remote(()))) : < mode = [ 0: \"644\" ], owner = [ 0: \"root\" ], owner_group = [ 0: \"root\" ] > >\n",
+      "stderr": "",
+      "query_sha256": "0a4071ca69c8fe035e7223d005ebea2de336ed1df9ec575d61fa811eedf29226",
+      "program_sha256": "cd82255aa1043ac7917a63274ed69c76ba3f905bfce5b534d6f4b8206ad98b5e"
+    },
+    "a20": {
+      "status": "accepted_with_possible_assumptions_or_residuals",
+      "returncode": 0,
+      "stdout": "\nVERIFIED\n\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"RedHat\", os_family = \"RedHat\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u220016) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200288) [ 3, 2 : pos ] , e_group(\u2200333) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200294 | 3: \u2200304 | 6: \u2200339 | 7: \u2200349 ], homedir = [ 3, 2: \u2200290 | 7, 6: \u2200335 ], primary_group = [ 3, 2: \u2200288 | 7, 6: \u2200333 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200290, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200335, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", replace_last_matching((\"^%wheel\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u220016))))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel\", \u220016)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_dnf(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203269 | 1: \u2203278 | 4: \u2203314 | 5: \u2203323 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200290, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200335, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"RedHat\", os_family = \"RedHat\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u220016) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200288) [ 3, 2 : pos ] , e_group(\u2200333) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200294 | 3: \u2200304 | 6: \u2200339 | 7: \u2200349 ], homedir = [ 3, 2: \u2200290 | 7, 6: \u2200335 ], primary_group = [ 3, 2: \u2200288 | 7, 6: \u2200333 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200290, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200335, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", concat_line((\u220016, \"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\")))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel\", \u220016)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : false ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_dnf(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203269 | 1: \u2203278 | 4: \u2203314 | 5: \u2203323 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200290, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200335, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"RedHat\", os_family = \"RedHat\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u220024) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200288) [ 3, 2 : pos ] , e_group(\u2200333) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200294 | 3: \u2200304 | 6: \u2200339 | 7: \u2200349 ], homedir = [ 3, 2: \u2200290 | 7, 6: \u2200335 ], primary_group = [ 3, 2: \u2200288 | 7, 6: \u2200333 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200290, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200335, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", replace_last_matching((\"^%wheel.*\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u220024))))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel.*\", \u220024)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel\", \u220024)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_dnf(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203269 | 1: \u2203278 | 4: \u2203314 | 5: \u2203323 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200290, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200335, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"RedHat\", os_family = \"RedHat\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u220024) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200288) [ 3, 2 : pos ] , e_group(\u2200333) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200294 | 3: \u2200304 | 6: \u2200339 | 7: \u2200349 ], homedir = [ 3, 2: \u2200290 | 7, 6: \u2200335 ], primary_group = [ 3, 2: \u2200288 | 7, 6: \u2200333 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200290, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200335, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", concat_line((\u220024, \"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\")))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel.*\", \u220024)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : false ], line_matches_regex((\"^%wheel\", \u220024)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : false ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_dnf(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203269 | 1: \u2203278 | 4: \u2203314 | 5: \u2203323 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200290, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200335, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"RedHat\", os_family = \"RedHat\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u220032) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200288) [ 3, 2 : pos ] , e_group(\u2200333) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200294 | 3: \u2200304 | 6: \u2200339 | 7: \u2200349 ], homedir = [ 3, 2: \u2200290 | 7, 6: \u2200335 ], primary_group = [ 3, 2: \u2200288 | 7, 6: \u2200333 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200290, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200335, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", replace_last_matching((\"^%wheel.*$\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u220032))))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], equal((replace_last_matching((\"^%wheel.*$\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u220032))), replace_last_matching((\"^%wheel\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u220032))))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], equal((replace_last_matching((\"^%wheel\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u220032))), replace_last_matching((\"^%wheel.*$\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u220032))))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel.*$\", \u220032)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel\", \u220032)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_dnf(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203269 | 1: \u2203278 | 4: \u2203314 | 5: \u2203323 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200290, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200335, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"RedHat\", os_family = \"RedHat\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u220032) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200288) [ 3, 2 : pos ] , e_group(\u2200333) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200294 | 3: \u2200304 | 6: \u2200339 | 7: \u2200349 ], homedir = [ 3, 2: \u2200290 | 7, 6: \u2200335 ], primary_group = [ 3, 2: \u2200288 | 7, 6: \u2200333 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200290, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200335, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", concat_line((\u220032, \"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\")))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel.*$\", \u220032)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : false ], line_matches_regex((\"^%wheel\", \u220032)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : false ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_dnf(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203269 | 1: \u2203278 | 4: \u2203314 | 5: \u2203323 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200290, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200335, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"Debian\", os_family = \"Debian\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u220068) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200197) [ 3, 2 : pos ] , e_group(\u2200242) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200203 | 3: \u2200213 | 6: \u2200248 | 7: \u2200258 ], homedir = [ 3, 2: \u2200199 | 7, 6: \u2200244 ], primary_group = [ 3, 2: \u2200197 | 7, 6: \u2200242 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200199, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200244, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", replace_last_matching((\"^%wheel\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u220068))))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel\", \u220068)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_apt(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203178 | 1: \u2203187 | 4: \u2203223 | 5: \u2203232 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200199, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200244, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"Debian\", os_family = \"Debian\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u220068) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200197) [ 3, 2 : pos ] , e_group(\u2200242) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200203 | 3: \u2200213 | 6: \u2200248 | 7: \u2200258 ], homedir = [ 3, 2: \u2200199 | 7, 6: \u2200244 ], primary_group = [ 3, 2: \u2200197 | 7, 6: \u2200242 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200199, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200244, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", concat_line((\u220068, \"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\")))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel\", \u220068)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : false ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_apt(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203178 | 1: \u2203187 | 4: \u2203223 | 5: \u2203232 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200199, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200244, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"Debian\", os_family = \"Debian\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u220076) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200197) [ 3, 2 : pos ] , e_group(\u2200242) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200203 | 3: \u2200213 | 6: \u2200248 | 7: \u2200258 ], homedir = [ 3, 2: \u2200199 | 7, 6: \u2200244 ], primary_group = [ 3, 2: \u2200197 | 7, 6: \u2200242 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200199, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200244, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", replace_last_matching((\"^%wheel.*\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u220076))))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel.*\", \u220076)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel\", \u220076)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_apt(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203178 | 1: \u2203187 | 4: \u2203223 | 5: \u2203232 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200199, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200244, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"Debian\", os_family = \"Debian\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u220076) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200197) [ 3, 2 : pos ] , e_group(\u2200242) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200203 | 3: \u2200213 | 6: \u2200248 | 7: \u2200258 ], homedir = [ 3, 2: \u2200199 | 7, 6: \u2200244 ], primary_group = [ 3, 2: \u2200197 | 7, 6: \u2200242 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200199, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200244, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", concat_line((\u220076, \"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\")))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel.*\", \u220076)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : false ], line_matches_regex((\"^%wheel\", \u220076)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : false ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_apt(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203178 | 1: \u2203187 | 4: \u2203223 | 5: \u2203232 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200199, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200244, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"Debian\", os_family = \"Debian\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u220084) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200197) [ 3, 2 : pos ] , e_group(\u2200242) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200203 | 3: \u2200213 | 6: \u2200248 | 7: \u2200258 ], homedir = [ 3, 2: \u2200199 | 7, 6: \u2200244 ], primary_group = [ 3, 2: \u2200197 | 7, 6: \u2200242 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200199, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200244, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", replace_last_matching((\"^%wheel.*$\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u220084))))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], equal((replace_last_matching((\"^%wheel.*$\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u220084))), replace_last_matching((\"^%wheel\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u220084))))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], equal((replace_last_matching((\"^%wheel\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u220084))), replace_last_matching((\"^%wheel.*$\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u220084))))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel.*$\", \u220084)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel\", \u220084)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_apt(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203178 | 1: \u2203187 | 4: \u2203223 | 5: \u2203232 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200199, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200244, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"Debian\", os_family = \"Debian\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u220084) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200197) [ 3, 2 : pos ] , e_group(\u2200242) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200203 | 3: \u2200213 | 6: \u2200248 | 7: \u2200258 ], homedir = [ 3, 2: \u2200199 | 7, 6: \u2200244 ], primary_group = [ 3, 2: \u2200197 | 7, 6: \u2200242 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200199, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200244, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", concat_line((\u220084, \"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\")))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel.*$\", \u220084)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : false ], line_matches_regex((\"^%wheel\", \u220084)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : false ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_apt(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203178 | 1: \u2203187 | 4: \u2203223 | 5: \u2203232 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200199, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200244, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"Ubuntu\", os_family = \"Debian\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u2200120) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200197) [ 3, 2 : pos ] , e_group(\u2200242) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200203 | 3: \u2200213 | 6: \u2200248 | 7: \u2200258 ], homedir = [ 3, 2: \u2200199 | 7, 6: \u2200244 ], primary_group = [ 3, 2: \u2200197 | 7, 6: \u2200242 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200199, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200244, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", replace_last_matching((\"^%wheel\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u2200120))))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel\", \u2200120)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_apt(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203178 | 1: \u2203187 | 4: \u2203223 | 5: \u2203232 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200199, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200244, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"Ubuntu\", os_family = \"Debian\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u2200120) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200197) [ 3, 2 : pos ] , e_group(\u2200242) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200203 | 3: \u2200213 | 6: \u2200248 | 7: \u2200258 ], homedir = [ 3, 2: \u2200199 | 7, 6: \u2200244 ], primary_group = [ 3, 2: \u2200197 | 7, 6: \u2200242 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200199, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200244, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", concat_line((\u2200120, \"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\")))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel\", \u2200120)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : false ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_apt(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203178 | 1: \u2203187 | 4: \u2203223 | 5: \u2203232 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200199, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200244, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"Ubuntu\", os_family = \"Debian\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u2200128) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200197) [ 3, 2 : pos ] , e_group(\u2200242) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200203 | 3: \u2200213 | 6: \u2200248 | 7: \u2200258 ], homedir = [ 3, 2: \u2200199 | 7, 6: \u2200244 ], primary_group = [ 3, 2: \u2200197 | 7, 6: \u2200242 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200199, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200244, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", replace_last_matching((\"^%wheel.*\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u2200128))))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel.*\", \u2200128)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel\", \u2200128)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_apt(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203178 | 1: \u2203187 | 4: \u2203223 | 5: \u2203232 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200199, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200244, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"Ubuntu\", os_family = \"Debian\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u2200128) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200197) [ 3, 2 : pos ] , e_group(\u2200242) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200203 | 3: \u2200213 | 6: \u2200248 | 7: \u2200258 ], homedir = [ 3, 2: \u2200199 | 7, 6: \u2200244 ], primary_group = [ 3, 2: \u2200197 | 7, 6: \u2200242 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200199, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200244, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", concat_line((\u2200128, \"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\")))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel.*\", \u2200128)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : false ], line_matches_regex((\"^%wheel\", \u2200128)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : false ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_apt(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203178 | 1: \u2203187 | 4: \u2203223 | 5: \u2203232 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200199, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200244, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"Ubuntu\", os_family = \"Debian\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u2200136) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200197) [ 3, 2 : pos ] , e_group(\u2200242) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200203 | 3: \u2200213 | 6: \u2200248 | 7: \u2200258 ], homedir = [ 3, 2: \u2200199 | 7, 6: \u2200244 ], primary_group = [ 3, 2: \u2200197 | 7, 6: \u2200242 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200199, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200244, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", replace_last_matching((\"^%wheel.*$\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u2200136))))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], equal((replace_last_matching((\"^%wheel.*$\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u2200136))), replace_last_matching((\"^%wheel\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u2200136))))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], equal((replace_last_matching((\"^%wheel\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u2200136))), replace_last_matching((\"^%wheel.*$\", (\"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\", \u2200136))))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel.*$\", \u2200136)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel\", \u2200136)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_apt(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203178 | 1: \u2203187 | 4: \u2203223 | 5: \u2203232 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200199, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200244, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"Ubuntu\", os_family = \"Debian\", time_counter = 0 >, fs(('/etc/sudoers', file_system::remote(()))): <fs_type = file_type::file(\u2200136) > >\u001b[39m \u001b[33m{ 8 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(\u2200197) [ 3, 2 : pos ] , e_group(\u2200242) [ 7, 6 : pos ] , e_group(\"wheel\") [ 7, 6, 5, 4 : pos | 3, 2, 1, 0 : neg ] , e_user(\"ansible\") [ 7, 6, 3, 2 : pos | 5, 4, 1, 0 : neg ] : < default_shell = [ 2: \u2200203 | 3: \u2200213 | 6: \u2200248 | 7: \u2200258 ], homedir = [ 3, 2: \u2200199 | 7, 6: \u2200244 ], primary_group = [ 3, 2: \u2200197 | 7, 6: \u2200242 ] >, env(()) : < hostname = [ 7, 6, 5, 4, 3, 2, 1, 0: \u2200172 ] >, fs((\u2200199, file_system::remote(()))) [ 3 : pos | 2 : neg ] , fs((\u2200244, file_system::remote(()))) [ 7 : pos | 6 : neg ] , fs(('/home/ansible', file_system::remote(()))) [ 5, 1 : pos | 4, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mvalidate_contents((\"/usr/sbin/visudo -cf %s\", concat_line((\u2200136, \"%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\")))) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 7, 6, 5, 4, 3, 2, 1, 0 : true ], line_matches_regex((\"^%wheel.*$\", \u2200136)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : false ], line_matches_regex((\"^%wheel\", \u2200136)) = [ 7, 6, 5, 4, 3, 2, 1, 0 : false ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_group(\"ansible\") [ 5, 4, 1, 0 : pos ] , e_group(\"wheel\") [ 3, 2, 1, 0 : pos ] : < system = [ 3, 2, 1, 0: true ] >, e_package(\"sudo\") [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ] : < e_apt(()) [ 7, 6, 5, 4, 3, 2, 1, 0 : pos ]  >, e_user(\"ansible\") : < default_shell = [ 0: \u2203178 | 1: \u2203187 | 4: \u2203223 | 5: \u2203232 ], homedir = [ 5, 4, 1, 0: '/home/ansible' ], password = [ 5, 4, 1, 0: password_set::disabled(()) ], primary_group = [ 5, 4, 1, 0: \"ansible\" ], system = [ 5, 4, 1, 0: false ] >, fs((\u2200199, file_system::remote(()))) [ 2 : pos ] : < fs_type = [ 2: file_type::directory(nil::<path>()) ], owner = [ 2: \"ansible\" ] >, fs((\u2200244, file_system::remote(()))) [ 6 : pos ] : < fs_type = [ 6: file_type::directory(nil::<path>()) ], owner = [ 6: \"ansible\" ] >, fs(('/etc/sudoers', file_system::remote(()))) : < mode = [ 7, 6, 5, 4, 3, 2, 1, 0: \"640\" ], owner = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ], owner_group = [ 7, 6, 5, 4, 3, 2, 1, 0: \"root\" ] >, fs(('/home/ansible', file_system::remote(()))) [ 4, 0 : pos ] : < fs_type = [ 4, 0: file_type::directory(nil::<path>()) ], owner = [ 4, 0: \"ansible\" ] > >\n",
+      "stderr": "",
+      "query_sha256": "f3d9ef764504bdf6122018716d7c1866f10b3b502c5ee13123525441301bb1ab",
+      "program_sha256": "4d28dcad34746e09e18e65a96be733c0a3a15985123cf5e26888500541b18ca1"
+    },
+    "a21": {
+      "status": "accepted_with_possible_assumptions_or_residuals",
+      "returncode": 0,
+      "stdout": "\nVERIFIED\n\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"RedHat\", os_family = \"RedHat\", time_counter = 0 > >\u001b[39m \u001b[33m{ 4 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(?loop(119)) [ 3, 2, 1, 0 : pos ] , e_group(\u2200114) [ 3, 2, 1, 0 : pos ] , e_service(\"sshd\") [ 3, 1 : pos | 2, 0 : neg ] : < running = [ 3, 1: false ] >, e_user(\"fizbaz\") [ 3, 2, 1, 0 : pos ] : < default_shell = [ 1, 0: \u2200124 | 3, 2: \u2200136 ], homedir = [ 3, 2, 1, 0: \u2200116 ], primary_group = [ 3, 2, 1, 0: \u2200114 ], supplemental_groups = [ 3, 2, 1, 0: \u2200118 ] >, env(()) : < hostname = [ 3, 2, 1, 0: \u220033 ] >, fs((\u2200116, file_system::remote(()))) [ 3, 2 : pos | 1, 0 : neg ] , fs((cons_path((\u2200116, '/.ssh/fizbaz_rsa')), file_system::remote(()))) [ 3, 2, 1, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mequal((add_ext((cons_path((\u2203116, '/.ssh/fizbaz_rsa')), \".pub\")), '/.ssh/fizbaz_rsa.pub')) = [ 3, 2, 1, 0 : true ], equal((cons_path((\u2203116, '/.ssh/fizbaz_rsa')), '/.ssh/fizbaz_rsa')) = [ 3, 2, 1, 0 : true ], equal(('/.ssh/fizbaz_rsa.pub', add_ext((cons_path((\u2203116, '/.ssh/fizbaz_rsa')), \".pub\")))) = [ 3, 2, 1, 0 : true ], equal(('/.ssh/fizbaz_rsa', cons_path((\u2203116, '/.ssh/fizbaz_rsa')))) = [ 3, 2, 1, 0 : true ], host_included((\u220033, \"debian,redhat\")) = [ 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 3, 2, 1, 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_service(\"sshd\") : < loaded = [ 3, 2, 1, 0: 1 ], started = [ 3, 2, 1, 0: 1 ] >, env(()) [ 3, 2, 1, 0 : pos ] : < time_counter = [ 3, 2, 1, 0: 2 ] >, fs((\u2200116, file_system::remote(()))) [ 1, 0 : pos ] : < fs_type = [ 1, 0: file_type::directory(nil::<path>()) ], owner = [ 1, 0: \"fizbaz\" ] >, fs((cons_path((\u2200116, '/.ssh/fizbaz_rsa')), file_system::remote(()))) : < owner = [ 3, 2, 1, 0: \"fizbaz\" ], owner_group = [ 3, 2, 1, 0: \u2200114 ] >, fs((add_ext((cons_path((\u2200116, '/.ssh/fizbaz_rsa')), \".pub\")), file_system::remote(()))) : < owner = [ 3, 2, 1, 0: \"fizbaz\" ], owner_group = [ 3, 2, 1, 0: \u2200114 ] > >\n\u001b[39m\u001b[36m< #local(()), env(()): <last_reboot = -1, os_distribution = \"Debian\", os_family = \"Debian\", time_counter = 0 > >\u001b[39m \u001b[33m{ 4 branch }\u001b[39m \u001b[31massuming\u001b[39m \u001b[38;2;255;165;0m< e_group(?loop(63)) [ 3, 2, 1, 0 : pos ] , e_group(\u220058) [ 3, 2, 1, 0 : pos ] , e_service(\"sshd\") [ 3, 1 : pos | 2, 0 : neg ] : < running = [ 3, 1: false ] >, e_user(\"fizbaz\") [ 3, 2, 1, 0 : pos ] : < default_shell = [ 1, 0: \u220068 | 3, 2: \u220080 ], homedir = [ 3, 2, 1, 0: \u220060 ], primary_group = [ 3, 2, 1, 0: \u220058 ], supplemental_groups = [ 3, 2, 1, 0: \u220062 ] >, env(()) : < hostname = [ 3, 2, 1, 0: \u220033 ] >, fs((\u220060, file_system::remote(()))) [ 3, 2 : pos | 1, 0 : neg ] , fs((cons_path((\u220060, '/.ssh/fizbaz_rsa')), file_system::remote(()))) [ 3, 2, 1, 0 : neg ]  >\u001b[39m \u001b[31mand\u001b[39m \u001b[38;2;255;165;0mequal((add_ext((cons_path((\u220360, '/.ssh/fizbaz_rsa')), \".pub\")), '/.ssh/fizbaz_rsa.pub')) = [ 3, 2, 1, 0 : true ], equal((cons_path((\u220360, '/.ssh/fizbaz_rsa')), '/.ssh/fizbaz_rsa')) = [ 3, 2, 1, 0 : true ], equal(('/.ssh/fizbaz_rsa.pub', add_ext((cons_path((\u220360, '/.ssh/fizbaz_rsa')), \".pub\")))) = [ 3, 2, 1, 0 : true ], equal(('/.ssh/fizbaz_rsa', cons_path((\u220360, '/.ssh/fizbaz_rsa')))) = [ 3, 2, 1, 0 : true ], host_included((\u220033, \"debian,redhat\")) = [ 3, 2, 1, 0 : true ], can_become((\"#local_user\", \"root\")) = [ 3, 2, 1, 0 : true ]\u001b[39m \u001b[31mperforming\u001b[39m \u001b[32m< e_service(\"sshd\") : < loaded = [ 3, 2, 1, 0: 1 ], started = [ 3, 2, 1, 0: 1 ] >, env(()) [ 3, 2, 1, 0 : pos ] : < time_counter = [ 3, 2, 1, 0: 2 ] >, fs((\u220060, file_system::remote(()))) [ 1, 0 : pos ] : < fs_type = [ 1, 0: file_type::directory(nil::<path>()) ], owner = [ 1, 0: \"fizbaz\" ] >, fs((cons_path((\u220060, '/.ssh/fizbaz_rsa')), file_system::remote(()))) : < owner = [ 3, 2, 1, 0: \"fizbaz\" ], owner_group = [ 3, 2, 1, 0: \u220058 ] >, fs((add_ext((cons_path((\u220060, '/.ssh/fizbaz_rsa')), \".pub\")), file_system::remote(()))) : < owner = [ 3, 2, 1, 0: \"fizbaz\" ], owner_group = [ 3, 2, 1, 0: \u220058 ] > >\n",
+      "stderr": "",
+      "query_sha256": "d57098b6f17298e31a80df40c29c1a1b8b03d4fb3d4ec010e77736df907917ea",
+      "program_sha256": "7aeb50b6bf77bb2cf9116312b8b42190c5684cd38b3966afd5400aaa9eba492d"
+    }
+  },
+  "sudoers_whitespace": [
+    {
+      "form": "eight_spaces",
+      "text": "%wheel        ALL=(ALL:ALL) NOPASSWD:ALL\n",
+      "returncode": 0,
+      "stdout": "{temporary_sudoers_file}: parsed OK\n",
+      "stderr": ""
+    },
+    {
+      "form": "tab",
+      "text": "%wheel\tALL=(ALL:ALL) NOPASSWD:ALL\n",
+      "returncode": 0,
+      "stdout": "{temporary_sudoers_file}: parsed OK\n",
+      "stderr": ""
+    }
+  ]
+}

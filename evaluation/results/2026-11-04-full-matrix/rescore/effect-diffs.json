@@ -1,0 +1,4812 @@
+{
+  "a03": {
+    "natural_language": "Delete the contents of the /home/mydata/web directory",
+    "original_reference_fql": "delete files in /home/mydata/web",
+    "proposed_reference_fql": "delete files in /home/mydata/web",
+    "original_effects": [
+      {
+        "kind": "delete_files",
+        "paths": {
+          "kind": "in_path",
+          "path": {
+            "kind": "remote",
+            "destination": {
+              "kind": "absolute",
+              "value": "/home/mydata/web"
+            }
+          }
+        }
+      }
+    ],
+    "proposed_effects": [
+      {
+        "kind": "delete_files",
+        "paths": {
+          "kind": "in_path",
+          "path": {
+            "kind": "remote",
+            "destination": {
+              "kind": "absolute",
+              "value": "/home/mydata/web"
+            }
+          }
+        }
+      }
+    ],
+    "reference_effect_diff": [],
+    "representative_outputs": [
+      {
+        "cell_id": "sol--handbook-v3--a03--r0",
+        "output": "delete files in \"/home/mydata/web\".",
+        "probe": {
+          "status": "ok",
+          "parsed": true,
+          "effects": [
+            {
+              "kind": "delete_files",
+              "paths": {
+                "kind": "in_path",
+                "path": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": "/home/mydata/web"
+                  }
+                }
+              }
+            }
+          ],
+          "returncode": 0
+        },
+        "original_effect_diff": [],
+        "corrected_effect_diff": [],
+        "original_trace_diff": null,
+        "reviewed_match": true
+      },
+      {
+        "cell_id": "deepseek-v4-flash--handbook-v3--a03--r1",
+        "output": "delete directory at \"/home/mydata/web\"; create directory at \"/home/mydata/web\"",
+        "probe": {
+          "status": "ok",
+          "parsed": true,
+          "effects": [
+            {
+              "kind": "delete_directory",
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/home/mydata/web"
+                }
+              }
+            },
+            {
+              "kind": "create_directory",
+              "destination": {
+                "path": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": "/home/mydata/web"
+                  }
+                },
+                "owner": null,
+                "group": null,
+                "permissions": {
+                  "read": null,
+                  "write": null,
+                  "execute": null,
+                  "list_directory": null,
+                  "setuid": null,
+                  "setgid": null,
+                  "sticky": null
+                }
+              }
+            }
+          ],
+          "returncode": 0
+        },
+        "original_effect_diff": [
+          {
+            "op": "replace",
+            "path": "/0/kind",
+            "before": "delete_files",
+            "after": "delete_directory"
+          },
+          {
+            "op": "add",
+            "path": "/0/path",
+            "after": {
+              "kind": "remote",
+              "destination": {
+                "kind": "absolute",
+                "value": "/home/mydata/web"
+              }
+            }
+          },
+          {
+            "op": "remove",
+            "path": "/0/paths",
+            "before": {
+              "kind": "in_path",
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/home/mydata/web"
+                }
+              }
+            }
+          },
+          {
+            "op": "add",
+            "path": "/1",
+            "after": {
+              "kind": "create_directory",
+              "destination": {
+                "path": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": "/home/mydata/web"
+                  }
+                },
+                "owner": null,
+                "group": null,
+                "permissions": {
+                  "read": null,
+                  "write": null,
+                  "execute": null,
+                  "list_directory": null,
+                  "setuid": null,
+                  "setgid": null,
+                  "sticky": null
+                }
+              }
+            }
+          }
+        ],
+        "corrected_effect_diff": [
+          {
+            "op": "replace",
+            "path": "/0/kind",
+            "before": "delete_files",
+            "after": "delete_directory"
+          },
+          {
+            "op": "add",
+            "path": "/0/path",
+            "after": {
+              "kind": "remote",
+              "destination": {
+                "kind": "absolute",
+                "value": "/home/mydata/web"
+              }
+            }
+          },
+          {
+            "op": "remove",
+            "path": "/0/paths",
+            "before": {
+              "kind": "in_path",
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/home/mydata/web"
+                }
+              }
+            }
+          },
+          {
+            "op": "add",
+            "path": "/1",
+            "after": {
+              "kind": "create_directory",
+              "destination": {
+                "path": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": "/home/mydata/web"
+                  }
+                },
+                "owner": null,
+                "group": null,
+                "permissions": {
+                  "read": null,
+                  "write": null,
+                  "execute": null,
+                  "list_directory": null,
+                  "setuid": null,
+                  "setgid": null,
+                  "sticky": null
+                }
+              }
+            }
+          }
+        ],
+        "original_trace_diff": null,
+        "reviewed_match": false
+      },
+      {
+        "cell_id": "glm-5.3--handbook-v3--a03--r0",
+        "output": "delete files in \"/home/mydata/web\"",
+        "probe": {
+          "status": "ok",
+          "parsed": true,
+          "effects": [
+            {
+              "kind": "delete_files",
+              "paths": {
+                "kind": "in_path",
+                "path": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": "/home/mydata/web"
+                  }
+                }
+              }
+            }
+          ],
+          "returncode": 0
+        },
+        "original_effect_diff": [],
+        "corrected_effect_diff": [],
+        "original_trace_diff": null,
+        "reviewed_match": true
+      }
+    ]
+  },
+  "a18": {
+    "natural_language": "For RedHat and Ubuntu, install the lastest version of postfix, backup its default configuration file, and download the configuration file from http://example.com/cfg.ubuntu for Ubuntu and http://example.com/cfg.redhat for RedHat",
+    "original_reference_fql": "if os is RedHat or os is Ubuntu then install postfix with version=latest; copy postfix configuration file to ?backup. if os is Ubuntu then download postfix configuration file from \"http://example.com/cfg.ubuntu\". if os is \"RedHat\" then download postfix configuration file from \"http://example.com/cfg.redhat\"",
+    "proposed_reference_fql": "if os is RedHat or os is Ubuntu then install postfix with version=latest; copy postfix configuration file to ?backup. if os is Ubuntu then download postfix configuration file from \"http://example.com/cfg.ubuntu\". if os is \"RedHat\" then download postfix configuration file from \"http://example.com/cfg.redhat\"",
+    "original_effects": [
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "os",
+          "value": "RedHat"
+        },
+        "then": [
+          {
+            "kind": "install",
+            "packages": [
+              {
+                "name": "postfix",
+                "manager": "system"
+              }
+            ],
+            "version": "latest"
+          },
+          {
+            "kind": "copy_file",
+            "source": {
+              "kind": "remote",
+              "destination": {
+                "kind": "absolute",
+                "value": "/etc/postfix/main.cf"
+              }
+            },
+            "destination": {
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": {
+                    "unknown": 0
+                  }
+                }
+              },
+              "owner": null,
+              "group": null,
+              "permissions": {
+                "read": null,
+                "write": null,
+                "execute": null,
+                "list_directory": null,
+                "setuid": null,
+                "setgid": null,
+                "sticky": null
+              }
+            }
+          }
+        ],
+        "else": [
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "os",
+              "value": "Ubuntu"
+            },
+            "then": [
+              {
+                "kind": "install",
+                "packages": [
+                  {
+                    "name": "postfix",
+                    "manager": "system"
+                  }
+                ],
+                "version": "latest"
+              },
+              {
+                "kind": "copy_file",
+                "source": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": "/etc/postfix/main.cf"
+                  }
+                },
+                "destination": {
+                  "path": {
+                    "kind": "remote",
+                    "destination": {
+                      "kind": "absolute",
+                      "value": {
+                        "unknown": 0
+                      }
+                    }
+                  },
+                  "owner": null,
+                  "group": null,
+                  "permissions": {
+                    "read": null,
+                    "write": null,
+                    "execute": null,
+                    "list_directory": null,
+                    "setuid": null,
+                    "setgid": null,
+                    "sticky": null
+                  }
+                }
+              }
+            ],
+            "else": []
+          }
+        ]
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "os",
+          "value": "Ubuntu"
+        },
+        "then": [
+          {
+            "kind": "download",
+            "source": "http://example.com/cfg.ubuntu",
+            "destination": {
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/etc/postfix/main.cf"
+                }
+              },
+              "owner": null,
+              "group": null,
+              "permissions": {
+                "read": null,
+                "write": null,
+                "execute": null,
+                "list_directory": null,
+                "setuid": null,
+                "setgid": null,
+                "sticky": null
+              }
+            }
+          }
+        ],
+        "else": []
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "os",
+          "value": "RedHat"
+        },
+        "then": [
+          {
+            "kind": "download",
+            "source": "http://example.com/cfg.redhat",
+            "destination": {
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/etc/postfix/main.cf"
+                }
+              },
+              "owner": null,
+              "group": null,
+              "permissions": {
+                "read": null,
+                "write": null,
+                "execute": null,
+                "list_directory": null,
+                "setuid": null,
+                "setgid": null,
+                "sticky": null
+              }
+            }
+          }
+        ],
+        "else": []
+      }
+    ],
+    "proposed_effects": [
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "os",
+          "value": "RedHat"
+        },
+        "then": [
+          {
+            "kind": "install",
+            "packages": [
+              {
+                "name": "postfix",
+                "manager": "system"
+              }
+            ],
+            "version": "latest"
+          },
+          {
+            "kind": "copy_file",
+            "source": {
+              "kind": "remote",
+              "destination": {
+                "kind": "absolute",
+                "value": "/etc/postfix/main.cf"
+              }
+            },
+            "destination": {
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": {
+                    "unknown": 0
+                  }
+                }
+              },
+              "owner": null,
+              "group": null,
+              "permissions": {
+                "read": null,
+                "write": null,
+                "execute": null,
+                "list_directory": null,
+                "setuid": null,
+                "setgid": null,
+                "sticky": null
+              }
+            }
+          }
+        ],
+        "else": [
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "os",
+              "value": "Ubuntu"
+            },
+            "then": [
+              {
+                "kind": "install",
+                "packages": [
+                  {
+                    "name": "postfix",
+                    "manager": "system"
+                  }
+                ],
+                "version": "latest"
+              },
+              {
+                "kind": "copy_file",
+                "source": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": "/etc/postfix/main.cf"
+                  }
+                },
+                "destination": {
+                  "path": {
+                    "kind": "remote",
+                    "destination": {
+                      "kind": "absolute",
+                      "value": {
+                        "unknown": 0
+                      }
+                    }
+                  },
+                  "owner": null,
+                  "group": null,
+                  "permissions": {
+                    "read": null,
+                    "write": null,
+                    "execute": null,
+                    "list_directory": null,
+                    "setuid": null,
+                    "setgid": null,
+                    "sticky": null
+                  }
+                }
+              }
+            ],
+            "else": []
+          }
+        ]
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "os",
+          "value": "Ubuntu"
+        },
+        "then": [
+          {
+            "kind": "download",
+            "source": "http://example.com/cfg.ubuntu",
+            "destination": {
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/etc/postfix/main.cf"
+                }
+              },
+              "owner": null,
+              "group": null,
+              "permissions": {
+                "read": null,
+                "write": null,
+                "execute": null,
+                "list_directory": null,
+                "setuid": null,
+                "setgid": null,
+                "sticky": null
+              }
+            }
+          }
+        ],
+        "else": []
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "os",
+          "value": "RedHat"
+        },
+        "then": [
+          {
+            "kind": "download",
+            "source": "http://example.com/cfg.redhat",
+            "destination": {
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/etc/postfix/main.cf"
+                }
+              },
+              "owner": null,
+              "group": null,
+              "permissions": {
+                "read": null,
+                "write": null,
+                "execute": null,
+                "list_directory": null,
+                "setuid": null,
+                "setgid": null,
+                "sticky": null
+              }
+            }
+          }
+        ],
+        "else": []
+      }
+    ],
+    "reference_effect_diff": [],
+    "representative_outputs": [
+      {
+        "cell_id": "sol--handbook-v3--a18--r0",
+        "output": "if os is RedHat or os is Ubuntu then install postfix with version=\"latest\"; copy postfix configuration file to ?path; if os is Ubuntu then download file from \"http://example.com/cfg.ubuntu\" to \"/etc/postfix/main.cf\" otherwise download file from \"http://example.com/cfg.redhat\" to \"/etc/postfix/main.cf\"",
+        "probe": {
+          "status": "ok",
+          "parsed": true,
+          "effects": [
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "RedHat"
+              },
+              "then": [
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "postfix",
+                      "manager": "system"
+                    }
+                  ],
+                  "version": "latest"
+                },
+                {
+                  "kind": "copy_file",
+                  "source": {
+                    "kind": "remote",
+                    "destination": {
+                      "kind": "absolute",
+                      "value": "/etc/postfix/main.cf"
+                    }
+                  },
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": {
+                          "unknown": 0
+                        }
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                },
+                {
+                  "kind": "conditional",
+                  "condition": {
+                    "kind": "os",
+                    "value": "Ubuntu"
+                  },
+                  "then": [
+                    {
+                      "kind": "download",
+                      "source": "http://example.com/cfg.ubuntu",
+                      "destination": {
+                        "path": {
+                          "kind": "remote",
+                          "destination": {
+                            "kind": "absolute",
+                            "value": "/etc/postfix/main.cf"
+                          }
+                        },
+                        "owner": null,
+                        "group": null,
+                        "permissions": {
+                          "read": null,
+                          "write": null,
+                          "execute": null,
+                          "list_directory": null,
+                          "setuid": null,
+                          "setgid": null,
+                          "sticky": null
+                        }
+                      }
+                    }
+                  ],
+                  "else": [
+                    {
+                      "kind": "download",
+                      "source": "http://example.com/cfg.redhat",
+                      "destination": {
+                        "path": {
+                          "kind": "remote",
+                          "destination": {
+                            "kind": "absolute",
+                            "value": "/etc/postfix/main.cf"
+                          }
+                        },
+                        "owner": null,
+                        "group": null,
+                        "permissions": {
+                          "read": null,
+                          "write": null,
+                          "execute": null,
+                          "list_directory": null,
+                          "setuid": null,
+                          "setgid": null,
+                          "sticky": null
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              "else": [
+                {
+                  "kind": "conditional",
+                  "condition": {
+                    "kind": "os",
+                    "value": "Ubuntu"
+                  },
+                  "then": [
+                    {
+                      "kind": "install",
+                      "packages": [
+                        {
+                          "name": "postfix",
+                          "manager": "system"
+                        }
+                      ],
+                      "version": "latest"
+                    },
+                    {
+                      "kind": "copy_file",
+                      "source": {
+                        "kind": "remote",
+                        "destination": {
+                          "kind": "absolute",
+                          "value": "/etc/postfix/main.cf"
+                        }
+                      },
+                      "destination": {
+                        "path": {
+                          "kind": "remote",
+                          "destination": {
+                            "kind": "absolute",
+                            "value": {
+                              "unknown": 0
+                            }
+                          }
+                        },
+                        "owner": null,
+                        "group": null,
+                        "permissions": {
+                          "read": null,
+                          "write": null,
+                          "execute": null,
+                          "list_directory": null,
+                          "setuid": null,
+                          "setgid": null,
+                          "sticky": null
+                        }
+                      }
+                    },
+                    {
+                      "kind": "conditional",
+                      "condition": {
+                        "kind": "os",
+                        "value": "Ubuntu"
+                      },
+                      "then": [
+                        {
+                          "kind": "download",
+                          "source": "http://example.com/cfg.ubuntu",
+                          "destination": {
+                            "path": {
+                              "kind": "remote",
+                              "destination": {
+                                "kind": "absolute",
+                                "value": "/etc/postfix/main.cf"
+                              }
+                            },
+                            "owner": null,
+                            "group": null,
+                            "permissions": {
+                              "read": null,
+                              "write": null,
+                              "execute": null,
+                              "list_directory": null,
+                              "setuid": null,
+                              "setgid": null,
+                              "sticky": null
+                            }
+                          }
+                        }
+                      ],
+                      "else": [
+                        {
+                          "kind": "download",
+                          "source": "http://example.com/cfg.redhat",
+                          "destination": {
+                            "path": {
+                              "kind": "remote",
+                              "destination": {
+                                "kind": "absolute",
+                                "value": "/etc/postfix/main.cf"
+                              }
+                            },
+                            "owner": null,
+                            "group": null,
+                            "permissions": {
+                              "read": null,
+                              "write": null,
+                              "execute": null,
+                              "list_directory": null,
+                              "setuid": null,
+                              "setgid": null,
+                              "sticky": null
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "else": []
+                }
+              ]
+            }
+          ],
+          "returncode": 0
+        },
+        "original_effect_diff": [
+          {
+            "op": "add",
+            "path": "/0/else/0/then/2",
+            "after": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.ubuntu",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.redhat",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "op": "add",
+            "path": "/0/then/2",
+            "after": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.ubuntu",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.redhat",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "op": "remove",
+            "path": "/2",
+            "before": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "RedHat"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.redhat",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          },
+          {
+            "op": "remove",
+            "path": "/1",
+            "before": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.ubuntu",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          }
+        ],
+        "corrected_effect_diff": [
+          {
+            "op": "add",
+            "path": "/0/else/0/then/2",
+            "after": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.ubuntu",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.redhat",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "op": "add",
+            "path": "/0/then/2",
+            "after": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.ubuntu",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.redhat",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "op": "remove",
+            "path": "/2",
+            "before": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "RedHat"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.redhat",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          },
+          {
+            "op": "remove",
+            "path": "/1",
+            "before": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.ubuntu",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          }
+        ],
+        "original_trace_diff": [],
+        "reviewed_match": true
+      },
+      {
+        "cell_id": "opus--handbook-v3--a18--r0",
+        "output": "if os is Ubuntu or os is RedHat then install postfix; copy postfix configuration file to ?backup; if os is Ubuntu then download file from \"http://example.com/cfg.ubuntu\" to \"/etc/postfix/main.cf\" otherwise if os is RedHat then download file from \"http://example.com/cfg.redhat\" to \"/etc/postfix/main.cf\"",
+        "probe": {
+          "status": "ok",
+          "parsed": true,
+          "effects": [
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "postfix",
+                      "manager": "system"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "copy_file",
+                  "source": {
+                    "kind": "remote",
+                    "destination": {
+                      "kind": "absolute",
+                      "value": "/etc/postfix/main.cf"
+                    }
+                  },
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": {
+                          "unknown": 0
+                        }
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                },
+                {
+                  "kind": "conditional",
+                  "condition": {
+                    "kind": "os",
+                    "value": "Ubuntu"
+                  },
+                  "then": [
+                    {
+                      "kind": "download",
+                      "source": "http://example.com/cfg.ubuntu",
+                      "destination": {
+                        "path": {
+                          "kind": "remote",
+                          "destination": {
+                            "kind": "absolute",
+                            "value": "/etc/postfix/main.cf"
+                          }
+                        },
+                        "owner": null,
+                        "group": null,
+                        "permissions": {
+                          "read": null,
+                          "write": null,
+                          "execute": null,
+                          "list_directory": null,
+                          "setuid": null,
+                          "setgid": null,
+                          "sticky": null
+                        }
+                      }
+                    }
+                  ],
+                  "else": [
+                    {
+                      "kind": "conditional",
+                      "condition": {
+                        "kind": "os",
+                        "value": "RedHat"
+                      },
+                      "then": [
+                        {
+                          "kind": "download",
+                          "source": "http://example.com/cfg.redhat",
+                          "destination": {
+                            "path": {
+                              "kind": "remote",
+                              "destination": {
+                                "kind": "absolute",
+                                "value": "/etc/postfix/main.cf"
+                              }
+                            },
+                            "owner": null,
+                            "group": null,
+                            "permissions": {
+                              "read": null,
+                              "write": null,
+                              "execute": null,
+                              "list_directory": null,
+                              "setuid": null,
+                              "setgid": null,
+                              "sticky": null
+                            }
+                          }
+                        }
+                      ],
+                      "else": []
+                    }
+                  ]
+                }
+              ],
+              "else": [
+                {
+                  "kind": "conditional",
+                  "condition": {
+                    "kind": "os",
+                    "value": "RedHat"
+                  },
+                  "then": [
+                    {
+                      "kind": "install",
+                      "packages": [
+                        {
+                          "name": "postfix",
+                          "manager": "system"
+                        }
+                      ],
+                      "version": null
+                    },
+                    {
+                      "kind": "copy_file",
+                      "source": {
+                        "kind": "remote",
+                        "destination": {
+                          "kind": "absolute",
+                          "value": "/etc/postfix/main.cf"
+                        }
+                      },
+                      "destination": {
+                        "path": {
+                          "kind": "remote",
+                          "destination": {
+                            "kind": "absolute",
+                            "value": {
+                              "unknown": 0
+                            }
+                          }
+                        },
+                        "owner": null,
+                        "group": null,
+                        "permissions": {
+                          "read": null,
+                          "write": null,
+                          "execute": null,
+                          "list_directory": null,
+                          "setuid": null,
+                          "setgid": null,
+                          "sticky": null
+                        }
+                      }
+                    },
+                    {
+                      "kind": "conditional",
+                      "condition": {
+                        "kind": "os",
+                        "value": "Ubuntu"
+                      },
+                      "then": [
+                        {
+                          "kind": "download",
+                          "source": "http://example.com/cfg.ubuntu",
+                          "destination": {
+                            "path": {
+                              "kind": "remote",
+                              "destination": {
+                                "kind": "absolute",
+                                "value": "/etc/postfix/main.cf"
+                              }
+                            },
+                            "owner": null,
+                            "group": null,
+                            "permissions": {
+                              "read": null,
+                              "write": null,
+                              "execute": null,
+                              "list_directory": null,
+                              "setuid": null,
+                              "setgid": null,
+                              "sticky": null
+                            }
+                          }
+                        }
+                      ],
+                      "else": [
+                        {
+                          "kind": "conditional",
+                          "condition": {
+                            "kind": "os",
+                            "value": "RedHat"
+                          },
+                          "then": [
+                            {
+                              "kind": "download",
+                              "source": "http://example.com/cfg.redhat",
+                              "destination": {
+                                "path": {
+                                  "kind": "remote",
+                                  "destination": {
+                                    "kind": "absolute",
+                                    "value": "/etc/postfix/main.cf"
+                                  }
+                                },
+                                "owner": null,
+                                "group": null,
+                                "permissions": {
+                                  "read": null,
+                                  "write": null,
+                                  "execute": null,
+                                  "list_directory": null,
+                                  "setuid": null,
+                                  "setgid": null,
+                                  "sticky": null
+                                }
+                              }
+                            }
+                          ],
+                          "else": []
+                        }
+                      ]
+                    }
+                  ],
+                  "else": []
+                }
+              ]
+            }
+          ],
+          "returncode": 0
+        },
+        "original_effect_diff": [
+          {
+            "op": "replace",
+            "path": "/0/condition/value",
+            "before": "RedHat",
+            "after": "Ubuntu"
+          },
+          {
+            "op": "replace",
+            "path": "/0/else/0/condition/value",
+            "before": "Ubuntu",
+            "after": "RedHat"
+          },
+          {
+            "op": "replace",
+            "path": "/0/else/0/then/0/version",
+            "before": "latest",
+            "after": null
+          },
+          {
+            "op": "add",
+            "path": "/0/else/0/then/2",
+            "after": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.ubuntu",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "kind": "conditional",
+                  "condition": {
+                    "kind": "os",
+                    "value": "RedHat"
+                  },
+                  "then": [
+                    {
+                      "kind": "download",
+                      "source": "http://example.com/cfg.redhat",
+                      "destination": {
+                        "path": {
+                          "kind": "remote",
+                          "destination": {
+                            "kind": "absolute",
+                            "value": "/etc/postfix/main.cf"
+                          }
+                        },
+                        "owner": null,
+                        "group": null,
+                        "permissions": {
+                          "read": null,
+                          "write": null,
+                          "execute": null,
+                          "list_directory": null,
+                          "setuid": null,
+                          "setgid": null,
+                          "sticky": null
+                        }
+                      }
+                    }
+                  ],
+                  "else": []
+                }
+              ]
+            }
+          },
+          {
+            "op": "replace",
+            "path": "/0/then/0/version",
+            "before": "latest",
+            "after": null
+          },
+          {
+            "op": "add",
+            "path": "/0/then/2",
+            "after": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.ubuntu",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "kind": "conditional",
+                  "condition": {
+                    "kind": "os",
+                    "value": "RedHat"
+                  },
+                  "then": [
+                    {
+                      "kind": "download",
+                      "source": "http://example.com/cfg.redhat",
+                      "destination": {
+                        "path": {
+                          "kind": "remote",
+                          "destination": {
+                            "kind": "absolute",
+                            "value": "/etc/postfix/main.cf"
+                          }
+                        },
+                        "owner": null,
+                        "group": null,
+                        "permissions": {
+                          "read": null,
+                          "write": null,
+                          "execute": null,
+                          "list_directory": null,
+                          "setuid": null,
+                          "setgid": null,
+                          "sticky": null
+                        }
+                      }
+                    }
+                  ],
+                  "else": []
+                }
+              ]
+            }
+          },
+          {
+            "op": "remove",
+            "path": "/2",
+            "before": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "RedHat"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.redhat",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          },
+          {
+            "op": "remove",
+            "path": "/1",
+            "before": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.ubuntu",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          }
+        ],
+        "corrected_effect_diff": [
+          {
+            "op": "replace",
+            "path": "/0/condition/value",
+            "before": "RedHat",
+            "after": "Ubuntu"
+          },
+          {
+            "op": "replace",
+            "path": "/0/else/0/condition/value",
+            "before": "Ubuntu",
+            "after": "RedHat"
+          },
+          {
+            "op": "replace",
+            "path": "/0/else/0/then/0/version",
+            "before": "latest",
+            "after": null
+          },
+          {
+            "op": "add",
+            "path": "/0/else/0/then/2",
+            "after": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.ubuntu",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "kind": "conditional",
+                  "condition": {
+                    "kind": "os",
+                    "value": "RedHat"
+                  },
+                  "then": [
+                    {
+                      "kind": "download",
+                      "source": "http://example.com/cfg.redhat",
+                      "destination": {
+                        "path": {
+                          "kind": "remote",
+                          "destination": {
+                            "kind": "absolute",
+                            "value": "/etc/postfix/main.cf"
+                          }
+                        },
+                        "owner": null,
+                        "group": null,
+                        "permissions": {
+                          "read": null,
+                          "write": null,
+                          "execute": null,
+                          "list_directory": null,
+                          "setuid": null,
+                          "setgid": null,
+                          "sticky": null
+                        }
+                      }
+                    }
+                  ],
+                  "else": []
+                }
+              ]
+            }
+          },
+          {
+            "op": "replace",
+            "path": "/0/then/0/version",
+            "before": "latest",
+            "after": null
+          },
+          {
+            "op": "add",
+            "path": "/0/then/2",
+            "after": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.ubuntu",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "kind": "conditional",
+                  "condition": {
+                    "kind": "os",
+                    "value": "RedHat"
+                  },
+                  "then": [
+                    {
+                      "kind": "download",
+                      "source": "http://example.com/cfg.redhat",
+                      "destination": {
+                        "path": {
+                          "kind": "remote",
+                          "destination": {
+                            "kind": "absolute",
+                            "value": "/etc/postfix/main.cf"
+                          }
+                        },
+                        "owner": null,
+                        "group": null,
+                        "permissions": {
+                          "read": null,
+                          "write": null,
+                          "execute": null,
+                          "list_directory": null,
+                          "setuid": null,
+                          "setgid": null,
+                          "sticky": null
+                        }
+                      }
+                    }
+                  ],
+                  "else": []
+                }
+              ]
+            }
+          },
+          {
+            "op": "remove",
+            "path": "/2",
+            "before": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "RedHat"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.redhat",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          },
+          {
+            "op": "remove",
+            "path": "/1",
+            "before": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.ubuntu",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          }
+        ],
+        "original_trace_diff": [
+          {
+            "op": "replace",
+            "path": "/RedHat/0/version",
+            "before": "latest",
+            "after": null
+          },
+          {
+            "op": "replace",
+            "path": "/Ubuntu/0/version",
+            "before": "latest",
+            "after": null
+          }
+        ],
+        "reviewed_match": false
+      },
+      {
+        "cell_id": "glm-5.3--handbook-v3--a18--r2",
+        "output": "if os is Ubuntu then install postfix with version=\"latest\"; copy postfix configuration file to \"/etc/postfix/main.cf.bak\"; download file from \"http://example.com/cfg.ubuntu\" to \"/etc/postfix/main.cf\". if os is RedHat then install postfix with version=\"latest\"; copy postfix configuration file to \"/etc/postfix/main.cf.bak\"; download file from \"http://example.com/cfg.redhat\" to \"/etc/postfix/main.cf\".",
+        "probe": {
+          "status": "ok",
+          "parsed": true,
+          "effects": [
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "postfix",
+                      "manager": "system"
+                    }
+                  ],
+                  "version": "latest"
+                },
+                {
+                  "kind": "copy_file",
+                  "source": {
+                    "kind": "remote",
+                    "destination": {
+                      "kind": "absolute",
+                      "value": "/etc/postfix/main.cf"
+                    }
+                  },
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf.bak"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                },
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.ubuntu",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": []
+            },
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "RedHat"
+              },
+              "then": [
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "postfix",
+                      "manager": "system"
+                    }
+                  ],
+                  "version": "latest"
+                },
+                {
+                  "kind": "copy_file",
+                  "source": {
+                    "kind": "remote",
+                    "destination": {
+                      "kind": "absolute",
+                      "value": "/etc/postfix/main.cf"
+                    }
+                  },
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf.bak"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                },
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.redhat",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          ],
+          "returncode": 0
+        },
+        "original_effect_diff": [
+          {
+            "op": "replace",
+            "path": "/0/condition/value",
+            "before": "RedHat",
+            "after": "Ubuntu"
+          },
+          {
+            "op": "remove",
+            "path": "/0/else/0",
+            "before": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "postfix",
+                      "manager": "system"
+                    }
+                  ],
+                  "version": "latest"
+                },
+                {
+                  "kind": "copy_file",
+                  "source": {
+                    "kind": "remote",
+                    "destination": {
+                      "kind": "absolute",
+                      "value": "/etc/postfix/main.cf"
+                    }
+                  },
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": {
+                          "unknown": 0
+                        }
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          },
+          {
+            "op": "replace",
+            "path": "/0/then/1/destination/path/destination/value",
+            "before": {
+              "unknown": 0
+            },
+            "after": "/etc/postfix/main.cf.bak"
+          },
+          {
+            "op": "add",
+            "path": "/0/then/2",
+            "after": {
+              "kind": "download",
+              "source": "http://example.com/cfg.ubuntu",
+              "destination": {
+                "path": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": "/etc/postfix/main.cf"
+                  }
+                },
+                "owner": null,
+                "group": null,
+                "permissions": {
+                  "read": null,
+                  "write": null,
+                  "execute": null,
+                  "list_directory": null,
+                  "setuid": null,
+                  "setgid": null,
+                  "sticky": null
+                }
+              }
+            }
+          },
+          {
+            "op": "replace",
+            "path": "/1/condition/value",
+            "before": "Ubuntu",
+            "after": "RedHat"
+          },
+          {
+            "op": "remove",
+            "path": "/1/then/0/destination",
+            "before": {
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/etc/postfix/main.cf"
+                }
+              },
+              "owner": null,
+              "group": null,
+              "permissions": {
+                "read": null,
+                "write": null,
+                "execute": null,
+                "list_directory": null,
+                "setuid": null,
+                "setgid": null,
+                "sticky": null
+              }
+            }
+          },
+          {
+            "op": "replace",
+            "path": "/1/then/0/kind",
+            "before": "download",
+            "after": "install"
+          },
+          {
+            "op": "add",
+            "path": "/1/then/0/packages",
+            "after": [
+              {
+                "name": "postfix",
+                "manager": "system"
+              }
+            ]
+          },
+          {
+            "op": "remove",
+            "path": "/1/then/0/source",
+            "before": "http://example.com/cfg.ubuntu"
+          },
+          {
+            "op": "add",
+            "path": "/1/then/0/version",
+            "after": "latest"
+          },
+          {
+            "op": "add",
+            "path": "/1/then/1",
+            "after": {
+              "kind": "copy_file",
+              "source": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/etc/postfix/main.cf"
+                }
+              },
+              "destination": {
+                "path": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": "/etc/postfix/main.cf.bak"
+                  }
+                },
+                "owner": null,
+                "group": null,
+                "permissions": {
+                  "read": null,
+                  "write": null,
+                  "execute": null,
+                  "list_directory": null,
+                  "setuid": null,
+                  "setgid": null,
+                  "sticky": null
+                }
+              }
+            }
+          },
+          {
+            "op": "add",
+            "path": "/1/then/2",
+            "after": {
+              "kind": "download",
+              "source": "http://example.com/cfg.redhat",
+              "destination": {
+                "path": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": "/etc/postfix/main.cf"
+                  }
+                },
+                "owner": null,
+                "group": null,
+                "permissions": {
+                  "read": null,
+                  "write": null,
+                  "execute": null,
+                  "list_directory": null,
+                  "setuid": null,
+                  "setgid": null,
+                  "sticky": null
+                }
+              }
+            }
+          },
+          {
+            "op": "remove",
+            "path": "/2",
+            "before": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "RedHat"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.redhat",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          }
+        ],
+        "corrected_effect_diff": [
+          {
+            "op": "replace",
+            "path": "/0/condition/value",
+            "before": "RedHat",
+            "after": "Ubuntu"
+          },
+          {
+            "op": "remove",
+            "path": "/0/else/0",
+            "before": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Ubuntu"
+              },
+              "then": [
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "postfix",
+                      "manager": "system"
+                    }
+                  ],
+                  "version": "latest"
+                },
+                {
+                  "kind": "copy_file",
+                  "source": {
+                    "kind": "remote",
+                    "destination": {
+                      "kind": "absolute",
+                      "value": "/etc/postfix/main.cf"
+                    }
+                  },
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": {
+                          "unknown": 0
+                        }
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          },
+          {
+            "op": "replace",
+            "path": "/0/then/1/destination/path/destination/value",
+            "before": {
+              "unknown": 0
+            },
+            "after": "/etc/postfix/main.cf.bak"
+          },
+          {
+            "op": "add",
+            "path": "/0/then/2",
+            "after": {
+              "kind": "download",
+              "source": "http://example.com/cfg.ubuntu",
+              "destination": {
+                "path": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": "/etc/postfix/main.cf"
+                  }
+                },
+                "owner": null,
+                "group": null,
+                "permissions": {
+                  "read": null,
+                  "write": null,
+                  "execute": null,
+                  "list_directory": null,
+                  "setuid": null,
+                  "setgid": null,
+                  "sticky": null
+                }
+              }
+            }
+          },
+          {
+            "op": "replace",
+            "path": "/1/condition/value",
+            "before": "Ubuntu",
+            "after": "RedHat"
+          },
+          {
+            "op": "remove",
+            "path": "/1/then/0/destination",
+            "before": {
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/etc/postfix/main.cf"
+                }
+              },
+              "owner": null,
+              "group": null,
+              "permissions": {
+                "read": null,
+                "write": null,
+                "execute": null,
+                "list_directory": null,
+                "setuid": null,
+                "setgid": null,
+                "sticky": null
+              }
+            }
+          },
+          {
+            "op": "replace",
+            "path": "/1/then/0/kind",
+            "before": "download",
+            "after": "install"
+          },
+          {
+            "op": "add",
+            "path": "/1/then/0/packages",
+            "after": [
+              {
+                "name": "postfix",
+                "manager": "system"
+              }
+            ]
+          },
+          {
+            "op": "remove",
+            "path": "/1/then/0/source",
+            "before": "http://example.com/cfg.ubuntu"
+          },
+          {
+            "op": "add",
+            "path": "/1/then/0/version",
+            "after": "latest"
+          },
+          {
+            "op": "add",
+            "path": "/1/then/1",
+            "after": {
+              "kind": "copy_file",
+              "source": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/etc/postfix/main.cf"
+                }
+              },
+              "destination": {
+                "path": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": "/etc/postfix/main.cf.bak"
+                  }
+                },
+                "owner": null,
+                "group": null,
+                "permissions": {
+                  "read": null,
+                  "write": null,
+                  "execute": null,
+                  "list_directory": null,
+                  "setuid": null,
+                  "setgid": null,
+                  "sticky": null
+                }
+              }
+            }
+          },
+          {
+            "op": "add",
+            "path": "/1/then/2",
+            "after": {
+              "kind": "download",
+              "source": "http://example.com/cfg.redhat",
+              "destination": {
+                "path": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": "/etc/postfix/main.cf"
+                  }
+                },
+                "owner": null,
+                "group": null,
+                "permissions": {
+                  "read": null,
+                  "write": null,
+                  "execute": null,
+                  "list_directory": null,
+                  "setuid": null,
+                  "setgid": null,
+                  "sticky": null
+                }
+              }
+            }
+          },
+          {
+            "op": "remove",
+            "path": "/2",
+            "before": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "RedHat"
+              },
+              "then": [
+                {
+                  "kind": "download",
+                  "source": "http://example.com/cfg.redhat",
+                  "destination": {
+                    "path": {
+                      "kind": "remote",
+                      "destination": {
+                        "kind": "absolute",
+                        "value": "/etc/postfix/main.cf"
+                      }
+                    },
+                    "owner": null,
+                    "group": null,
+                    "permissions": {
+                      "read": null,
+                      "write": null,
+                      "execute": null,
+                      "list_directory": null,
+                      "setuid": null,
+                      "setgid": null,
+                      "sticky": null
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          }
+        ],
+        "original_trace_diff": [
+          {
+            "op": "replace",
+            "path": "/RedHat/1/destination/path/destination/value",
+            "before": {
+              "unknown": 0
+            },
+            "after": "/etc/postfix/main.cf.bak"
+          },
+          {
+            "op": "replace",
+            "path": "/Ubuntu/1/destination/path/destination/value",
+            "before": {
+              "unknown": 0
+            },
+            "after": "/etc/postfix/main.cf.bak"
+          }
+        ],
+        "reviewed_match": true
+      }
+    ]
+  },
+  "a20": {
+    "natural_language": "Enable passwordless sudo for a `wheel' group and create an `ansible' user in that group",
+    "original_reference_fql": "enable passwordless sudo for group=wheel; create user with name=ansible in supplemental groups=wheel",
+    "proposed_reference_fql": "enable passwordless sudo for group=wheel; create user with name=ansible in supplemental groups=wheel",
+    "original_effects": [
+      {
+        "kind": "enable_sudo",
+        "account": {
+          "kind": "group",
+          "name": "wheel"
+        },
+        "passwordless": true
+      },
+      {
+        "kind": "create_user",
+        "name": "ansible",
+        "primary_group": null,
+        "supplemental_groups": [
+          "wheel"
+        ]
+      }
+    ],
+    "proposed_effects": [
+      {
+        "kind": "enable_sudo",
+        "account": {
+          "kind": "group",
+          "name": "wheel"
+        },
+        "passwordless": true
+      },
+      {
+        "kind": "create_user",
+        "name": "ansible",
+        "primary_group": null,
+        "supplemental_groups": [
+          "wheel"
+        ]
+      }
+    ],
+    "reference_effect_diff": [],
+    "representative_outputs": [
+      {
+        "cell_id": "opus--handbook-v3--a20--r0",
+        "output": "enable passwordless sudo for group=\"wheel\"; create user with name=\"ansible\", supplemental groups=\"wheel\".",
+        "probe": {
+          "status": "ok",
+          "parsed": true,
+          "effects": [
+            {
+              "kind": "enable_sudo",
+              "account": {
+                "kind": "group",
+                "name": "wheel"
+              },
+              "passwordless": true
+            },
+            {
+              "kind": "create_user",
+              "name": "ansible",
+              "primary_group": null,
+              "supplemental_groups": [
+                "wheel"
+              ]
+            }
+          ],
+          "returncode": 0
+        },
+        "original_effect_diff": [],
+        "corrected_effect_diff": [],
+        "original_trace_diff": null,
+        "reviewed_match": true
+      },
+      {
+        "cell_id": "sol--handbook-v3--a20--r0",
+        "output": "enable passwordless sudo for group=\"wheel\"; create user with name=\"ansible\", primary group=\"wheel\"",
+        "probe": {
+          "status": "ok",
+          "parsed": true,
+          "effects": [
+            {
+              "kind": "enable_sudo",
+              "account": {
+                "kind": "group",
+                "name": "wheel"
+              },
+              "passwordless": true
+            },
+            {
+              "kind": "create_user",
+              "name": "ansible",
+              "primary_group": "wheel",
+              "supplemental_groups": null
+            }
+          ],
+          "returncode": 0
+        },
+        "original_effect_diff": [
+          {
+            "op": "replace",
+            "path": "/1/primary_group",
+            "before": null,
+            "after": "wheel"
+          },
+          {
+            "op": "replace",
+            "path": "/1/supplemental_groups",
+            "before": [
+              "wheel"
+            ],
+            "after": null
+          }
+        ],
+        "corrected_effect_diff": [
+          {
+            "op": "replace",
+            "path": "/1/primary_group",
+            "before": null,
+            "after": "wheel"
+          },
+          {
+            "op": "replace",
+            "path": "/1/supplemental_groups",
+            "before": [
+              "wheel"
+            ],
+            "after": null
+          }
+        ],
+        "original_trace_diff": null,
+        "reviewed_match": true
+      },
+      {
+        "cell_id": "opus--handbook-v3--a20--r5",
+        "output": "create group with name=\"wheel\"; enable passwordless sudo for group=\"wheel\"; create user with name=\"ansible\", supplemental groups=\"wheel\".",
+        "probe": {
+          "status": "ok",
+          "parsed": true,
+          "effects": [
+            {
+              "kind": "create_group",
+              "name": "wheel"
+            },
+            {
+              "kind": "enable_sudo",
+              "account": {
+                "kind": "group",
+                "name": "wheel"
+              },
+              "passwordless": true
+            },
+            {
+              "kind": "create_user",
+              "name": "ansible",
+              "primary_group": null,
+              "supplemental_groups": [
+                "wheel"
+              ]
+            }
+          ],
+          "returncode": 0
+        },
+        "original_effect_diff": [
+          {
+            "op": "remove",
+            "path": "/0/account",
+            "before": {
+              "kind": "group",
+              "name": "wheel"
+            }
+          },
+          {
+            "op": "replace",
+            "path": "/0/kind",
+            "before": "enable_sudo",
+            "after": "create_group"
+          },
+          {
+            "op": "add",
+            "path": "/0/name",
+            "after": "wheel"
+          },
+          {
+            "op": "remove",
+            "path": "/0/passwordless",
+            "before": true
+          },
+          {
+            "op": "add",
+            "path": "/1/account",
+            "after": {
+              "kind": "group",
+              "name": "wheel"
+            }
+          },
+          {
+            "op": "replace",
+            "path": "/1/kind",
+            "before": "create_user",
+            "after": "enable_sudo"
+          },
+          {
+            "op": "remove",
+            "path": "/1/name",
+            "before": "ansible"
+          },
+          {
+            "op": "add",
+            "path": "/1/passwordless",
+            "after": true
+          },
+          {
+            "op": "remove",
+            "path": "/1/primary_group",
+            "before": null
+          },
+          {
+            "op": "remove",
+            "path": "/1/supplemental_groups",
+            "before": [
+              "wheel"
+            ]
+          },
+          {
+            "op": "add",
+            "path": "/2",
+            "after": {
+              "kind": "create_user",
+              "name": "ansible",
+              "primary_group": null,
+              "supplemental_groups": [
+                "wheel"
+              ]
+            }
+          }
+        ],
+        "corrected_effect_diff": [
+          {
+            "op": "remove",
+            "path": "/0/account",
+            "before": {
+              "kind": "group",
+              "name": "wheel"
+            }
+          },
+          {
+            "op": "replace",
+            "path": "/0/kind",
+            "before": "enable_sudo",
+            "after": "create_group"
+          },
+          {
+            "op": "add",
+            "path": "/0/name",
+            "after": "wheel"
+          },
+          {
+            "op": "remove",
+            "path": "/0/passwordless",
+            "before": true
+          },
+          {
+            "op": "add",
+            "path": "/1/account",
+            "after": {
+              "kind": "group",
+              "name": "wheel"
+            }
+          },
+          {
+            "op": "replace",
+            "path": "/1/kind",
+            "before": "create_user",
+            "after": "enable_sudo"
+          },
+          {
+            "op": "remove",
+            "path": "/1/name",
+            "before": "ansible"
+          },
+          {
+            "op": "add",
+            "path": "/1/passwordless",
+            "after": true
+          },
+          {
+            "op": "remove",
+            "path": "/1/primary_group",
+            "before": null
+          },
+          {
+            "op": "remove",
+            "path": "/1/supplemental_groups",
+            "before": [
+              "wheel"
+            ]
+          },
+          {
+            "op": "add",
+            "path": "/2",
+            "after": {
+              "kind": "create_user",
+              "name": "ansible",
+              "primary_group": null,
+              "supplemental_groups": [
+                "wheel"
+              ]
+            }
+          }
+        ],
+        "original_trace_diff": null,
+        "reviewed_match": true
+      }
+    ]
+  },
+  "a21": {
+    "natural_language": "For Debian and RedHat, install and start an ssh client and server and generated an ssh key for `fizbaz' at /.ssh/fizbaz_rsa",
+    "original_reference_fql": "if os is Debian or os is RedHat then install ssh client; install ssh server; start ssh server service; create ssh key for user=\"fizbaz\", name=\"fizbaz_rsa\"",
+    "proposed_reference_fql": "if os is Debian or os is RedHat then install ssh client; install ssh server; start ssh server service; create ssh key for user=\"fizbaz\" at \"/.ssh/fizbaz_rsa\"",
+    "original_effects": [
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "os",
+          "value": "Debian"
+        },
+        "then": [
+          {
+            "kind": "install",
+            "packages": [
+              {
+                "name": "openssh-client",
+                "manager": "apt"
+              }
+            ],
+            "version": null
+          },
+          {
+            "kind": "install",
+            "packages": [
+              {
+                "name": "openssh-server",
+                "manager": "system"
+              }
+            ],
+            "version": null
+          },
+          {
+            "kind": "start_service",
+            "name": {
+              "kind": "existential",
+              "type": "string",
+              "binder": "__kb_bound_0",
+              "predicate": {
+                "kind": "or",
+                "left": {
+                  "kind": "eq",
+                  "left": {
+                    "kind": "id",
+                    "name": "__kb_bound_0"
+                  },
+                  "right": {
+                    "kind": "string",
+                    "value": "ssh"
+                  }
+                },
+                "right": {
+                  "kind": "or",
+                  "left": {
+                    "kind": "eq",
+                    "left": {
+                      "kind": "id",
+                      "name": "__kb_bound_0"
+                    },
+                    "right": {
+                      "kind": "string",
+                      "value": "sshd"
+                    }
+                  },
+                  "right": {
+                    "kind": "bool",
+                    "value": false
+                  }
+                }
+              }
+            }
+          },
+          {
+            "kind": "create_ssh_key",
+            "path": {
+              "kind": "remote",
+              "destination": {
+                "kind": "in_home",
+                "user": "fizbaz",
+                "value": ".ssh/fizbaz_rsa"
+              }
+            }
+          }
+        ],
+        "else": [
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "os",
+              "value": "RedHat"
+            },
+            "then": [
+              {
+                "kind": "install",
+                "packages": [
+                  {
+                    "name": "openssh-clients",
+                    "manager": "dnf"
+                  }
+                ],
+                "version": null
+              },
+              {
+                "kind": "install",
+                "packages": [
+                  {
+                    "name": "openssh-server",
+                    "manager": "system"
+                  }
+                ],
+                "version": null
+              },
+              {
+                "kind": "start_service",
+                "name": {
+                  "kind": "existential",
+                  "type": "string",
+                  "binder": "__kb_bound_0",
+                  "predicate": {
+                    "kind": "or",
+                    "left": {
+                      "kind": "eq",
+                      "left": {
+                        "kind": "id",
+                        "name": "__kb_bound_0"
+                      },
+                      "right": {
+                        "kind": "string",
+                        "value": "ssh"
+                      }
+                    },
+                    "right": {
+                      "kind": "or",
+                      "left": {
+                        "kind": "eq",
+                        "left": {
+                          "kind": "id",
+                          "name": "__kb_bound_0"
+                        },
+                        "right": {
+                          "kind": "string",
+                          "value": "sshd"
+                        }
+                      },
+                      "right": {
+                        "kind": "bool",
+                        "value": false
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "create_ssh_key",
+                "path": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "in_home",
+                    "user": "fizbaz",
+                    "value": ".ssh/fizbaz_rsa"
+                  }
+                }
+              }
+            ],
+            "else": []
+          }
+        ]
+      }
+    ],
+    "proposed_effects": [
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "os",
+          "value": "Debian"
+        },
+        "then": [
+          {
+            "kind": "install",
+            "packages": [
+              {
+                "name": "openssh-client",
+                "manager": "apt"
+              }
+            ],
+            "version": null
+          },
+          {
+            "kind": "install",
+            "packages": [
+              {
+                "name": "openssh-server",
+                "manager": "system"
+              }
+            ],
+            "version": null
+          },
+          {
+            "kind": "start_service",
+            "name": {
+              "kind": "existential",
+              "type": "string",
+              "binder": "__kb_bound_0",
+              "predicate": {
+                "kind": "or",
+                "left": {
+                  "kind": "eq",
+                  "left": {
+                    "kind": "id",
+                    "name": "__kb_bound_0"
+                  },
+                  "right": {
+                    "kind": "string",
+                    "value": "ssh"
+                  }
+                },
+                "right": {
+                  "kind": "or",
+                  "left": {
+                    "kind": "eq",
+                    "left": {
+                      "kind": "id",
+                      "name": "__kb_bound_0"
+                    },
+                    "right": {
+                      "kind": "string",
+                      "value": "sshd"
+                    }
+                  },
+                  "right": {
+                    "kind": "bool",
+                    "value": false
+                  }
+                }
+              }
+            }
+          },
+          {
+            "kind": "create_ssh_key",
+            "path": {
+              "kind": "remote",
+              "destination": {
+                "kind": "absolute",
+                "value": "/.ssh/fizbaz_rsa"
+              }
+            }
+          }
+        ],
+        "else": [
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "os",
+              "value": "RedHat"
+            },
+            "then": [
+              {
+                "kind": "install",
+                "packages": [
+                  {
+                    "name": "openssh-clients",
+                    "manager": "dnf"
+                  }
+                ],
+                "version": null
+              },
+              {
+                "kind": "install",
+                "packages": [
+                  {
+                    "name": "openssh-server",
+                    "manager": "system"
+                  }
+                ],
+                "version": null
+              },
+              {
+                "kind": "start_service",
+                "name": {
+                  "kind": "existential",
+                  "type": "string",
+                  "binder": "__kb_bound_0",
+                  "predicate": {
+                    "kind": "or",
+                    "left": {
+                      "kind": "eq",
+                      "left": {
+                        "kind": "id",
+                        "name": "__kb_bound_0"
+                      },
+                      "right": {
+                        "kind": "string",
+                        "value": "ssh"
+                      }
+                    },
+                    "right": {
+                      "kind": "or",
+                      "left": {
+                        "kind": "eq",
+                        "left": {
+                          "kind": "id",
+                          "name": "__kb_bound_0"
+                        },
+                        "right": {
+                          "kind": "string",
+                          "value": "sshd"
+                        }
+                      },
+                      "right": {
+                        "kind": "bool",
+                        "value": false
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "create_ssh_key",
+                "path": {
+                  "kind": "remote",
+                  "destination": {
+                    "kind": "absolute",
+                    "value": "/.ssh/fizbaz_rsa"
+                  }
+                }
+              }
+            ],
+            "else": []
+          }
+        ]
+      }
+    ],
+    "reference_effect_diff": [
+      {
+        "op": "replace",
+        "path": "/0/else/0/then/3/path/destination/kind",
+        "before": "in_home",
+        "after": "absolute"
+      },
+      {
+        "op": "remove",
+        "path": "/0/else/0/then/3/path/destination/user",
+        "before": "fizbaz"
+      },
+      {
+        "op": "replace",
+        "path": "/0/else/0/then/3/path/destination/value",
+        "before": ".ssh/fizbaz_rsa",
+        "after": "/.ssh/fizbaz_rsa"
+      },
+      {
+        "op": "replace",
+        "path": "/0/then/3/path/destination/kind",
+        "before": "in_home",
+        "after": "absolute"
+      },
+      {
+        "op": "remove",
+        "path": "/0/then/3/path/destination/user",
+        "before": "fizbaz"
+      },
+      {
+        "op": "replace",
+        "path": "/0/then/3/path/destination/value",
+        "before": ".ssh/fizbaz_rsa",
+        "after": "/.ssh/fizbaz_rsa"
+      }
+    ],
+    "representative_outputs": [
+      {
+        "cell_id": "opus--handbook-v3--a21--r0",
+        "output": "if os is Debian or os is RedHat then install ssh client; install ssh server; start ssh server service; create ssh key for user=\"fizbaz\" at \"/.ssh/fizbaz_rsa\".",
+        "probe": {
+          "status": "ok",
+          "parsed": true,
+          "effects": [
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Debian"
+              },
+              "then": [
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-client",
+                      "manager": "apt"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-server",
+                      "manager": "system"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "start_service",
+                  "name": {
+                    "kind": "existential",
+                    "type": "string",
+                    "binder": "__kb_bound_0",
+                    "predicate": {
+                      "kind": "or",
+                      "left": {
+                        "kind": "eq",
+                        "left": {
+                          "kind": "id",
+                          "name": "__kb_bound_0"
+                        },
+                        "right": {
+                          "kind": "string",
+                          "value": "ssh"
+                        }
+                      },
+                      "right": {
+                        "kind": "or",
+                        "left": {
+                          "kind": "eq",
+                          "left": {
+                            "kind": "id",
+                            "name": "__kb_bound_0"
+                          },
+                          "right": {
+                            "kind": "string",
+                            "value": "sshd"
+                          }
+                        },
+                        "right": {
+                          "kind": "bool",
+                          "value": false
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "create_ssh_key",
+                  "path": {
+                    "kind": "remote",
+                    "destination": {
+                      "kind": "absolute",
+                      "value": "/.ssh/fizbaz_rsa"
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "kind": "conditional",
+                  "condition": {
+                    "kind": "os",
+                    "value": "RedHat"
+                  },
+                  "then": [
+                    {
+                      "kind": "install",
+                      "packages": [
+                        {
+                          "name": "openssh-clients",
+                          "manager": "dnf"
+                        }
+                      ],
+                      "version": null
+                    },
+                    {
+                      "kind": "install",
+                      "packages": [
+                        {
+                          "name": "openssh-server",
+                          "manager": "system"
+                        }
+                      ],
+                      "version": null
+                    },
+                    {
+                      "kind": "start_service",
+                      "name": {
+                        "kind": "existential",
+                        "type": "string",
+                        "binder": "__kb_bound_0",
+                        "predicate": {
+                          "kind": "or",
+                          "left": {
+                            "kind": "eq",
+                            "left": {
+                              "kind": "id",
+                              "name": "__kb_bound_0"
+                            },
+                            "right": {
+                              "kind": "string",
+                              "value": "ssh"
+                            }
+                          },
+                          "right": {
+                            "kind": "or",
+                            "left": {
+                              "kind": "eq",
+                              "left": {
+                                "kind": "id",
+                                "name": "__kb_bound_0"
+                              },
+                              "right": {
+                                "kind": "string",
+                                "value": "sshd"
+                              }
+                            },
+                            "right": {
+                              "kind": "bool",
+                              "value": false
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "create_ssh_key",
+                      "path": {
+                        "kind": "remote",
+                        "destination": {
+                          "kind": "absolute",
+                          "value": "/.ssh/fizbaz_rsa"
+                        }
+                      }
+                    }
+                  ],
+                  "else": []
+                }
+              ]
+            }
+          ],
+          "returncode": 0
+        },
+        "original_effect_diff": [
+          {
+            "op": "replace",
+            "path": "/0/else/0/then/3/path/destination/kind",
+            "before": "in_home",
+            "after": "absolute"
+          },
+          {
+            "op": "remove",
+            "path": "/0/else/0/then/3/path/destination/user",
+            "before": "fizbaz"
+          },
+          {
+            "op": "replace",
+            "path": "/0/else/0/then/3/path/destination/value",
+            "before": ".ssh/fizbaz_rsa",
+            "after": "/.ssh/fizbaz_rsa"
+          },
+          {
+            "op": "replace",
+            "path": "/0/then/3/path/destination/kind",
+            "before": "in_home",
+            "after": "absolute"
+          },
+          {
+            "op": "remove",
+            "path": "/0/then/3/path/destination/user",
+            "before": "fizbaz"
+          },
+          {
+            "op": "replace",
+            "path": "/0/then/3/path/destination/value",
+            "before": ".ssh/fizbaz_rsa",
+            "after": "/.ssh/fizbaz_rsa"
+          }
+        ],
+        "corrected_effect_diff": [],
+        "original_trace_diff": [
+          {
+            "op": "replace",
+            "path": "/Debian/3/path/destination/kind",
+            "before": "in_home",
+            "after": "absolute"
+          },
+          {
+            "op": "remove",
+            "path": "/Debian/3/path/destination/user",
+            "before": "fizbaz"
+          },
+          {
+            "op": "replace",
+            "path": "/Debian/3/path/destination/value",
+            "before": ".ssh/fizbaz_rsa",
+            "after": "/.ssh/fizbaz_rsa"
+          },
+          {
+            "op": "replace",
+            "path": "/RedHat/3/path/destination/kind",
+            "before": "in_home",
+            "after": "absolute"
+          },
+          {
+            "op": "remove",
+            "path": "/RedHat/3/path/destination/user",
+            "before": "fizbaz"
+          },
+          {
+            "op": "replace",
+            "path": "/RedHat/3/path/destination/value",
+            "before": ".ssh/fizbaz_rsa",
+            "after": "/.ssh/fizbaz_rsa"
+          }
+        ],
+        "reviewed_match": true
+      },
+      {
+        "cell_id": "deepseek-v4-flash--handbook-v3--a21--r3",
+        "output": "if os is Debian then install ssh client; install ssh server; start ssh server service. if os is RedHat then install ssh client; install ssh server; start ssh server service. create ssh key for user=\"fizbaz\" at \"/.ssh/fizbaz_rsa\"",
+        "probe": {
+          "status": "ok",
+          "parsed": true,
+          "effects": [
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "Debian"
+              },
+              "then": [
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-client",
+                      "manager": "apt"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-server",
+                      "manager": "system"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "start_service",
+                  "name": {
+                    "kind": "existential",
+                    "type": "string",
+                    "binder": "__kb_bound_0",
+                    "predicate": {
+                      "kind": "or",
+                      "left": {
+                        "kind": "eq",
+                        "left": {
+                          "kind": "id",
+                          "name": "__kb_bound_0"
+                        },
+                        "right": {
+                          "kind": "string",
+                          "value": "ssh"
+                        }
+                      },
+                      "right": {
+                        "kind": "or",
+                        "left": {
+                          "kind": "eq",
+                          "left": {
+                            "kind": "id",
+                            "name": "__kb_bound_0"
+                          },
+                          "right": {
+                            "kind": "string",
+                            "value": "sshd"
+                          }
+                        },
+                        "right": {
+                          "kind": "bool",
+                          "value": false
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "else": []
+            },
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "RedHat"
+              },
+              "then": [
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-clients",
+                      "manager": "dnf"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-server",
+                      "manager": "system"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "start_service",
+                  "name": {
+                    "kind": "existential",
+                    "type": "string",
+                    "binder": "__kb_bound_0",
+                    "predicate": {
+                      "kind": "or",
+                      "left": {
+                        "kind": "eq",
+                        "left": {
+                          "kind": "id",
+                          "name": "__kb_bound_0"
+                        },
+                        "right": {
+                          "kind": "string",
+                          "value": "ssh"
+                        }
+                      },
+                      "right": {
+                        "kind": "or",
+                        "left": {
+                          "kind": "eq",
+                          "left": {
+                            "kind": "id",
+                            "name": "__kb_bound_0"
+                          },
+                          "right": {
+                            "kind": "string",
+                            "value": "sshd"
+                          }
+                        },
+                        "right": {
+                          "kind": "bool",
+                          "value": false
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "else": []
+            },
+            {
+              "kind": "create_ssh_key",
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/.ssh/fizbaz_rsa"
+                }
+              }
+            }
+          ],
+          "returncode": 0
+        },
+        "original_effect_diff": [
+          {
+            "op": "remove",
+            "path": "/0/else/0",
+            "before": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "RedHat"
+              },
+              "then": [
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-clients",
+                      "manager": "dnf"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-server",
+                      "manager": "system"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "start_service",
+                  "name": {
+                    "kind": "existential",
+                    "type": "string",
+                    "binder": "__kb_bound_0",
+                    "predicate": {
+                      "kind": "or",
+                      "left": {
+                        "kind": "eq",
+                        "left": {
+                          "kind": "id",
+                          "name": "__kb_bound_0"
+                        },
+                        "right": {
+                          "kind": "string",
+                          "value": "ssh"
+                        }
+                      },
+                      "right": {
+                        "kind": "or",
+                        "left": {
+                          "kind": "eq",
+                          "left": {
+                            "kind": "id",
+                            "name": "__kb_bound_0"
+                          },
+                          "right": {
+                            "kind": "string",
+                            "value": "sshd"
+                          }
+                        },
+                        "right": {
+                          "kind": "bool",
+                          "value": false
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "create_ssh_key",
+                  "path": {
+                    "kind": "remote",
+                    "destination": {
+                      "kind": "in_home",
+                      "user": "fizbaz",
+                      "value": ".ssh/fizbaz_rsa"
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          },
+          {
+            "op": "remove",
+            "path": "/0/then/3",
+            "before": {
+              "kind": "create_ssh_key",
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "in_home",
+                  "user": "fizbaz",
+                  "value": ".ssh/fizbaz_rsa"
+                }
+              }
+            }
+          },
+          {
+            "op": "add",
+            "path": "/1",
+            "after": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "RedHat"
+              },
+              "then": [
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-clients",
+                      "manager": "dnf"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-server",
+                      "manager": "system"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "start_service",
+                  "name": {
+                    "kind": "existential",
+                    "type": "string",
+                    "binder": "__kb_bound_0",
+                    "predicate": {
+                      "kind": "or",
+                      "left": {
+                        "kind": "eq",
+                        "left": {
+                          "kind": "id",
+                          "name": "__kb_bound_0"
+                        },
+                        "right": {
+                          "kind": "string",
+                          "value": "ssh"
+                        }
+                      },
+                      "right": {
+                        "kind": "or",
+                        "left": {
+                          "kind": "eq",
+                          "left": {
+                            "kind": "id",
+                            "name": "__kb_bound_0"
+                          },
+                          "right": {
+                            "kind": "string",
+                            "value": "sshd"
+                          }
+                        },
+                        "right": {
+                          "kind": "bool",
+                          "value": false
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          },
+          {
+            "op": "add",
+            "path": "/2",
+            "after": {
+              "kind": "create_ssh_key",
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/.ssh/fizbaz_rsa"
+                }
+              }
+            }
+          }
+        ],
+        "corrected_effect_diff": [
+          {
+            "op": "remove",
+            "path": "/0/else/0",
+            "before": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "RedHat"
+              },
+              "then": [
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-clients",
+                      "manager": "dnf"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-server",
+                      "manager": "system"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "start_service",
+                  "name": {
+                    "kind": "existential",
+                    "type": "string",
+                    "binder": "__kb_bound_0",
+                    "predicate": {
+                      "kind": "or",
+                      "left": {
+                        "kind": "eq",
+                        "left": {
+                          "kind": "id",
+                          "name": "__kb_bound_0"
+                        },
+                        "right": {
+                          "kind": "string",
+                          "value": "ssh"
+                        }
+                      },
+                      "right": {
+                        "kind": "or",
+                        "left": {
+                          "kind": "eq",
+                          "left": {
+                            "kind": "id",
+                            "name": "__kb_bound_0"
+                          },
+                          "right": {
+                            "kind": "string",
+                            "value": "sshd"
+                          }
+                        },
+                        "right": {
+                          "kind": "bool",
+                          "value": false
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "create_ssh_key",
+                  "path": {
+                    "kind": "remote",
+                    "destination": {
+                      "kind": "absolute",
+                      "value": "/.ssh/fizbaz_rsa"
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          },
+          {
+            "op": "remove",
+            "path": "/0/then/3",
+            "before": {
+              "kind": "create_ssh_key",
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/.ssh/fizbaz_rsa"
+                }
+              }
+            }
+          },
+          {
+            "op": "add",
+            "path": "/1",
+            "after": {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "RedHat"
+              },
+              "then": [
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-clients",
+                      "manager": "dnf"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-server",
+                      "manager": "system"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "start_service",
+                  "name": {
+                    "kind": "existential",
+                    "type": "string",
+                    "binder": "__kb_bound_0",
+                    "predicate": {
+                      "kind": "or",
+                      "left": {
+                        "kind": "eq",
+                        "left": {
+                          "kind": "id",
+                          "name": "__kb_bound_0"
+                        },
+                        "right": {
+                          "kind": "string",
+                          "value": "ssh"
+                        }
+                      },
+                      "right": {
+                        "kind": "or",
+                        "left": {
+                          "kind": "eq",
+                          "left": {
+                            "kind": "id",
+                            "name": "__kb_bound_0"
+                          },
+                          "right": {
+                            "kind": "string",
+                            "value": "sshd"
+                          }
+                        },
+                        "right": {
+                          "kind": "bool",
+                          "value": false
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "else": []
+            }
+          },
+          {
+            "op": "add",
+            "path": "/2",
+            "after": {
+              "kind": "create_ssh_key",
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/.ssh/fizbaz_rsa"
+                }
+              }
+            }
+          }
+        ],
+        "original_trace_diff": [
+          {
+            "op": "replace",
+            "path": "/Debian/3/path/destination/kind",
+            "before": "in_home",
+            "after": "absolute"
+          },
+          {
+            "op": "remove",
+            "path": "/Debian/3/path/destination/user",
+            "before": "fizbaz"
+          },
+          {
+            "op": "replace",
+            "path": "/Debian/3/path/destination/value",
+            "before": ".ssh/fizbaz_rsa",
+            "after": "/.ssh/fizbaz_rsa"
+          },
+          {
+            "op": "add",
+            "path": "/Other/0",
+            "after": {
+              "kind": "create_ssh_key",
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/.ssh/fizbaz_rsa"
+                }
+              }
+            }
+          },
+          {
+            "op": "add",
+            "path": "/OtherDebianFamily/0",
+            "after": {
+              "kind": "create_ssh_key",
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/.ssh/fizbaz_rsa"
+                }
+              }
+            }
+          },
+          {
+            "op": "add",
+            "path": "/OtherRedHatFamily/0",
+            "after": {
+              "kind": "create_ssh_key",
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/.ssh/fizbaz_rsa"
+                }
+              }
+            }
+          },
+          {
+            "op": "replace",
+            "path": "/RedHat/3/path/destination/kind",
+            "before": "in_home",
+            "after": "absolute"
+          },
+          {
+            "op": "remove",
+            "path": "/RedHat/3/path/destination/user",
+            "before": "fizbaz"
+          },
+          {
+            "op": "replace",
+            "path": "/RedHat/3/path/destination/value",
+            "before": ".ssh/fizbaz_rsa",
+            "after": "/.ssh/fizbaz_rsa"
+          },
+          {
+            "op": "add",
+            "path": "/Ubuntu/0",
+            "after": {
+              "kind": "create_ssh_key",
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/.ssh/fizbaz_rsa"
+                }
+              }
+            }
+          }
+        ],
+        "reviewed_match": false
+      },
+      {
+        "cell_id": "deepseek-v4-flash--handbook-v3--a21--r8",
+        "output": "if os is Debian based or os is RedHat based then install ssh client; install ssh server; start ssh server service; create ssh key for user=\"fizbaz\" at \"/.ssh/fizbaz_rsa\"",
+        "probe": {
+          "status": "ok",
+          "parsed": true,
+          "effects": [
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "os",
+                "value": "DebianFamily"
+              },
+              "then": [
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-client",
+                      "manager": "apt"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "install",
+                  "packages": [
+                    {
+                      "name": "openssh-server",
+                      "manager": "system"
+                    }
+                  ],
+                  "version": null
+                },
+                {
+                  "kind": "start_service",
+                  "name": {
+                    "kind": "existential",
+                    "type": "string",
+                    "binder": "__kb_bound_0",
+                    "predicate": {
+                      "kind": "or",
+                      "left": {
+                        "kind": "eq",
+                        "left": {
+                          "kind": "id",
+                          "name": "__kb_bound_0"
+                        },
+                        "right": {
+                          "kind": "string",
+                          "value": "ssh"
+                        }
+                      },
+                      "right": {
+                        "kind": "or",
+                        "left": {
+                          "kind": "eq",
+                          "left": {
+                            "kind": "id",
+                            "name": "__kb_bound_0"
+                          },
+                          "right": {
+                            "kind": "string",
+                            "value": "sshd"
+                          }
+                        },
+                        "right": {
+                          "kind": "bool",
+                          "value": false
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "create_ssh_key",
+                  "path": {
+                    "kind": "remote",
+                    "destination": {
+                      "kind": "absolute",
+                      "value": "/.ssh/fizbaz_rsa"
+                    }
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "kind": "conditional",
+                  "condition": {
+                    "kind": "os",
+                    "value": "RedHatFamily"
+                  },
+                  "then": [
+                    {
+                      "kind": "install",
+                      "packages": [
+                        {
+                          "name": "openssh-clients",
+                          "manager": "dnf"
+                        }
+                      ],
+                      "version": null
+                    },
+                    {
+                      "kind": "install",
+                      "packages": [
+                        {
+                          "name": "openssh-server",
+                          "manager": "system"
+                        }
+                      ],
+                      "version": null
+                    },
+                    {
+                      "kind": "start_service",
+                      "name": {
+                        "kind": "existential",
+                        "type": "string",
+                        "binder": "__kb_bound_0",
+                        "predicate": {
+                          "kind": "or",
+                          "left": {
+                            "kind": "eq",
+                            "left": {
+                              "kind": "id",
+                              "name": "__kb_bound_0"
+                            },
+                            "right": {
+                              "kind": "string",
+                              "value": "ssh"
+                            }
+                          },
+                          "right": {
+                            "kind": "or",
+                            "left": {
+                              "kind": "eq",
+                              "left": {
+                                "kind": "id",
+                                "name": "__kb_bound_0"
+                              },
+                              "right": {
+                                "kind": "string",
+                                "value": "sshd"
+                              }
+                            },
+                            "right": {
+                              "kind": "bool",
+                              "value": false
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "create_ssh_key",
+                      "path": {
+                        "kind": "remote",
+                        "destination": {
+                          "kind": "absolute",
+                          "value": "/.ssh/fizbaz_rsa"
+                        }
+                      }
+                    }
+                  ],
+                  "else": []
+                }
+              ]
+            }
+          ],
+          "returncode": 0
+        },
+        "original_effect_diff": [
+          {
+            "op": "replace",
+            "path": "/0/condition/value",
+            "before": "Debian",
+            "after": "DebianFamily"
+          },
+          {
+            "op": "replace",
+            "path": "/0/else/0/condition/value",
+            "before": "RedHat",
+            "after": "RedHatFamily"
+          },
+          {
+            "op": "replace",
+            "path": "/0/else/0/then/3/path/destination/kind",
+            "before": "in_home",
+            "after": "absolute"
+          },
+          {
+            "op": "remove",
+            "path": "/0/else/0/then/3/path/destination/user",
+            "before": "fizbaz"
+          },
+          {
+            "op": "replace",
+            "path": "/0/else/0/then/3/path/destination/value",
+            "before": ".ssh/fizbaz_rsa",
+            "after": "/.ssh/fizbaz_rsa"
+          },
+          {
+            "op": "replace",
+            "path": "/0/then/3/path/destination/kind",
+            "before": "in_home",
+            "after": "absolute"
+          },
+          {
+            "op": "remove",
+            "path": "/0/then/3/path/destination/user",
+            "before": "fizbaz"
+          },
+          {
+            "op": "replace",
+            "path": "/0/then/3/path/destination/value",
+            "before": ".ssh/fizbaz_rsa",
+            "after": "/.ssh/fizbaz_rsa"
+          }
+        ],
+        "corrected_effect_diff": [
+          {
+            "op": "replace",
+            "path": "/0/condition/value",
+            "before": "Debian",
+            "after": "DebianFamily"
+          },
+          {
+            "op": "replace",
+            "path": "/0/else/0/condition/value",
+            "before": "RedHat",
+            "after": "RedHatFamily"
+          }
+        ],
+        "original_trace_diff": [
+          {
+            "op": "replace",
+            "path": "/Debian/3/path/destination/kind",
+            "before": "in_home",
+            "after": "absolute"
+          },
+          {
+            "op": "remove",
+            "path": "/Debian/3/path/destination/user",
+            "before": "fizbaz"
+          },
+          {
+            "op": "replace",
+            "path": "/Debian/3/path/destination/value",
+            "before": ".ssh/fizbaz_rsa",
+            "after": "/.ssh/fizbaz_rsa"
+          },
+          {
+            "op": "add",
+            "path": "/OtherDebianFamily/0",
+            "after": {
+              "kind": "install",
+              "packages": [
+                {
+                  "name": "openssh-client",
+                  "manager": "apt"
+                }
+              ],
+              "version": null
+            }
+          },
+          {
+            "op": "add",
+            "path": "/OtherDebianFamily/1",
+            "after": {
+              "kind": "install",
+              "packages": [
+                {
+                  "name": "openssh-server",
+                  "manager": "system"
+                }
+              ],
+              "version": null
+            }
+          },
+          {
+            "op": "add",
+            "path": "/OtherDebianFamily/2",
+            "after": {
+              "kind": "start_service",
+              "name": {
+                "kind": "existential",
+                "type": "string",
+                "binder": "__kb_bound_0",
+                "predicate": {
+                  "kind": "or",
+                  "left": {
+                    "kind": "eq",
+                    "left": {
+                      "kind": "id",
+                      "name": "__kb_bound_0"
+                    },
+                    "right": {
+                      "kind": "string",
+                      "value": "ssh"
+                    }
+                  },
+                  "right": {
+                    "kind": "or",
+                    "left": {
+                      "kind": "eq",
+                      "left": {
+                        "kind": "id",
+                        "name": "__kb_bound_0"
+                      },
+                      "right": {
+                        "kind": "string",
+                        "value": "sshd"
+                      }
+                    },
+                    "right": {
+                      "kind": "bool",
+                      "value": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "op": "add",
+            "path": "/OtherDebianFamily/3",
+            "after": {
+              "kind": "create_ssh_key",
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/.ssh/fizbaz_rsa"
+                }
+              }
+            }
+          },
+          {
+            "op": "add",
+            "path": "/OtherRedHatFamily/0",
+            "after": {
+              "kind": "install",
+              "packages": [
+                {
+                  "name": "openssh-clients",
+                  "manager": "dnf"
+                }
+              ],
+              "version": null
+            }
+          },
+          {
+            "op": "add",
+            "path": "/OtherRedHatFamily/1",
+            "after": {
+              "kind": "install",
+              "packages": [
+                {
+                  "name": "openssh-server",
+                  "manager": "system"
+                }
+              ],
+              "version": null
+            }
+          },
+          {
+            "op": "add",
+            "path": "/OtherRedHatFamily/2",
+            "after": {
+              "kind": "start_service",
+              "name": {
+                "kind": "existential",
+                "type": "string",
+                "binder": "__kb_bound_0",
+                "predicate": {
+                  "kind": "or",
+                  "left": {
+                    "kind": "eq",
+                    "left": {
+                      "kind": "id",
+                      "name": "__kb_bound_0"
+                    },
+                    "right": {
+                      "kind": "string",
+                      "value": "ssh"
+                    }
+                  },
+                  "right": {
+                    "kind": "or",
+                    "left": {
+                      "kind": "eq",
+                      "left": {
+                        "kind": "id",
+                        "name": "__kb_bound_0"
+                      },
+                      "right": {
+                        "kind": "string",
+                        "value": "sshd"
+                      }
+                    },
+                    "right": {
+                      "kind": "bool",
+                      "value": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "op": "add",
+            "path": "/OtherRedHatFamily/3",
+            "after": {
+              "kind": "create_ssh_key",
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/.ssh/fizbaz_rsa"
+                }
+              }
+            }
+          },
+          {
+            "op": "replace",
+            "path": "/RedHat/3/path/destination/kind",
+            "before": "in_home",
+            "after": "absolute"
+          },
+          {
+            "op": "remove",
+            "path": "/RedHat/3/path/destination/user",
+            "before": "fizbaz"
+          },
+          {
+            "op": "replace",
+            "path": "/RedHat/3/path/destination/value",
+            "before": ".ssh/fizbaz_rsa",
+            "after": "/.ssh/fizbaz_rsa"
+          },
+          {
+            "op": "add",
+            "path": "/Ubuntu/0",
+            "after": {
+              "kind": "install",
+              "packages": [
+                {
+                  "name": "openssh-client",
+                  "manager": "apt"
+                }
+              ],
+              "version": null
+            }
+          },
+          {
+            "op": "add",
+            "path": "/Ubuntu/1",
+            "after": {
+              "kind": "install",
+              "packages": [
+                {
+                  "name": "openssh-server",
+                  "manager": "system"
+                }
+              ],
+              "version": null
+            }
+          },
+          {
+            "op": "add",
+            "path": "/Ubuntu/2",
+            "after": {
+              "kind": "start_service",
+              "name": {
+                "kind": "existential",
+                "type": "string",
+                "binder": "__kb_bound_0",
+                "predicate": {
+                  "kind": "or",
+                  "left": {
+                    "kind": "eq",
+                    "left": {
+                      "kind": "id",
+                      "name": "__kb_bound_0"
+                    },
+                    "right": {
+                      "kind": "string",
+                      "value": "ssh"
+                    }
+                  },
+                  "right": {
+                    "kind": "or",
+                    "left": {
+                      "kind": "eq",
+                      "left": {
+                        "kind": "id",
+                        "name": "__kb_bound_0"
+                      },
+                      "right": {
+                        "kind": "string",
+                        "value": "sshd"
+                      }
+                    },
+                    "right": {
+                      "kind": "bool",
+                      "value": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "op": "add",
+            "path": "/Ubuntu/3",
+            "after": {
+              "kind": "create_ssh_key",
+              "path": {
+                "kind": "remote",
+                "destination": {
+                  "kind": "absolute",
+                  "value": "/.ssh/fizbaz_rsa"
+                }
+              }
+            }
+          }
+        ],
+        "reviewed_match": false
+      }
+    ]
+  }
+}
