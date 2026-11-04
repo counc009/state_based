@@ -74,12 +74,13 @@ def freeze(dataset, models, variants, cases=None):
 
 
 def reserve(cell, config):
-    """Conservative input envelope: UTF-8 bytes plus 4K framing tokens, no discounts."""
+    """Conservative input envelope: UTF-8 bytes plus 4K framing tokens, including 5m cache-write overhead."""
     model = config['models'][cell['model']]
     if model['provider'] == 'local':
         return 0.0
     size = len(json.dumps(cell['messages'], ensure_ascii=False).encode()) + 4096
-    return (size * model['input_per_million'] +
+    input_rate = max(model['input_per_million'], model.get('cache_write_per_million', 0))
+    return (size * input_rate +
             config['max_output_tokens'] * model['output_per_million']) / 1_000_000
 
 
@@ -91,7 +92,7 @@ def estimate(manifest):
         by_model[model] = {'calls':len(cells), 'usd_envelope':round(sum(reserve(c, config) for c in cells), 6)}
     return {'calls':len(manifest['cells']), 'by_model':by_model,
             'usd_envelope':round(sum(reserve(c, config) for c in manifest['cells']), 6),
-            'notes':'Standard token rates only; local compute excluded. No automatic retries. Reprice before a full run.'}
+            'notes':'Includes configured 5m cache-write input ceiling; local compute excluded. No automatic retries. Reprice before a full run.'}
 
 
 def request(cell, config):
@@ -108,7 +109,8 @@ def request(cell, config):
         url = 'https://api.anthropic.com/v1/messages'
         headers.update({'x-api-key':os.environ['ANTHROPIC_API_KEY'], 'anthropic-version':'2023-06-01'})
         payload = {'model':model['id'], 'system':cell['messages'][0]['content'],
-                   'messages':cell['messages'][1:], 'max_tokens':config['max_output_tokens']}
+                   'messages':cell['messages'][1:], 'max_tokens':config['max_output_tokens'],
+                   'output_config':{'effort':config['reasoning_effort']}}
     else:
         # Operator must provide a pinned local model server. Never download or start one implicitly.
         url = os.environ['EVALUATION_LOCAL_URL'].rstrip('/') + '/chat/completions'

@@ -7,9 +7,15 @@ This system is written in [OCaml](https://ocaml.org/) and should be built using 
 This system can be built as follows:
 
 1. Install and initialize [Opam](https://opam.ocaml.org), the OCaml package manager as described [here](https://ocaml.org/install).
-2. Install required OCaml packages, as follows:
-   `opam install dune yaml jingoo angstrom`
-3. Build using the command `dune build`
+2. Create a local OCaml 5.5.0 switch without auto-installing the project: `opam switch create . 5.5.0 --no-install -y`.
+3. Install Dune and generate the dependency manifest: `opam install -y dune` then `opam exec -- dune build state_based.opam`.
+4. Install declared dependencies: `opam install . --deps-only --working-dir -y`.
+5. Build and check: `opam exec -- dune build @all` and `opam exec -- dune runtest`.
+
+OCaml 5.5+ is required by the existing String APIs. The checked native dependency export is
+[`evaluation/configs/native-switch.export`](evaluation/configs/native-switch.export); import it into an empty switch with
+`opam switch import evaluation/configs/native-switch.export` to reproduce the recorded package versions.
+See [native validation](evaluation/docs/native-validation.md) for the actual compiler, semantic/reference checks and limitations.
 
 The system contain 3 executables:
 

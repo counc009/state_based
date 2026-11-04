@@ -1,4 +1,5 @@
 import importlib.util
+import io
 import json
 from pathlib import Path
 import sys
@@ -10,6 +11,7 @@ CODE = Path(__file__).resolve().parents[1] / 'code'
 sys.path.insert(0, str(CODE))
 import evaluate as ev
 from import_frozen import convert
+from semantic_audit import directory_obligations
 
 
 class ProtocolTests(unittest.TestCase):
@@ -39,6 +41,30 @@ class ProtocolTests(unittest.TestCase):
                 self.assertEqual(c['messages'][1:], self.messages[1:])
         baseline = next(c for c in m['cells'] if c['variant']=='compact-v1')
         self.assertEqual(baseline['messages'], self.messages)
+
+    def test_narrow_nl_check_does_not_use_gold_and_abstains_on_other_tasks(self):
+        effects = [{'kind':'create_directory','destination':{'path':{'kind':'remote','destination':{'kind':'absolute','value':'/independent'}}}}]
+        self.assertEqual(directory_obligations('Create directory /independent', effects)['status'],'specified_obligation_present')
+        self.assertEqual(directory_obligations('Create directory /different', effects)['status'],'specified_obligation_missing')
+        self.assertEqual(directory_obligations('Delete directory /independent', effects)['status'],'unsupported')
+
+    def test_cache_write_ceiling_uses_documented_higher_input_rate(self):
+        config={'max_output_tokens':1000,'models':{'fixture':{'provider':'openai','input_per_million':2,'cache_write_per_million':2.5,'output_per_million':10}}}
+        cell={'model':'fixture','messages':[{'role':'user','content':'hello'}]}
+        # 38 serialized UTF-8 bytes + 4096 framing, priced at $2.50/MTok; 1000 output at $10/MTok.
+        self.assertAlmostEqual(ev.reserve(cell,config),0.020335)
+
+    def test_openai_transport_sends_public_id_and_keeps_returned_identity(self):
+        manifest=self.manifest();cell=manifest['cells'][0]
+        response={'model':'gpt-6.1-sol','status':'completed','output':[{'content':[{'type':'output_text','text':'query'}]}]}
+        with patch.dict('os.environ', {'OPENAI_API_KEY':'fixture'}), patch.object(ev.urllib.request,'urlopen',return_value=io.BytesIO(json.dumps(response).encode())) as mock:
+            result=ev.request(cell,manifest['config'])
+        req=mock.call_args.args[0]
+        body=json.loads(req.data)
+        self.assertEqual(req.full_url,'https://api.openai.com/v1/responses')
+        self.assertEqual(body['model'],'gpt-6.1-sol')
+        self.assertNotIn('tools',body)
+        self.assertEqual(result['returned_model'],'gpt-6.1-sol')
 
     def test_target_leak_rejected(self):
         self.task['demonstration_ids'] = ['probe']

@@ -5,3 +5,4 @@ _build/*
 evaluation/datasets/*-private.json
 evaluation/results/*/
 __pycache__/
+_opam/

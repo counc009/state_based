@@ -1,0 +1,3 @@
+(executable
+ (name effects)
+ (libraries fql modules))

@@ -19,7 +19,9 @@
  (name state_based)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml dune)
+ (depends
+  (ocaml (>= 5.5.0))
+  dune yaml jingoo angstrom re ocolor)
  (tags
   (topics "to describe" your project)))
 

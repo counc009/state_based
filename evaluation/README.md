@@ -8,13 +8,13 @@ Python 3.10+; the runner uses only the standard library. API keys are read from 
 
 | Location | Contents |
 |---|---|
-| `code/` | Import, freeze, estimate, run, resume, analyze |
+| `code/` | Import, freeze, estimate, run, resume, compiler/reference/semantic audits |
 | `prompts/` | Byte-preserved compact baseline, existing handbook, separately versioned improvement, provenance registry |
 | `configs/` | Exact model IDs, provider, capability stratum, prices, output/reasoning budgets |
 | `datasets/` | Input schema and private imports; never mix references/outcomes into generation inputs |
 | `results/` | Public smoke summary; ignored run directories with immutable manifests, attempts and raw responses |
 | `docs/` | Protocol, model sources, paper alignment and related work |
-| `tests/` | Offline protocol/budget/resume checks |
+| `tests/` | Protocol/budget/resume tests and real native diagnostic controls |
 | `../lib`, `../bin`, `../modules` | Existing compiler, verifier and module specifications |
 | `../astrogator-eval` | Historical playbook evaluation entrypoints, retained at their original paths |
 
@@ -49,6 +49,8 @@ The last command is an argv template, not a shell. The wrapper supplies sorted a
 
 A run can be resumed with the same manifest and directory. The dollar ceiling covers accumulated reserved attempts in that directory, not just the new invocation. An interrupted attempt is never silently resent. Use a new run for a protocol change. Calls reaching a configured cap leave the remaining five-repeat cells explicitly missing; do not publish them as complete.
 
-OpenAI `sol` is live-tested. Anthropic and local transports are implemented but untested here. Before local inference, pin model/tokenizer/chat-template revisions and runtime/precision, supply `EVALUATION_LOCAL_URL` for an authorized existing OpenAI-compatible server, and verify which model it actually serves. No model download, GPU allocation or service launch is implicit. The current local transport has no entitlement or revision attestation; full local runs need that preflight. Anthropic effort/thinking defaults differ from OpenAI and must be documented or explicitly configured before a full comparison.
+OpenAI `sol` is live-tested. Anthropic and local transports are implemented but untested here. Before local inference, pin model/tokenizer/chat-template revisions and runtime/precision, supply `EVALUATION_LOCAL_URL` for an authorized existing OpenAI-compatible server, and verify which model it actually serves. No model download, GPU allocation or service launch is implicit. The current local transport has no entitlement or revision attestation; full local runs need that preflight. Anthropic effort is explicitly configured through `output_config.effort`; its thinking behavior differs from OpenAI and still needs a bounded entitlement/preflight check.
 
 See [protocol](docs/protocol.md), [sources and paper alignment](docs/provenance.md), and [actual smoke results](results/smoke-2026-11-04.md).
+
+Fresh native build and reference/semantic validation are documented in [native validation](docs/native-validation.md). [Verified model identities and budget options](docs/model-identities.md) supersede the original base-input-only full-run estimate.
