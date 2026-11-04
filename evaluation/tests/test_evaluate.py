@@ -1,0 +1,94 @@
+import importlib.util
+import json
+from pathlib import Path
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+
+CODE = Path(__file__).resolve().parents[1] / 'code'
+sys.path.insert(0, str(CODE))
+import evaluate as ev
+from import_frozen import convert
+
+
+class ProtocolTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.messages = [{'role':'system','content':(ev.ROOT/'prompts/compact-v1.txt').read_text()},
+                         {'role':'user','content':'Neutral example'}, {'role':'assistant','content':'create directory at /probe'},
+                         {'role':'user','content':'Create directory /other'}]
+        self.task = {'task_id':'probe','messages':self.messages,'demonstration_ids':['demo']}
+        self.data = self.root/'input.json'
+        self.data.write_text(json.dumps({'tasks':[self.task]}))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def manifest(self):
+        return ev.freeze(self.data, ['sol'], ['compact-v1','handbook-v2'])
+
+    def test_paired_prompts_keep_every_demo_and_target_and_five_repeats(self):
+        m = self.manifest()
+        self.assertEqual(len(m['cells']), 10)
+        for variant in ['compact-v1','handbook-v2']:
+            cells = [c for c in m['cells'] if c['variant']==variant]
+            self.assertEqual({c['repeat'] for c in cells}, set(range(5)))
+            for c in cells:
+                self.assertEqual(c['messages'][1:], self.messages[1:])
+        baseline = next(c for c in m['cells'] if c['variant']=='compact-v1')
+        self.assertEqual(baseline['messages'], self.messages)
+
+    def test_target_leak_rejected(self):
+        self.task['demonstration_ids'] = ['probe']
+        self.data.write_text(json.dumps({'tasks':[self.task]}))
+        with self.assertRaisesRegex(AssertionError, 'leaked'):
+            self.manifest()
+
+    def test_budget_reservation_and_resume_do_not_repeat_requests(self):
+        m = self.manifest(); out = self.root/'run'
+        limit = ev.reserve(m['cells'][0],m['config'])
+        with patch.dict('os.environ', {'OPENAI_API_KEY':'fixture'}), patch.object(ev,'request',return_value={'status':'completed','text':'query'}) as req:
+            first = ev.run(m,out,limit,10)
+            self.assertEqual(first['new_calls'],1)
+            second = ev.run(m,out,limit,10)
+            self.assertEqual(second['new_calls'],0)
+            self.assertEqual(req.call_count,1)
+        summary = ev.analyze(out)
+        statuses = [v['statuses'] for v in summary['results'].values()]
+        self.assertEqual(sum(v.get('missing',0) for v in statuses),9)
+
+    def test_interrupted_receipt_is_not_silently_retried(self):
+        m = self.manifest(); out=self.root/'run'; out.mkdir()
+        ev.write_new(out/'manifest.json',m)
+        cell=m['cells'][0]
+        (out/'attempts.jsonl').write_text(json.dumps({'id':cell['id'],'reserved_usd':ev.reserve(cell,m['config'])})+'\n')
+        with patch.dict('os.environ', {'OPENAI_API_KEY':'fixture'}), patch.object(ev,'request') as req:
+            result=ev.run(m,out,ev.reserve(cell,m['config']),10)
+            req.assert_not_called()
+        self.assertEqual(result['attempts'],1)
+
+    def test_existing_run_cannot_change_frozen_config(self):
+        m=self.manifest();out=self.root/'run';out.mkdir();ev.write_new(out/'manifest.json',m)
+        m['config']['max_output_tokens']+=1
+        with self.assertRaisesRegex(AssertionError,'manifest changed'):
+            ev.run(m,out,1,1)
+
+    def test_import_does_not_include_labels_or_code(self):
+        source={'tasks':[dict(self.task,mode='fql',repeat=0,oracle_label='secret'),
+                         {'mode':'judge','repeat':0,'code':'excluded'}]}
+        rows=convert(source)
+        self.assertEqual(set(rows[0]),{'task_id','demonstration_ids','messages'})
+
+    def test_parser_runs_without_shell_and_preserves_raw_fences(self):
+        m=self.manifest();out=self.root/'run';out.mkdir();ev.write_new(out/'manifest.json',m)
+        ev.write_new(out/'responses'/(m['cells'][0]['id']+'.json'),{'status':'completed','text':'```fql\nquery\n```'})
+        fake=self.root/'check.py'
+        fake.write_text('import pathlib,sys\nassert pathlib.Path(sys.argv[1]).read_text().startswith("```fql")\n')
+        report=ev.analyze(out, f'{sys.executable} {fake} {{query}}')
+        self.assertEqual(sum(x['checker_pass'] for x in report['results'].values()),1)
+
+
+if __name__ == '__main__':
+    unittest.main()

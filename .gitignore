@@ -1,2 +1,7 @@
 _build/*
 .*.swp
+
+# Private imported research and raw API results stay local.
+evaluation/datasets/*-private.json
+evaluation/results/*/
+__pycache__/

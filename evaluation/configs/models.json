@@ -1,0 +1,53 @@
+{
+  "repetitions": 5,
+  "max_output_tokens": 4096,
+  "reasoning_effort": "high",
+  "models": {
+    "astra": {
+      "provider": "openai",
+      "id": "gpt-6-astra",
+      "stratum": "frontier",
+      "input_per_million": 10,
+      "output_per_million": 50
+    },
+    "fable": {
+      "provider": "anthropic",
+      "id": "claude-fable-5-1",
+      "stratum": "frontier",
+      "input_per_million": 10,
+      "output_per_million": 50
+    },
+    "sol": {
+      "provider": "openai",
+      "id": "gpt-6.1-sol",
+      "stratum": "balanced",
+      "input_per_million": 2,
+      "output_per_million": 10
+    },
+    "sonnet": {
+      "provider": "anthropic",
+      "id": "claude-sonnet-5-5",
+      "stratum": "balanced",
+      "input_per_million": 2,
+      "output_per_million": 10
+    },
+    "qwen4": {
+      "provider": "local",
+      "id": "Qwen/Qwen3.5-4B",
+      "stratum": "local",
+      "input_per_million": 0,
+      "output_per_million": 0,
+      "weight_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+      "revision_source": "https://huggingface.co/api/models/Qwen/Qwen3.5-4B"
+    },
+    "qwen9": {
+      "provider": "local",
+      "id": "Qwen/Qwen3.5-9B",
+      "stratum": "local",
+      "input_per_million": 0,
+      "output_per_million": 0,
+      "weight_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+      "revision_source": "https://huggingface.co/api/models/Qwen/Qwen3.5-9B"
+    }
+  }
+}

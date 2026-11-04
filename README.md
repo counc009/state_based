@@ -1,3 +1,7 @@
+# Astrogator
+
+Formal queries and symbolic verification for Ansible. For the model/prompt refresh, start with [the NL-to-FQL evaluation guide](evaluation/README.md): setup, repository map, frozen five-repeat runs, budgets and actual smoke results. Historical playbook evaluation scripts remain in `astrogator-eval/`; compiler and module paths retain their existing layout.
+
 # Building and Usage Instructions
 This system is written in [OCaml](https://ocaml.org/) and should be built using the [Dune](https://dune.build) build system.
 This system can be built as follows:
