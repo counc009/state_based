@@ -111,7 +111,7 @@
       "reasoning_validation": "HIGH rejected HTTP 400; error reports xhigh (default), medium, low. Explicit XHIGH configured from that supported-values response; first effort-omitted call completed. No third call made."
     }
   },
-  "matrix_status": "Awaiting Darsh budget approval; no paid matrix run authorized",
+  "matrix_status": "Approved by Darsh 2026-11-04: full 2520-cell matrix, $110 total and $22 cumulative Anthropic guard; bounded transient retries recorded",
   "provider_budgets_usd": {
     "anthropic": 22
   }

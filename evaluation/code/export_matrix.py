@@ -29,7 +29,7 @@ def write_csv(path,rows):
 
 
 def totals(records,provider):
-    inp=out=reason=0;known=False
+    inp=out=reason=0;known=False;reason_known=False
     for rec in records:
         u=rec.get('usage')
         if not isinstance(u,dict):continue
@@ -38,8 +38,9 @@ def totals(records,provider):
         if provider=='anthropic':inp+=u.get('cache_creation_input_tokens',0)+u.get('cache_read_input_tokens',0)
         out+=u.get('output_tokens',u.get('completion_tokens',0))
         details=u.get('output_tokens_details') or u.get('completion_tokens_details') or {}
-        reason+=u.get('reasoning_tokens',details.get('reasoning_tokens',details.get('thinking_tokens',0))) or 0
-    return (inp,out,reason) if known else (None,None,None)
+        rt=u.get('reasoning_tokens',details.get('reasoning_tokens',details.get('thinking_tokens')))
+        if rt is not None:reason+=rt;reason_known=True
+    return (inp,out,reason if reason_known else None) if known else (None,None,None)
 
 
 def summarize(rows,keys):
@@ -82,7 +83,7 @@ def export(run,references):
         text=response.get('text','');qh=digest(text.encode());ref=refs[c['task_id']]
         assert c['messages'][-1]['content']==ref['natural_language']
         parsed=semantic=interpreted=refmatch=None;nl='not_scored';err=[];vs=None
-        if response['status']!='pending_budget':
+        if response['status'] in ('completed','incomplete') or text:
             if qh not in cache:
                 try:generated=probe(text,binary)
                 except Exception as e:generated={'status':'driver_error','error':type(e).__name__}
@@ -113,14 +114,26 @@ def export(run,references):
             elif a['status'] not in ('completed','incomplete'):err.append(f'attempt {a["attempt"]}: '+a['status'])
         if response['status']=='pending_budget':err.append('Budget/in-flight capacity prevented attempt; resumable')
         inp,out,reason=totals(attempt_records,model['provider'])
+        # Reconcile historical cache-write detail without releasing any unknown-billing reserve.
+        from matrix_run import usage_cost
+        reconciled=0.0
+        by_attempt={a['attempt']:a for a in attempt_records}
+        for a in grouped[ident]:
+            old=a.get('cost_usd',a['reserved_usd'])
+            if a.get('cost_source')=='reported_tokens_at_frozen_rates' and a['attempt'] in by_attempt:
+                old=usage_cost(by_attempt[a['attempt']],model,a['reserved_usd'])[0]
+            reconciled+=old
         rows.append({'model':model['id'],'model_key':c['model'],'variant':c['variant'],'task_id':c['task_id'],'repeat':c['repeat'],
             'status':response['status'],'parsed':parsed,'semantic_accepted':semantic,'interpreted':interpreted,'ref_match':refmatch,'nl_obligation':nl,
             'input_tokens':inp,'output_tokens':out,'reasoning_tokens':reason,
-            'cost_usd':sum(a.get('cost_usd',a['reserved_usd']) for a in grouped[ident]),
-            'latency_s':sum(a.get('seconds',0) for a in grouped[ident]) if grouped[ident] else None,
-            'attempts':len(grouped[ident]),'error':' | '.join(err),
+            'cost_usd':reconciled,
+            'latency_s':sum(a['seconds'] for a in grouped[ident]) if grouped[ident] and all('seconds' in a for a in grouped[ident]) else None,
+            'attempts':len(grouped[ident]),
+            'tokens_complete':len(attempt_records)==len(grouped[ident]) and bool(attempt_records) and all(isinstance(a.get('usage'),dict) for a in attempt_records) and all(a.get('cost_source')=='reported_tokens_at_frozen_rates' for a in grouped[ident]),
+            'cost_sources':';'.join(sorted({a.get('cost_source','conservative_pending') for a in grouped[ident]})),
+            'error':' | '.join(err),
             'reference_discrepancy':c['task_id'] in ('a03','a20'),
-            'reference_program_status':vs,'output_sha256':qh if response['status']!='pending_budget' else None,
+            'reference_program_status':vs,'output_sha256':qh if response['status'] in ('completed','incomplete') or text else None,
             'returned_model':response.get('returned_model'),
             'reasoning_effort':model.get('reasoning_effort'),'cost_is_estimate':True})
         if index%250==0:print(f'Scored {index}/{len(m["cells"])}',flush=True)
@@ -132,6 +145,7 @@ def export(run,references):
     costs={'by_model':{model:sum(r['cost_usd'] for r in rows if r['model']==model) for model in sorted({r['model'] for r in rows})},
            'matrix_cost_usd':sum(r['cost_usd'] for r in rows),'prior_cost_reserve_usd':state['prior_cost_usd'],
            'budget_accounted_usd':state['prior_cost_usd']+sum(r['cost_usd'] for r in rows),
+           'cache_detail_reconciliation_usd':sum(r['cost_usd'] for r in rows)-sum(a.get('cost_usd',a['reserved_usd']) for a in state['attempts']),
            'rates':m['config']['models'],'manifest_sha256':digest(m),
            'runner_sha256':digest((REPO/'evaluation/code/matrix_run.py').read_bytes()),
            'exporter_sha256':digest(Path(__file__).read_bytes()),

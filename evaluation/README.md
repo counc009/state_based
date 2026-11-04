@@ -49,7 +49,7 @@ The last command is an argv template, not a shell. The wrapper supplies sorted a
 
 A run can be resumed with the same manifest and directory. The dollar ceiling covers accumulated reserved attempts in that directory, not just the new invocation. An interrupted attempt is never silently resent. Use a new run for a protocol change. Calls reaching a configured cap leave the remaining ten-repeat cells explicitly missing; do not publish them as complete.
 
-OpenAI `sol` and all four approved router routes are connectivity-tested. Claude Opus is optional/pending until its key arrives; default freeze excludes it. Before local inference, pin model/tokenizer/chat-template revisions and runtime/precision, supply `EVALUATION_LOCAL_URL` for an authorized existing OpenAI-compatible server, and verify which model it actually serves. No model download, GPU allocation or service launch is implicit. The current local transport has no entitlement or revision attestation; full local runs need that preflight. Anthropic effort is explicitly configured through `output_config.effort`; its thinking behavior differs from OpenAI and still needs a bounded entitlement/preflight check.
+All six configured API models are enabled and connectivity-tested. Claude uses `output_config.effort=high`; OpenAI uses `reasoning.effort=high`; router models use their recorded `reasoning_effort` setting (Qwen XHIGH following its HIGH rejection). These settings do not imply equal compute across providers. The main matrix has no local-model entries; historical local transport remains for separately authorized studies.
 
 See [protocol](docs/protocol.md), [sources and paper alignment](docs/provenance.md), and [actual smoke results](results/smoke-2026-11-04.md).
 

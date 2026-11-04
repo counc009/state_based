@@ -12,6 +12,11 @@
 - Allow only one or two single-call connectivity checks per new model before matrix approval.
 - Preserve the original baseline as a named version; track prompt improvements separately, avoid test-data leakage, preserve historical work, and organize the repository for discoverability.
 
-No PR exists yet. When one is created, copy these person-made decisions into its `~/.replicas/pr-fixes/<owner>/<repo>/pr-<N>.md` under `## Decisions`.
+PR #35 exists at https://github.com/counc009/state_based/pull/35; decisions are also recorded under `## Decisions` in its local PR fixes notes.
 
 - Darsh: Anthropic provider cap is $22 until a top-up; retain resumability and continue other models when Claude reaches its cap. Anthropic key is now available and latest Opus is enabled. No paid matrix until V3 approval.
+
+- Darsh APPROVES the full six-model × both-variant × 21-task × ten-repeat paid matrix; keep Anthropic cumulative accounting at $22 and all accounting at $110.
+- Run durably in the background with resume and bounded transient-error retries/backoff; keep failure records and all planned cells in reported denominators.
+- Primary “correct” is normalized reference-effect match; separately flag the two discrepant supplied references, and score native parse/semantics, interpretation and applicable NL obligations.
+- Produce no charts. Publish per-call CSV/JSON, model×variant and task×model×variant CSVs plus original paper baseline counts on the fork branch; report exact raw URLs and the summary table.

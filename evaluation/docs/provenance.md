@@ -1,5 +1,7 @@
 # Paper, source and prompt provenance
 
+> Historical planning record below: the current approved matrix uses six models, ten repeats and compact-v1 versus handbook-v3. See `model-identities.md`, `protocol.md`, and the full-matrix results README; earlier five-repeat/model-slate proposals are superseded.
+
 The supplied `PLDI_2027_Astrogator.pdf` is authoritative for this request (SHA-256 `02e020763955e0a79712423bda93b7d02fd5fa763135988ccc7127097b067bb3`). It has 32 pages, eleven code-generation models and a TODO in section 6.2, Prompt Formalization. Section 6.3 uses ten samples per task/model; the requested refresh uses five, so it must be a separate cohort. The manuscript is not modified by this work. Its actual title is still “Towards Formal Verification of LLM-Generated Code from Natural Language Prompts”; the discussed title direction is not yet in that PDF.
 
 The eleven model labels are GPT-4o, GPT-5 Mini, Deepseek Coder 6.7B, Granite 8B Code, GPT-OSS 20B, Qwen2.5 Coder 3B, Qwen3.5 9B, Qwen3 Coder 30B A3B Instruct, Llama 3.1 8B, Ministral 3 14B Reasoning 2512 and Starcoder 2 15B. These paper labels are not exact endpoint/version provenance. Do not infer unspecified historical API snapshots or weight revisions. The ambiguous Qwen is resolved to multiple explicitly named Qwen models in the supplied draft.
