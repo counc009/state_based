@@ -120,11 +120,13 @@ let rec sequence = function
       let c=cond c in let t=sequence t in let e=sequence e in
       [tag "conditional" ["condition",c;"then",arr t;"else",arr e]]
 let () =
+  let parsed_ok = ref false in
   try
     let input=In_channel.with_open_text Sys.argv.(1) In_channel.input_all in
     let parsed=Fql.Parser.query Fql.Lexer.token (Lexing.from_string input) in
-    if parsed=[] then (print_endline (obj ["status",str "empty_query"]); exit 10);
+    parsed_ok := true;
+    if parsed=[] then (print_endline (obj ["status",str "empty_query";"parsed",bool true]); exit 10);
     match S.analyze_top parsed with
-    | Error e -> print_endline(obj ["status",str "semantic_error";"error",str e]); exit 11
-    | Ok q -> print_endline(obj ["status",str "ok";"effects",arr (sequence q)])
-  with e -> print_endline(obj ["status",str "diagnostic_error";"error",str (Printexc.to_string e)]); exit 12
+    | Error e -> print_endline(obj ["status",str "semantic_error";"parsed",bool true;"error",str e]); exit 11
+    | Ok q -> print_endline(obj ["status",str "ok";"parsed",bool true;"effects",arr (sequence q)])
+  with e -> print_endline(obj ["status",str "diagnostic_error";"parsed",bool !parsed_ok;"error",str (Printexc.to_string e)]); exit 12

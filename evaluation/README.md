@@ -60,3 +60,5 @@ Current selection, ten-repeat costs and the Qwen HIGH rejection are recorded in 
 The default paired prompts are now `compact-v1` and `handbook-v3`. V3 trims warnings and self-checks from v2 while preserving the positive language reference. V2 and the baseline remain byte-preserved for provenance. Exact texts are in `prompts/`.
 
 Claude now defaults to a $22 cumulative provider reservation guard. Resume after an approved top-up with `--anthropic-budget-usd LIMIT` against the same manifest/output; prior attempts remain charged and are not repeated. See [V3 funding and validation](docs/v3-funding.md).
+
+The approved full matrix uses `code/matrix_run.py` for durable parallel requests, bounded transient retries/backoff and reconciled token-cost guards ($110 total; $22 Claude). `code/export_matrix.py` exports all planned cells, diagnostics and Wilson summaries, including errors/pending calls. See the run's README for definitions; reference-effect agreement is the primary metric, with a03/a20 reference discrepancies flagged separately.
