@@ -1,0 +1,51 @@
+---
+- name: "Model qwen3.8-flash, Problem p17, Response 8"
+  hosts: redhat,ubuntu
+  become: true
+  tasks:
+  - name: Install latest Postfix on Ubuntu
+    ansible.builtin.apt:
+      name: postfix
+      state: latest
+      update_cache: true
+    when: ansible_facts['distribution'] == 'Ubuntu'
+  - name: Install latest Postfix on RedHat
+    ansible.builtin.package:
+      name: postfix
+      state: latest
+    when: ansible_facts['os_family'] == 'RedHat'
+  - name: Check default Postfix configuration file
+    ansible.builtin.stat:
+      path: /etc/postfix/main.cf
+    register: postfix_config_stat
+    when:
+    - ansible_facts['distribution'] == 'Ubuntu' or ansible_facts['os_family'] == 'RedHat'
+  - name: Backup default Postfix configuration file
+    ansible.builtin.copy:
+      src: /etc/postfix/main.cf
+      dest: /etc/postfix/main.cf.orig
+      remote_src: true
+      force: false
+      mode: preserve
+    when:
+    - ansible_facts['distribution'] == 'Ubuntu' or ansible_facts['os_family'] == 'RedHat'
+    - postfix_config_stat.stat.exists | default(false)
+  - name: Download Postfix configuration for Ubuntu
+    ansible.builtin.get_url:
+      url: http://example.com/cfg.ubuntu
+      dest: /etc/postfix/main.cf
+      backup: true
+      mode: '0644'
+      owner: root
+      group: root
+    when: ansible_facts['distribution'] == 'Ubuntu'
+  - name: Download Postfix configuration for RedHat
+    ansible.builtin.get_url:
+      url: http://example.com/cfg.redhat
+      dest: /etc/postfix/main.cf
+      backup: true
+      mode: '0644'
+      owner: root
+      group: root
+    when: ansible_facts['os_family'] == 'RedHat'
+

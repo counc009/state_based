@@ -1,0 +1,52 @@
+---
+- name: "Model qwen3.8-flash, Problem p20, Response 10"
+  hosts: redhat,debian
+  become: true
+  vars:
+    ssh_client_package: "{{ 'openssh-client' if ansible_facts['os_family'] == 'Debian'
+      else 'openssh-clients' }}"
+    ssh_server_package: openssh-server
+    ssh_service_name: sshd
+    ssh_key_path: "/.ssh/fizbaz_rsa"
+  tasks:
+  - name: Ensure group fizbaz is present
+    ansible.builtin.group:
+      name: fizbaz
+      state: present
+  - name: Ensure user fizbaz is present
+    ansible.builtin.user:
+      name: fizbaz
+      group: fizbaz
+      create_home: false
+      shell: /bin/bash
+      state: present
+  - name: Install SSH client and server packages
+    ansible.builtin.package:
+      name:
+      - "{{ ssh_client_package }}"
+      - "{{ ssh_server_package }}"
+      state: present
+  - name: Start and enable SSH server
+    ansible.builtin.service:
+      name: "{{ ssh_service_name }}"
+      state: started
+      enabled: true
+  - name: Create SSH directory for fizbaz
+    ansible.builtin.file:
+      path: "/.ssh"
+      state: directory
+      mode: "0700"
+      owner: fizbaz
+      group: fizbaz
+  - name: Generate SSH key for fizbaz
+    community.crypto.openssh_keypair:
+      path: "{{ ssh_key_path }}"
+      type: rsa
+      size: 2048
+      comment: fizbaz
+      owner: fizbaz
+      group: fizbaz
+      mode: "0600"
+      state: present
+      force: false
+

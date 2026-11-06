@@ -1,0 +1,51 @@
+---
+- name: "Model qwen3.8-flash, Problem p16, Response 6"
+  hosts: all
+  become: true
+  tasks:
+  - name: Install zsh
+    ansible.builtin.package:
+      name: zsh
+      state: present
+  - name: Check /usr/bin/zsh
+    ansible.builtin.stat:
+      path: /usr/bin/zsh
+    register: usr_bin_zsh
+  - name: Check /bin/zsh
+    ansible.builtin.stat:
+      path: /bin/zsh
+    register: bin_zsh
+  - name: Check /usr/local/bin/zsh
+    ansible.builtin.stat:
+      path: /usr/local/bin/zsh
+    register: local_bin_zsh
+  - name: Set zsh shell path fact
+    ansible.builtin.set_fact:
+      zsh_shell_path: >-
+        {{ '/usr/bin/zsh' if usr_bin_zsh.stat.exists else
+           '/bin/zsh' if bin_zsh.stat.exists else
+           '/usr/local/bin/zsh' if local_bin_zsh.stat.exists else
+           '/usr/bin/zsh' }}
+  - name: Ensure dev user exists and uses zsh as default shell
+    ansible.builtin.user:
+      name: dev
+      shell: "{{ zsh_shell_path }}"
+      state: present
+      create_home: true
+    register: dev_user
+  - name: Set dev home directory fact
+    ansible.builtin.set_fact:
+      dev_home: "{{ dev_user.home | default('/home/dev', true) }}"
+  - name: Ensure dev home directory exists
+    ansible.builtin.file:
+      path: "{{ dev_home }}"
+      state: directory
+      owner: dev
+      mode: "0755"
+  - name: Ensure zsh configuration file exists
+    ansible.builtin.file:
+      path: "{{ dev_home }}/.zshrc"
+      state: file
+      owner: dev
+      mode: "0644"
+

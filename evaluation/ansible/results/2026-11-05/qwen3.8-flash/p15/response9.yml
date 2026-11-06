@@ -1,0 +1,21 @@
+---
+- name: "Model qwen3.8-flash, Problem p15, Response 9"
+  hosts: all
+  become: true
+  tasks:
+  - name: Find contents of /home/mydata/web
+    ansible.builtin.find:
+      paths: /home/mydata/web
+      recurse: false
+      hidden: true
+      file_type: any
+      missing_paths: true
+    register: web_contents
+  - name: Delete contents of /home/mydata/web
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: absent
+    loop: "{{ web_contents.files | default([]) }}"
+    loop_control:
+      label: "{{ item.path }}"
+

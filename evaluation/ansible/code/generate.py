@@ -51,28 +51,29 @@ def freeze(refs):
 
 def build(cell,config):
     m=config['models'][cell['model']];p=m['provider'];effort=m['reasoning_effort']
+    cap=config['max_output_tokens']
     headers={'Content-Type':'application/json','User-Agent':'Astrogator-Evaluation/1.0'}
     if p=='openai':
         url='https://api.openai.com/v1/responses';headers['Authorization']='Bearer '+os.environ['OPENAI_API_KEY']
-        body={'model':m['id'],'input':cell['messages'],'store':False,'max_output_tokens':4096,'reasoning':{'effort':effort}}
+        body={'model':m['id'],'input':cell['messages'],'store':False,'max_output_tokens':cap,'reasoning':{'effort':effort}}
     elif p=='anthropic':
         url='https://api.anthropic.com/v1/messages';headers.update({'x-api-key':os.environ['ANTHROPIC_API_KEY'],'anthropic-version':'2023-06-01'})
-        body={'model':m['id'],'messages':cell['messages'],'max_tokens':4096,'output_config':{'effort':effort}}
+        body={'model':m['id'],'messages':cell['messages'],'max_tokens':cap,'output_config':{'effort':effort}}
     else:
         assert p=='agentfanclub'
         base=os.environ['AGENTFANCLUB_BASE_URL'].rstrip('/');assert base==m['base_url'].rstrip('/')
         url=base+'/chat/completions';headers['Authorization']='Bearer '+os.environ['AGENTFANCLUB_API_KEY']
         # Stream reasoning/content to keep the router connection alive across long thinking.
-        body={'model':m['id'],'messages':cell['messages'],'max_tokens':4096,'reasoning_effort':effort,
+        body={'model':m['id'],'messages':cell['messages'],'max_tokens':cap,'reasoning_effort':effort,
               'stream':True,'stream_options':{'include_usage':True}}
     return url,body,headers
 
 
-def collect_stream(response,model):
+def collect_stream(response,model,deadline_s=600):
     content=[];reasoning=[];usage=None;finish=None;returned=model;count=0;wire=hashlib.sha256();start=time.monotonic();done=False
     for line in response:
         wire.update(line)
-        if time.monotonic()-start>600:raise urllib.error.URLError('stream_deadline')
+        if time.monotonic()-start>deadline_s:raise urllib.error.URLError('stream_deadline')
         if not line.startswith(b'data:'):continue
         data=line[5:].strip()
         if data==b'[DONE]':done=True;break
@@ -95,7 +96,7 @@ def request(cell,config):
     m=config['models'][cell['model']];url,body,headers=build(cell,config)
     req=urllib.request.Request(url,data=json.dumps(body).encode(),headers=headers)
     with urllib.request.urlopen(req,timeout=180) as response:
-        raw=collect_stream(response,m['id']) if body.get('stream') else json.load(response)
+        raw=collect_stream(response,m['id'],config.get('stream_deadline_s',600)) if body.get('stream') else json.load(response)
     if m['provider']=='openai':
         text='\n'.join(x['text'] for item in raw.get('output',[]) for x in item.get('content',[]) if x.get('type')=='output_text');completed=raw.get('status')=='completed'
     elif m['provider']=='anthropic':

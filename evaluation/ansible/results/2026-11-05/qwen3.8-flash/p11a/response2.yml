@@ -1,0 +1,13 @@
+---
+- name: "Model qwen3.8-flash, Problem p11a, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Copy all .war files from /backup on controller into /tmp on remote
+    ansible.builtin.copy:
+      src: "{{ item }}"
+      dest: /tmp/
+      mode: 0644
+      force: true
+    loop: "{{ query('ansible.builtin.fileglob', '/backup/*.war') }}"
+

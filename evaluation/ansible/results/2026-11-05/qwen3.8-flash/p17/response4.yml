@@ -1,0 +1,48 @@
+---
+- name: "Model qwen3.8-flash, Problem p17, Response 4"
+  hosts: redhat,ubuntu
+  become: true
+  vars:
+    postfix_main_config: /etc/postfix/main.cf
+    postfix_backup_config: /etc/postfix/main.cf.backup
+  tasks:
+  - name: Verify supported operating system family
+    ansible.builtin.fail:
+      msg: "This playbook supports only Debian/Ubuntu and RedHat families."
+    when: ansible_facts['os_family'] not in ['Debian', 'RedHat']
+  - name: Update apt cache
+    ansible.builtin.apt:
+      update_cache: true
+    when: ansible_facts['os_family'] == 'Debian'
+  - name: Install the latest postfix package
+    ansible.builtin.package:
+      name: postfix
+      state: latest
+  - name: Check whether the default postfix configuration exists
+    ansible.builtin.stat:
+      path: "{{ postfix_main_config }}"
+    register: postfix_config_stat
+  - name: Backup the default postfix configuration
+    ansible.builtin.copy:
+      src: "{{ postfix_main_config }}"
+      dest: "{{ postfix_backup_config }}"
+      remote_src: true
+      mode: preserve
+    when: postfix_config_stat.stat.exists
+  - name: Set configuration URL for Ubuntu/Debian
+    ansible.builtin.set_fact:
+      postfix_config_url: "http://example.com/cfg.ubuntu"
+    when: ansible_facts['os_family'] == 'Debian'
+  - name: Set configuration URL for RedHat
+    ansible.builtin.set_fact:
+      postfix_config_url: "http://example.com/cfg.redhat"
+    when: ansible_facts['os_family'] == 'RedHat'
+  - name: Download replacement postfix configuration
+    ansible.builtin.get_url:
+      url: "{{ postfix_config_url }}"
+      dest: "{{ postfix_main_config }}"
+      owner: root
+      group: root
+      mode: "0644"
+      force: true
+

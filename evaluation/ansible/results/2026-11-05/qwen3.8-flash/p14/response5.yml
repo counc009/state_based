@@ -3,10 +3,17 @@
   hosts: debian
   become: true
   tasks:
-  - name: Restart only Debian systems when needed
-    when: ansible_facts['os_family'] == 'Debian'
-    block:
-    - name: Check /run/reboot-required
-      ansible.builtin.stat:
-        path: /run/reboot-required
+  - name: Check whether reboot is required
+    ansible.builtin.stat:
+      path: /var/run/reboot-required
+    register: debian_reboot_required
+    when: ansible_os_family == 'Debian'
+  - name: Restart Debian hosts if reboot is required
+    ansible.builtin.reboot:
+      msg: Rebooting because /var/run/reboot-required exists
+      reboot_timeout: 600
+      post_reboot_delay: 30
+    when:
+    - ansible_os_family == 'Debian'
+    - debian_reboot_required.stat.exists | default(false)
 

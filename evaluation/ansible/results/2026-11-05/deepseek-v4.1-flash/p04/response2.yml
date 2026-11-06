@@ -1,0 +1,12 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p04, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Allow all users to list and read, but only owner to write
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      recurse: true
+      mode: u=rwX,g=rX,o=rX
+

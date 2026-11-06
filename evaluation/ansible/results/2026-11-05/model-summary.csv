@@ -1,7 +1,7 @@
-model,planned,completed,incomplete,provider_or_transport_failures,budget_pending,raw_nonempty,yaml_parses,extracted_nonempty,processed_yaml_parses,has_tasks,syntax_check_pass,syntax_check_fail,syntax_check_not_run,forbidden_module_flags,cost_usd
-claude-opus-5-5,210,210,0,0,0,210,199,199,199,199,198,1,11,2,2.11164
-deepseek-v4-flash,210,193,17,0,0,193,193,193,193,193,193,0,17,0,0.09209333515
-deepseek-v4.1-flash,210,189,21,0,0,192,189,189,189,189,189,0,21,0,0.343847092531
-glm-5.3,210,210,0,0,0,210,209,209,209,209,204,5,1,2,0.233965560702
-gpt-6.1-sol,210,210,0,0,0,210,210,210,210,210,210,0,0,0,0.8891600000000001
-qwen3.8-flash,210,115,95,0,0,119,119,119,119,119,116,3,91,0,0.271223159206
+model,planned,completed,incomplete,provider_or_transport_failures,budget_pending,raw_nonempty,yaml_parses,extracted_nonempty,processed_yaml_parses,has_tasks,syntax_check_pass,syntax_check_fail,syntax_check_not_run,forbidden_module_flags,cost_usd,original_length_limited,cap_refresh_completed,still_at_cap,additional_cost_usd
+claude-opus-5-5,210,210,0,0,0,210,199,199,199,199,198,1,11,2,2.11164,0,0,0,0
+deepseek-v4-flash,210,209,1,0,0,209,209,209,209,209,203,6,1,0,0.154864398314,17,16,1,0.062771063164
+deepseek-v4.1-flash,210,210,0,0,0,210,210,210,210,210,206,4,0,0,0.419482774836,21,21,0,0.075635682305
+glm-5.3,210,210,0,0,0,210,209,209,209,209,204,5,1,2,0.233965560702,0,0,0,0
+gpt-6.1-sol,210,210,0,0,0,210,210,210,210,210,210,0,0,0,0.8891600000000001,0,0,0,0
+qwen3.8-flash,210,210,0,0,0,210,210,210,210,210,195,15,0,0,0.64118563792,95,95,0,0.369962478714

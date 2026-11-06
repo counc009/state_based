@@ -1,0 +1,41 @@
+---
+- name: "Model qwen3.8-flash, Problem p04, Response 5"
+  hosts: all
+  become: true
+  vars:
+    target_path: /srv/path
+  tasks:
+  - name: Ensure the target directory has owner-only write permission
+    ansible.builtin.file:
+      path: "{{ target_path }}"
+      state: directory
+      mode: "0755"
+  - name: Find all files under the target directory
+    ansible.builtin.find:
+      paths: "{{ target_path }}"
+      recurse: true
+      file_type: file
+    register: target_files
+  - name: Set permissions on all files so only the owner can write
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: file
+      mode: "0644"
+    loop: "{{ target_files.files | default([]) }}"
+    loop_control:
+      label: "{{ item.path }}"
+  - name: Find all directories under the target directory
+    ansible.builtin.find:
+      paths: "{{ target_path }}"
+      recurse: true
+      file_type: directory
+    register: target_dirs
+  - name: Set permissions on all directories so they are listable and readable
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: directory
+      mode: "0755"
+    loop: "{{ target_dirs.files | default([]) }}"
+    loop_control:
+      label: "{{ item.path }}"
+

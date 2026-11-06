@@ -1,0 +1,72 @@
+---
+- name: "Model qwen3.8-flash, Problem p16, Response 9"
+  hosts: all
+  become: true
+  vars:
+    dev_user: dev
+    zsh_candidate_paths:
+    - /bin/zsh
+    - /usr/bin/zsh
+    - /usr/local/bin/zsh
+  tasks:
+  - name: Ensure the dev group exists
+    ansible.builtin.group:
+      name: "{{ dev_user }}"
+      state: present
+  - name: Install zsh
+    ansible.builtin.package:
+      name: zsh
+      state: present
+  - name: Check common zsh executable paths
+    ansible.builtin.stat:
+      path: "{{ item }}"
+    loop: "{{ zsh_candidate_paths }}"
+    register: zsh_path_checks
+  - name: Determine installed zsh executable path
+    ansible.builtin.set_fact:
+      found_zsh_paths: >-
+        {{ zsh_path_checks.results
+           | selectattr('stat.exists')
+           | map(attribute='item')
+           | list }}
+  - name: Assert that zsh executable was found
+    ansible.builtin.assert:
+      that:
+      - found_zsh_paths | length > 0
+      fail_msg: "zsh executable was not found in common locations"
+  - name: Set zsh executable fact
+    ansible.builtin.set_fact:
+      zsh_bin: "{{ found_zsh_paths[0] }}"
+  - name: Ensure zsh is listed in /etc/shells
+    ansible.builtin.lineinfile:
+      path: /etc/shells
+      line: "{{ zsh_bin }}"
+      state: present
+      create: true
+  - name: Ensure dev user uses zsh as default shell
+    ansible.builtin.user:
+      name: "{{ dev_user }}"
+      state: present
+      shell: "{{ zsh_bin }}"
+      create_home: true
+      get_user: true
+    register: dev_user_info
+  - name: Set dev user home directory fact
+    ansible.builtin.set_fact:
+      dev_home: "{{ dev_user_info.home | default('/home/' ~ dev_user, true) }}"
+  - name: Ensure dev home directory exists
+    ansible.builtin.file:
+      path: "{{ dev_home }}"
+      state: directory
+      owner: "{{ dev_user }}"
+      group: "{{ dev_user }}"
+      mode: "0755"
+  - name: Ensure dev zsh configuration file exists
+    ansible.builtin.copy:
+      dest: "{{ dev_home }}/.zshrc"
+      content: ""
+      owner: "{{ dev_user }}"
+      group: "{{ dev_user }}"
+      mode: "0644"
+      force: false
+

@@ -1,0 +1,61 @@
+---
+- name: "Model qwen3.8-flash, Problem p18, Response 4"
+  hosts: redhat
+  become: true
+  vars:
+    httpd_package: httpd
+    httpd_service: httpd
+    webroot: /var/www/html
+    index_file: "{{ webroot }}/index.html"
+    webdev_user: webdev
+    webdev_group: webdev
+  tasks:
+  - name: Install Apache web server package
+    ansible.builtin.package:
+      name: "{{ httpd_package }}"
+      state: present
+  - name: Ensure Apache service is started and enabled
+    ansible.builtin.service:
+      name: "{{ httpd_service }}"
+      state: started
+      enabled: true
+  - name: Ensure Apache document root exists
+    ansible.builtin.file:
+      path: "{{ webroot }}"
+      state: directory
+      owner: root
+      group: root
+      mode: "0755"
+  - name: Ensure Apache home page exists
+    ansible.builtin.copy:
+      dest: "{{ index_file }}"
+      owner: root
+      group: root
+      mode: "0644"
+      force: false
+      content: |
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <title>Welcome to Apache</title>
+          </head>
+          <body>
+            <h1>It works!</h1>
+            <p>This Apache home page was managed by Ansible.</p>
+          </body>
+        </html>
+  - name: Ensure webdev group exists
+    ansible.builtin.group:
+      name: "{{ webdev_group }}"
+      state: present
+  - name: Ensure webdev user exists
+    ansible.builtin.user:
+      name: "{{ webdev_user }}"
+      group: "{{ webdev_group }}"
+      home: "/home/{{ webdev_user }}"
+      state: present
+      create_home: true
+      shell: /bin/bash
+      comment: "Web development user"
+

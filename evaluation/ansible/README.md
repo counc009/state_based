@@ -51,3 +51,21 @@ python3 evaluation/ansible/code/validate_export.py evaluation/ansible/results/20
 ```
 
 The public replay recreates the native paper extraction from raw completions in a temporary directory and checks it byte-for-byte against the handoff files. It never executes tasks.
+
+## Cap-only reruns
+
+The November 6 amendment reruns only the 133 original answers that stopped at `length` with exactly 4,096 output tokens. This is an operator-imposed budget constraint, not evidence of model failure. The fresh samples use 32,768 tokens (within all three provider limits), identical prompts/reasoning and no seed/temperature/top-p. A separate $5 ledger bounds these calls and any transient retries. Original completed cells are excluded from paid work and their canonical files remain byte-identical.
+
+```sh
+# Freeze once, with an operator-fetched router catalog JSON:
+python3 evaluation/ansible/code/refresh_limited.py freeze \
+  --run evaluation/ansible/results/2026-11-05 --catalog /path/to/router-catalog.json
+# Resume from the existing frozen refresh manifest; never freeze over a completed refresh:
+python3 evaluation/ansible/code/refresh_limited.py run \
+  --run evaluation/ansible/results/2026-11-05 \
+  --credentials-file /path/to/operator-owned-private-model-vars.json --workers 24
+/tmp/astrogator-ansible-venv/bin/python evaluation/ansible/code/repackage_refresh.py \
+  --run evaluation/ansible/results/2026-11-05 --workers 6
+```
+
+`history/cap-4096/` preserves the original exports and raw answers, plus originally extracted files for selected cells. `attempt-history.csv` and `.jsonl` include every original/rerun attempt with phase, cap, stop reason, usage and cost; JSONL also preserves answer text, excluding private reasoning. Canonical CSV usage/cost totals include all attempts; `canonical_*` columns identify the latest selected answer's usage, attempt and phase, and `max_output_tokens` gives its actual cap. The manifest records exact cap overrides, catalog limits, the separate guard and amendment provenance. A remaining `still_at_cap` flag denotes another budget-limited outcome, not a correctness verdict. Router streams get a 3,600-second overall deadline at the larger cap; the 180-second idle timeout and bounded transient retries remain. No VMs, generated tasks, verifier or judge are added.

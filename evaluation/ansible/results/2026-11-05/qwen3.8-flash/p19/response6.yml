@@ -1,0 +1,32 @@
+---
+- name: "Model qwen3.8-flash, Problem p19, Response 6"
+  hosts: all
+  become: true
+  vars:
+    sudo_group: wheel
+    target_user: ansible
+  tasks:
+  - name: Ensure the sudo group exists
+    ansible.builtin.group:
+      name: "{{ sudo_group }}"
+      state: present
+  - name: Enable passwordless sudo for the sudo group
+    ansible.builtin.lineinfile:
+      path: /etc/sudoers
+      state: present
+      regexp: '^\s*%{{ sudo_group }}\s+ALL=\(ALL(:ALL)?\)\s+NOPASSWD:\s+ALL$'
+      line: '%{{ sudo_group }} ALL=(ALL) NOPASSWD: ALL'
+      validate: 'visudo -cf %s'
+  - name: Create the target user and add it to the sudo group
+    ansible.builtin.user:
+      name: "{{ target_user }}"
+      groups: "{{ sudo_group }}"
+      append: true
+      state: present
+  - name: Ensure sudoers file permissions are correct
+    ansible.builtin.file:
+      path: /etc/sudoers
+      owner: root
+      group: root
+      mode: '0440'
+

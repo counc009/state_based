@@ -1,0 +1,24 @@
+---
+- name: "Model qwen3.8-flash, Problem p06, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure parent directories exist
+    ansible.builtin.file:
+      path: "{{ item }}"
+      state: directory
+      mode: "0755"
+    loop:
+    - /user
+    - /user/home
+  - name: Create the Python 3.10 virtual environment
+    community.general.virtualenv:
+      name: /user/home/venv
+      virtualenv_command: /usr/bin/python3.10
+      state: directory
+  - name: Install numpy in the virtual environment
+    ansible.builtin.pip:
+      name: numpy
+      virtualenv: /user/home/venv
+      virtualenv_command: /usr/bin/python3.10
+

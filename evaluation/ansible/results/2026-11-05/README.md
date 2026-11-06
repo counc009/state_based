@@ -1,6 +1,6 @@
 # NL-to-Ansible handoff for Aaron
 
-Generation only: Appendix B prompt, 21 original tasks × six models × ten samples = 1,260 planned calls. HIGH effort is sent for five models; Qwen receives XHIGH. Output is capped at 4,096 tokens, including provider-counted reasoning where applicable. There is one user message and no added system prompt, temperature, top-p or seed. The six connectivity/preflight cells are included in the 1,260, not extra samples.
+Generation only: Appendix B prompt, 21 original tasks × six models × ten samples = 1,260 planned calls. HIGH effort is sent for five models; Qwen receives XHIGH. The initial output cap was 4,096 tokens, including provider-counted reasoning. Only the 133 original length-limited cells were rerun at 32,768 tokens; the 1,127 originally completed cells retain their original answers and cap. There is one user message and no added system prompt, temperature, top-p or seed. The six connectivity/preflight cells are included in the 1,260, not extra samples.
 
 ## Feed into executor.py
 
@@ -25,8 +25,16 @@ The verbatim Appendix B text was supplied by Darsh; the POPL PDF itself was in t
 
 See the [generation guide](../../README.md) for setup, protocol and credential-free integrity/extraction replay commands, with optional repeated free syntax checks.
 
-## Run outcome
+## Run outcome after the cap amendment
 
-All 1,260 cells returned in one attempt each: 1,127 completed and 133 output-limited. There were zero provider/transport failures and zero budget-pending cells. The historical extractor produced 1,119 nonempty files; 1,110 pass syntax and nine fail; four responses flag prohibited modules. Missing files remain explicit rows.
+The original 133 length-limited samples reflected the operator’s 4,096-token budget, not model failure. All 133 were rerun with the same prompt/reasoning and seed-free sampling at 32,768 tokens, within the authenticated router catalog limits. The only request-body change is `max_tokens`. A separate **$5 extra** guard bounds the resumable amendment; the larger streams have a 3,600-second overall deadline and the same 180-second idle timeout.
 
-Token-accounted spend was **$3.941929147589 total**, including **$2.111640 Anthropic**, with zero unknown-billing reserve. Both guards were respected. See `validation.json` for test/build, integrity and full byte-for-byte extraction-replay results. This run began November 5 UTC and finished/checks completed November 6 UTC.
+Of those reruns, 132 completed and one again reached the cap: **DeepSeek V4 Flash, a21/p20, repeat index 5 (`response5.yml`)**. All 32,768 reported output tokens were reasoning, so that cell has no extracted playbook. No generation API failures, retries or budget-pending cells occurred. The other 1,127 originally completed cells received no new calls and their raw answers and 1,115 extracted files remain unchanged.
+
+The canonical 1,260 rows now contain 1,259 completed answers and one capped answer. There are **1,247 nonempty files**, **1,216 syntax passes**, **31 syntax failures**, and **four prohibited-module flags**. Thirteen cells have no extracted file, including the twelve originally completed but unparseable answers that were outside the authorized rerun selection. All checks remain format/tool acceptance counts, not correctness.
+
+Extra token-accounted spend: **$0.508369224183**. Cumulative spend including the original run: **$4.450298371772**; Anthropic remains **$2.111640**, with no new Anthropic calls. Unknown-billing reserve is $0. These are frozen-rate local costs, not provider invoices.
+
+`history/cap-4096/` preserves the original manifest, CSVs, raw answers, validation and selected old files. `attempt-history.csv` and `.jsonl` retain all **1,393 attempts**, including phase, cap, stop reason, usage and cost; JSONL also retains answer text without private reasoning. Canonical `offline-checks.csv` usage/cost fields aggregate all attempts; `canonical_*` fields identify the chosen answer’s usage, attempt and phase. Per-cell `max_output_tokens` and manifest cap overrides make the mixed budget profile explicit. `still_at_cap` records a budget-limited outcome, not a correctness failure.
+
+See `validation.json` for 35 passing tests, native build, complete export/history integrity, unchanged-completed-cell proofs, actual request-body hashes and byte-for-byte public extraction replay. The initial run began November 5 UTC; this amendment completed November 6 UTC. No generated tasks, VMs, Docker runtime, Astrogator verifier or LLM judge ran.

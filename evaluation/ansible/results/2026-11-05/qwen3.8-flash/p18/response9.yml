@@ -3,37 +3,30 @@
   hosts: redhat
   become: true
   tasks:
-  - name: Ensure tasks run only on RedHat-family systems
-    ansible.builtin.assert:
-      that:
-      - ansible_facts['os_family'] == 'RedHat'
-      fail_msg: "This playbook is intended for RedHat-family systems."
-  - name: Install Apache server
-    ansible.builtin.package:
-      name: httpd
-      state: present
-  - name: Start and enable Apache server
-    ansible.builtin.service:
-      name: httpd
-      state: started
-      enabled: true
-  - name: Ensure Apache web root directory exists
-    ansible.builtin.file:
-      path: /var/www/html
-      state: directory
-      owner: apache
-      group: apache
-      mode: "0755"
-  - name: Check whether the default home page exists
-    ansible.builtin.stat:
-      path: /var/www/html/index.html
-    register: web_home_page
-  - name: Ensure the Apache home page exists
-    ansible.builtin.copy:
-      dest: /var/www/html/index.html
-      content: |-
-        <html>
-          <body>
-            <h1>Apache is running</h1>
-          </
+  - name: Perform RedHat-specific configuration
+    when: ansible_facts['os_family'] == 'RedHat'
+    block:
+    - name: Install apache server
+      ansible.builtin.package:
+        name: httpd
+        state: present
+    - name: Ensure apache document root exists
+      ansible.builtin.file:
+        path: /var/www/html
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+    - name: Ensure apache home page exists
+      ansible.builtin.file:
+        path: /var/www/html/index.html
+        state: touch
+        owner: root
+        group: root
+        mode: '0644'
+    - name: Create webdev user
+      ansible.builtin.user:
+        name: webdev
+        state: present
+        create_home: true
 

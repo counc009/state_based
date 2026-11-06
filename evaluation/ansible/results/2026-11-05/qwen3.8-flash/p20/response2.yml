@@ -1,0 +1,70 @@
+---
+- name: "Model qwen3.8-flash, Problem p20, Response 2"
+  hosts: redhat,debian
+  become: true
+  vars:
+    ssh_user: fizbaz
+    ssh_key_file: /.ssh/fizbaz_rsa
+    ssh_service_name: "{{ 'sshd' if ansible_facts['os_family'] == 'RedHat' else 'ssh'
+      }}"
+    ssh_packages:
+    - openssh-server
+    - "{{ 'openssh-clients' if ansible_facts['os_family'] == 'RedHat' else 'openssh-client'
+      }}"
+  tasks:
+  - name: Assert supported OS family
+    ansible.builtin.assert:
+      that:
+      - ansible_facts['os_family'] in ['Debian', 'RedHat']
+      fail_msg: "Only Debian and RedHat are supported."
+  - name: Install OpenSSH client and server
+    ansible.builtin.package:
+      name: "{{ ssh_packages }}"
+      state: present
+  - name: Enable and start SSH service
+    ansible.builtin.service:
+      name: "{{ ssh_service_name }}"
+      enabled: true
+      state: started
+  - name: Ensure SSH user group exists
+    ansible.builtin.group:
+      name: "{{ ssh_user }}"
+      state: present
+  - name: Ensure SSH user exists
+    ansible.builtin.user:
+      name: "{{ ssh_user }}"
+      group: "{{ ssh_user }}"
+      create_home: false
+      state: present
+  - name: Ensure /.ssh directory exists
+    ansible.builtin.file:
+      path: /.ssh
+      state: directory
+      owner: "{{ ssh_user }}"
+      group: "{{ ssh_user }}"
+      mode: '0700'
+  - name: Generate SSH key pair for fizbaz
+    community.crypto.openssh_keypair:
+      path: "{{ ssh_key_file }}"
+      type: rsa
+      size: 4096
+      comment: "{{ ssh_user }}@localhost"
+      owner: "{{ ssh_user }}"
+      group: "{{ ssh_user }}"
+      mode: '0600'
+      state: present
+  - name: Ensure private key permissions
+    ansible.builtin.file:
+      path: "{{ ssh_key_file }}"
+      state: file
+      owner: "{{ ssh_user }}"
+      group: "{{ ssh_user }}"
+      mode: '0600'
+  - name: Ensure public key permissions
+    ansible.builtin.file:
+      path: "{{ ssh_key_file }}.pub"
+      state: file
+      owner: "{{ ssh_user }}"
+      group: "{{ ssh_user }}"
+      mode: '0644'
+

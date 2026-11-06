@@ -1,0 +1,83 @@
+{
+  "validated_at": "2026-11-06T00:04:54.974972+00:00",
+  "existing_python_tests": {
+    "command": "python3 -m unittest discover -s evaluation/tests -q",
+    "tests": 27,
+    "exit_code": 0,
+    "paid_calls": false
+  },
+  "generation_offline_tests": {
+    "command": "/tmp/astrogator-ansible-venv/bin/python -m unittest discover -s evaluation/ansible/tests -q",
+    "tests": 7,
+    "exit_code": 0,
+    "paid_calls": false
+  },
+  "native_build": {
+    "command": "opam exec -- dune build @all",
+    "exit_code": 0
+  },
+  "six_model_packaging_control": "passed using temporary copies of the six planned preflight receipts; no extra paid calls",
+  "integrity": {
+    "planned_rows": 1260,
+    "extracted_files": 1119,
+    "models": 6,
+    "problems": 21,
+    "accounted_cost_usd": 3.9419291475889984,
+    "integrity": "pass"
+  },
+  "public_extraction_replay": {
+    "planned": 1260,
+    "extracted_files_reproduced": 1119,
+    "syntax_rechecked": false,
+    "result": "pass"
+  },
+  "returned_models": {
+    "claude-opus-5-5": [
+      "claude-opus-5-5"
+    ],
+    "deepseek-v4-flash": [
+      "deepseek-v4-flash"
+    ],
+    "deepseek-v4.1-flash": [
+      "deepseek-v4.1-flash"
+    ],
+    "glm-5.3": [
+      "glm-5.3"
+    ],
+    "gpt-6.1-sol": [
+      "gpt-6.1-sol"
+    ],
+    "qwen3.8-flash": [
+      "qwen3.8-flash"
+    ]
+  },
+  "generation": {
+    "planned": 1260,
+    "attempts": 1260,
+    "provider_or_transport_failures": 0,
+    "budget_pending": 0,
+    "completed": 1127,
+    "incomplete": 133
+  },
+  "offline_syntax_checks": {
+    "checked": 1119,
+    "pass": 1110,
+    "fail": 9,
+    "not_extracted": 141
+  },
+  "runtime_execution": false,
+  "vm_or_docker_runtime": false,
+  "astrogator_verifier": false,
+  "llm_judge": false,
+  "whitespace_check": {
+    "command": "git -c core.whitespace=-blank-at-eof diff --cached --check",
+    "exit_code": 0,
+    "note": "Generated YAML retains the original processor\u2019s extra EOF newline byte-for-byte; other whitespace checks remain enabled."
+  },
+  "secret_audit": {
+    "staged_files_scanned": 1140,
+    "exact_supplied_key_values_present": false,
+    "private_ledger_or_reasoning_files_staged": false,
+    "result": "pass"
+  }
+}

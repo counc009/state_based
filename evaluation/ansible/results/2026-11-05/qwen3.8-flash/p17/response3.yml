@@ -1,0 +1,66 @@
+---
+- name: "Model qwen3.8-flash, Problem p17, Response 3"
+  hosts: redhat,ubuntu
+  become: true
+  vars:
+    postfix_conf: /etc/postfix/main.cf
+    postfix_backup: /etc/postfix/main.cf.bak
+  tasks:
+  - name: Install latest postfix on Ubuntu
+    ansible.builtin.package:
+      name: postfix
+      state: latest
+      update_cache: true
+    environment:
+      DEBIAN_FRONTEND: noninteractive
+    when: ansible_facts['distribution'] == 'Ubuntu'
+  - name: Install latest postfix on RedHat
+    ansible.builtin.package:
+      name: postfix
+      state: latest
+    when: ansible_facts['os_family'] == 'RedHat'
+  - name: Backup default postfix configuration file
+    ansible.builtin.copy:
+      src: "{{ postfix_conf }}"
+      dest: "{{ postfix_backup }}"
+      remote_src: true
+      force: false
+      owner: root
+      group: root
+      mode: '0644'
+    when: ansible_facts['distribution'] == 'Ubuntu' or ansible_facts['os_family']
+      == 'RedHat'
+  - name: Download postfix configuration file for Ubuntu
+    ansible.builtin.get_url:
+      url: http://example.com/cfg.ubuntu
+      dest: "{{ postfix_conf }}"
+      owner: root
+      group: root
+      mode: '0644'
+      backup: true
+    when: ansible_facts['distribution'] == 'Ubuntu'
+    notify: Restart postfix
+  - name: Download postfix configuration file for RedHat
+    ansible.builtin.get_url:
+      url: http://example.com/cfg.redhat
+      dest: "{{ postfix_conf }}"
+      owner: root
+      group: root
+      mode: '0644'
+      backup: true
+    when: ansible_facts['os_family'] == 'RedHat'
+    notify: Restart postfix
+  - name: Ensure postfix is running and enabled
+    ansible.builtin.service:
+      name: postfix
+      state: started
+      enabled: true
+    when: ansible_facts['distribution'] == 'Ubuntu' or ansible_facts['os_family']
+      == 'RedHat'
+  handlers:
+  - name: Restart postfix
+    ansible.builtin.service:
+      name: postfix
+      state: restarted
+      enabled: true
+

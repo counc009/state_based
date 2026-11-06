@@ -1,0 +1,30 @@
+---
+- name: "Model qwen3.8-flash, Problem p11a, Response 8"
+  hosts: all
+  become: true
+  vars:
+    war_src_dir: /backup
+    war_dest_dir: /tmp
+  tasks:
+  - name: Ensure destination directory exists
+    ansible.builtin.file:
+      path: "{{ war_dest_dir }}"
+      state: directory
+  - name: Find .war files on Ansible controller
+    ansible.builtin.find:
+      paths: "{{ war_src_dir }}"
+      patterns:
+      - "*.war"
+      recurse: false
+    delegate_to: localhost
+    changed_when: false
+    register: war_files
+  - name: Copy .war files to remote host
+    ansible.builtin.copy:
+      src: "{{ item.path }}"
+      dest: "{{ war_dest_dir }}/"
+      remote_src: false
+    loop: "{{ war_files.files | default([]) }}"
+    loop_control:
+      label: "{{ item.path }}"
+

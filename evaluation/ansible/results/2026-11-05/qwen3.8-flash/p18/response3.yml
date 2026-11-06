@@ -1,0 +1,66 @@
+---
+- name: "Model qwen3.8-flash, Problem p18, Response 3"
+  hosts: redhat
+  become: true
+  vars:
+    apache_package: httpd
+    apache_service: httpd
+    webdev_user: webdev
+    apache_document_root: /var/www/html
+    apache_index_file: "{{ apache_document_root }}/index.html"
+    default_homepage_content: |
+      <html>
+        <head>
+          <title>RedHat Apache Server</title>
+        </head>
+        <body>
+          <h1>RedHat Apache server is running.</h1>
+        </body>
+      </html>
+  tasks:
+  - name: Run RedHat Apache setup only on RedHat family systems
+    block:
+    - name: Install Apache server package
+      ansible.builtin.package:
+        name: "{{ apache_package }}"
+        state: present
+    - name: Ensure Apache service is enabled and running
+      ansible.builtin.service:
+        name: "{{ apache_service }}"
+        state: started
+        enabled: true
+    - name: Create webdev user
+      ansible.builtin.user:
+        name: "{{ webdev_user }}"
+        state: present
+        create_home: true
+        home: "/home/{{ webdev_user }}"
+        shell: /bin/bash
+    - name: Ensure Apache DocumentRoot directory exists
+      ansible.builtin.file:
+        path: "{{ apache_document_root }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+    - name: Check if home page exists
+      ansible.builtin.stat:
+        path: "{{ apache_index_file }}"
+      register: homepage_stat
+      changed_when: false
+    - name: Ensure default home page exists
+      ansible.builtin.copy:
+        dest: "{{ apache_index_file }}"
+        content: "{{ default_homepage_content }}"
+        owner: root
+        group: root
+        mode: "0644"
+      when: not homepage_stat.stat.exists
+    - name: Ensure Apache home page has correct permissions
+      ansible.builtin.file:
+        path: "{{ apache_index_file }}"
+        owner: root
+        group: root
+        mode: "0644"
+    when: ansible_os_family == "RedHat"
+

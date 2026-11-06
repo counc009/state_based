@@ -44,6 +44,20 @@ class GenerationTests(unittest.TestCase):
                 if key=='sol':self.assertEqual(body['reasoning'],{'effort':'high'})
                 elif key=='opus':self.assertEqual(body['output_config'],{'effort':'high'})
                 else:self.assertEqual(body['reasoning_effort'],'xhigh' if key=='qwen3.8-flash' else 'high');self.assertTrue(body['stream'])
+    def test_larger_budget_changes_only_request_token_cap(self):
+        import copy
+        m=g.freeze(self.data)
+        with patch.dict('os.environ',{'AGENTFANCLUB_API_KEY':'fixture','AGENTFANCLUB_BASE_URL':'https://api.router.agentfan.club/inference/v1'}):
+            for key in ['deepseek-v4.1-flash','deepseek-v4-flash','qwen3.8-flash']:
+                c=next(c for c in m['cells'] if c['model']==key)
+                _,before,_=g.build(c,m['config'])
+                config=copy.deepcopy(m['config']);config['max_output_tokens']=32768
+                _,after,_=g.build(c,config)
+                self.assertEqual(before.pop('max_tokens'),4096)
+                self.assertEqual(after.pop('max_tokens'),32768)
+                self.assertEqual(before,after)
+                self.assertNotIn('seed',after)
+
     @unittest.skipUnless((g.REPO/'_build/default/evaluation/ansible/native/paper_process.exe').exists(),'Build the native processor for integration checks')
     def test_original_processor_retains_tasks_handlers_vars_and_pins_hosts(self):
         import subprocess

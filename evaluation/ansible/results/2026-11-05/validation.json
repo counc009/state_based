@@ -1,83 +1,76 @@
 {
-  "validated_at": "2026-11-06T00:04:54.974972+00:00",
-  "existing_python_tests": {
-    "command": "python3 -m unittest discover -s evaluation/tests -q",
-    "tests": 27,
-    "exit_code": 0,
-    "paid_calls": false
-  },
-  "generation_offline_tests": {
-    "command": "/tmp/astrogator-ansible-venv/bin/python -m unittest discover -s evaluation/ansible/tests -q",
-    "tests": 7,
-    "exit_code": 0,
+  "validated_at": "2026-11-06T00:41:25.647414+00:00",
+  "python_tests": {
+    "existing": 27,
+    "generation_offline": 8,
+    "total": 35,
+    "passed": true,
     "paid_calls": false
   },
   "native_build": {
     "command": "opam exec -- dune build @all",
     "exit_code": 0
   },
-  "six_model_packaging_control": "passed using temporary copies of the six planned preflight receipts; no extra paid calls",
   "integrity": {
     "planned_rows": 1260,
-    "extracted_files": 1119,
+    "extracted_files": 1247,
     "models": 6,
     "problems": 21,
-    "accounted_cost_usd": 3.9419291475889984,
-    "integrity": "pass"
+    "accounted_cost_usd": 4.450298371771999,
+    "integrity": "pass",
+    "cap_refresh": {
+      "selected": 133,
+      "original_completed_cells_preserved": 1127,
+      "additional_attempts": 133,
+      "additional_cost_usd": 0.508369224183,
+      "still_at_cap": 1,
+      "request_body_hashes_verified": true
+    }
   },
   "public_extraction_replay": {
     "planned": 1260,
-    "extracted_files_reproduced": 1119,
+    "extracted_files_reproduced": 1247,
     "syntax_rechecked": false,
     "result": "pass"
   },
-  "returned_models": {
-    "claude-opus-5-5": [
-      "claude-opus-5-5"
-    ],
-    "deepseek-v4-flash": [
-      "deepseek-v4-flash"
-    ],
-    "deepseek-v4.1-flash": [
-      "deepseek-v4.1-flash"
-    ],
-    "glm-5.3": [
-      "glm-5.3"
-    ],
-    "gpt-6.1-sol": [
-      "gpt-6.1-sol"
-    ],
-    "qwen3.8-flash": [
-      "qwen3.8-flash"
-    ]
+  "phase_source_hashes_verified": {
+    "initial_source_commit": "dd13244ef616b8944e3c4370fc2d793b2edb30f6",
+    "initial_generator_and_ledger": true,
+    "current_generator_refresh_runner_repackager": true
   },
   "generation": {
-    "planned": 1260,
-    "attempts": 1260,
+    "planned_cells": 1260,
+    "total_attempts": 1393,
+    "authorized_refresh_cells": 133,
+    "refresh_attempts": 133,
+    "refresh_completed": 132,
+    "refresh_still_at_cap": 1,
     "provider_or_transport_failures": 0,
-    "budget_pending": 0,
-    "completed": 1127,
-    "incomplete": 133
+    "budget_pending": 0
   },
   "offline_syntax_checks": {
-    "checked": 1119,
-    "pass": 1110,
-    "fail": 9,
-    "not_extracted": 141
+    "checked": 1247,
+    "pass": 1216,
+    "fail": 31,
+    "not_extracted": 13
   },
   "runtime_execution": false,
   "vm_or_docker_runtime": false,
   "astrogator_verifier": false,
   "llm_judge": false,
+  "secret_audit": {
+    "staged_files_scanned": 158,
+    "result": "pass",
+    "exact_supplied_keys_present": false,
+    "private_ledger_or_reasoning_files_staged": false
+  },
+  "canonical_git_diff": {
+    "changed_or_added_sample_files": 132,
+    "all_in_authorized_selection": true
+  },
   "whitespace_check": {
     "command": "git -c core.whitespace=-blank-at-eof diff --cached --check",
     "exit_code": 0,
-    "note": "Generated YAML retains the original processor\u2019s extra EOF newline byte-for-byte; other whitespace checks remain enabled."
-  },
-  "secret_audit": {
-    "staged_files_scanned": 1140,
-    "exact_supplied_key_values_present": false,
-    "private_ledger_or_reasoning_files_staged": false,
-    "result": "pass"
+    "note": "Original generated YAML EOF blanks preserved byte-for-byte; other whitespace checks enabled."
   }
 }

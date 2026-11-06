@@ -1,0 +1,66 @@
+---
+- name: "Model deepseek-v4-flash, Problem p20, Response 4"
+  hosts: redhat,debian
+  become: true
+  vars:
+    ssh_packages:
+      Debian:
+      - openssh-client
+      - openssh-server
+      RedHat:
+      - openssh-clients
+      - openssh-server
+    ssh_service_name:
+      Debian: ssh
+      RedHat: sshd
+  tasks:
+  - name: Fail on unsupported OS family
+    ansible.builtin.fail:
+      msg: "Unsupported OS family: {{ ansible_facts['os_family'] }}"
+    when: ansible_facts['os_family'] not in ssh_packages
+  - name: Install SSH client and server
+    ansible.builtin.package:
+      name: "{{ ssh_packages[ansible_facts['os_family']] }}"
+      state: present
+  - name: Start and enable SSH server
+    ansible.builtin.service:
+      name: "{{ ssh_service_name[ansible_facts['os_family']] }}"
+      state: started
+      enabled: true
+  - name: Ensure fizbaz user exists
+    ansible.builtin.user:
+      name: fizbaz
+      state: present
+      create_home: true
+    register: fizbaz_user
+  - name: Set fizbaz home and group facts
+    ansible.builtin.set_fact:
+      fizbaz_home: "{{ fizbaz_user.home | default('/home/fizbaz', true) }}"
+      fizbaz_group: "{{ fizbaz_user.group | default('fizbaz', true) }}"
+  - name: Ensure fizbaz .ssh directory exists
+    ansible.builtin.file:
+      path: "{{ fizbaz_home }}/.ssh"
+      state: directory
+      owner: fizbaz
+      group: "{{ fizbaz_group }}"
+      mode: "0700"
+  - name: Generate SSH key pair for fizbaz
+    community.crypto.openssh_keypair:
+      path: "{{ fizbaz_home }}/.ssh/fizbaz_rsa"
+      type: rsa
+      size: 3072
+      comment: "fizbaz@{{ ansible_facts['hostname'] }}"
+    no_log: true
+  - name: Set private key ownership and permissions
+    ansible.builtin.file:
+      path: "{{ fizbaz_home }}/.ssh/fizbaz_rsa"
+      owner: fizbaz
+      group: "{{ fizbaz_group }}"
+      mode: "0600"
+  - name: Set public key ownership and permissions
+    ansible.builtin.file:
+      path: "{{ fizbaz_home }}/.ssh/fizbaz_rsa.pub"
+      owner: fizbaz
+      group: "{{ fizbaz_group }}"
+      mode: "0644"
+

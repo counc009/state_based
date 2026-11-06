@@ -1,0 +1,20 @@
+---
+- name: "Model qwen3.8-flash, Problem p08, Response 9"
+  hosts: all
+  become: true
+  tasks:
+  - name: Fail if OS family is unsupported
+    ansible.builtin.fail:
+      msg: "Unsupported OS family: {{ ansible_os_family }}"
+    when: ansible_os_family not in ['Debian', 'RedHat']
+  - name: Install numpy on Debian based systems
+    ansible.builtin.package:
+      name: python3-numpy
+      state: present
+    when: ansible_os_family == 'Debian'
+  - name: Install numpy on RedHat based systems
+    ansible.builtin.package:
+      name: python3-numpy
+      state: present
+    when: ansible_os_family == 'RedHat'
+
