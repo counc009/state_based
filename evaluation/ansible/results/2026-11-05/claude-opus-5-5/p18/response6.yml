@@ -1,0 +1,57 @@
+---
+- name: "Model claude-opus-5-5, Problem p18, Response 6"
+  hosts: redhat
+  become: true
+  vars:
+    apache_package: httpd
+    apache_service: httpd
+    document_root: /var/www/html
+    home_page: "{{ document_root }}/index.html"
+    web_user: webdev
+  tasks:
+  - name: Install Apache web server
+    ansible.builtin.yum:
+      name: "{{ apache_package }}"
+      state: present
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Ensure document root directory exists
+    ansible.builtin.file:
+      path: "{{ document_root }}"
+      state: directory
+      owner: root
+      group: root
+      mode: "0755"
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Ensure the home page exists
+    ansible.builtin.copy:
+      dest: "{{ home_page }}"
+      content: |
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Welcome</title>
+          </head>
+          <body>
+            <h1>Welcome to {{ ansible_facts['hostname'] }}</h1>
+            <p>Apache is installed and running.</p>
+          </body>
+        </html>
+      owner: root
+      group: root
+      mode: "0644"
+      force: false
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Ensure Apache service is started and enabled
+    ansible.builtin.service:
+      name: "{{ apache_service }}"
+      state: started
+      enabled: true
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Create the webdev user
+    ansible.builtin.user:
+      name: "{{ web_user }}"
+      state: present
+      shell: /bin/bash
+      create_home: true
+    when: ansible_facts['os_family'] == "RedHat"
+

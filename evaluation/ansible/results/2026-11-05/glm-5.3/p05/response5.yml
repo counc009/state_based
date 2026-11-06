@@ -1,0 +1,10 @@
+---
+- name: "Model glm-5.3, Problem p05, Response 5"
+  hosts: all
+  become: true
+  tasks:
+  - name: Remove /home/mydata/web directory
+    ansible.builtin.file:
+      path: /home/mydata/web
+      state: absent
+

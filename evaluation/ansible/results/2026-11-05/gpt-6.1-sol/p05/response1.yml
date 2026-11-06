@@ -1,0 +1,10 @@
+---
+- name: "Model gpt-6.1-sol, Problem p05, Response 1"
+  hosts: all
+  become: true
+  tasks:
+  - name: Remove /home/mydata/web and its contents
+    ansible.builtin.file:
+      path: /home/mydata/web
+      state: absent
+

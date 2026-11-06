@@ -1,0 +1,12 @@
+---
+- name: "Model glm-5.3, Problem p11a, Response 1"
+  hosts: all
+  become: true
+  tasks:
+  - name: Copy .war files from /backup on the controller to /tmp on the remote
+    ansible.builtin.copy:
+      src: "{{ item }}"
+      dest: /tmp/
+      mode: '0644'
+    loop: "{{ lookup('ansible.builtin.fileglob', '/backup/*.war', wantlist=true) }}"
+

@@ -1,0 +1,41 @@
+---
+- name: "Model glm-5.3, Problem p04, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure /srv/path exists
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      owner: root
+      group: root
+      mode: '0755'
+  - name: Find all directories under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      file_type: directory
+      recurse: true
+    register: srv_dirs
+  - name: Find all files under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      file_type: file
+      recurse: true
+    register: srv_files
+  - name: Set directories readable by all, writable only by owner
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: directory
+      mode: '0755'
+    loop: "{{ srv_dirs.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+  - name: Set files readable by all, writable only by owner
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: file
+      mode: '0644'
+    loop: "{{ srv_files.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+

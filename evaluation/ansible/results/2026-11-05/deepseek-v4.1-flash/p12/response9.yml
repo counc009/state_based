@@ -1,0 +1,22 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p12, Response 9"
+  hosts: all
+  become: true
+  tasks:
+  - name: Check if source file exists
+    ansible.builtin.stat:
+      path: /scratch/file.txt
+    register: source_file
+  - name: Copy file to new destination
+    ansible.builtin.copy:
+      src: /scratch/file.txt
+      dest: /home/user/data.txt
+      remote_src: true
+      mode: preserve
+    when: source_file.stat.exists
+  - name: Remove original file
+    ansible.builtin.file:
+      path: /scratch/file.txt
+      state: absent
+    when: source_file.stat.exists
+

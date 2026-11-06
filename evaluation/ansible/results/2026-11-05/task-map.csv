@@ -1,0 +1,22 @@
+task_id,problem,description
+a01,p01,Create directory /srv/www
+a02,p05,Delete the directory /home/mydata/web
+a03,p15,Delete the contents of the /home/mydata/web directory
+a04,p03,Copy the file /scratch/file.txt to /home/user/data.txt
+a05,p12,Move the file at /scratch/file.txt to /home/user/data.txt
+a06,p13,Create the file /etc/file.txt with the contents ``beginning'' if it does not already exist
+a07,p11a,Copy all .war files from /backup on the controller into /tmp on the remote
+a08,p11b,Copy all .war files from /tmp on the remote machine into /backup on the controller
+a09,p07,Clone the release1.8.4 branch from the ansible/ansible github repo to /ansible using https
+a10,p02,Permanently set the environment variable LC_ALL to ``C'' system-wide
+a11,p09,Add the line `module load gcc' to the end of foo's bashrc
+a12,p14,"For Debian, restart the system if it is needed"
+a13,p04,Set permissions for the files and directories under /srv/path so that all users can list and read all files but only the owner can write
+a14,p06,Create a Python 3.10 virtual environment at /user/home/venv and install numpy in it
+a15,p08,"For Debian and RedHat based systems, install numpy"
+a16,p16,"Install zsh, set it as the user `dev''s default shell, and ensure its configuration file exists"
+a17,p10,Disable the password for the `service' user
+a18,p17,"For RedHat and Ubuntu, install the lastest version of postfix, backup its default configuration file, and download the configuration file from http://example.com/cfg.ubuntu for Ubuntu and http://example.com/cfg.redhat for RedHat"
+a19,p18,"For RedHat, install apache server, ensure the home page exists, and create a `webdev' user"
+a20,p19,Enable passwordless sudo for a `wheel' group and create an `ansible' user in that group
+a21,p20,"For Debian and RedHat, install and start an ssh client and server and generated an ssh key for `fizbaz' at /.ssh/fizbaz_rsa"

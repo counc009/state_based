@@ -1,0 +1,62 @@
+---
+- name: "Model claude-opus-5-5, Problem p17, Response 4"
+  hosts: redhat,ubuntu
+  become: true
+  vars:
+    postfix_config_file: /etc/postfix/main.cf
+    postfix_config_backup: /etc/postfix/main.cf.bak
+  tasks:
+  - name: Install latest version of postfix on Ubuntu
+    ansible.builtin.apt:
+      name: postfix
+      state: latest
+      update_cache: true
+    when: ansible_distribution == 'Ubuntu'
+  - name: Install latest version of postfix on RedHat
+    ansible.builtin.yum:
+      name: postfix
+      state: latest
+    when: ansible_os_family == 'RedHat'
+  - name: Check if default postfix configuration file exists
+    ansible.builtin.stat:
+      path: "{{ postfix_config_file }}"
+    register: postfix_cfg_stat
+    when: ansible_distribution == 'Ubuntu' or ansible_os_family == 'RedHat'
+  - name: Backup default postfix configuration file
+    ansible.builtin.copy:
+      src: "{{ postfix_config_file }}"
+      dest: "{{ postfix_config_backup }}"
+      remote_src: true
+      force: false
+      owner: root
+      group: root
+      mode: '0644'
+    when:
+    - ansible_distribution == 'Ubuntu' or ansible_os_family == 'RedHat'
+    - postfix_cfg_stat.stat.exists
+  - name: Download postfix configuration file for Ubuntu
+    ansible.builtin.get_url:
+      url: http://example.com/cfg.ubuntu
+      dest: "{{ postfix_config_file }}"
+      force: true
+      owner: root
+      group: root
+      mode: '0644'
+    when: ansible_distribution == 'Ubuntu'
+    notify: Restart postfix
+  - name: Download postfix configuration file for RedHat
+    ansible.builtin.get_url:
+      url: http://example.com/cfg.redhat
+      dest: "{{ postfix_config_file }}"
+      force: true
+      owner: root
+      group: root
+      mode: '0644'
+    when: ansible_os_family == 'RedHat'
+    notify: Restart postfix
+  handlers:
+  - name: Restart postfix
+    ansible.builtin.service:
+      name: postfix
+      state: restarted
+

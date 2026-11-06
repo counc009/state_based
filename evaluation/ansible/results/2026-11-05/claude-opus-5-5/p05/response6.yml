@@ -1,0 +1,10 @@
+---
+- name: "Model claude-opus-5-5, Problem p05, Response 6"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure /home/mydata/web directory is absent
+    ansible.builtin.file:
+      path: /home/mydata/web
+      state: absent
+

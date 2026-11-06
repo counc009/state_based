@@ -1,0 +1,29 @@
+---
+- name: "Model glm-5.3, Problem p19, Response 8"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure sudoers drop-in directory exists
+    ansible.builtin.file:
+      path: /etc/sudoers.d
+      state: directory
+      owner: root
+      group: root
+      mode: '0750'
+  - name: Enable passwordless sudo for the wheel group
+    ansible.builtin.copy:
+      content: "%wheel ALL=(ALL) NOPASSWD: ALL\n"
+      dest: /etc/sudoers.d/wheel-nopasswd
+      owner: root
+      group: root
+      mode: '0440'
+      validate: '/usr/sbin/visudo -cf %s'
+  - name: Create the ansible user in the wheel group
+    ansible.builtin.user:
+      name: ansible
+      groups: wheel
+      append: true
+      state: present
+      create_home: true
+      shell: /bin/bash
+

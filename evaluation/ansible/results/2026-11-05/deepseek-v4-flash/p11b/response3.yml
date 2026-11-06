@@ -1,0 +1,18 @@
+---
+- name: "Model deepseek-v4-flash, Problem p11b, Response 3"
+  hosts: debian
+  become: true
+  tasks:
+  - name: Find all .war files in /tmp on remote
+    ansible.builtin.find:
+      paths: /tmp
+      patterns: "*.war"
+      recurse: true
+    register: war_files
+  - name: Fetch each .war file to controller /backup
+    ansible.builtin.fetch:
+      src: "{{ item.path }}"
+      dest: /backup/
+      flat: true
+    loop: "{{ war_files.files }}"
+

@@ -1,0 +1,13 @@
+---
+- name: "Model glm-5.3, Problem p06, Response 7"
+  hosts: all
+  become: true
+  tasks:
+  - name: Create virtual environment at /user/home/venv with Python 3.10 and install
+      numpy
+    ansible.builtin.pip:
+      name: numpy
+      virtualenv: /user/home/venv
+      virtualenv_command: "python3.10 -m venv"
+      virtualenv_site_packages: false
+

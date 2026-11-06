@@ -1,0 +1,10 @@
+---
+- name: "Model qwen3.8-flash, Problem p01, Response 5"
+  hosts: all
+  become: true
+  tasks:
+  - name: Create directory /srv/www
+    ansible.builtin.file:
+      path: /srv/www
+      state: directory
+

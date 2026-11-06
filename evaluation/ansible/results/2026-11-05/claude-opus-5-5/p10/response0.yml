@@ -1,0 +1,11 @@
+---
+- name: "Model claude-opus-5-5, Problem p10, Response 10"
+  hosts: all
+  become: true
+  tasks:
+  - name: Disable password login for the 'service' user
+    ansible.builtin.user:
+      name: service
+      password: '!'
+      update_password: always
+

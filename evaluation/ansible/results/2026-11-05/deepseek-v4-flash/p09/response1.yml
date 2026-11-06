@@ -1,0 +1,14 @@
+---
+- name: "Model deepseek-v4-flash, Problem p09, Response 1"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure module load gcc is present in foo's bashrc
+    ansible.builtin.lineinfile:
+      path: /home/foo/.bashrc
+      line: 'module load gcc'
+      create: true
+      owner: foo
+      group: foo
+      mode: '0644'
+

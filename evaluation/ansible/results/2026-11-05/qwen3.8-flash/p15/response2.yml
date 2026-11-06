@@ -1,0 +1,27 @@
+---
+- name: "Model qwen3.8-flash, Problem p15, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Check if /home/mydata/web exists
+    ansible.builtin.stat:
+      path: /home/mydata/web
+    register: web_dir_stat
+  - name: Find top-level contents of /home/mydata/web
+    ansible.builtin.find:
+      paths:
+      - /home/mydata/web
+      recurse: false
+      hidden: true
+      file_type: any
+    register: web_contents
+    when: web_dir_stat.stat.exists and web_dir_stat.stat.isdir
+  - name: Remove contents of /home/mydata/web
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: absent
+      follow: false
+    loop: "{{ web_contents.files | default([]) }}"
+    loop_control:
+      label: "{{ item.path }}"
+

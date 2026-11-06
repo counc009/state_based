@@ -1,0 +1,12 @@
+---
+- name: "Model gpt-6.1-sol, Problem p13, Response 8"
+  hosts: all
+  become: true
+  tasks:
+  - name: Create /etc/file.txt with initial contents
+    ansible.builtin.copy:
+      dest: /etc/file.txt
+      content: "beginning"
+      force: false
+      mode: "0644"
+

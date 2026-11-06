@@ -1,0 +1,12 @@
+---
+- name: "Model deepseek-v4-flash, Problem p04, Response 6"
+  hosts: all
+  become: true
+  tasks:
+  - name: Set permissions on /srv/path recursively
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      mode: 'u=rwX,go=rX,go-w'
+      recurse: yes
+

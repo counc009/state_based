@@ -1,0 +1,16 @@
+---
+- name: "Model gpt-6.1-sol, Problem p12, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Copy the file to the destination
+    ansible.builtin.copy:
+      src: /scratch/file.txt
+      dest: /home/user/data.txt
+      remote_src: true
+      mode: preserve
+  - name: Remove the original file
+    ansible.builtin.file:
+      path: /scratch/file.txt
+      state: absent
+

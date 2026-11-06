@@ -1,0 +1,18 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p14, Response 3"
+  hosts: debian
+  become: true
+  tasks:
+  - name: Handle reboot-required flag on Debian
+    block:
+    - name: Check if system restart is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: debian_reboot_required
+    - name: Restart the system if required
+      ansible.builtin.reboot:
+        msg: "Reboot initiated by Ansible because /var/run/reboot-required exists"
+        reboot_timeout: 600
+      when: debian_reboot_required.stat.exists
+    when: ansible_os_family == "Debian"
+

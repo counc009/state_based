@@ -1,0 +1,20 @@
+---
+- name: "Model claude-opus-5-5, Problem p15, Response 9"
+  hosts: all
+  become: true
+  tasks:
+  - name: Find all files and directories inside /home/mydata/web
+    ansible.builtin.find:
+      paths: /home/mydata/web
+      file_type: any
+      hidden: true
+      recurse: false
+    register: web_contents
+  - name: Remove all found files and directories
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: absent
+    loop: "{{ web_contents.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+

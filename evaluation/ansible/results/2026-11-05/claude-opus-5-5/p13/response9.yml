@@ -1,0 +1,14 @@
+---
+- name: "Model claude-opus-5-5, Problem p13, Response 9"
+  hosts: all
+  become: true
+  tasks:
+  - name: Create /etc/file.txt with contents "beginning" only if it is missing
+    ansible.builtin.copy:
+      dest: /etc/file.txt
+      content: "beginning"
+      force: false
+      owner: root
+      group: root
+      mode: "0644"
+

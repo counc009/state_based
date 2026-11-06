@@ -1,0 +1,19 @@
+---
+- name: "Model deepseek-v4-flash, Problem p02, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure LC_ALL=C is present in /etc/environment
+    ansible.builtin.lineinfile:
+      path: /etc/environment
+      line: "LC_ALL=C"
+      create: yes
+      state: present
+  - name: Ensure export LC_ALL=C in /etc/profile.d for shell sessions
+    ansible.builtin.lineinfile:
+      path: /etc/profile.d/lc_all.sh
+      line: "export LC_ALL=C"
+      create: yes
+      state: present
+      mode: '0644'
+

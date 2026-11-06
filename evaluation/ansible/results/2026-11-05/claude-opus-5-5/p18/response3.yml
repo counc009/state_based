@@ -1,0 +1,51 @@
+---
+- name: "Model claude-opus-5-5, Problem p18, Response 3"
+  hosts: redhat
+  become: true
+  vars:
+    web_root: /var/www/html
+    home_page: "{{ web_root }}/index.html"
+    web_user: webdev
+  tasks:
+  - name: Install Apache web server (httpd)
+    ansible.builtin.yum:
+      name: httpd
+      state: present
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Ensure web root directory exists
+    ansible.builtin.file:
+      path: "{{ web_root }}"
+      state: directory
+      owner: root
+      group: root
+      mode: "0755"
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Ensure the home page exists
+    ansible.builtin.copy:
+      dest: "{{ home_page }}"
+      content: |
+        <html>
+          <head><title>Welcome</title></head>
+          <body>
+            <h1>Apache is running on {{ inventory_hostname }}</h1>
+          </body>
+        </html>
+      owner: root
+      group: root
+      mode: "0644"
+      force: false
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Ensure Apache service is started and enabled
+    ansible.builtin.service:
+      name: httpd
+      state: started
+      enabled: true
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Create the webdev user
+    ansible.builtin.user:
+      name: "{{ web_user }}"
+      state: present
+      shell: /bin/bash
+      create_home: true
+    when: ansible_facts['os_family'] == "RedHat"
+

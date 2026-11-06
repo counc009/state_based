@@ -1,0 +1,10 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p03, Response 10"
+  hosts: all
+  become: true
+  tasks:
+  - name: Copy /scratch/file.txt to /home/user/data.txt
+    ansible.builtin.copy:
+      src: /scratch/file.txt
+      dest: /home/user/data.txt
+

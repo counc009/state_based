@@ -1,0 +1,42 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p18, Response 8"
+  hosts: redhat
+  become: true
+  tasks:
+  - name: Install Apache HTTP Server
+    ansible.builtin.yum:
+      name: httpd
+      state: present
+  - name: Ensure Apache service is enabled and running
+    ansible.builtin.service:
+      name: httpd
+      state: started
+      enabled: true
+  - name: Ensure web root directory exists
+    ansible.builtin.file:
+      path: /var/www/html
+      state: directory
+      owner: root
+      group: root
+      mode: '0755'
+  - name: Ensure Apache home page exists
+    ansible.builtin.copy:
+      dest: /var/www/html/index.html
+      content: |
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Welcome</title>
+        </head>
+        <body>
+          <h1>Apache is running</h1>
+        </body>
+        </html>
+      owner: root
+      group: root
+      mode: '0644'
+  - name: Create webdev user
+    ansible.builtin.user:
+      name: webdev
+      state: present
+

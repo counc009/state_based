@@ -1,0 +1,39 @@
+---
+- name: "Model glm-5.3, Problem p04, Response 9"
+  hosts: all
+  become: true
+  tasks:
+  - name: Find all directories under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      file_type: directory
+      recurse: true
+    register: found_dirs
+  - name: Find all files under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      file_type: file
+      recurse: true
+    register: found_files
+  - name: Set directories to 0755 (owner rwx, others r-x)
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: directory
+      mode: "0755"
+    loop: "{{ found_dirs.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+  - name: Set files to 0644 (owner rw, others r)
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: file
+      mode: "0644"
+    loop: "{{ found_files.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+  - name: Set /srv/path itself to 0755
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      mode: "0755"
+

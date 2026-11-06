@@ -1,0 +1,11 @@
+---
+- name: "Model qwen3.8-flash, Problem p07, Response 8"
+  hosts: all
+  become: true
+  tasks:
+  - name: Clone ansible/ansible to /ansible over HTTPS
+    ansible.builtin.git:
+      repo: https://github.com/ansible/ansible.git
+      dest: /ansible
+      version: release1.8.4
+

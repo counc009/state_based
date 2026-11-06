@@ -1,0 +1,12 @@
+---
+- name: "Model gpt-6.1-sol, Problem p04, Response 6"
+  hosts: all
+  become: true
+  tasks:
+  - name: Allow everyone to read and traverse, but only owners to write
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      recurse: true
+      mode: "u=rwX,go=rX"
+

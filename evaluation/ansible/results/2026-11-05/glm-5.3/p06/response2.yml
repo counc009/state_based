@@ -1,0 +1,23 @@
+---
+- name: "Model glm-5.3, Problem p06, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Update apt cache
+    ansible.builtin.apt:
+      update_cache: true
+      cache_valid_time: 3600
+  - name: Install Python 3.10 and venv support
+    ansible.builtin.apt:
+      name:
+      - python3.10
+      - python3.10-venv
+      - python3-pip
+      state: present
+  - name: Create Python 3.10 virtual environment at /user/home/venv and install numpy
+    ansible.builtin.pip:
+      name: numpy
+      virtualenv: /user/home/venv
+      virtualenv_command: "python3.10 -m venv"
+      state: present
+

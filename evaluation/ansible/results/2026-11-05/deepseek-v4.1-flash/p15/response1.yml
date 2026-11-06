@@ -1,0 +1,20 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p15, Response 1"
+  hosts: all
+  become: true
+  tasks:
+  - name: Find all entries in /home/mydata/web
+    ansible.builtin.find:
+      paths: /home/mydata/web
+      hidden: true
+      file_type: any
+      recurse: false
+    register: web_contents
+  - name: Remove all entries
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: absent
+    loop: "{{ web_contents.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+

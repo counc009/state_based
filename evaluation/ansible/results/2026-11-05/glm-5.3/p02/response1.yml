@@ -1,0 +1,13 @@
+---
+- name: "Model glm-5.3, Problem p02, Response 1"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure LC_ALL is set to C in /etc/environment
+    ansible.builtin.lineinfile:
+      path: /etc/environment
+      line: "LC_ALL=C"
+      state: present
+      create: true
+      mode: '0644'
+

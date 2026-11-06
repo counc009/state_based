@@ -1,0 +1,17 @@
+---
+- name: "Model claude-opus-5-5, Problem p08, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Install numpy on Debian based systems
+    ansible.builtin.apt:
+      name: python3-numpy
+      state: present
+      update_cache: true
+    when: ansible_facts['os_family'] == "Debian"
+  - name: Install numpy on RedHat based systems
+    ansible.builtin.dnf:
+      name: python3-numpy
+      state: present
+    when: ansible_facts['os_family'] == "RedHat"
+

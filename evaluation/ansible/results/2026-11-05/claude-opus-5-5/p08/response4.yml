@@ -1,0 +1,30 @@
+---
+- name: "Model claude-opus-5-5, Problem p08, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Update apt cache on Debian based systems
+    ansible.builtin.apt:
+      update_cache: true
+      cache_valid_time: 3600
+    when: ansible_facts['os_family'] == "Debian"
+  - name: Install numpy on Debian based systems
+    ansible.builtin.apt:
+      name: python3-numpy
+      state: present
+    when: ansible_facts['os_family'] == "Debian"
+  - name: Install numpy on RedHat based systems
+    ansible.builtin.dnf:
+      name: python3-numpy
+      state: present
+    when:
+    - ansible_facts['os_family'] == "RedHat"
+    - ansible_facts['pkg_mgr'] == "dnf"
+  - name: Install numpy on older RedHat based systems (yum)
+    ansible.builtin.yum:
+      name: numpy
+      state: present
+    when:
+    - ansible_facts['os_family'] == "RedHat"
+    - ansible_facts['pkg_mgr'] == "yum"
+

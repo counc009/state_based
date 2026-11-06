@@ -1,0 +1,11 @@
+---
+- name: "Model claude-opus-5-5, Problem p01, Response 9"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure /srv/www directory exists
+    ansible.builtin.file:
+      path: /srv/www
+      state: directory
+      mode: '0755'
+

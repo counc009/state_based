@@ -1,0 +1,10 @@
+---
+- name: "Model qwen3.8-flash, Problem p05, Response 1"
+  hosts: all
+  become: true
+  tasks:
+  - name: Remove /home/mydata/web
+    ansible.builtin.file:
+      path: /home/mydata/web
+      state: absent
+

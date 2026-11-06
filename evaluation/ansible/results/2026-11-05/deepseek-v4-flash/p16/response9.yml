@@ -1,0 +1,21 @@
+---
+- name: "Model deepseek-v4-flash, Problem p16, Response 9"
+  hosts: all
+  become: true
+  tasks:
+  - name: Install zsh
+    ansible.builtin.package:
+      name: zsh
+      state: present
+  - name: Set zsh as default shell for dev user
+    ansible.builtin.user:
+      name: dev
+      shell: /usr/bin/zsh
+  - name: Ensure zsh configuration file exists
+    ansible.builtin.file:
+      path: /home/dev/.zshrc
+      state: touch
+      owner: dev
+      group: dev
+      mode: '0644'
+

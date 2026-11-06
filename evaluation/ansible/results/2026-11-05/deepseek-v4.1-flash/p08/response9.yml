@@ -1,0 +1,16 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p08, Response 9"
+  hosts: all
+  become: true
+  tasks:
+  - name: Install numpy on Debian family
+    ansible.builtin.package:
+      name: python3-numpy
+      state: present
+    when: ansible_os_family == "Debian"
+  - name: Install numpy on RedHat family
+    ansible.builtin.package:
+      name: python3-numpy
+      state: present
+    when: ansible_os_family == "RedHat"
+

@@ -1,0 +1,25 @@
+---
+- name: "Model gpt-6.1-sol, Problem p12, Response 10"
+  hosts: all
+  become: true
+  tasks:
+  - name: Check whether the source file exists
+    ansible.builtin.stat:
+      path: /scratch/file.txt
+    register: source_file
+  - name: Move the source file if present
+    when: source_file.stat.exists
+    block:
+    - name: Copy the file to its destination
+      ansible.builtin.copy:
+        src: /scratch/file.txt
+        dest: /home/user/data.txt
+        remote_src: true
+        mode: preserve
+        owner: "{{ source_file.stat.uid }}"
+        group: "{{ source_file.stat.gid }}"
+    - name: Remove the original file after successful copying
+      ansible.builtin.file:
+        path: /scratch/file.txt
+        state: absent
+

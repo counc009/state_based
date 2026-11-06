@@ -1,0 +1,12 @@
+---
+- name: "Model gpt-6.1-sol, Problem p04, Response 3"
+  hosts: all
+  become: true
+  tasks:
+  - name: Apply permissions recursively under /srv/path
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      recurse: true
+      mode: "u=rwX,go=rX"
+

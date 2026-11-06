@@ -1,0 +1,17 @@
+---
+- name: "Model claude-opus-5-5, Problem p11a, Response 9"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure /tmp exists on the remote host
+    ansible.builtin.file:
+      path: /tmp
+      state: directory
+  - name: Copy .war files from controller /backup to remote /tmp
+    ansible.builtin.copy:
+      src: "{{ item }}"
+      dest: "/tmp/{{ item | basename }}"
+      mode: preserve
+    with_fileglob:
+    - "/backup/*.war"
+

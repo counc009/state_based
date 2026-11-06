@@ -1,0 +1,43 @@
+---
+- name: "Model glm-5.3, Problem p18, Response 3"
+  hosts: redhat
+  become: true
+  vars:
+    apache_package: httpd
+    apache_service: httpd
+    document_root: /var/www/html
+    webdev_user: webdev
+  tasks:
+  - name: Block for RedHat family systems
+    when: ansible_facts['os_family'] == "RedHat"
+    block:
+    - name: Install Apache server (httpd)
+      ansible.builtin.yum:
+        name: "{{ apache_package }}"
+        state: present
+        update_cache: true
+    - name: Ensure Apache service is started and enabled
+      ansible.builtin.service:
+        name: "{{ apache_service }}"
+        state: started
+        enabled: true
+    - name: Ensure the home page exists
+      ansible.builtin.copy:
+        dest: "{{ document_root }}/index.html"
+        owner: apache
+        group: apache
+        mode: '0644'
+        content: |
+          <html>
+            <head><title>Welcome</title></head>
+            <body>
+              <h1>Welcome to our Apache web server!</h1>
+            </body>
+          </html>
+    - name: Create the webdev user
+      ansible.builtin.user:
+        name: "{{ webdev_user }}"
+        state: present
+        create_home: true
+        shell: /bin/bash
+

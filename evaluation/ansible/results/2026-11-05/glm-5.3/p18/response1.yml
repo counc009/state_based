@@ -1,0 +1,26 @@
+---
+- name: "Model glm-5.3, Problem p18, Response 1"
+  hosts: redhat
+  become: true
+  tasks:
+  - name: Install Apache server (httpd)
+    ansible.builtin.yum:
+      name: httpd
+      state: present
+  - name: Ensure the home page exists
+    ansible.builtin.copy:
+      content: "Welcome to my web server"
+      dest: /var/www/html/index.html
+      owner: root
+      group: root
+      mode: '0644'
+  - name: Ensure Apache is running and enabled
+    ansible.builtin.service:
+      name: httpd
+      state: started
+      enabled: true
+  - name: Create webdev user
+    ansible.builtin.user:
+      name: webdev
+      state: present
+

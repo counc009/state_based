@@ -1,0 +1,17 @@
+---
+- name: "Model glm-5.3, Problem p09, Response 10"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure .bashrc exists
+    ansible.builtin.file:
+      path: /home/foo/.bashrc
+      state: touch
+      mode: '0644'
+  - name: Add module load gcc to end of bashrc
+    ansible.builtin.lineinfile:
+      path: /home/foo/.bashrc
+      line: "module load gcc"
+      state: present
+      insertafter: EOF
+

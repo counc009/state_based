@@ -1,0 +1,11 @@
+---
+- name: "Model gpt-6.1-sol, Problem p07, Response 3"
+  hosts: all
+  become: true
+  tasks:
+  - name: Clone the release1.8.4 branch to /ansible
+    ansible.builtin.git:
+      repo: https://github.com/ansible/ansible.git
+      dest: /ansible
+      version: release1.8.4
+

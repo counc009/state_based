@@ -1,0 +1,28 @@
+---
+- name: "Model qwen3.8-flash, Problem p11b, Response 4"
+  hosts: debian
+  become: true
+  tasks:
+  - name: Ensure backup directory exists on controller
+    ansible.builtin.file:
+      path: /backup
+      state: directory
+      mode: "0755"
+    delegate_to: localhost
+  - name: Find .war files in /tmp on remote machine
+    ansible.builtin.find:
+      paths: /tmp
+      patterns:
+      - "*.war"
+      file_type: file
+      recurse: false
+    register: war_files
+  - name: Copy .war files from /tmp to /backup on controller
+    ansible.builtin.fetch:
+      src: "{{ item.path }}"
+      dest: "/backup/{{ item.path | basename }}"
+      flat: true
+    loop: "{{ war_files.files | default([]) }}"
+    loop_control:
+      label: "{{ item.path }}"
+

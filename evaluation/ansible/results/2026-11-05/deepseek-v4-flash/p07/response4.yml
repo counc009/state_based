@@ -1,0 +1,15 @@
+---
+- name: "Model deepseek-v4-flash, Problem p07, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Remove /ansible if it already exists
+    ansible.builtin.file:
+      path: /ansible
+      state: absent
+  - name: Clone the release1.8.4 branch
+    ansible.builtin.git:
+      repo: https://github.com/ansible/ansible.git
+      dest: /ansible
+      version: release1.8.4
+

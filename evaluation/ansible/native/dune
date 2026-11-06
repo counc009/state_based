@@ -1,0 +1,4 @@
+(executable
+ (name paper_process)
+ (libraries yaml)
+ (flags (:standard -w -9)))

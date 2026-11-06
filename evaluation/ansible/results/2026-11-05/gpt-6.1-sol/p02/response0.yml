@@ -1,0 +1,15 @@
+---
+- name: "Model gpt-6.1-sol, Problem p02, Response 10"
+  hosts: all
+  become: true
+  tasks:
+  - name: Set LC_ALL in /etc/environment
+    ansible.builtin.lineinfile:
+      path: /etc/environment
+      regexp: '^\s*LC_ALL\s*='
+      line: 'LC_ALL=C'
+      create: true
+      owner: root
+      group: root
+      mode: '0644'
+

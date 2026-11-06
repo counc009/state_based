@@ -1,0 +1,15 @@
+---
+- name: "Model qwen3.8-flash, Problem p13, Response 8"
+  hosts: all
+  become: true
+  tasks:
+  - name: Check if /etc/file.txt exists
+    ansible.builtin.stat:
+      path: /etc/file.txt
+    register: file_stat
+  - name: Create /etc/file.txt if it does not exist
+    ansible.builtin.copy:
+      dest: /etc/file.txt
+      content: beginning
+    when: not file_stat.stat.exists
+

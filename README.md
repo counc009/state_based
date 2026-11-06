@@ -1,6 +1,8 @@
 # Astrogator
 
-Formal queries and symbolic verification for Ansible. For the model/prompt refresh, start with [the NL-to-FQL evaluation guide](evaluation/README.md): setup, repository map, frozen five-repeat runs, budgets and actual smoke results. Historical playbook evaluation scripts remain in `astrogator-eval/`; compiler and module paths retain their existing layout.
+Formal queries and symbolic verification for Ansible. For the model/prompt refresh, start with [the NL-to-FQL evaluation guide](evaluation/README.md): setup, repository map, frozen ten-repeat runs, budgets and actual smoke results. Historical playbook evaluation scripts remain in `astrogator-eval/`; compiler and module paths retain their existing layout.
+
+For the generation-only Table 2 refresh and Aaron’s executor handoff, see [the NL-to-Ansible guide](evaluation/ansible/README.md) and [the generated samples/checks](evaluation/ansible/results/2026-11-05/README.md). These offline checks report format and syntax acceptance, not task correctness.
 
 # Building and Usage Instructions
 This system is written in [OCaml](https://ocaml.org/) and should be built using the [Dune](https://dune.build) build system.

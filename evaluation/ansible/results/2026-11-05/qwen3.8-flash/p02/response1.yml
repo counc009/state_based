@@ -1,0 +1,34 @@
+---
+- name: "Model qwen3.8-flash, Problem p02, Response 1"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure /etc/profile.d directory exists
+    ansible.builtin.file:
+      path: /etc/profile.d
+      state: directory
+      owner: root
+      group: root
+      mode: '0755'
+  - name: Set LC_ALL in /etc/environment
+    ansible.builtin.lineinfile:
+      path: /etc/environment
+      regexp: '^\s*(export\s+)?LC_ALL\s*='
+      line: 'LC_ALL=C'
+      state: present
+      create: true
+      owner: root
+      group: root
+      mode: '0644'
+  - name: Set LC_ALL in /etc/profile.d
+    ansible.builtin.blockinfile:
+      path: /etc/profile.d/zz_locale.sh
+      marker: "# {mark} Ansible managed LC_ALL setting"
+      block: |
+        export LC_ALL="C"
+      state: present
+      create: true
+      owner: root
+      group: root
+      mode: '0644'
+

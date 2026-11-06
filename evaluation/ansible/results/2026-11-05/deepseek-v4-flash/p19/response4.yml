@@ -1,0 +1,31 @@
+---
+- name: "Model deepseek-v4-flash, Problem p19, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure wheel group exists
+    ansible.builtin.group:
+      name: wheel
+      state: present
+  - name: Create ansible user and add to wheel group
+    ansible.builtin.user:
+      name: ansible
+      groups: wheel
+      append: true
+      state: present
+      create_home: true
+      shell: /bin/bash
+  - name: Ensure /etc/sudoers.d directory exists
+    ansible.builtin.file:
+      path: /etc/sudoers.d
+      state: directory
+      mode: '0750'
+  - name: Add passwordless sudo rule for wheel group
+    ansible.builtin.copy:
+      dest: /etc/sudoers.d/wheel
+      content: |
+        %wheel ALL=(ALL) NOPASSWD: ALL
+      owner: root
+      group: root
+      mode: '0440'
+

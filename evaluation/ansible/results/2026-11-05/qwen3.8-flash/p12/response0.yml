@@ -1,0 +1,14 @@
+---
+- name: "Model qwen3.8-flash, Problem p12, Response 10"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure destination directory exists
+    ansible.builtin.file:
+      path: /home/user
+      state: directory
+  - name: Move /scratch/file.txt to /home/user/data.txt
+    ansible.builtin.move:
+      src: /scratch/file.txt
+      dest: /home/user/data.txt
+

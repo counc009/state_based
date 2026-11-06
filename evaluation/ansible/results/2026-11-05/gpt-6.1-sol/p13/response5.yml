@@ -1,0 +1,12 @@
+---
+- name: "Model gpt-6.1-sol, Problem p13, Response 5"
+  hosts: all
+  become: true
+  tasks:
+  - name: Create file with initial contents without overwriting
+    ansible.builtin.copy:
+      dest: /etc/file.txt
+      content: "beginning"
+      force: false
+      mode: "0644"
+

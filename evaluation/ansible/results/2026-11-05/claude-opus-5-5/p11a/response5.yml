@@ -1,0 +1,12 @@
+---
+- name: "Model claude-opus-5-5, Problem p11a, Response 5"
+  hosts: all
+  become: true
+  tasks:
+  - name: Copy each .war file found in /backup on the controller to /tmp on the remote
+    ansible.builtin.copy:
+      src: "{{ item }}"
+      dest: "/tmp/{{ item | basename }}"
+      mode: "0644"
+    loop: "{{ query('ansible.builtin.fileglob', '/backup/*.war') }}"
+

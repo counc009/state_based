@@ -1,0 +1,45 @@
+---
+- name: "Model claude-opus-5-5, Problem p12, Response 8"
+  hosts: all
+  become: true
+  vars:
+    src_file: /scratch/file.txt
+    dest_file: /home/user/data.txt
+  tasks:
+  - name: Check whether the source file exists
+    ansible.builtin.stat:
+      path: "{{ src_file }}"
+    register: src_stat
+  - name: Fail if the source file does not exist
+    ansible.builtin.fail:
+      msg: "Source file {{ src_file }} does not exist."
+    when: not src_stat.stat.exists
+  - name: Ensure the destination directory exists
+    ansible.builtin.file:
+      path: "{{ dest_file | dirname }}"
+      state: directory
+      mode: "0755"
+  - name: Copy the source file to the destination, preserving its mode
+    ansible.builtin.copy:
+      src: "{{ src_file }}"
+      dest: "{{ dest_file }}"
+      remote_src: true
+      mode: preserve
+      owner: "{{ src_stat.stat.pw_name }}"
+      group: "{{ src_stat.stat.gr_name }}"
+    register: copy_result
+  - name: Verify the destination file matches the source
+    ansible.builtin.stat:
+      path: "{{ dest_file }}"
+      checksum_algorithm: sha1
+    register: dest_stat
+  - name: Fail if the checksums do not match
+    ansible.builtin.fail:
+      msg: "Checksum mismatch between {{ src_file }} and {{ dest_file }}; source not
+        removed."
+    when: dest_stat.stat.checksum != src_stat.stat.checksum
+  - name: Remove the original source file
+    ansible.builtin.file:
+      path: "{{ src_file }}"
+      state: absent
+

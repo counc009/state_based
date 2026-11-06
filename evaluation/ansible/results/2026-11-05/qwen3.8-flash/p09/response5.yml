@@ -1,0 +1,25 @@
+---
+- name: "Model qwen3.8-flash, Problem p09, Response 5"
+  hosts: all
+  become: true
+  vars:
+    foo_bashrc: "/home/foo/.bashrc"
+    bashrc_line: "module load gcc"
+  tasks:
+  - name: Ensure foo's bashrc exists
+    ansible.builtin.file:
+      path: "{{ foo_bashrc }}"
+      state: touch
+      owner: foo
+      group: foo
+      mode: "0644"
+  - name: Add module load gcc to the end of foo's bashrc
+    ansible.builtin.lineinfile:
+      path: "{{ foo_bashrc }}"
+      line: "{{ bashrc_line }}"
+      state: present
+      insertafter: EOF
+      owner: foo
+      group: foo
+      mode: "0644"
+

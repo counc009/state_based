@@ -1,0 +1,10 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p05, Response 6"
+  hosts: all
+  become: true
+  tasks:
+  - name: Remove /home/mydata/web
+    ansible.builtin.file:
+      path: /home/mydata/web
+      state: absent
+

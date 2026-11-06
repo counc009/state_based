@@ -1,0 +1,17 @@
+---
+- name: "Model glm-5.3, Problem p15, Response 3"
+  hosts: all
+  become: true
+  tasks:
+  - name: List all entries (including hidden) in /home/mydata/web
+    ansible.builtin.find:
+      paths: /home/mydata/web
+      hidden: true
+      file_type: any
+    register: web_contents
+  - name: Delete each entry in /home/mydata/web
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: absent
+    loop: "{{ web_contents.files }}"
+

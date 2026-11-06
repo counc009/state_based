@@ -1,0 +1,35 @@
+---
+- name: "Model qwen3.8-flash, Problem p19, Response 10"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure /etc/sudoers.d exists
+    ansible.builtin.file:
+      path: /etc/sudoers.d
+      state: directory
+      owner: root
+      group: root
+      mode: "0755"
+  - name: Ensure wheel group exists
+    ansible.builtin.group:
+      name: wheel
+      state: present
+      system: true
+  - name: Enable passwordless sudo for the wheel group
+    ansible.builtin.copy:
+      dest: /etc/sudoers.d/wheel
+      content: "%wheel ALL=(ALL) NOPASSWD: ALL\n"
+      owner: root
+      group: root
+      mode: "0440"
+  - name: Create ansible user and add it to the wheel group
+    ansible.builtin.user:
+      name: ansible
+      state: present
+      groups:
+      - wheel
+      append: true
+      create_home: true
+      home: /home/ansible
+      shell: /bin/bash
+

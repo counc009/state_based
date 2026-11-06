@@ -1,0 +1,12 @@
+---
+- name: "Model qwen3.8-flash, Problem p13, Response 7"
+  hosts: all
+  become: true
+  tasks:
+  - name: Create /etc/file.txt with contents beginning if absent
+    ansible.builtin.copy:
+      dest: /etc/file.txt
+      content: beginning
+      force: false
+      mode: "0644"
+

@@ -1,0 +1,16 @@
+---
+- name: "Model qwen3.8-flash, Problem p09, Response 1"
+  hosts: all
+  become: true
+  tasks:
+  - name: Add module load gcc to foo's bashrc
+    ansible.builtin.lineinfile:
+      path: /home/foo/.bashrc
+      line: "module load gcc"
+      state: present
+      insertafter: EOF
+      create: true
+      owner: foo
+      group: foo
+      mode: "0644"
+

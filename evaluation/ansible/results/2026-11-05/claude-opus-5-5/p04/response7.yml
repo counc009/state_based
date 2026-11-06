@@ -1,0 +1,41 @@
+---
+- name: "Model claude-opus-5-5, Problem p04, Response 7"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure /srv/path exists as a directory
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      mode: "0755"
+  - name: Find all directories under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      file_type: directory
+      recurse: true
+      hidden: true
+    register: srv_dirs
+  - name: Find all files under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      file_type: file
+      recurse: true
+      hidden: true
+    register: srv_files
+  - name: Set directory permissions so the owner can write and everyone can list
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: directory
+      mode: "0755"
+    loop: "{{ srv_dirs.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+  - name: Set file permissions so the owner can write and everyone can read
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: file
+      mode: "u=rw,go=r"
+    loop: "{{ srv_files.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+

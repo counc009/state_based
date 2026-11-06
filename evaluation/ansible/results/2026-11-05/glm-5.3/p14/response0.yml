@@ -1,0 +1,23 @@
+---
+- name: "Model glm-5.3, Problem p14, Response 10"
+  hosts: debian
+  become: true
+  tasks:
+  - name: Check if reboot is required
+    ansible.builtin.stat:
+      path: /var/run/reboot-required
+    register: reboot_required_file
+  - name: Display reboot requirement status
+    ansible.builtin.debug:
+      msg: "Reboot is required on this host"
+    when: reboot_required_file.stat.exists
+  - name: Reboot the system if required
+    ansible.builtin.reboot:
+      reboot_timeout: 600
+      connect_timeout: 10
+    when: reboot_required_file.stat.exists
+  - name: Display status when no reboot is needed
+    ansible.builtin.debug:
+      msg: "No reboot is required on this host"
+    when: not reboot_required_file.stat.exists
+

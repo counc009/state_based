@@ -1,0 +1,17 @@
+---
+- name: "Model claude-opus-5-5, Problem p03, Response 5"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure destination directory exists
+    ansible.builtin.file:
+      path: /home/user
+      state: directory
+      mode: '0755'
+  - name: Copy /scratch/file.txt to /home/user/data.txt
+    ansible.builtin.copy:
+      src: /scratch/file.txt
+      dest: /home/user/data.txt
+      remote_src: true
+      mode: preserve
+

@@ -1,0 +1,10 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p01, Response 7"
+  hosts: all
+  become: true
+  tasks:
+  - name: Create directory /srv/www
+    ansible.builtin.file:
+      path: /srv/www
+      state: directory
+

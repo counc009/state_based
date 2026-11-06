@@ -1,0 +1,12 @@
+---
+- name: "Model claude-opus-5-5, Problem p04, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Make files and directories readable by all but writable only by the owner
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      recurse: true
+      mode: "u=rwX,go=rX"
+

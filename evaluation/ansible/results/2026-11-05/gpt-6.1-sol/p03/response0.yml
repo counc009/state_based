@@ -1,0 +1,11 @@
+---
+- name: "Model gpt-6.1-sol, Problem p03, Response 10"
+  hosts: all
+  become: true
+  tasks:
+  - name: Copy /scratch/file.txt to /home/user/data.txt
+    ansible.builtin.copy:
+      src: /scratch/file.txt
+      dest: /home/user/data.txt
+      remote_src: true
+

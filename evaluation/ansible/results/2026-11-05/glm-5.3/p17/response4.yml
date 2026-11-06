@@ -1,0 +1,39 @@
+---
+- name: "Model glm-5.3, Problem p17, Response 4"
+  hosts: redhat,ubuntu
+  become: true
+  vars:
+    postfix_config_path: /etc/postfix/main.cf
+    postfix_config_url: "{{ 'http://example.com/cfg.ubuntu' if ansible_facts['os_family']
+      == 'Debian' else 'http://example.com/cfg.redhat' }}"
+    postfix_downloaded_config: /tmp/postfix_main.cf.new
+  tasks:
+  - name: Install the latest version of postfix
+    ansible.builtin.package:
+      name: postfix
+      state: latest
+  - name: Backup the default postfix configuration file
+    ansible.builtin.copy:
+      src: "{{ postfix_config_path }}"
+      dest: "{{ postfix_config_path }}.bak"
+      remote_src: true
+      mode: "0644"
+  - name: Download the new postfix configuration file
+    ansible.builtin.get_url:
+      url: "{{ postfix_config_url }}"
+      dest: "{{ postfix_downloaded_config }}"
+      mode: "0644"
+  - name: Deploy the downloaded postfix configuration file
+    ansible.builtin.copy:
+      src: "{{ postfix_downloaded_config }}"
+      dest: "{{ postfix_config_path }}"
+      remote_src: true
+      mode: "0644"
+      backup: true
+    notify: Restart postfix
+  handlers:
+  - name: Restart postfix
+    ansible.builtin.service:
+      name: postfix
+      state: restarted
+

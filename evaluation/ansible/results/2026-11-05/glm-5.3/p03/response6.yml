@@ -1,0 +1,11 @@
+---
+- name: "Model glm-5.3, Problem p03, Response 6"
+  hosts: all
+  become: true
+  tasks:
+  - name: Copy /scratch/file.txt to /home/user/data.txt
+    ansible.builtin.copy:
+      src: /scratch/file.txt
+      dest: /home/user/data.txt
+      remote_src: true
+

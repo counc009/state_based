@@ -1,0 +1,18 @@
+---
+- name: "Model deepseek-v4-flash, Problem p06, Response 8"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure parent directory exists
+    ansible.builtin.file:
+      path: /user/home
+      state: directory
+      mode: '0755'
+  - name: Create virtualenv and install numpy
+    ansible.builtin.pip:
+      name: numpy
+      state: present
+      virtualenv: /user/home/venv
+      virtualenv_command: python3.10 -m venv
+      virtualenv_site_packages: false
+

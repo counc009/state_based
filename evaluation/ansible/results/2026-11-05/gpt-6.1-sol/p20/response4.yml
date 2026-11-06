@@ -1,0 +1,56 @@
+---
+- name: "Model gpt-6.1-sol, Problem p20, Response 4"
+  hosts: redhat,debian
+  become: true
+  vars:
+    ssh_packages:
+      Debian:
+      - openssh-client
+      - openssh-server
+      RedHat:
+      - openssh-clients
+      - openssh-server
+    ssh_services:
+      Debian: ssh
+      RedHat: sshd
+  tasks:
+  - name: Verify the operating system is supported
+    ansible.builtin.assert:
+      that:
+      - ansible_facts['os_family'] in ['Debian', 'RedHat']
+      fail_msg: This playbook supports Debian and RedHat families only.
+  - name: Install SSH client and server
+    ansible.builtin.package:
+      name: "{{ ssh_packages[ansible_facts['os_family']] }}"
+      state: present
+  - name: Enable and start the SSH server
+    ansible.builtin.service:
+      name: "{{ ssh_services[ansible_facts['os_family']] }}"
+      enabled: true
+      state: started
+  - name: Ensure the fizbaz group exists
+    ansible.builtin.group:
+      name: fizbaz
+      state: present
+  - name: Ensure the fizbaz user exists
+    ansible.builtin.user:
+      name: fizbaz
+      group: fizbaz
+      create_home: true
+      state: present
+  - name: Create the requested SSH key directory
+    ansible.builtin.file:
+      path: /.ssh
+      state: directory
+      owner: fizbaz
+      group: fizbaz
+      mode: "0700"
+  - name: Generate the SSH key pair for fizbaz
+    ansible.builtin.user:
+      name: fizbaz
+      generate_ssh_key: true
+      ssh_key_type: rsa
+      ssh_key_bits: 4096
+      ssh_key_file: /.ssh/fizbaz_rsa
+      force: false
+

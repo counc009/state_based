@@ -1,0 +1,10 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p08, Response 1"
+  hosts: all
+  become: true
+  tasks:
+  - name: Install numpy
+    ansible.builtin.package:
+      name: python3-numpy
+      state: present
+

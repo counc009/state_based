@@ -1,0 +1,17 @@
+---
+- name: "Model qwen3.8-flash, Problem p09, Response 8"
+  hosts: all
+  become: true
+  tasks:
+  - name: Remove any existing module load gcc line
+    ansible.builtin.lineinfile:
+      path: /home/foo/.bashrc
+      regexp: '^module load gcc$'
+      state: absent
+  - name: Append module load gcc to the end of foo's bashrc
+    ansible.builtin.lineinfile:
+      path: /home/foo/.bashrc
+      line: 'module load gcc'
+      insertafter: EOF
+      create: true
+

@@ -1,0 +1,18 @@
+---
+- name: "Model gpt-6.1-sol, Problem p08, Response 1"
+  hosts: all
+  become: true
+  tasks:
+  - name: Install NumPy on Debian-based systems
+    ansible.builtin.apt:
+      name: python3-numpy
+      state: present
+      update_cache: true
+      cache_valid_time: 3600
+    when: ansible_facts['os_family'] == 'Debian'
+  - name: Install NumPy on RedHat-based systems
+    ansible.builtin.package:
+      name: python3-numpy
+      state: present
+    when: ansible_facts['os_family'] == 'RedHat'
+

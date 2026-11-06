@@ -47,13 +47,16 @@ def retryable(result):
 
 
 class Matrix:
-    def __init__(self, manifest, out, total=110, anthropic=22, max_attempts=4):
+    def __init__(self, manifest, out, total=110, anthropic=22, max_attempts=4, request_fn=None, build_fn=None):
         self.manifest, self.out = manifest, out
+        self.request_fn = request_fn or ev.request
+        self.build_fn = build_fn or ev.build_request
         self.total, self.anthropic, self.max_attempts = total, anthropic, max_attempts
         self.lock = threading.Lock()
         self.cells = {c['id']:c for c in manifest['cells']}
         self.state = {'schema_version':1,'manifest_sha256':ev.digest(manifest),'attempts':[],
-                      'prior_cost_usd':0.02,'prior_anthropic_cost_usd':0.000148}
+                      'prior_cost_usd':manifest['config'].get('prior_cost_usd',0.02),
+                      'prior_anthropic_cost_usd':manifest['config'].get('prior_anthropic_cost_usd',0.000148)}
         self.state_path = out/'state.json'
         if self.state_path.exists(): self.state = ev.load(self.state_path)
         assert self.state['manifest_sha256'] == ev.digest(manifest)
@@ -92,7 +95,7 @@ class Matrix:
                 ev.write_new(terminal,ev.load(saved));return
         for attempt in range(len(previous),self.max_attempts):
             # Construct first: missing credentials/config must not reserve paid work.
-            url, body, _ = ev.build_request(cell,self.manifest['config'])
+            url, body, _ = self.build_fn(cell,self.manifest['config'])
             cost = ev.reserve(cell,self.manifest['config'])
             with self.lock:
                 if self.spend()+cost > self.total+1e-9 or (provider=='anthropic' and self.spend(provider)+cost > self.anthropic+1e-9):
@@ -103,7 +106,7 @@ class Matrix:
                 self.state['attempts'].append(record); self.save()
             start = time.monotonic()
             try:
-                result = ev.request(cell,self.manifest['config'])
+                result = self.request_fn(cell,self.manifest['config'])
             except urllib.error.HTTPError as e:
                 result = {'status':'provider_error','http_status':e.code,'text':'','usage':None}
                 # Provider error JSON only; replace any secret strings before persistence.

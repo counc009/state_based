@@ -1,0 +1,11 @@
+---
+- name: "Model gpt-6.1-sol, Problem p08, Response 5"
+  hosts: all
+  become: true
+  tasks:
+  - name: Install the Python 3 NumPy package
+    ansible.builtin.package:
+      name: python3-numpy
+      state: present
+    when: ansible_facts['os_family'] in ['Debian', 'RedHat']
+

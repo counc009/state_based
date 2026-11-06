@@ -1,0 +1,11 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p07, Response 5"
+  hosts: all
+  become: true
+  tasks:
+  - name: Clone release1.8.4 branch from ansible/ansible repository
+    ansible.builtin.git:
+      repo: https://github.com/ansible/ansible.git
+      dest: /ansible
+      version: release1.8.4
+
