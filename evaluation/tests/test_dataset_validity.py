@@ -41,3 +41,11 @@ class DatasetValidityTests(unittest.TestCase):
                 self.assertEqual(len(c['messages']),10)
             self.assertEqual(m['config']['max_output_tokens'],32768)
             self.assertEqual(m['config']['provider_budgets_usd']['anthropic'],8)
+
+    def test_native_stage_flags_distinguish_grammar_semantics_and_empty_query(self):
+        binary=d.REPO/'_build/default/evaluation/native/effects.exe'
+        if not binary.exists():self.skipTest('Build native diagnostics first')
+        cases=[('create directory at /srv/www','ok',True,True),('install package with name=imaginary_unknown_package','semantic_error',True,False),('invalid query','diagnostic_error',False,False),('','empty_query',True,False)]
+        for text,status,parsed,semantic in cases:
+            result=d.probe(text,binary)
+            self.assertEqual((result['status'],result['parsed'],result['semantic_accepted']),(status,parsed,semantic))

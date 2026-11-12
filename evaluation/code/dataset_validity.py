@@ -171,6 +171,8 @@ def freeze_generation(run):
        'sources':{'handbook_sha256':ev.digest(system.encode()),'demos_sha256':ev.digest((ROOT/'prompts/fixed-fql-demos-v1.json').read_bytes()),
           'source_file_sha256':ev.load(private/'filter/manifest.json')['source']['file_sha256'],'sample_sha256':ev.digest([{k:v for k,v in r.items() if k!='nl'} for r in sample]),
           'transport_sha256':ev.digest((ROOT/'code/dataset_transport.py').read_bytes()),'driver_sha256':ev.digest(Path(__file__).read_bytes())}}
+    for source in [Path(__file__),ROOT/'code/dataset_transport.py',ROOT/'prompts/handbook-v3.txt',ROOT/'prompts/fixed-fql-demos-v1.json']:
+        snapshot=private/'generation/source'/source.name;snapshot.parent.mkdir(parents=True,exist_ok=True);snapshot.write_bytes(source.read_bytes())
     save(path,m);print(json.dumps({'sampled':len(sample),'planned_generation_calls':len(cells),'prior_classifier_cost_usd':filter_cost,
         'max_token_envelope_not_expected_cost':ev.estimate(m)},indent=2),flush=True)
     return m
@@ -194,7 +196,7 @@ def score(run,workers):
         if path.exists():return
         try:g=probe(text,binary)
         except (subprocess.TimeoutExpired,OSError) as error:g={'status':'driver_error','error':type(error).__name__,'parsed':False}
-        parsed=bool(g.get('parsed')) and g['status']!='empty_query';semantic=g['status']=='ok';native=None
+        parsed=bool(g.get('parsed')) and g['status']!='empty_query';semantic=bool(g.get('semantic_accepted',g['status']=='ok'));native=None
         if semantic:
             with tempfile.TemporaryDirectory(prefix='dataset-fql-') as tmp:
                 q=Path(tmp)/'query.fql';q.write_text(text)
@@ -274,11 +276,12 @@ def export(run):
       'costs':{'classifier_usd':fcost,'generation_usd':gcost,'total_accounted_usd':total,'anthropic_usd':anthropic,'unknown_billing_reserve_usd':unknown,
         'notes':'Token-based local accounting at frozen rates, not invoices; router catalog units assumed USD/MTok. Includes transient retries; no prior experiments charged to this run.'},
       'native':{'parse_definition':'Nonempty grammar parse; semantic-error queries can parse. Empty query counts false.',
-        'semantic_definition':'Existing effects driver status=ok (analyze_top + supported diagnostic serialization).',
+        'semantic_definition':'Existing analyze_top returns Ok; stage flag retained independently of effect serialization errors.',
         'interpretation_definition':'Semantic accepted and native query_interp exits zero; symbolic interpretation, no managed-host execution.',
         'effects_binary_sha256':ev.digest((REPO/'_build/default/evaluation/native/effects.exe').read_bytes()),'query_interp_binary_sha256':ev.digest((REPO/'_build/default/bin/query_interp.exe').read_bytes()),
         'module_sha256':{str(p.relative_to(REPO)):ev.digest(p.read_bytes()) for p in sorted((REPO/'modules').glob('*.type'))}},
       'summary':summary,'privacy':'Source dataset, original NL/YAML, complete message manifests and raw provider reasoning remain private; only IDs/hashes, model outputs and counts exported.',
+      'operator_events':ev.load(private/'operator-events.json') if (private/'operator-events.json').exists() else [],
       'correctness_claim':False,'reference_comparison':False,'output_judge':False,'runtime_execution':False}
     save(run/'manifest.json',manifest)
     print(json.dumps({'funnel':manifest['funnel'],'costs':manifest['costs'],'summary':summary},indent=2),flush=True)
