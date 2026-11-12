@@ -1,0 +1,1 @@
+comment lines in "/etc/network/interfaces" matching "wlan0"

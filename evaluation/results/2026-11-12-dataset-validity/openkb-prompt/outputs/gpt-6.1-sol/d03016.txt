@@ -1,0 +1,1 @@
+set policy for "OUTPUT" to "ACCEPT".

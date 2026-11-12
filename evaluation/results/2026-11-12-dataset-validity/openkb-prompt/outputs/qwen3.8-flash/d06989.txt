@@ -1,0 +1,3 @@
+
+
+extract "wordpress.tgz" into "/tmp"

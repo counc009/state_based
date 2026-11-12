@@ -1,0 +1,1 @@
+if os is RedHat then if rsync not installed then install rsync.

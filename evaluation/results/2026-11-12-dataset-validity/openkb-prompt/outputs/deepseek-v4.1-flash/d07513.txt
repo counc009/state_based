@@ -1,0 +1,1 @@
+if ufw installed then ?statement otherwise ?statement

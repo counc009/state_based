@@ -1,0 +1,2 @@
+stop logstash service; create file at "/etc/systemd/system/logstash.service.d/root.conf" with content="[Service]
+User=root"; start logstash service

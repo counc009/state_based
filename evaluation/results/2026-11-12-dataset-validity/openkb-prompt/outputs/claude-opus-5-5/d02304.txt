@@ -1,0 +1,1 @@
+if os is Debian based then download file from ?key_url to "/etc/apt/keyrings/kubernetes-apt-keyring.asc"; write ?repository_entry to "/etc/apt/sources.list.d/kubernetes.list" with position=overwrite

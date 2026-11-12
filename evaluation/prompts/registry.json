@@ -22,5 +22,12 @@
     "source": "Darsh-directed positive-reference trim of handbook-v2; syntax, paths, metadata, actions, conditions and KB retained; defensive instructions and self-checks removed",
     "parent_sha256": "a1cd6016e4db26f121a42e34d03c997c18c9046ef4b752701fcfc52a35eb38c9",
     "design_status": "Style revision after v2 smoke and diagnostics; no new model calls or target-specific tuning"
+  },
+  "handbook-v3-openkb": {
+    "file": "handbook-v3-openkb.txt",
+    "role": "open package/service catalog experiment",
+    "source": "handbook-v3 verbatim plus positive extension: package/service catalog entries are examples, unlisted names may be used directly, deployments may add KB entries; formal query only",
+    "parent_sha256": "fa729aeaf773aab55c88d9457ae0e742094e97bd72517ac62f32bfaf81ad6a3b",
+    "design_status": "Separate variant requested by Darsh; same frozen 300 cases and four demonstrations"
   }
 }

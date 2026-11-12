@@ -1,0 +1,1 @@
+Astrogator FQL cannot express this request. It has no action for updating or upgrading all installed packages.

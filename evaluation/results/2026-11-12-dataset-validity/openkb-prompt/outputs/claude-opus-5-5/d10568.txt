@@ -1,0 +1,3 @@
+Astrogator FQL has no action for adding a package repository, so this request cannot be expressed directly. On RedHat-based systems, downloading Docker's repository file is a close approximation:
+
+if os is RedHat based then download file from "https://download.docker.com/linux/rhel/docker-ce.repo" to "/etc/yum.repos.d/docker-ce.repo"

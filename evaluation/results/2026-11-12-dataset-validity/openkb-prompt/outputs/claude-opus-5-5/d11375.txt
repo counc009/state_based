@@ -1,0 +1,16 @@
+Astrogator FQL cannot express this request. The language has no extract or unarchive action. The closest file actions only copy, move, or download files, and none of them unpacks a .tgz archive.
+
+Also, my earlier queries left literal paths unquoted, which breaks the quoting rule. Corrected versions:
+
+```
+set file permissions in "/srv/path" with read=all, write=owner, list directory=all
+```
+```
+delete directory at "/home/mydata/web"
+```
+```
+delete files in "/home/mydata/web"
+```
+```
+if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file
+```

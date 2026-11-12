@@ -1,0 +1,1 @@
+There is no Astrogator FQL query for this. The language has no action or condition for networks, such as a Docker or container "frontend" network. Its supported resources are files, directories, users, groups, sudo, shells, SSH keys, packages, services, repositories, virtual environments, environment variables, and reboot.

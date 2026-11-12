@@ -1,0 +1,2402 @@
+[
+  {
+    "task_id": "d04278",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/jobin_james/docker_swarm/tasks/main.yml",
+    "row_index": 4278,
+    "input_sha256": "f183828668195f06a00badbe067a44fdd9308831c42d7bbdd40269d92505e0e1",
+    "nl_sha256": "06333b50831db033b1d009711b0dab78f881e4828da5a3e94e1f2864bd762c14"
+  },
+  {
+    "task_id": "d10937",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/binarycode/openstack-horizon/tasks/main.yml",
+    "row_index": 10937,
+    "input_sha256": "cf3b6d2ca4fd02745b17a3d6dae7961991ec6e873c2f0229cda8cf3e7d89dc16",
+    "nl_sha256": "15ed2d0a1469013e651f5bd6cbd99a517f61ac7064af5104bc0b755761fe9642"
+  },
+  {
+    "task_id": "d04187",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/andres-rojas/init_system/tasks/firewall.yml",
+    "row_index": 4187,
+    "input_sha256": "3803d037b5e734bfa5d5b67c035c1c55483252b411bf67ce1beabfc3249d5f1b",
+    "nl_sha256": "0b05b6fd7c0800c764b579a9ed0a7f02f2168da178f517a1772699a01da7b9d1"
+  },
+  {
+    "task_id": "d08194",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/galaxyproject/cloudman-galaxy-setup/tasks/setup_galaxy.yml",
+    "row_index": 8194,
+    "input_sha256": "30d374034ecbb49e76739d1fdaa145cf25de73fcf352cfba97d5cc7970743a56",
+    "nl_sha256": "0645ac0d671f02477c43eafe86b75ef686e8595bbde2fbb21ab806129660f2c0"
+  },
+  {
+    "task_id": "d05206",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mrlesmithjr/powerdns/tasks/remove_logstash.yml",
+    "row_index": 5206,
+    "input_sha256": "59de8fba52e1caa9f6e91b90dc298c1d57ea7e3cc801b687a69a70d0a494091c",
+    "nl_sha256": "14c2c41b843b843f41dc3e00e5dc79e767967276c7c25ef3d89ca92026a3c46b"
+  },
+  {
+    "task_id": "d02304",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/csmithson12345/kubecluster/tasks/main.yml",
+    "row_index": 2304,
+    "input_sha256": "5b000491d3ce35ab16aeca4068f48a4f25af80a6db64a048558ec9c6092fde53",
+    "nl_sha256": "048f55db20662ab9265f31da6bc190e4e6f934da8814a820c269a1946fd0ade2"
+  },
+  {
+    "task_id": "d05015",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/aaronpederson/ansible-php7/tasks/install.yml",
+    "row_index": 5015,
+    "input_sha256": "63bad479ba497305ef0b4ece8e778531bd0464b94bdc443baa48b7f02619069e",
+    "nl_sha256": "0ab787ebc5f90ba8487cd36f8ab77d39db0a102f3fc234d90869983b0631e354"
+  },
+  {
+    "task_id": "d09265",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/tdobrovolny/postinstallerf/tasks/Fedora.yml",
+    "row_index": 9265,
+    "input_sha256": "9e8dee9f95a3dd7fea2755d43c821f741cdc3881510e35597e785a124a17e3e8",
+    "nl_sha256": "113f86156317d1a91757c5ee5ef28f347b3d8d070a7071aba7fbde53ca000328"
+  },
+  {
+    "task_id": "d07453",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/deveth0/munin-contrib/tasks/main.yml",
+    "row_index": 7453,
+    "input_sha256": "2a7802a51d3b93d151241a1984e93578239ffc7cf0354cd4e841001cece30dfe",
+    "nl_sha256": "0f4aa705c8b5d773fbdc2fa929029291e31d4fd8ccf4092d8e3fcc09e3beaa3b"
+  },
+  {
+    "task_id": "d03807",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/shashikant86/ansible-ios-ci/tasks/xcode-cli-tools.yml",
+    "row_index": 3807,
+    "input_sha256": "d9564e53581b63fd4d826c3d294c0a45815cea27df138f27f3446f4233c122d7",
+    "nl_sha256": "13b70cfeb138adc5e0e464d028d4695793dca298a393e545b7e6b9f67b7cee89"
+  },
+  {
+    "task_id": "d10147",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/hudecof/packages/tasks/repository-Debian.yml",
+    "row_index": 10147,
+    "input_sha256": "6a2d4cbaa7365d07fb760d33ebfa3293fc5a134c290114b54a530ec85d05b793",
+    "nl_sha256": "07b644f25b4b7473ab13d18605de9fe7932c8a60d894a66ad3fd1b377ea6339d"
+  },
+  {
+    "task_id": "d12021",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/tiflor/ansible_dockerswarm/tasks/prerequisites.yml",
+    "row_index": 12021,
+    "input_sha256": "cbc006293e74b10ea90946ceae742d85187e04e9603ce24dd5b95d1e99e1cfa0",
+    "nl_sha256": "01ae7779bbb2b9e8edc1e9600dabfa58a6c54ae00ba01b46a6c56374fb7f4de1"
+  },
+  {
+    "task_id": "d04237",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ctxcommunity/common/secure_winrm/tasks/main.yml",
+    "row_index": 4237,
+    "input_sha256": "20ccfe36232f3e1be9624243a82289a7d3f6100c3e104aa380b978f961fc8682",
+    "nl_sha256": "02b8d031a626016d4ee213f1f9e2ab4af7dbfb83c938ff6e7f8ce6aa1ac19d3a"
+  },
+  {
+    "task_id": "d04716",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/tylerschmidtke/firewall/tasks/main.yml",
+    "row_index": 4716,
+    "input_sha256": "ef58b0c13cd22ec410a174a62c7f3fdd7ab991ae58bce26360490847da20dc4e",
+    "nl_sha256": "10d2eca207d2bb3d14fca480c039166e1bb85434ababcf0575a516c74a82a3eb"
+  },
+  {
+    "task_id": "d10787",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/jeffcpullen/openemr_ansible/tasks/users.yml",
+    "row_index": 10787,
+    "input_sha256": "19723ad6475642cda9202d36312f29bec8b0e65d2a1645dfa60b5441ba13cb7e",
+    "nl_sha256": "05ecd011bf49a257c0b0efbc3d6ae4697719d36ac1a3d95c3d907ec3e7d71f52"
+  },
+  {
+    "task_id": "d09200",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/benabineri/corda-ansible-ubuntu/tasks/ubuntu.yml",
+    "row_index": 9200,
+    "input_sha256": "0a430d3bceca812f3beacb25102de3dbde494526cf6ed16e2fbe7aefbcf122cf",
+    "nl_sha256": "0a195efcdb0a26acf8ed5627a79b3cd68c150135cbbd60328c2c68bb5f819317"
+  },
+  {
+    "task_id": "d09279",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ecgalaxy/readyapi/tasks/uninstall.yml",
+    "row_index": 9279,
+    "input_sha256": "72f2e374d43c5c0985c0578b3bc74908ce9a8951690faac87a6ada4a5c6c8e9e",
+    "nl_sha256": "029b2c3fe4a50b327bdba49766be27b88e3523de33412fc90b0fad64e356e4ac"
+  },
+  {
+    "task_id": "d00430",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/krupzakrodney/httpd_amzlinux/tasks/main.yml",
+    "row_index": 430,
+    "input_sha256": "4f092e0b81d50f6ffbab9fdc6c23cb07a81aff04502831a2280f4a0ce3ad3cac",
+    "nl_sha256": "0761c76bdc08ad67620d2029d9f69d87ad101f995aa51c522e82466658cc2dcf"
+  },
+  {
+    "task_id": "d11567",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/honzamach/geoip/tasks/install.debian.yml",
+    "row_index": 11567,
+    "input_sha256": "542fb3c1044681a52229b6fac5630cad5d38f2e7df5b74c587d39df128a3461a",
+    "nl_sha256": "105abf9265286532e989d7ee2a0ed7b36e3f8c58be72036e2bc59a24f79231b5"
+  },
+  {
+    "task_id": "d06354",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/gikeymarcia/sanoid/tasks/main.yml",
+    "row_index": 6354,
+    "input_sha256": "33737fb325a9539080bc3dd94a296df6dc3d25de5fba852fcef932535bc38f35",
+    "nl_sha256": "139d8baba112461c1cd4947248e6e4a9890c5c555552e7761c18d10e82ef372a"
+  },
+  {
+    "task_id": "d01921",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/repleo/rainloop/tasks/main.yml",
+    "row_index": 1921,
+    "input_sha256": "5859fcc6cc951a0e7d8ef6fa47723344eccc48a25369981494218900e5396017",
+    "nl_sha256": "073daa7c41fa97891e4a51d7244c19d7f71620c5bcfa7bb5fa24055302e7797b"
+  },
+  {
+    "task_id": "d11668",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ahrenstein/mac_setup/tasks/system-preferences.yml",
+    "row_index": 11668,
+    "input_sha256": "80b348cbe9707fa5c6f602ee6d8c82bde1105fe38d5462511753017c138ae2bf",
+    "nl_sha256": "036620120d7e1978097a4cf641b1a018db33989530acfca6211ddb84ac42a654"
+  },
+  {
+    "task_id": "d13124",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/tranquilit/waptagent/tasks/install_dependencies_CentOS.yml",
+    "row_index": 13124,
+    "input_sha256": "5b8b5ec8c6210b84bda12d3c9133cd82c1776ce5aea82e427cdf163e311a96d8",
+    "nl_sha256": "0ed0c8013bf60e981a873ac02075c12577114f7d06cbcce9edf0e05e170241ac"
+  },
+  {
+    "task_id": "d02376",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/zenoamaro/supervisord/tasks/main.yml",
+    "row_index": 2376,
+    "input_sha256": "46b8fa9a6a19e91a4709a9b87c33747a584c2a6f320dc79130fbeb8d77f88add",
+    "nl_sha256": "0183ed9e443a1377065b42c5f7f174f114adbe34c65940b17e97df79e0bdb05f"
+  },
+  {
+    "task_id": "d07181",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/vinigx457/web_server/tasks/configure.yml",
+    "row_index": 7181,
+    "input_sha256": "e55081528e3f1909554716cc12ab6998e7a134065aebddf61b32c20ed0a46676",
+    "nl_sha256": "15059b126686f345718208ca672897b5fb2a3015c2c2400d49f197d3c4e0d6ab"
+  },
+  {
+    "task_id": "d11963",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/blopiccolo90/mysql_machine_ansible_role/tasks/main.yml",
+    "row_index": 11963,
+    "input_sha256": "375295406871ab9362210e7a0e0b59f2e83833b1fb726521f3bbfd8c3a7a4b9c",
+    "nl_sha256": "091366a6ee3e2fa76a0d4a28c037a6e5d9549f5c5ea93af18011b2727b16f582"
+  },
+  {
+    "task_id": "d00300",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/dimitritchapmi/fluentd/tasks/main.yml",
+    "row_index": 300,
+    "input_sha256": "9c7aab1a9c2c200cb9e597ac978dbafb3ea9dfe83d2a4e34a7da8f1927369f7a",
+    "nl_sha256": "0ebf4d3723779bcbc6bbf1c2f731a44ed0e3a406f077d273995e5e65ffe45ff6"
+  },
+  {
+    "task_id": "d02243",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/revenni/falco/tasks/install_sysdig.yml",
+    "row_index": 2243,
+    "input_sha256": "149dfbc022cd0d4a3a294553303d354e71198489208380e4ac0fc1347deef27b",
+    "nl_sha256": "1a4d82d4d519d67ffabf240addf21b707d8614aded8f3e251f96881bb996d611"
+  },
+  {
+    "task_id": "d06991",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mdicerbo/zabbix5_agent/tasks/suse.yml",
+    "row_index": 6991,
+    "input_sha256": "fa85e8dbffd161a6e08ef2d90e6dec3e9b4df29da2096a2b1209bda4f6524ccd",
+    "nl_sha256": "0a2e506749f03480705d2e25c9efa36bba1daff7c617e998725d36d5b00f62b0"
+  },
+  {
+    "task_id": "d04003",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/akashtiwari370/elk_setup/tasks/main.yml",
+    "row_index": 4003,
+    "input_sha256": "67a1caa89b00f03a52294444553f5433eda0a11f362582e16e74d4d3a565f28c",
+    "nl_sha256": "05d9ac540b500036f7c4abaa4584740d9f8f5dca5e5a7497d931f5daadc8f9d7"
+  },
+  {
+    "task_id": "d08691",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/etc_fstab/ansible_role_sar/tasks/sar-yes.yml",
+    "row_index": 8691,
+    "input_sha256": "cc3dd38514060756c832ce4821237de68549c4e4f7eda01662a7750a57b0c90b",
+    "nl_sha256": "0aed2da0010131b274a0948b70d079e03903dfb4debc00196348db2989d67c03"
+  },
+  {
+    "task_id": "d07966",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/karljohns0n/nginx-more/tasks/install.yml",
+    "row_index": 7966,
+    "input_sha256": "011b5ebe7864e55a8abbb40a1c26b2dfebd3425cfeeb88512cf1aca11822ee27",
+    "nl_sha256": "05207396ed43b2b809a0f7417c98f668c94ef428d2a3456ce92ac99c889f170e"
+  },
+  {
+    "task_id": "d06125",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/grephappiness/rsp_session_components/tasks/setup-RedHat8.yml",
+    "row_index": 6125,
+    "input_sha256": "a945be95ce23fa5cca727444d4ddc749f0bad499d5d7b391934f03945eebd76b",
+    "nl_sha256": "11613754f3a0c269a7d75b334c8a25e73968344a0350beeed9b22b219c2fac61"
+  },
+  {
+    "task_id": "d01022",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/hwwilliams/fail2ban/tasks/main.yml",
+    "row_index": 1022,
+    "input_sha256": "1f2f67adc922ad0965c434af31f8957cb956e9aaea0882a69ad39c37d59db964",
+    "nl_sha256": "0c3c6b7cb8d046ba36dc50663849683884a967e591757a00c798faf21a322489"
+  },
+  {
+    "task_id": "d01059",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/goldeagle/devops/ranger/tasks/main.yml",
+    "row_index": 1059,
+    "input_sha256": "f82e1216b2211bd82d6ae2471dd7470e72380bd1fd5b1360ece00be34cb8d860",
+    "nl_sha256": "0d6c6a94b095f47994524e421811bd5d561f16904fa60a7f8a38e6a0ce3465a9"
+  },
+  {
+    "task_id": "d12189",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/nmusatti/docker_ce/tasks/ubuntu/install.yml",
+    "row_index": 12189,
+    "input_sha256": "76c1480294bc0ead9dad5f0ae1c896e8ce742dd773d046cdaa66e05711aec0c2",
+    "nl_sha256": "13de479864c2ffb17c6ed10a07dfec11ca708892e29bffe5bd0d64ead0a8042c"
+  },
+  {
+    "task_id": "d05875",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/thermistor/postgresql/tasks/main.yml",
+    "row_index": 5875,
+    "input_sha256": "0853f565b4cfdbc8645a25935b196334f7a0d5cbcbfdb7328ac5e3c533b9f9de",
+    "nl_sha256": "13b17b69fdfc96f62259418a764fd1f2266f535206d2a7f6be3e4a708a2d2489"
+  },
+  {
+    "task_id": "d03640",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mrlesmithjr/landscape-app/tasks/debian.yml",
+    "row_index": 3640,
+    "input_sha256": "cfc7042956d826dfda02f53e554fbce120b8dc9dfd3ac60517ae6222c7b197f1",
+    "nl_sha256": "14eb48819842e6deb4e691c84c16fe95dc3895baa98b717f7b4008b64a9484a5"
+  },
+  {
+    "task_id": "d12745",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/speedy-looper/ruby/tasks/main.yml",
+    "row_index": 12745,
+    "input_sha256": "0bfd4b246d36a2b4d1c38cc78e0c27d2b2e925b9d6c871368d110baf57118b54",
+    "nl_sha256": "01edd3066ff37debbdc21874e66ebb836185890474f75b229e94b6c5c35123aa"
+  },
+  {
+    "task_id": "d01279",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/alvarobacelar/ansible_toolkit_dev/tasks/chrome.yml",
+    "row_index": 1279,
+    "input_sha256": "a9e0e33ed0e1aa1f95f3ba01ae0fda78e3f6d199b6609b1d0460543da1ed0ffc",
+    "nl_sha256": "13cadcca2322cfdb383496bcfaf7f36ce49eb9e7514a7cd9f027e4e9c2f919ff"
+  },
+  {
+    "task_id": "d04099",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/laslabs/linux-active-directory/tasks/ad_certificate.yml",
+    "row_index": 4099,
+    "input_sha256": "fd99da5abc4b0dd867483ce5922ac0c515d6392db7bf1016f7ab9bf9dfa93f45",
+    "nl_sha256": "13e168792bed336a12d47c6c01ff82dc2dcedc7fb6a56d4dde8cd19ff82a0a64"
+  },
+  {
+    "task_id": "d01573",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/vendrik/control_machine_ansible/tasks/main.yml",
+    "row_index": 1573,
+    "input_sha256": "375295406871ab9362210e7a0e0b59f2e83833b1fb726521f3bbfd8c3a7a4b9c",
+    "nl_sha256": "091366a6ee3e2fa76a0d4a28c037a6e5d9549f5c5ea93af18011b2727b16f582"
+  },
+  {
+    "task_id": "d07106",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/weldpua2008/openjdk/tasks/install-openjdk-freebsd.yml",
+    "row_index": 7106,
+    "input_sha256": "227b27b950a3d6d79c8e80486060bcd0fc7326c7c641d8cdb5552e07d97e4fa8",
+    "nl_sha256": "093ab6175aa5cdad8b5fd58e93c64b473e3278ca343463205617075e8ac5fb99"
+  },
+  {
+    "task_id": "d11931",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/panchal_yash/percona_xtradb_cluster_role/tasks/rhel_80.yml",
+    "row_index": 11931,
+    "input_sha256": "cf8cbfc856fc92e04dbbb72526755ea5e0dc30c69bf0b726b8556114e9f5dfc3",
+    "nl_sha256": "040665f84a9686bd1d1a604143bd474b5fd1098f7577c5535db18b42bb02d3a6"
+  },
+  {
+    "task_id": "d05457",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/jeffcpullen/openemr_ansible/tasks/apache.yml",
+    "row_index": 5457,
+    "input_sha256": "81bc547104d20ea3d83e20ec0a831fa71609929494a4105ec0c0fa4e4a110ef5",
+    "nl_sha256": "0c44cc94b46044a77af20e5895431ba11061b3031697dfc95fe6e2e624576ad0"
+  },
+  {
+    "task_id": "d04636",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/j0rdan0/consul/tasks/main.yml",
+    "row_index": 4636,
+    "input_sha256": "92f57f22452e70d66a0b03b21bd68471fd97d136a529457d8ab8a27b01e04ad4",
+    "nl_sha256": "1038b957cadfb764e49242844ab8c9c25f002d87281094893bda7a4b3d97dea5"
+  },
+  {
+    "task_id": "d05962",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/binaryplease/ansible-backup/tasks/main.yml",
+    "row_index": 5962,
+    "input_sha256": "fea891981da93c3aed695ea759b8a0cfe8783f52c259b958ddfd9758d090e60c",
+    "nl_sha256": "15450ffb484dbed1c8d167088e4c1107df5caa3f945380dc7dc1bae2c412be3a"
+  },
+  {
+    "task_id": "d04366",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/entropydown/cassandra/tasks/package_configure.yml",
+    "row_index": 4366,
+    "input_sha256": "2e737b645ad3c647f85c1178b05390e7682c2cbce5e523fe637bea425c5fcca8",
+    "nl_sha256": "0da0e50721c1e3aedc4ed12bb2fed37c47268f3409896e482a2b8a8ce1cb5ec9"
+  },
+  {
+    "task_id": "d02546",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/wabumike/ansible-dev/tasks/python.yml",
+    "row_index": 2546,
+    "input_sha256": "0bfd4b246d36a2b4d1c38cc78e0c27d2b2e925b9d6c871368d110baf57118b54",
+    "nl_sha256": "01edd3066ff37debbdc21874e66ebb836185890474f75b229e94b6c5c35123aa"
+  },
+  {
+    "task_id": "d00129",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/manics/ansible-role-fluentd/tasks/main.yml",
+    "row_index": 129,
+    "input_sha256": "48395259f2fccfb108d60064b95556751254a53d3734e9b0caec3475ef4a76cf",
+    "nl_sha256": "064f8a37811696f7f2c811c27deb77ece5d88dc98d12319e96956c5e0022b1a7"
+  },
+  {
+    "task_id": "d02418",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/dba_ray/mysql_docker/tasks/system_check.yml",
+    "row_index": 2418,
+    "input_sha256": "4da3cd0c60d8b63783bde8c9f1ff50204f3550f756bc939e590bfa01d81cac48",
+    "nl_sha256": "068ab052a62750f9be71bdb8fa82c529d2a24ac8785a5b053296812582ed7097"
+  },
+  {
+    "task_id": "d04941",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/0ta2/repo_epel_role/tasks/main.yml",
+    "row_index": 4941,
+    "input_sha256": "623bf207faff156e8f74bfa11dcb74a426b1ec784575f0aa778e90e31a033498",
+    "nl_sha256": "18a5850ee289c581327a56c1acc848a5438953321de6fd3a067c662541bf9a9c"
+  },
+  {
+    "task_id": "d10142",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/tumf/newrelic/tasks/config.yml",
+    "row_index": 10142,
+    "input_sha256": "b7dee8fb27aa757f6e99546f38633ff6fe4677b263c6760d4388ba484efd38cd",
+    "nl_sha256": "1421e6400cbf81e18852a827e3fd77bd639b3692290ec180cbfa20d89241bb35"
+  },
+  {
+    "task_id": "d09774",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ebesson/monitoror/tasks/configure.yml",
+    "row_index": 9774,
+    "input_sha256": "7ed930ea4e2acc0edb917f0d7b14498f11a1bd307e2f2970ca9b2aa1fd4a8f1b",
+    "nl_sha256": "1862899324f4ee002a09ec39573b948baa5bd99d9a98861ac47ecfa66b89d128"
+  },
+  {
+    "task_id": "d10198",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ivaldi/ruby/tasks/from_package.yml",
+    "row_index": 10198,
+    "input_sha256": "d7571d02097f23117a8864f4192d9ddcca7d92cc7f0e76ebb97c381d4825b4ea",
+    "nl_sha256": "089eb531b999c7b3d023a02f34a2f6b370492437bfbbcfec99995cdf62d11ec3"
+  },
+  {
+    "task_id": "d00805",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/irmoobear/php7/tasks/main.yml",
+    "row_index": 805,
+    "input_sha256": "3153e211c92986db7992945edd1aaddde835531147ff9be1d9f1a589e8e60e35",
+    "nl_sha256": "0ca6a5cdc769ade1bcb2e52fc44c66e5fd63785270956a701184c282e5362ff1"
+  },
+  {
+    "task_id": "d04310",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ansible_role_install_docker_ce/docker/roles/docker/tasks/add-docker-group.yml",
+    "row_index": 4310,
+    "input_sha256": "f2ba7329666495ec24c52e72a35f7f1ed6aa831e00dd7319f40ed7d6f0d0b191",
+    "nl_sha256": "0aeed5674b146a3a28a41de326cd5a54e4dcc94bccdcebcd6c5f4c6c73fcdf8b"
+  },
+  {
+    "task_id": "d07279",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/suciomike/guacamole_ansible_role/tasks/06-install-guacamole-client.yml",
+    "row_index": 7279,
+    "input_sha256": "7088e080c684f9ecd37d826a6f74a6ce3f1a20e9b7d4a910337147b1b33667b0",
+    "nl_sha256": "03088693ddbea92188945c012af028e4409055b8500caea822e69a708ed50333"
+  },
+  {
+    "task_id": "d07340",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/vahubert/vmwaretools/tasks/RedHat.yml",
+    "row_index": 7340,
+    "input_sha256": "13a36e12b400ad26b09cacc83d30cb0e609b779907e05346bd2e5a71911199cd",
+    "nl_sha256": "008fd0d6fb7cf1bdbf83dddfc57eb36f5f272774b8bf791caa76def3055eee02"
+  },
+  {
+    "task_id": "d01366",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/f500/php_xdebug/tasks/main.yml",
+    "row_index": 1366,
+    "input_sha256": "cdd746ec354a81a9b6bcd0f13a7ba4337606f8393dbc5920c6a0361ee950399d",
+    "nl_sha256": "0eca148c5ae322c6b312b465c0287efc22c47d0316bdb163569276873cde2bad"
+  },
+  {
+    "task_id": "d11692",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/rbicker/cobbler/tasks/main.yml",
+    "row_index": 11692,
+    "input_sha256": "f22734486e17849162d288ba3087c3d1a9e4c52e45f59c48ced2b81a1fc84a6e",
+    "nl_sha256": "017bfeaecdde131bfc46b7538165e828efbf0bad61279ac47dc7efe096a5d8bf"
+  },
+  {
+    "task_id": "d08361",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/klems/motd/tasks/ubuntu.yml",
+    "row_index": 8361,
+    "input_sha256": "f59c94f44eca02364a2999b64d718cc16068e0816d42f4fbb92a2ba18b7f5911",
+    "nl_sha256": "0eb82213d7f751f341bb940474a4c4a521ba7c08fbb8c55c5f2912f96b361cb3"
+  },
+  {
+    "task_id": "d02919",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/richardskumat/ansible-role-generic_iptables/tasks/Debian-10.yml",
+    "row_index": 2919,
+    "input_sha256": "faf5bf4a5046ca22378002e5a4d6555c87e1f7a388385199539afdaed4330034",
+    "nl_sha256": "1699449f552df0c006285817a3609acc31f511fa17908f08e0f34a5875e64ebe"
+  },
+  {
+    "task_id": "d06989",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/danonas/mycollection/wordpress/tasks/main.yml",
+    "row_index": 6989,
+    "input_sha256": "2d4c0ff4e8d74ece7630e7a83ead6cfffb022ee934f4ccbb76d6d0c564c21d28",
+    "nl_sha256": "09a06afca2b87065cb9bd7d277af7bc8bbb1088e8d2465a7ccd95a0242fba096"
+  },
+  {
+    "task_id": "d12491",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/undergreen/prometheus-alertmanager/tasks/main.yml",
+    "row_index": 12491,
+    "input_sha256": "737691ace8426a7dee6cced05c836d9dd8693259c809e5d9e487d9fd737928f3",
+    "nl_sha256": "1235a990da6d896f0aa0107557a873363a292d6a2386ac605452f3599ccbdecb"
+  },
+  {
+    "task_id": "d05937",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/vahubert/vmwaretools/tasks/RedHat.yml",
+    "row_index": 5937,
+    "input_sha256": "4f424bf58fde763dd9f86c93c9e7bb9dbdc2f8c5306e1943f461ac309343ca44",
+    "nl_sha256": "1698f0abb1eda1027f35430126d5e0587b9a1dbfaed18d4bf01ece73e9f72a73"
+  },
+  {
+    "task_id": "d00596",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/icopp-ansible/node/tasks/main.yml",
+    "row_index": 596,
+    "input_sha256": "45ed41036fba6c8627cf695d37e60e94f813cca0309b9a94e5ea7b04e8ea435b",
+    "nl_sha256": "16a321fc6eed852a7100c009209133894833e663708bd60952dd5f15647478f3"
+  },
+  {
+    "task_id": "d13225",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/sansible/ntp/tasks/install.yml",
+    "row_index": 13225,
+    "input_sha256": "8de61fd0c3311e5f9512869f6d6f0d2140ea488dec56e4f0795547fd82cb2d8a",
+    "nl_sha256": "149fed4567b8307eabeac0c146f10d2500d51bef1570cd0a0d884c3f5c04abde"
+  },
+  {
+    "task_id": "d01261",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/pmoscode/wikijs/tasks/main.yml",
+    "row_index": 1261,
+    "input_sha256": "c7b5d0c7c358cdedb27a53ad8a4b4d098c25654112aed98680085565f0556773",
+    "nl_sha256": "16d224d3cc37f82b29ba3c4da26d9b3a06b37292ca14fd7461bd33409586fe5c"
+  },
+  {
+    "task_id": "d04809",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/net2grid/memcached/tasks/main.yml",
+    "row_index": 4809,
+    "input_sha256": "fce77fd78131f4de59ce52e63a40d004fcf0d5f0a359356f0dd81fd4f0b80a78",
+    "nl_sha256": "12b317f858312e59fb3e001c9a668633b8c002ea244f6451197765ffa05cce38"
+  },
+  {
+    "task_id": "d12861",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/darkwizard242/gcloudsdk/tasks/install_el.yml",
+    "row_index": 12861,
+    "input_sha256": "3b5b3c17861953a62d80ff37565c1f44cedf010d73f2d72bec0e860bfa6c31f6",
+    "nl_sha256": "102df7ad71507ef379d2b1424a42f129a52381f1fbefc82d1c2d610520af6de6"
+  },
+  {
+    "task_id": "d02372",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/bearandgiraffe/php/tasks/main.yml",
+    "row_index": 2372,
+    "input_sha256": "91c47a29945b3f349d3cd07569f815222d65c0f4b731a3ba0be9d58103463a05",
+    "nl_sha256": "03bd16932796e241b884f765ac3c9cdc8fa735307c3f8868b6d7c877df174630"
+  },
+  {
+    "task_id": "d12967",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/dinesh1017-88/tomcat/tasks/main.yml",
+    "row_index": 12967,
+    "input_sha256": "21055d356de3e637e0856ff6e1efa9765b24bd6e0e854133300f95b6735359e6",
+    "nl_sha256": "0216589d4be27e7783b992e49985f33e816e6eab93f35b302d2521889b82a00d"
+  },
+  {
+    "task_id": "d07146",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/kallakruparaju/kubernetes_cluster/kubernetesmaster/tasks/main.yml",
+    "row_index": 7146,
+    "input_sha256": "5e8d1f4eab874aa08f1ffa3ce7f6c1977030f70e176177b14f81c3d2fd6fd302",
+    "nl_sha256": "1557edca0a9aa41fd709d2da96ef8f02aae608f883f28f2e9c46fbf9359aae38"
+  },
+  {
+    "task_id": "d07057",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/cairo_koch_maximilian/ansible_role_db_mysql/tasks/main.yml",
+    "row_index": 7057,
+    "input_sha256": "77ef6162040840cfa1834b0baf40552cfe7e303a63fa0011df50529fc1f76ea7",
+    "nl_sha256": "05979a129ebc698df21645a5b5121b8219291816a71070fd315e501692699e62"
+  },
+  {
+    "task_id": "d04847",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/kamelzcs/celery/tasks/main.yml",
+    "row_index": 4847,
+    "input_sha256": "535c23d9ca4cc0f6f6f6c63ec0c4aa8f783084c4a06c96c671be13d7f84e4691",
+    "nl_sha256": "0b419da3d8760b8972f119ef949e8442029f036c2b3484d8ed3c8c8cc7557aa7"
+  },
+  {
+    "task_id": "d07589",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/brodriguesneto/ansible_jdk/tasks/main.yml",
+    "row_index": 7589,
+    "input_sha256": "a2f3ac791ac2f96fd980c7235a5974a03d732865327fe4a6c833e9fa196f49ff",
+    "nl_sha256": "121468f5318eb7ebb1d3a595a64fe90b95cee7b6c9c308fa428e13d630217c2e"
+  },
+  {
+    "task_id": "d01858",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mamercad/zabbix-frontend/tasks/main.yml",
+    "row_index": 1858,
+    "input_sha256": "cb0985bcf6b47ad543393ba9340077216cafd4ea448d374d55e19a3fbb90636d",
+    "nl_sha256": "01cbd1c7acd92623db8c4588d04ed87cfac62a99c598e87d256cfa4b2470e1c1"
+  },
+  {
+    "task_id": "d09397",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/lukas-bednar/nested_virtualization/tasks/main.yml",
+    "row_index": 9397,
+    "input_sha256": "f1b4f57224e543db7bce6aa3c07c074f321ad82f3747ea363adb58bf497c971f",
+    "nl_sha256": "02e61ee6fb318aa18e2078e3e212ce268a6e553c9a63e06344467c928ff31c91"
+  },
+  {
+    "task_id": "d05546",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/laggyluke/git/tasks/main.yml",
+    "row_index": 5546,
+    "input_sha256": "ba9d524e054a2eb1e035988346bcad69d3a4ce816e0a479f0ec71569c7881e88",
+    "nl_sha256": "19932ad84f6c607b258e1ca2027aafeb7c8788cf934179b4bd8be574c74c8f5d"
+  },
+  {
+    "task_id": "d10754",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/kevinlebrun/common/tasks/deployer.yml",
+    "row_index": 10754,
+    "input_sha256": "b12a37f714ebef0e744d5d682757b708b9da46248cd048e760071db788baa4ac",
+    "nl_sha256": "0e4ddcb8fd74b5ad4678034d0c6e3b36a979f542ca978acec31d6be1fae0d3af"
+  },
+  {
+    "task_id": "d07473",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/vicenteg/mapr_tcollector/tasks/main.yml",
+    "row_index": 7473,
+    "input_sha256": "87717d10dd2de07bbd580bee8253613d8acebb6019fe4030b8355cd40f4213cc",
+    "nl_sha256": "0e757a0efbb10602cd9fb7c8a114d4a930815cc7c11cc5ec338d42321c8f4837"
+  },
+  {
+    "task_id": "d12825",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/exzeo/yarn/tasks/install.yml",
+    "row_index": 12825,
+    "input_sha256": "f789729bdf77df9ab381dccb2fb4ba974192bb7aa91edeaee49963af4ab4f780",
+    "nl_sha256": "056d43377995c1929935b0902793c770490b86597a89fe57b0e15de291372da0"
+  },
+  {
+    "task_id": "d00766",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/andrelohmann/openvpn/tasks/main.yml",
+    "row_index": 766,
+    "input_sha256": "4abcd75229f0247a9812824305e3027941257aef5d962e495a628d5617179c81",
+    "nl_sha256": "060879489c3776ec766c9d7d9b1687694b7decbbaa55233f5d0fd3ea97317a37"
+  },
+  {
+    "task_id": "d05722",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/karolcode/docker_install/tasks/includes/install_docker_compose.yml",
+    "row_index": 5722,
+    "input_sha256": "b052550a81a5a4196aaa864a57b60b508a0da7409fa9b319ba78916cac01a2f2",
+    "nl_sha256": "09720e9d69c9e6050216ae8fc5dd61aa273b7d089c9bfb5c18ade2468015a072"
+  },
+  {
+    "task_id": "d11594",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/palkan-ansible/aws_cli/tasks/aws_cli.yml",
+    "row_index": 11594,
+    "input_sha256": "6c000a8c358813d3bd283d49a2c8404d73dc9f66d3cec357ee36e20481bb82c0",
+    "nl_sha256": "17ab2035be41185005b76ff56c5a5a655805c76331591c861e54a31b07361f0c"
+  },
+  {
+    "task_id": "d01377",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/egeneralov/redmine/tasks/apt.yml",
+    "row_index": 1377,
+    "input_sha256": "2a7802a51d3b93d151241a1984e93578239ffc7cf0354cd4e841001cece30dfe",
+    "nl_sha256": "0f4aa705c8b5d773fbdc2fa929029291e31d4fd8ccf4092d8e3fcc09e3beaa3b"
+  },
+  {
+    "task_id": "d10752",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ericsysmin/cfnbootstrap/tasks/main.yml",
+    "row_index": 10752,
+    "input_sha256": "06e4db3d39d621075f8d6251d696f9700683b8eea46fb68993120f2c5b5cb207",
+    "nl_sha256": "11c678d1a63ee6d69008b8b23084344922ef636d1491a8a8d8e5e6e977c2de9d"
+  },
+  {
+    "task_id": "d00246",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mamercad/zabbix-server/tasks/main.yml",
+    "row_index": 246,
+    "input_sha256": "51563bd957e4f59b6c0ae43ed84c60d4c8b16649e8c3284bfadb28253a5e37dd",
+    "nl_sha256": "172e90a1b2e5cd1ecb63b5eeace15f0e3799d10300b07c6e9e6c99290779567d"
+  },
+  {
+    "task_id": "d11197",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/j91321/auditbeat/tasks/main.yml",
+    "row_index": 11197,
+    "input_sha256": "4c0af6ad622cd71850baba5d21a37b9c584ebcf91a1811d850758dc28990d7d6",
+    "nl_sha256": "1688f7e3a4ec7f51d577fd1cff1bf31e10e18310d7a72584959cb35c15a310e6"
+  },
+  {
+    "task_id": "d03626",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/dmitriy_devops_trainee/docker_role/tasks/main.yml",
+    "row_index": 3626,
+    "input_sha256": "0a05096892e19f595358892776e733f1e49be1dbf3fc593a72cd0277bd25ecaa",
+    "nl_sha256": "1881bd0e1b065d69e6925e7c2caeb67fb3357c0876e8a7f23638bf541eaf5c69"
+  },
+  {
+    "task_id": "d08155",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/piyuesh23/piyuesh23_memcache/tasks/sub-tasks/apt-cache.yml",
+    "row_index": 8155,
+    "input_sha256": "6da15d591449ca466fca87e329e9ee42459d84c95f749dc30102945196d0d50d",
+    "nl_sha256": "07d12f896adaaee0a52c0e77bd6fb0ed015bb994ab967c0e40be87a813da0671"
+  },
+  {
+    "task_id": "d03253",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/shestera/swap/tasks/disable.yml",
+    "row_index": 3253,
+    "input_sha256": "8bd7f24b02061f2e619db49b2abf224f0f7319be603a1466aaab136a9974c339",
+    "nl_sha256": "16c66c45930251d5474d07535d317de10708267314c09d6a4fa497a0f0536ce8"
+  },
+  {
+    "task_id": "d04531",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/dilerous/vxflex_install_sdc/tasks/main.yml",
+    "row_index": 4531,
+    "input_sha256": "a2a8f86fe43c70f0307d06fe77ddbad293f7893ec52ada68a1cf00bec48b2604",
+    "nl_sha256": "0a3f2a0523d6ceccd8fec699ad8ee577011a6026ec36f352bfc7d1503a8159e6"
+  },
+  {
+    "task_id": "d12914",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/jgoodall/titan/tasks/main.yml",
+    "row_index": 12914,
+    "input_sha256": "c3dad4da054b875c7bdbf3daa068edc42ce0ec8fc01fa5f40f4e21c1d43b9574",
+    "nl_sha256": "17cc0a62caebaccd052123a4790697c463f5a4a68aec1a277781c380d7c8e411"
+  },
+  {
+    "task_id": "d09626",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/alexanderjardim/consul/tasks/main.yml",
+    "row_index": 9626,
+    "input_sha256": "71a929cb883b8d92a13d32c69b5150c61faadc36be20a7ef9eed146ccb3d0d0b",
+    "nl_sha256": "0d6d73c784fa7765ea0022052e17ccb2895697b39daea95cf7119d16dd86ab5c"
+  },
+  {
+    "task_id": "d10905",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/kanya6/kanya6_mycollection/wordpress/tasks/main.yml",
+    "row_index": 10905,
+    "input_sha256": "2d4c0ff4e8d74ece7630e7a83ead6cfffb022ee934f4ccbb76d6d0c564c21d28",
+    "nl_sha256": "09a06afca2b87065cb9bd7d277af7bc8bbb1088e8d2465a7ccd95a0242fba096"
+  },
+  {
+    "task_id": "d12409",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/rahul0705/oh-my-zsh/tasks/main.yml",
+    "row_index": 12409,
+    "input_sha256": "f3c5e342fe8f5fb4d39d686348f7e12d1256757ae309c759fdac0e0d3960d719",
+    "nl_sha256": "11d869d65e70175891fb77b0dae784a1dbdf6313dc01143e235ee0cdbd1bc2f1"
+  },
+  {
+    "task_id": "d05091",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/softasap/sa-hashicorp-vault-ui/tasks/tasks_goldfish.yml",
+    "row_index": 5091,
+    "input_sha256": "e58079bca62e7b151cbce6b2e10926d9b5592ab95a30f8d0eb6bb9d1cd10471e",
+    "nl_sha256": "0567659447f0f532d650f2823b8578b1765403461b84adf8bb99e8e98c6e89c3"
+  },
+  {
+    "task_id": "d02250",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/somasekharkori/ansible_galaxy/tasks/main.yml",
+    "row_index": 2250,
+    "input_sha256": "cb0985bcf6b47ad543393ba9340077216cafd4ea448d374d55e19a3fbb90636d",
+    "nl_sha256": "01cbd1c7acd92623db8c4588d04ed87cfac62a99c598e87d256cfa4b2470e1c1"
+  },
+  {
+    "task_id": "d13102",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/nschhina/zscaler/tasks/setup-Darwin.yml",
+    "row_index": 13102,
+    "input_sha256": "a77521588b13c4473d10bcb3285bc43520afdedff29c910ffa217b1fb46780f7",
+    "nl_sha256": "0ff2bf12a97f854425939de5d8416c0d5c773dfe25dc7e3e882dd50cb7fe9efb"
+  },
+  {
+    "task_id": "d12703",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/raveshaww/kubeadm_setup/tasks/main.yml",
+    "row_index": 12703,
+    "input_sha256": "aa114a598edaabb0343fcc856b33b6167e5d45ba1191fdf738bba7f0c1fc7796",
+    "nl_sha256": "099fcb8014f35e9758259c467675de66f0ff6013b803cec398ee610c4e0a72b5"
+  },
+  {
+    "task_id": "d06907",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/micko920/role_firewall/tasks/disable-other-firewalls.yml",
+    "row_index": 6907,
+    "input_sha256": "d52e43ad38b2f28c97611b73094f0ebc8afe02c0c1180db8ea5f2b078037131c",
+    "nl_sha256": "081676cf7ce1fe9814994e3864d33abc59caf155caf827989262d36a062dae40"
+  },
+  {
+    "task_id": "d00411",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/gotansible/golang/tasks/gimme.yml",
+    "row_index": 411,
+    "input_sha256": "be0ce74a12e405e3044ebb46505bac7f36b2abccc37e37e64ef0579349b17358",
+    "nl_sha256": "05414ca9921325b5953ea9e445c1ac58a75a786c5fd1d51ef6c9ccada82a4eb0"
+  },
+  {
+    "task_id": "d01223",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/nabilbendafi/psplibraries/tasks/libyaml.yml",
+    "row_index": 1223,
+    "input_sha256": "f49be212fef48e97bf0d13af0ff1b1659bbd22dbc241013dc976f6c67bca7ece",
+    "nl_sha256": "05e123d71c73e97219ccaa907a0105cf8ac9282227b97dabe0ad2f03ec80a4e5"
+  },
+  {
+    "task_id": "d11925",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/zeuswpi/nginx_certbot_base/tasks/install_Debian.yml",
+    "row_index": 11925,
+    "input_sha256": "568b80267c22d2633da2b6a51a515a19340ab3826a5b88e636918aad305337d7",
+    "nl_sha256": "14043a8c926b316c6379fc476cddcc55c908fc740a2a0dc43f0e551d3ecb4bdd"
+  },
+  {
+    "task_id": "d10847",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/acropia/docker/tasks/docker.yml",
+    "row_index": 10847,
+    "input_sha256": "0a05096892e19f595358892776e733f1e49be1dbf3fc593a72cd0277bd25ecaa",
+    "nl_sha256": "1881bd0e1b065d69e6925e7c2caeb67fb3357c0876e8a7f23638bf541eaf5c69"
+  },
+  {
+    "task_id": "d11860",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/lagilaper/nginx/tasks/main.yml",
+    "row_index": 11860,
+    "input_sha256": "757055b45c5c9e5738737f5a40b65e66757b667f71ce558a274508dddde3240c",
+    "nl_sha256": "042fc4ade447d6b75201e0b1cea7af072cb72cc2277d519017fddb337340ca76"
+  },
+  {
+    "task_id": "d08754",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/aplyca/ezsolr/tasks/setup-RedHat.yml",
+    "row_index": 8754,
+    "input_sha256": "6185bb2246fee0408a5c26b3a719837d3bb411c1f0303f7e0e286d416ed5933a",
+    "nl_sha256": "0a2a1f21c796a1d000424fe506ceea3c98e73f64d71ad9881ebe8b3b8eb9176c"
+  },
+  {
+    "task_id": "d11275",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/aeriscloud/logstash/tasks/debian.yml",
+    "row_index": 11275,
+    "input_sha256": "f6f223970725ba6e7e36b76aa04c1bcab7c9d440bc1fbc664f30807c4d560473",
+    "nl_sha256": "0a92dda626bfe0b88aa7d26668c16b2838ecf64fae717e2a4d695882d13edf1c"
+  },
+  {
+    "task_id": "d05985",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/timani/mono/tasks/install-redhat.yml",
+    "row_index": 5985,
+    "input_sha256": "4741562b1753fbe40581a2b17a8b81ba7368c206915d3e6f2f4977f4adf71ebb",
+    "nl_sha256": "00cb13e842d688072d9300d9f29beda96bd59f8a1a058bc3d235048e9173527e"
+  },
+  {
+    "task_id": "d03177",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/bradthebuilder/virtualization/libvirt/tasks/main.yml",
+    "row_index": 3177,
+    "input_sha256": "dad28611c43195f96746fd6f5995de530398d8b6a5d7d4b819f2cc45cae4aeae",
+    "nl_sha256": "0c0d646f81fee8ba025e72a310f9aa91232d72b4d9418846d75e172187577f15"
+  },
+  {
+    "task_id": "d10659",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/allen12921/common/tasks/main.yml",
+    "row_index": 10659,
+    "input_sha256": "3c6790388d961ca75151115a935e544cc08bd26dc3bd04a85d32af9dfdf1f379",
+    "nl_sha256": "0443f00a3ed5e9ebe2d93106ede1bdf4cbe59a92f32abb8e09eb48156d070e5e"
+  },
+  {
+    "task_id": "d05575",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/avinash6784/elasticsearch/tasks/main.yml",
+    "row_index": 5575,
+    "input_sha256": "b38873a719b5afac3585d18ec1e686fd116d6073ac11825fa2f561c41360629f",
+    "nl_sha256": "0df1a4a5d50264c9902f0ab55a148673f39e815010d647434776862b901a73ec"
+  },
+  {
+    "task_id": "d10492",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/makarenalabs/kimai/tasks/main.yml",
+    "row_index": 10492,
+    "input_sha256": "8a7053dbc8a3f0262190208be3d104d293b76bce9404e0a0af6e4bd91e0964ea",
+    "nl_sha256": "1040dea19c7dfd4a4dbc4a64bc4a0557f4a7b107dc45885a1772bf2a869c467c"
+  },
+  {
+    "task_id": "d05971",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/epcjr/ansible_role_perfsonar/tasks/install-RedHat.yml",
+    "row_index": 5971,
+    "input_sha256": "7412b8b57282a2ce67bda6e4f9a9b9a2f2920acc15b63f92ccec339be011ae1d",
+    "nl_sha256": "07521d775fab31cbe33186d5e18dd29c3bfd5ea02c3ebb726afdb97419e476d5"
+  },
+  {
+    "task_id": "d09077",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/admingagan/ansible_docker_role/tasks/dockercepkg.yml",
+    "row_index": 9077,
+    "input_sha256": "d9c700f707af18d5f73a2cbc0e8dfa62fabb40c7e978d58f400efba47cebbb9c",
+    "nl_sha256": "0c5e499d831b0ba93dc2c8a3c5e0edcdae2ae67ea4070b3705583ea0970501d8"
+  },
+  {
+    "task_id": "d12719",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/yourlabs/aptrepo/tasks/main.yml",
+    "row_index": 12719,
+    "input_sha256": "91c47a29945b3f349d3cd07569f815222d65c0f4b731a3ba0be9d58103463a05",
+    "nl_sha256": "03bd16932796e241b884f765ac3c9cdc8fa735307c3f8868b6d7c877df174630"
+  },
+  {
+    "task_id": "d06938",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mikesplain/elasticsearch/tasks/main.yml",
+    "row_index": 6938,
+    "input_sha256": "b38873a719b5afac3585d18ec1e686fd116d6073ac11825fa2f561c41360629f",
+    "nl_sha256": "0df1a4a5d50264c9902f0ab55a148673f39e815010d647434776862b901a73ec"
+  },
+  {
+    "task_id": "d00802",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/sebamontini/memcached/tasks/main.yml",
+    "row_index": 802,
+    "input_sha256": "93bdfa18bf4788de9b86e5c36f89ca8a50dac34626fbcb5ad48ac8e4b3088ddf",
+    "nl_sha256": "1037c2a531835836c5000f20e3f50b2af217d32e9ff524ccaf019e4c34ad18a8"
+  },
+  {
+    "task_id": "d11189",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/cybera/ssp_install/tasks/main.yml",
+    "row_index": 11189,
+    "input_sha256": "527a1a1cf8415be8a4f0e48dad2b829d5c8dfe4cbcd94293fe339d0477278a7a",
+    "nl_sha256": "1298499a4e21174b030e9e292deb70fb17a64b1bc891e5bd99f7b08ad2325f7b"
+  },
+  {
+    "task_id": "d08850",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/nidr0x/ansible-apt-cacher-ng/tasks/setup-Debian.yml",
+    "row_index": 8850,
+    "input_sha256": "5ce5372ae97fe7e36b7395defe1718025975b265d1f92ca7034a4b9c6845c24a",
+    "nl_sha256": "0fd94fd67d63039c9aba346cc9e18cdf613507f999c189a174cddb36edf7cbb8"
+  },
+  {
+    "task_id": "d12493",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/dtoch56/upgrade_packages/tasks/setup-Debian.yml",
+    "row_index": 12493,
+    "input_sha256": "9c6e6b9a86612ce1716e98cae0a1f8116d42d339569bd804c201df4edf909184",
+    "nl_sha256": "16ddf7c4bb770476e0d82df82c538121669057c09b9dc6a3b507b5ab5c7c6fd0"
+  },
+  {
+    "task_id": "d00198",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/anon8675309/ansible_squid/tasks/config_squid_transparent_proxy.yml",
+    "row_index": 198,
+    "input_sha256": "de633d401b62389c485aa7b27a6e0c7f330341142e2dde8dc19c63d9bde226d7",
+    "nl_sha256": "0c65b27f1e1ea40adddad0261de11282297e3c04a603d82315c7150642f5cc2a"
+  },
+  {
+    "task_id": "d02204",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/jelle_s/plex/tasks/main.yml",
+    "row_index": 2204,
+    "input_sha256": "89be065aedad97abeb4447dca8beacdf67d460edc1508339d5c866750528d2b1",
+    "nl_sha256": "14518fc133f911a8e56000029154c3c78ac116d3cc3ddafc2e4adf04713d9718"
+  },
+  {
+    "task_id": "d02636",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/leaddevops/tomcat/tasks/configure-user.yml",
+    "row_index": 2636,
+    "input_sha256": "bdb2557d704f46ea6e3f9c63c67366c91c8f8e9a8d62ec4e55c5959dfdd5fb31",
+    "nl_sha256": "1344a753ebf5592fcde937a9807d9d10e49587855e18c63a372f7337e786b114"
+  },
+  {
+    "task_id": "d08732",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/kukara4/wireguard_client/tasks/main.yml",
+    "row_index": 8732,
+    "input_sha256": "09eb5a948057117eb52f1eb49b223e9ee007f13c2b16b44bfa1b0b9ad596ee25",
+    "nl_sha256": "0857174c19dd86524cce9403c0a2f018b03cc4b95cfdefeac7c8ea3e6a682481"
+  },
+  {
+    "task_id": "d03016",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mikysal78/ansible_iptables/tasks/main.yml",
+    "row_index": 3016,
+    "input_sha256": "50df728b56cc4e70feb39536a1503c7b3e625c89f7ae514b88fa2945cd8f4f38",
+    "nl_sha256": "10fb7789f29c17398dee2c04315131abc5b13a822d6a9deef1d9d5826bf1084d"
+  },
+  {
+    "task_id": "d08569",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/phansible/pgsql/tasks/main.yml",
+    "row_index": 8569,
+    "input_sha256": "91c47a29945b3f349d3cd07569f815222d65c0f4b731a3ba0be9d58103463a05",
+    "nl_sha256": "03bd16932796e241b884f765ac3c9cdc8fa735307c3f8868b6d7c877df174630"
+  },
+  {
+    "task_id": "d03850",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/richardskumat/ansible_role_docker/tasks/Raspbian.yml",
+    "row_index": 3850,
+    "input_sha256": "91c47a29945b3f349d3cd07569f815222d65c0f4b731a3ba0be9d58103463a05",
+    "nl_sha256": "03bd16932796e241b884f765ac3c9cdc8fa735307c3f8868b6d7c877df174630"
+  },
+  {
+    "task_id": "d12147",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/pmahindrakar/prasad_docker/tasks/docker-compose.yml",
+    "row_index": 12147,
+    "input_sha256": "b052550a81a5a4196aaa864a57b60b508a0da7409fa9b319ba78916cac01a2f2",
+    "nl_sha256": "09720e9d69c9e6050216ae8fc5dd61aa273b7d089c9bfb5c18ade2468015a072"
+  },
+  {
+    "task_id": "d03788",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ostcar/openslides_projector/tasks/main.yml",
+    "row_index": 3788,
+    "input_sha256": "0bf99d7529c70c7614568498136bd75c5fe6dcebfc26e6bb299ccbfba9c417b3",
+    "nl_sha256": "1297a05a9061d04b5ff4135ab54cbd8779970bd6430ccefe4ed8910a7a73700b"
+  },
+  {
+    "task_id": "d08586",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/buluma/vault/tasks/binary.yml",
+    "row_index": 8586,
+    "input_sha256": "732057e5b662a9ebc44aba8fc12bc966b02b28416d835b2153d249b781a57f36",
+    "nl_sha256": "12d59fc252bac534c95157c8b69cd363f8f64390d3aba8b34b7ce412f64ff6f3"
+  },
+  {
+    "task_id": "d03511",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/fkautz/bridge-utils-install/tasks/main.yml",
+    "row_index": 3511,
+    "input_sha256": "ffd1750cd3d170cb73756058f5d5b9fab62068e1637be9de8fe38fbc0925d5fe",
+    "nl_sha256": "005adfb2f2e7626d2582fe563b58cc4d40b7c8cc6fb040a317cdfccf21807fd3"
+  },
+  {
+    "task_id": "d09288",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/minizx/ansible_aiwacs_agent/tasks/install_Ubuntu.yml",
+    "row_index": 9288,
+    "input_sha256": "2eb51ec197db8561a7e595d88692326307435ce421d48cbb9f413a8ef0eea205",
+    "nl_sha256": "0327aa00ce38e816d3ec9367894adb872f5d4a867be66df01a9cf77db2b1f137"
+  },
+  {
+    "task_id": "d00402",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/l-p/acmetool/tasks/acmetool_service.yml",
+    "row_index": 402,
+    "input_sha256": "c5bd12fab86b68d08c5cbc9594074664686c15375b8f9eb94b410524a6348eea",
+    "nl_sha256": "037ade83c6421fd4d46209e34a27ab03e42e76af6fdde0bd98d23bd33bf13e7b"
+  },
+  {
+    "task_id": "d08295",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/sbouii/grafana/tasks/Debian.yml",
+    "row_index": 8295,
+    "input_sha256": "110f4f9e369dd6904d8c17592422cc93da09db5f3f550b1d57adfd82e675e4a1",
+    "nl_sha256": "1249a8268f1b304deda869f130c30b3e2f0c131a370aaf5fcc8437625a5d9bfc"
+  },
+  {
+    "task_id": "d09807",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/secfigo/ansible-role-docker/tasks/docker-compose.yml",
+    "row_index": 9807,
+    "input_sha256": "b052550a81a5a4196aaa864a57b60b508a0da7409fa9b319ba78916cac01a2f2",
+    "nl_sha256": "09720e9d69c9e6050216ae8fc5dd61aa273b7d089c9bfb5c18ade2468015a072"
+  },
+  {
+    "task_id": "d08238",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/jnmoal/docker/tasks/main.yml",
+    "row_index": 8238,
+    "input_sha256": "23fa59691e50ce32041150545513cec03163baa39a47c11c052afefb809adea9",
+    "nl_sha256": "021d48f02f27c61672e7d61c748f1b67845c482eb0ebef68e74769c4b7b2f879"
+  },
+  {
+    "task_id": "d12768",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/umeshtyagi829/aws_k8s_worker_node/tasks/main.yml",
+    "row_index": 12768,
+    "input_sha256": "77283257016851d31904678ea4023a3cae8dcb8869e1899af2c62c94ddd01f8f",
+    "nl_sha256": "0f3155411df687706fcf167b9ba484881e74a48501deaa6cb18fc92b25ecf67b"
+  },
+  {
+    "task_id": "d01661",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/lytol/rbenv/tasks/main.yml",
+    "row_index": 1661,
+    "input_sha256": "f0d401ba01b4c480e9578cf67773787f93172cad7088801aed965bcd5b1dabaa",
+    "nl_sha256": "0eac7acc556641cf8487614453f8b18ddc97fd9197a17374a3f83e97892644fd"
+  },
+  {
+    "task_id": "d06267",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/bcywpk3/initial_system_configuration/tasks/main.yml",
+    "row_index": 6267,
+    "input_sha256": "74e0a2c7b029a31f5d333f53700e96714e4e1bc448c1848c87ae5719e577f26b",
+    "nl_sha256": "05231b46047e4523a27c26f9bbf1ed7050a6e22ee236e93cbf9bbe5cd35fab67"
+  },
+  {
+    "task_id": "d00391",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/d47zm3/flux/tasks/main.yml",
+    "row_index": 391,
+    "input_sha256": "bfdb89c36ea49210d0d3d45932c41ad4959798d08a494cfee52b15e4833b992a",
+    "nl_sha256": "166f11acb4c5eb6616ae5f12aa5249d4bd12676d47956017b8015a851fb45e85"
+  },
+  {
+    "task_id": "d01150",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ypsman/cleanup/tasks/main.yml",
+    "row_index": 1150,
+    "input_sha256": "5de61374441d8989f1f5dc42ba08bee069c58aef0839670bb3a5a10156dbb118",
+    "nl_sha256": "14ee741158237d573a957d2f179265c0a931484688ad2f16b06f05c464e4827b"
+  },
+  {
+    "task_id": "d13070",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/targetbench/unzip/tasks/main.yml",
+    "row_index": 13070,
+    "input_sha256": "aa00a0262edf109f99395e16d50ff64fdc04c8e70f1d4446b154d83742b80e3b",
+    "nl_sha256": "09e9a76031085c87d5ea5e2e5a41ba20f17cbea1a52bdf24195028cb411f492c"
+  },
+  {
+    "task_id": "d03926",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/waybetterdev/bower/tasks/main.yml",
+    "row_index": 3926,
+    "input_sha256": "539bd60669160873d06e6a74a795e71746b7680054535000c50a4521f862b949",
+    "nl_sha256": "15f3bdd0a4ce17619956c34630c1c9d112a61a6526e301836d93297f65beb731"
+  },
+  {
+    "task_id": "d02086",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/dalee/install-nodejs/tasks/main.yml",
+    "row_index": 2086,
+    "input_sha256": "a66191d4329d3872f8451a6ddfa1f4a66f83894edaaf62a14b4b54177a039319",
+    "nl_sha256": "0df29a5c0d3da11a0d1826cd2384a7cc5cca857117631232f88f6992c24b836a"
+  },
+  {
+    "task_id": "d11547",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/masterhui/ansible-role-greenpithumb/tasks/main.yml",
+    "row_index": 11547,
+    "input_sha256": "69cbd44d1d648f03c13d36f278eab41c788e65a51c4cd003476f43d36fc51367",
+    "nl_sha256": "0dc10a2374d62764eeeff3a17f6cb6bc7975b0297a27b91a0fda1e4d6b7ff998"
+  },
+  {
+    "task_id": "d04822",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/damko/php5-fpm-debian/tasks/main.yml",
+    "row_index": 4822,
+    "input_sha256": "91c47a29945b3f349d3cd07569f815222d65c0f4b731a3ba0be9d58103463a05",
+    "nl_sha256": "03bd16932796e241b884f765ac3c9cdc8fa735307c3f8868b6d7c877df174630"
+  },
+  {
+    "task_id": "d08350",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/oldcrowew/yacy/tasks/main.yml",
+    "row_index": 8350,
+    "input_sha256": "6e89f850dc80e91b40d04ac306e3ceb0d3d9c0c730f4cd8b945d4fbae2c4ce98",
+    "nl_sha256": "0c0b139f4a41d9f955c134f1334d10ef686e130fe30489dafdc08272c6eba346"
+  },
+  {
+    "task_id": "d04280",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/vitalk/flaskapp/tasks/npm.yml",
+    "row_index": 4280,
+    "input_sha256": "a9affb9007d2833d71a1f198b4a6faec4b18184a195caa76cd14490a1344b00d",
+    "nl_sha256": "169dc5c41bdb3228870b1de79e14a34833bb62d1ae239d4b186ecf16f0e2d109"
+  },
+  {
+    "task_id": "d08226",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/enix/deb/tasks/main.yml",
+    "row_index": 8226,
+    "input_sha256": "4a6a53135383f127c7854b98fe6c9fccdcf157b596d4593fe0150bfc752a182d",
+    "nl_sha256": "0463d47384ce724813b2bbe796d208775199e8cc26d627f8a8fe99766320eaf1"
+  },
+  {
+    "task_id": "d03598",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/dblenkus/common/tasks/ssh.yml",
+    "row_index": 3598,
+    "input_sha256": "3803d037b5e734bfa5d5b67c035c1c55483252b411bf67ce1beabfc3249d5f1b",
+    "nl_sha256": "0b05b6fd7c0800c764b579a9ed0a7f02f2168da178f517a1772699a01da7b9d1"
+  },
+  {
+    "task_id": "d09388",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/antoniobarbaro/ossec-server/tasks/main.yml",
+    "row_index": 9388,
+    "input_sha256": "176b1b9ac256033bd3841f81b3a5208f8ceb65dc66923bd21909e4a83232be84",
+    "nl_sha256": "07504ea0ce20e0253f34064f6c7e23af555ba8250a6ee7172ab452187be9a811"
+  },
+  {
+    "task_id": "d06005",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/reallyenglish/tshark/tasks/install-FreeBSD.yml",
+    "row_index": 6005,
+    "input_sha256": "06400489d4de81d17e7a7839848ea5a54c347eea8b3dcf9c545b74ff3e02089d",
+    "nl_sha256": "04c6fc8c04d479e09a358b5d821dc02b8b2be08fc1b3b1d3121103c02113bc3a"
+  },
+  {
+    "task_id": "d07414",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/hostclick/epel_repo/tasks/main.yml",
+    "row_index": 7414,
+    "input_sha256": "f6e756458327243724487af073ff16b54b59b1ca950eb0a20b085f1199081e10",
+    "nl_sha256": "09125f459a6dd08a25d71f7fc1b31cd9faf1095dcd63a77a0d4d76907406db1f"
+  },
+  {
+    "task_id": "d05278",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/dieswaytoofast/ansible_docker/tasks/docker.yml",
+    "row_index": 5278,
+    "input_sha256": "6de6c0be65bcbc843ef94c0e4606c017077d7d92dd0bb62e9a0a1c2bd146aef5",
+    "nl_sha256": "017a01496006805a1e4023cf069b33b8ed06e78949eed9d81cc2b9910f2cdada"
+  },
+  {
+    "task_id": "d10568",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/zaxos/docker-ce-ansible-role/tasks/install-Ubuntu.yml",
+    "row_index": 10568,
+    "input_sha256": "7e4d2b4b7b64b68ebb3b3cf003a0c89cda699c1caf596bc9bf56d73a9081c17f",
+    "nl_sha256": "0d4b22456907f953a2b1b0370e13772a75ab227426035e02b1a07ddbf897b82c"
+  },
+  {
+    "task_id": "d05362",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/alfred_leech/ansible_role_mysql/tasks/main.yml",
+    "row_index": 5362,
+    "input_sha256": "662b27a0e827d943d618dbb8c29abd4b901d958cb9f2c395e15f4f200e0c5549",
+    "nl_sha256": "089e838545125fc41b8f557b5d2eda46c99d02b7465ec10dd3f75292c9d02afe"
+  },
+  {
+    "task_id": "d03456",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ecgalaxy/containers_toolbox/tasks/install_k9s.yml",
+    "row_index": 3456,
+    "input_sha256": "34ca66aee9745df1310e0a00fd77d516683cd7b53615f33dc7d46d5429aff55d",
+    "nl_sha256": "040afa811c69ea711131d78e91766436bcccda3e90f00561a92966196f03e4a8"
+  },
+  {
+    "task_id": "d10919",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/jhu-sheridan-libraries/postfix-smarthost/tasks/main.yml",
+    "row_index": 10919,
+    "input_sha256": "c7ca038ec9fa7a82e8500c78a5975fbb6e73db90e821799a549c35f057659c76",
+    "nl_sha256": "196b7bec32af47d71a2c2186728e79f4e4d5be4f1aa84534c4a128325c95ae5b"
+  },
+  {
+    "task_id": "d01715",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/akeneo-labs/ansible-role-elasticsearch/tasks/main.yml",
+    "row_index": 1715,
+    "input_sha256": "9ffd2be9abaa537dfc0687e1680a9b9f6881eb27bc1f3f0ecbb848c7b8a16409",
+    "nl_sha256": "14ffbc8fa8b4801a9504e1e6fba5bb8c9177a1667884290ed35117a1221a8a15"
+  },
+  {
+    "task_id": "d00593",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mrlesmithjr/ansible_etcd/tasks/debian.yml",
+    "row_index": 593,
+    "input_sha256": "b4efaa059504606ca8344bcbcb385f8b202d59ca5decfe353afe11827a17dc08",
+    "nl_sha256": "0fb1e0c38dc4b02cddc2ea0ca5bcb453bf74bf3d05ba1379340cfc9531cd04c0"
+  },
+  {
+    "task_id": "d06631",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/drewbarrett/vnc_server/tasks/main.yml",
+    "row_index": 6631,
+    "input_sha256": "c02ff9417245966c6bafe58cc9e76b921a295c152b787b2472b64996b9e17e7d",
+    "nl_sha256": "02145d56f223d2a605b500fd1f5a82f4262d2bdc70f1939b6f1feb04d29486a6"
+  },
+  {
+    "task_id": "d12955",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/lukasit10/httpd_amzlinux/tasks/main.yml",
+    "row_index": 12955,
+    "input_sha256": "4f092e0b81d50f6ffbab9fdc6c23cb07a81aff04502831a2280f4a0ce3ad3cac",
+    "nl_sha256": "0761c76bdc08ad67620d2029d9f69d87ad101f995aa51c522e82466658cc2dcf"
+  },
+  {
+    "task_id": "d02664",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/jermon/jira/tasks/backup.yml",
+    "row_index": 2664,
+    "input_sha256": "d492b62f16a25a7af8bd636ffdd3e5aeb51852aa581286c7fc5407987a727a15",
+    "nl_sha256": "01879e29120723296d2bc43958de987c802c78b1837046d6fb71b0d01d4cd9d3"
+  },
+  {
+    "task_id": "d09723",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/volkmydj/ansible_role_db/tasks/install_mongo.yml",
+    "row_index": 9723,
+    "input_sha256": "fc55b213464f19325a0e63cc3bab17bae380c9ed75162b7f3df847eacf6790b2",
+    "nl_sha256": "19a3d2d96c8abff8da4458bc8cc859c0f5f2c35f91fbabc88b32d0d1e30e0ad2"
+  },
+  {
+    "task_id": "d12515",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/opstree_devops/elasitcsearch_cluster/tasks/es-RedHat.yml",
+    "row_index": 12515,
+    "input_sha256": "2f4a88e723548226d4edaae02d5bec279c0470ff3e85ac06262159d1f2b011fd",
+    "nl_sha256": "0f1c926ee85d3d778995f2cfe8a153e2162ae89340fcc4e6efb0130ab86babaf"
+  },
+  {
+    "task_id": "d10394",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ldomb/sat6register/tasks/main.yml",
+    "row_index": 10394,
+    "input_sha256": "5d9dafca3f2a8ff2569ba7e3aa6f2a0848d3a40367c73b99f1122fe879df80d8",
+    "nl_sha256": "00414aaf60504601c0c0df4dc877a9c76b3766358eb4da6ebf21d21d6733b147"
+  },
+  {
+    "task_id": "d04182",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/amaabca/loggly_tls/tasks/logrotate.yml",
+    "row_index": 4182,
+    "input_sha256": "d6fbf672d9d0d6524c22c339b46e3b0fa763ba258c29d78c6bf68beb5c1d596b",
+    "nl_sha256": "04a1c6ba13d4eba73fb784dc680de6bd121d4aec83e0a98a1954b4d7a2258bd9"
+  },
+  {
+    "task_id": "d07765",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/shadowkobolt/core/tasks/debian/locale.yml",
+    "row_index": 7765,
+    "input_sha256": "32d3bac089bfd5bd6792ff98695ae859aa91ea1239979d904ae71e8079ffcf2f",
+    "nl_sha256": "17526b34d10d156ffe5e7374cd26091e2193fcd297f7437810e0c8573cfcc4c6"
+  },
+  {
+    "task_id": "d04502",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/lylia0204/docker_role/tasks/main.yml",
+    "row_index": 4502,
+    "input_sha256": "56215f7555cf31c35fb6f3acb561431473484ef76b8519ebe1bba2f77b9e3e32",
+    "nl_sha256": "05ca150f3b7a019851131e0dffe217b7ba56fabd0b06048ed4353b5d0ed5aa76"
+  },
+  {
+    "task_id": "d01051",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ericmdev/libselinux-python/tasks/main.yml",
+    "row_index": 1051,
+    "input_sha256": "fcd09d603760cbca164bc088c3f8bb1c1206cef1ada3ac4a92e5dc6d41143281",
+    "nl_sha256": "0a9bd37d3f85f67e4fdacc42d56d6f701bccafe55882dfd658aeb1ce54cc5a5d"
+  },
+  {
+    "task_id": "d09614",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/warhorse/nighthawk_docker/tasks/nighthawk.yml",
+    "row_index": 9614,
+    "input_sha256": "9c7d5c238a1e2359fa0751c88ad70f05d8289c372c948e03084b0dece26ca4ab",
+    "nl_sha256": "0de5e454d9b49c413bb8cf870e118d3c6a4df3c47e34e39ac7a0618af8c7dba2"
+  },
+  {
+    "task_id": "d08655",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/rooty/mysql/tasks/centos.yml",
+    "row_index": 8655,
+    "input_sha256": "04f23f7a78754ffc39231406df3db884475df085f866c61b509f946ace681a16",
+    "nl_sha256": "10010d05d012ff8c3e7eff93ecfcb1d231b385751035cc79089727c8d8fb0dd3"
+  },
+  {
+    "task_id": "d13184",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/trombik/ntopng/tasks/install-Debian.yml",
+    "row_index": 13184,
+    "input_sha256": "7df4a86ecbf6ba0f2beaf6f7c2956102e3990785ecfc8e82197ee436a1beebc5",
+    "nl_sha256": "05721df36bfaef54a4c96ce9334216c422db2630a6df0f340e1e37ef703f2e29"
+  },
+  {
+    "task_id": "d06903",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/panchal_yash/percona_server/tasks/rhel_57_install.yml",
+    "row_index": 6903,
+    "input_sha256": "9b78eccee0ea887373fb5e7492c353ff5f70652240f72597ffd658eecc249bfd",
+    "nl_sha256": "093f4dbe9ada2b8382a0ae40bcd0164013a61ef26aaff81544f897dddcc2c63f"
+  },
+  {
+    "task_id": "d00440",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/heriet/grpcurl/tasks/install.yml",
+    "row_index": 440,
+    "input_sha256": "0f771c4bed777b3e62cfbff8d389fbea31a885c19be09b2eb2bbce7932ed8ad9",
+    "nl_sha256": "16efc235d6704e2af9f16cba4f2309baee8b47979c92f7d011f469107dfc28c1"
+  },
+  {
+    "task_id": "d08202",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/kofeart/mycollection/wordpress/tasks/main.yml",
+    "row_index": 8202,
+    "input_sha256": "2d4c0ff4e8d74ece7630e7a83ead6cfffb022ee934f4ccbb76d6d0c564c21d28",
+    "nl_sha256": "09a06afca2b87065cb9bd7d277af7bc8bbb1088e8d2465a7ccd95a0242fba096"
+  },
+  {
+    "task_id": "d05991",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/johanmeiring/ubuntu-ecs-agent/tasks/main.yml",
+    "row_index": 5991,
+    "input_sha256": "e7efb47363159195ae84890ca93c6e07510a080587b1132960e76a1ddca5076e",
+    "nl_sha256": "18ee2446150545161ab1fe591a51551c59428ce1c76cfcbc62f10e102338a5ac"
+  },
+  {
+    "task_id": "d07261",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/shuntps/docker_container/watchtower/tasks/network.yml",
+    "row_index": 7261,
+    "input_sha256": "7ebf920f4a52c4bafa1551a880d6a5218292e27cdeb0be0cb814b7a19c6f5a97",
+    "nl_sha256": "018445645c358e63332235b2f1d7c6b0ff1b639aef36ed4edc4ee5066fbc5714"
+  },
+  {
+    "task_id": "d10131",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/8kbmemories/steamcmd/tasks/install.yml",
+    "row_index": 10131,
+    "input_sha256": "0bfd4b246d36a2b4d1c38cc78e0c27d2b2e925b9d6c871368d110baf57118b54",
+    "nl_sha256": "01edd3066ff37debbdc21874e66ebb836185890474f75b229e94b6c5c35123aa"
+  },
+  {
+    "task_id": "d06442",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/aaroc/cvmfs-client-2-2/tasks/install-Debian.yml",
+    "row_index": 6442,
+    "input_sha256": "c6a237e9f053a19cf0569efa26a2f6cab176b25881d510f0b899767fbbb50e5b",
+    "nl_sha256": "08500adee89c5d400d0da54a8cf128d6d4bfb05bf1b6e044cc23995c8acc5396"
+  },
+  {
+    "task_id": "d13197",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/goozbach-ansible/jenkins-git/tasks/main.yml",
+    "row_index": 13197,
+    "input_sha256": "1c154ab1ed53b1e64f7e4ed8c318ec83f01049b8fd3de8bf13da1139e68325ec",
+    "nl_sha256": "18befba9d32975ac7e535dc563c176340a2d41bf3baf74d4c57971c7261af51f"
+  },
+  {
+    "task_id": "d12788",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/sparanoid/shadowsocks/tasks/RedHat.yml",
+    "row_index": 12788,
+    "input_sha256": "d282d43e71f468cf69af516ab58bbb8ae3bc9da90d0058e6fcd576871b5c2ac1",
+    "nl_sha256": "04916386df60b571bfec46b4642f7e192594cf19ff211e2acd5eeb289bf03856"
+  },
+  {
+    "task_id": "d00006",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ichundu/spacewalk/tasks/install.yml",
+    "row_index": 6,
+    "input_sha256": "0f3b50437d94362a9655d29b62c3c4b1afeda63b135bf4fa46d3b93f85c81a85",
+    "nl_sha256": "015da868b9e344e89d6e51750a31abf74a55bcc0898c692e7515a17c6e24c355"
+  },
+  {
+    "task_id": "d02297",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/piyuesh23/mailhog/tasks/main.yml",
+    "row_index": 2297,
+    "input_sha256": "e494d07485725671bfe3fb471ddaf22a1b613e2b8f5145e5202483bef2c44f60",
+    "nl_sha256": "1724a7a57c710ec46f18b91738890c80cf9b84aafebd4ab3a3929a21ddc1567f"
+  },
+  {
+    "task_id": "d08334",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/thinkphp_tech/thinkphp/git/tasks/main.yml",
+    "row_index": 8334,
+    "input_sha256": "2a7802a51d3b93d151241a1984e93578239ffc7cf0354cd4e841001cece30dfe",
+    "nl_sha256": "0f4aa705c8b5d773fbdc2fa929029291e31d4fd8ccf4092d8e3fcc09e3beaa3b"
+  },
+  {
+    "task_id": "d01732",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/alexey-sveshnikov/mail-sender/tasks/main.yml",
+    "row_index": 1732,
+    "input_sha256": "64ad3dac0e57bfdde2710c44371b883aeff39d5eace4a554a5cb1e7dc7daf1e2",
+    "nl_sha256": "00539254c7b6729f8ee1510e63d951c741f8b0965260fed25d7d8e00d74e301f"
+  },
+  {
+    "task_id": "d07934",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mrlesmithjr/ansible_etcd/tasks/reset_cluster.yml",
+    "row_index": 7934,
+    "input_sha256": "d986c8790f7d46c1769b33e285459e73086e2224356d28188349f74ebca09915",
+    "nl_sha256": "1637f18611ceb4ef9bf2ac4f0cfe5d58ad640702549793fa929675a9ce87a9d5"
+  },
+  {
+    "task_id": "d04337",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/teampants/elastalert/tasks/debian.yml",
+    "row_index": 4337,
+    "input_sha256": "2a7802a51d3b93d151241a1984e93578239ffc7cf0354cd4e841001cece30dfe",
+    "nl_sha256": "0f4aa705c8b5d773fbdc2fa929029291e31d4fd8ccf4092d8e3fcc09e3beaa3b"
+  },
+  {
+    "task_id": "d12219",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/wluisaraujo/ntp/tasks/client.yml",
+    "row_index": 12219,
+    "input_sha256": "7adaf22b9950d8b5d56f195be160f5da89a7b11c8d4ead2521a3b4bc44294a92",
+    "nl_sha256": "09c2e0254b161a0750388fec9fdda5bbeb94c6f3ba29c212d6f987e6fa63a28d"
+  },
+  {
+    "task_id": "d10318",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/oliaasem/mycollection/wordpress/tasks/main.yml",
+    "row_index": 10318,
+    "input_sha256": "2d4c0ff4e8d74ece7630e7a83ead6cfffb022ee934f4ccbb76d6d0c564c21d28",
+    "nl_sha256": "09a06afca2b87065cb9bd7d277af7bc8bbb1088e8d2465a7ccd95a0242fba096"
+  },
+  {
+    "task_id": "d11233",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/antoniobarbaro/salt/tasks/setup-redhat-master.yml",
+    "row_index": 11233,
+    "input_sha256": "e803b0f65b7dfa9c46a21bca5f228e85f7aeb4572aac5c89d955c4064e552bbb",
+    "nl_sha256": "0742ececf7caf4fb21a849a1d37324db115230a894160d31e714c3581bceb656"
+  },
+  {
+    "task_id": "d07099",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/magnedavidsen/gradle/tasks/main.yml",
+    "row_index": 7099,
+    "input_sha256": "adb423e88e53dc804aab231df5eafd37a1e38b90644d41ad3efdc927f1b05d99",
+    "nl_sha256": "0fd71e2ed32b944e6a9d801bd844c1e936a5188f3fb18b875ded4d38b9eaadc9"
+  },
+  {
+    "task_id": "d03543",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/davidwittman/filebeat/tasks/debian.yml",
+    "row_index": 3543,
+    "input_sha256": "e16b9cee40b038a4ceee5071f63a9e1dbbb47f409978ca4d854ea4858d020a1f",
+    "nl_sha256": "167e5a4bf2dbe3bdb09c0e8aa37ed82e7bb1a30c440bd1ba4826dd3f7ecd06c3"
+  },
+  {
+    "task_id": "d05986",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/tcosta84/supervisor/tasks/main.yml",
+    "row_index": 5986,
+    "input_sha256": "10c4b0f5a97a7bd2ba414920e39f4f288dc23cc63eae460e66a580cc5a689368",
+    "nl_sha256": "05bdb23e38db1d00b8e52cbafc424a71a300b589d839c71e5d3a8e61543b6128"
+  },
+  {
+    "task_id": "d02244",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/dicsy/tomcat-role/tasks/main.yml",
+    "row_index": 2244,
+    "input_sha256": "bdb2557d704f46ea6e3f9c63c67366c91c8f8e9a8d62ec4e55c5959dfdd5fb31",
+    "nl_sha256": "1344a753ebf5592fcde937a9807d9d10e49587855e18c63a372f7337e786b114"
+  },
+  {
+    "task_id": "d04056",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ramsailopal/cache_python/tasks/main.yml",
+    "row_index": 4056,
+    "input_sha256": "21e807cb0dda07666851a58439913476fe74d79b074ac6eb6029d64e2c76df84",
+    "nl_sha256": "0846b4283988761f4a512e246205a114cad025847f8eb5a309cb4a2dbfdca7cb"
+  },
+  {
+    "task_id": "d03873",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/adrianjuhl/rbenv/tasks/main.yml",
+    "row_index": 3873,
+    "input_sha256": "7f32ce6b3b1731cd5c57e58a0759aa53b6e02ab49addc122d47fd507e17e8d46",
+    "nl_sha256": "13cc8f7f92c9495c2d9a89e1ca8d2abe67686033f281e8498b625e4c0be793f8"
+  },
+  {
+    "task_id": "d12728",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/futurice/pip/tasks/install.yml",
+    "row_index": 12728,
+    "input_sha256": "aa20966f5a21e87643d9579fea25abe55b44038551ed348281897577fbb9dc89",
+    "nl_sha256": "120983d1692f089f9fc6d444099d4b9ee3a41ff2954d64769675a1434b199746"
+  },
+  {
+    "task_id": "d07243",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/yithian/memcached/tasks/main.yml",
+    "row_index": 7243,
+    "input_sha256": "4fe2bd27371f65b85f5a0c6c04ebd1dfce62b6cc2b3a48d8db9bbaca056049c1",
+    "nl_sha256": "05e95fc58bff89c4fd943a67c1880ece459804a4d3f9f4e487869ae9f6d110ec"
+  },
+  {
+    "task_id": "d02387",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/nijat1986/mycollection/wordpress/tasks/main.yml",
+    "row_index": 2387,
+    "input_sha256": "2d4c0ff4e8d74ece7630e7a83ead6cfffb022ee934f4ccbb76d6d0c564c21d28",
+    "nl_sha256": "09a06afca2b87065cb9bd7d277af7bc8bbb1088e8d2465a7ccd95a0242fba096"
+  },
+  {
+    "task_id": "d11251",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/chriskite/etcd/tasks/main.yml",
+    "row_index": 11251,
+    "input_sha256": "8275c96b390aabe9dfa3fd268fc1d4b0ab7c7a3bee658cf56c9d79d8c62c84d9",
+    "nl_sha256": "0d2d01687fe15cfbbe03be22d13b1195736644af1a9aa559ab33d67f4539f36c"
+  },
+  {
+    "task_id": "d08872",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/michaelcholay/docker_role/tasks/main.yml",
+    "row_index": 8872,
+    "input_sha256": "56215f7555cf31c35fb6f3acb561431473484ef76b8519ebe1bba2f77b9e3e32",
+    "nl_sha256": "05ca150f3b7a019851131e0dffe217b7ba56fabd0b06048ed4353b5d0ed5aa76"
+  },
+  {
+    "task_id": "d06851",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/shuntps/docker_container/errorpages/tasks/network.yml",
+    "row_index": 6851,
+    "input_sha256": "7ebf920f4a52c4bafa1551a880d6a5218292e27cdeb0be0cb814b7a19c6f5a97",
+    "nl_sha256": "018445645c358e63332235b2f1d7c6b0ff1b639aef36ed4edc4ee5066fbc5714"
+  },
+  {
+    "task_id": "d13155",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/kushank_patel/kubernetes_master/tasks/main.yml",
+    "row_index": 13155,
+    "input_sha256": "2b775708f21cc8d88f9e0a5cdd3f8bb9d7542284c6716ceadecf803981292ab6",
+    "nl_sha256": "0cf5a420de52cfa5846588bdf8456f7eece647dfc42c9eb158d24d39903229e9"
+  },
+  {
+    "task_id": "d09165",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mohsensy/node_exporter/tasks/systemd.yml",
+    "row_index": 9165,
+    "input_sha256": "3174e44529845b71b53533887b2bf3c44847d0e002134c6079565e2b5cdc8533",
+    "nl_sha256": "0bfc89bae223e1a47c3aaa6c861364b074b777e69b8369a94301eea6aea61024"
+  },
+  {
+    "task_id": "d11589",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/filex5/donfilemon_grafana/tasks/main.yml",
+    "row_index": 11589,
+    "input_sha256": "8f2712e6647b5b3e237cdd5d11e193c25292c669a3b315fc6524e6adc80be5ed",
+    "nl_sha256": "0894ec532b564b187963aa4bd213821b016011719529cda5914276b7bbb07029"
+  },
+  {
+    "task_id": "d04360",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/hakamine/c6-zabbix/tasks/main.yml",
+    "row_index": 4360,
+    "input_sha256": "6eaf2bec12a338a5e5659f1ebdaad40070aff43e6e2bd3bf191228ee15d2736f",
+    "nl_sha256": "148b68b8153b1332c9aa778a5b4a77db16ffef1f30b6f9d3ef6889055c8b2539"
+  },
+  {
+    "task_id": "d00159",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ctnpatil14/tomcat/tasks/main.yml",
+    "row_index": 159,
+    "input_sha256": "21055d356de3e637e0856ff6e1efa9765b24bd6e0e854133300f95b6735359e6",
+    "nl_sha256": "0216589d4be27e7783b992e49985f33e816e6eab93f35b302d2521889b82a00d"
+  },
+  {
+    "task_id": "d00689",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/tsyki/install-httpd/tasks/main.yml",
+    "row_index": 689,
+    "input_sha256": "cb0985bcf6b47ad543393ba9340077216cafd4ea448d374d55e19a3fbb90636d",
+    "nl_sha256": "01cbd1c7acd92623db8c4588d04ed87cfac62a99c598e87d256cfa4b2470e1c1"
+  },
+  {
+    "task_id": "d07096",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/km4rcus/ophidia-config/tasks/compute.yml",
+    "row_index": 7096,
+    "input_sha256": "9c80f18a9037ad83e36e8676cbdaa074f22fcfbd0ef9a5a6c165e7714eb8dbf6",
+    "nl_sha256": "0bdc71b76924f366047d7e085955aa94e27b3fe5a767a7508db13c2895f9c2a6"
+  },
+  {
+    "task_id": "d08190",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/kouji-kojima-ansible/el7-desktop/tasks/main.yml",
+    "row_index": 8190,
+    "input_sha256": "cd7d15f880c13b7c619d8447434273f7486cf8e166247c6479bc01a0730cf3c6",
+    "nl_sha256": "1794c07bff38fd2142a3f102a5547b757c419d90c6e1bf3f79f1bfbcd174a3d5"
+  },
+  {
+    "task_id": "d04757",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/zorun/munin_async/tasks/install-openbsd.yml",
+    "row_index": 4757,
+    "input_sha256": "a36f0e048e226ceb92ab857041d86e038269cfc53f90ea144e0acf0d8a2e57ed",
+    "nl_sha256": "029d1a933b8b03d0bb310d1f8c1754741587d5aed91221985db77f398ae55d0a"
+  },
+  {
+    "task_id": "d01962",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ajitnayak92/ansible_role_docker/tasks/docker-compose.yml",
+    "row_index": 1962,
+    "input_sha256": "b052550a81a5a4196aaa864a57b60b508a0da7409fa9b319ba78916cac01a2f2",
+    "nl_sha256": "09720e9d69c9e6050216ae8fc5dd61aa273b7d089c9bfb5c18ade2468015a072"
+  },
+  {
+    "task_id": "d03968",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/thinkphp_tech/thinkphp/zsh/tasks/main.yml",
+    "row_index": 3968,
+    "input_sha256": "2a7802a51d3b93d151241a1984e93578239ffc7cf0354cd4e841001cece30dfe",
+    "nl_sha256": "0f4aa705c8b5d773fbdc2fa929029291e31d4fd8ccf4092d8e3fcc09e3beaa3b"
+  },
+  {
+    "task_id": "d02477",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/warhorse/nginx_docker/tasks/dependences.yml",
+    "row_index": 2477,
+    "input_sha256": "91c47a29945b3f349d3cd07569f815222d65c0f4b731a3ba0be9d58103463a05",
+    "nl_sha256": "03bd16932796e241b884f765ac3c9cdc8fa735307c3f8868b6d7c877df174630"
+  },
+  {
+    "task_id": "d01212",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/trombik/buildbot/tasks/install-Debian.yml",
+    "row_index": 1212,
+    "input_sha256": "d5da31039e0c8122db5f4491eb9e896abae205ab340d0d8fb03bcb1b78f20b71",
+    "nl_sha256": "0556aa6d864b5f70d24fa68bf88abbf982a383542ec66f4ac2acdb691944d456"
+  },
+  {
+    "task_id": "d00156",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/evogalaxy/memcached/tasks/phpmemcachedadmin.yml",
+    "row_index": 156,
+    "input_sha256": "d0c4d8e2380db69e52c058566406adc101984d45d36c530509995f5601983d0a",
+    "nl_sha256": "1558c5cfe47fdcae8cc4613fe7bac6f4c0e45ef8f36a3bc2a8ffe05198ca6ef8"
+  },
+  {
+    "task_id": "d00825",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ansibleshipyard/docker/tasks/init.yml",
+    "row_index": 825,
+    "input_sha256": "cc6bab483f2832292f253d3617a60af95729c87ed5a97370d45813182a96e67f",
+    "nl_sha256": "0fc2818f87af3130e9ff07274e8d50fe2f47ca515010af6cda718dbe4942375b"
+  },
+  {
+    "task_id": "d01174",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/lorena1205/web_server/tasks/configure.yml",
+    "row_index": 1174,
+    "input_sha256": "e55081528e3f1909554716cc12ab6998e7a134065aebddf61b32c20ed0a46676",
+    "nl_sha256": "15059b126686f345718208ca672897b5fb2a3015c2c2400d49f197d3c4e0d6ab"
+  },
+  {
+    "task_id": "d05401",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/sundari_28/firstcoll/sun/.ansible/ansible_collections/sun/firstcoll/roles/role1/tasks/main.yml",
+    "row_index": 5401,
+    "input_sha256": "2a7802a51d3b93d151241a1984e93578239ffc7cf0354cd4e841001cece30dfe",
+    "nl_sha256": "0f4aa705c8b5d773fbdc2fa929029291e31d4fd8ccf4092d8e3fcc09e3beaa3b"
+  },
+  {
+    "task_id": "d04523",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/redtail83/ansible_container/tasks/main.yml",
+    "row_index": 4523,
+    "input_sha256": "beccdb608204860bcc437914dc0e50ff30641c55942e446361ad4c13808b6f24",
+    "nl_sha256": "04334b033ed2081037e817df3474d5d53537ccf10fe9982e3a71a64acd33c36d"
+  },
+  {
+    "task_id": "d05823",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/kallakruparaju/kubernetes_cluster/kubernetesslave/tasks/main.yml",
+    "row_index": 5823,
+    "input_sha256": "5e8d1f4eab874aa08f1ffa3ce7f6c1977030f70e176177b14f81c3d2fd6fd302",
+    "nl_sha256": "1557edca0a9aa41fd709d2da96ef8f02aae608f883f28f2e9c46fbf9359aae38"
+  },
+  {
+    "task_id": "d09502",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/vicenteg/mapr_client/tasks/main.yml",
+    "row_index": 9502,
+    "input_sha256": "cdbbffb2fb13dfa86bc0410db5bd0325af979c131813b1d6a2a998dad462ad63",
+    "nl_sha256": "00e53326ae1dd1721d10a873fd3be9a5a7c9c3e629393ba221a5a158e4f22afd"
+  },
+  {
+    "task_id": "d10042",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/stuvusit/mattermost-github-integration/tasks/main.yml",
+    "row_index": 10042,
+    "input_sha256": "b463143365b29a1d63c1895da98920e1c1da392f29e54da68cb8618c55fa9e2f",
+    "nl_sha256": "0a3f2d7ba5e418c12539e21a0ab6d1a788d43f07fa01f5cd6095133bf5fbcad4"
+  },
+  {
+    "task_id": "d09997",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/tdobrovolny/autoupdate/tasks/main.yml",
+    "row_index": 9997,
+    "input_sha256": "44a16a96f2758dbacda7c07867233021b0199700aa04e0ee201c5d231fbf3f94",
+    "nl_sha256": "0cd93278e44d5872baa92dceaa9167f8899b16c368eda52a65d4022a2402858e"
+  },
+  {
+    "task_id": "d03385",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/leo9440/web_server/tasks/configure.yml",
+    "row_index": 3385,
+    "input_sha256": "e55081528e3f1909554716cc12ab6998e7a134065aebddf61b32c20ed0a46676",
+    "nl_sha256": "15059b126686f345718208ca672897b5fb2a3015c2c2400d49f197d3c4e0d6ab"
+  },
+  {
+    "task_id": "d12274",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/dblencowe/nginx-php7/tasks/nginx.yml",
+    "row_index": 12274,
+    "input_sha256": "986aa5a323d37d370d3e17bbf610244db2bb8ca93be032db97aff478128fee53",
+    "nl_sha256": "0b2daba2a8d2aee3164afd4acd20506a42a8bdcd7ef210228f01df027de18e79"
+  },
+  {
+    "task_id": "d07762",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mkoprek/phpfpm/tasks/main.yml",
+    "row_index": 7762,
+    "input_sha256": "8cae3901e181b412a9d9e482c5155cb59b7816496450d898e8e6cb6b9ddc560b",
+    "nl_sha256": "094f34ba17e4c7cc4fa63a489d4865606e334675ef5bbcbd5dbb725327a98eb6"
+  },
+  {
+    "task_id": "d03003",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/gr360ry/snipe-it/tasks/main.yml",
+    "row_index": 3003,
+    "input_sha256": "4b1b9938cbaea3df6db4dc3fa08c29c0b386126f5396b2eb2eec77a90b84b6b0",
+    "nl_sha256": "18f8a3ede22387ee83fb7da421ec744757aab59b1eb02d21b2afffb457dc4d6f"
+  },
+  {
+    "task_id": "d12674",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/trombik/buildbot/tasks/install-RedHat.yml",
+    "row_index": 12674,
+    "input_sha256": "d5da31039e0c8122db5f4491eb9e896abae205ab340d0d8fb03bcb1b78f20b71",
+    "nl_sha256": "0556aa6d864b5f70d24fa68bf88abbf982a383542ec66f4ac2acdb691944d456"
+  },
+  {
+    "task_id": "d01155",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/deimosfr/vagrant/tasks/upgrade.yml",
+    "row_index": 1155,
+    "input_sha256": "e83405b72b65306899bf14044d47b42d29c5424915d6fce095ab8671671b89a3",
+    "nl_sha256": "04c87c37f23402652e5324b72f4c2dd00125c2e13eb93a07f2d9eb8dc6e1f99a"
+  },
+  {
+    "task_id": "d01621",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/buluma/metricbeat/tasks/main.yml",
+    "row_index": 1621,
+    "input_sha256": "d3d4bb8699bed436e0de14034e55859b71bef807a5c486c4f2a3b1fc94d94747",
+    "nl_sha256": "01cc36059d1d3e52b1a230d551a0b2d991cc9a370d4c5f73fee4a5886a2c8a99"
+  },
+  {
+    "task_id": "d02155",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mjanser/pulseaudio/tasks/main.yml",
+    "row_index": 2155,
+    "input_sha256": "6d6e0a467e10a38f384f9cb3cd5fc4ca7246fd82d2a4d25f8d9b68b957b13ba4",
+    "nl_sha256": "0b02a162803d6197aff2a0c670b203926a6d878fa2cffe54f1d495f8c8d44c0b"
+  },
+  {
+    "task_id": "d02022",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mergermarket/docker/tasks/main.yml",
+    "row_index": 2022,
+    "input_sha256": "7cf8180ef571629931641d81df53c211533324278e293ce0cc9909cf6f2d6b95",
+    "nl_sha256": "058bfb6522c52be5264c574cc5b97a530dca25f47f326755aacab59d2cd87e47"
+  },
+  {
+    "task_id": "d12794",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mrlesmithjr/supervisor/tasks/debian.yml",
+    "row_index": 12794,
+    "input_sha256": "2a9f81538e8c89fbd45a928092283f5e5788e480221a750f07b556ce85eaf9ff",
+    "nl_sha256": "1484aa84f6bccb0e25080cc2e4c18cfa7642631ca1b12f56a2cbcc10dd3aab5d"
+  },
+  {
+    "task_id": "d09571",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/awasilyev/memcached-container/tasks/main.yml",
+    "row_index": 9571,
+    "input_sha256": "fce77fd78131f4de59ce52e63a40d004fcf0d5f0a359356f0dd81fd4f0b80a78",
+    "nl_sha256": "12b317f858312e59fb3e001c9a668633b8c002ea244f6451197765ffa05cce38"
+  },
+  {
+    "task_id": "d06712",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/gruuuuu/kisa_security_guideline_aix/tasks/aix/svc_manage.yml",
+    "row_index": 6712,
+    "input_sha256": "2cc1c372fb3b94fde73cfbbd4667f083f9182f9ffa62a7803034c8a9e9908860",
+    "nl_sha256": "17f508a00f56e82ddbdd7a329b34a32aedf0fd046331e7f5cbbd0d4e5b3364f1"
+  },
+  {
+    "task_id": "d07513",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/muchatlu/docker_role/tasks/disable-other-firewalls.yml",
+    "row_index": 7513,
+    "input_sha256": "d52e43ad38b2f28c97611b73094f0ebc8afe02c0c1180db8ea5f2b078037131c",
+    "nl_sha256": "081676cf7ce1fe9814994e3864d33abc59caf155caf827989262d36a062dae40"
+  },
+  {
+    "task_id": "d12528",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/bradthebuilder/virtualization/vagrant/tasks/main.yml",
+    "row_index": 12528,
+    "input_sha256": "9d34bb979b609fd57325153794bb6767454e847ea9988137f644a176cae85761",
+    "nl_sha256": "1a2113cad062e5e0a840a8bf9fefd6956ade68120c3132b468332b51a43e8d03"
+  },
+  {
+    "task_id": "d08392",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/freehck/dnsmasq/tasks/main.yml",
+    "row_index": 8392,
+    "input_sha256": "1418a1eb6d4395996bb7d4884d64a96391c0b927bc5e06b2f0241e8b02d13671",
+    "nl_sha256": "09f8c581f9aa2da2b73c75afaece5774c3dd77d5f5d3173daa1f4e9c32f8a1c5"
+  },
+  {
+    "task_id": "d01016",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/slgevens/stunnel4-ansible/tasks/main.yml",
+    "row_index": 1016,
+    "input_sha256": "02e84a5fadae997c3610928b21178acb1b1dddf88bd15e0b93919d9adf54e275",
+    "nl_sha256": "0ce2c5bf1c51527d0ae5e7c403caf64e6ed17dd7955b4c156da9d88445e695ed"
+  },
+  {
+    "task_id": "d10081",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/sangeethsahana/roles_k8s_master/tasks/main.yml",
+    "row_index": 10081,
+    "input_sha256": "b70fd5efef8749dc0dc364598f4c4fee8142d29df582ce1f42af4952954870de",
+    "nl_sha256": "0458ab26714299dacb4b8ed171988322101dc2dee8cad8d429c03f91d8ecbb76"
+  },
+  {
+    "task_id": "d09769",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/denzuko-ansible-roles/openstack/tasks/main.yml",
+    "row_index": 9769,
+    "input_sha256": "2b810bdc619e847a76bd963dd678affec78e29098bf457b1f69174a24f8a4a28",
+    "nl_sha256": "18c56b093d2b9e2ee8abd5246457d2ac4c912aec3513606f23fdb2e069eb1d22"
+  },
+  {
+    "task_id": "d12374",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/drew1kun/rpi_wifi_ap/tasks/main.yml",
+    "row_index": 12374,
+    "input_sha256": "3d846f04724febebc91a08210685850fd56d04350ae53ed4d7eeabb972fe8adc",
+    "nl_sha256": "129bb480d2260c480fce04561ea2af35f10360c0228666449f1c45383dca5e39"
+  },
+  {
+    "task_id": "d03086",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/trombik/buildbot/tasks/install-FreeBSD.yml",
+    "row_index": 3086,
+    "input_sha256": "d5da31039e0c8122db5f4491eb9e896abae205ab340d0d8fb03bcb1b78f20b71",
+    "nl_sha256": "0556aa6d864b5f70d24fa68bf88abbf982a383542ec66f4ac2acdb691944d456"
+  },
+  {
+    "task_id": "d06096",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/marvel-nccr/wannier90/tasks/clean.yml",
+    "row_index": 6096,
+    "input_sha256": "30dd86a80f4e4e976885a0bdc7066f7bd1c5da01917f5bc8499f28e00e7b44e8",
+    "nl_sha256": "11890261c9e883ce062a8da36f9c4467cb0a08c58432a695da5389d2d119650d"
+  },
+  {
+    "task_id": "d04023",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/leifmadsen/kibana-4/tasks/main.yml",
+    "row_index": 4023,
+    "input_sha256": "de8a3aa4d1ce9bed3267c151e9ae1ddfc0de23d76ab5b3f4f15c2aa819ef083a",
+    "nl_sha256": "1535af5fac382051c80919629eb16e161043a36f1e2370e18a45c8b7b091077d"
+  },
+  {
+    "task_id": "d09635",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/jlozadad/linux_fail2ban/tasks/main.yml",
+    "row_index": 9635,
+    "input_sha256": "3803d037b5e734bfa5d5b67c035c1c55483252b411bf67ce1beabfc3249d5f1b",
+    "nl_sha256": "0b05b6fd7c0800c764b579a9ed0a7f02f2168da178f517a1772699a01da7b9d1"
+  },
+  {
+    "task_id": "d10304",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/panchal_yash/percona_xtradb_cluster_role/tasks/debian_80_repos.yml",
+    "row_index": 10304,
+    "input_sha256": "bf7938f71d5c9429416164d999ff975d1b65dfcb56b7320be6c8ba58c316d168",
+    "nl_sha256": "1100b31a5c07261d97f385011a076635f771c4889b9a234e812f35c430e01949"
+  },
+  {
+    "task_id": "d02077",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/shplorf/starbound/tasks/backup.yml",
+    "row_index": 2077,
+    "input_sha256": "09bd2bf4c7aba28ecdb843cc4d9a26a10ab2b2d0e920218d6cdd1b2fa04847dd",
+    "nl_sha256": "0a88bf448fc9ec618e4d20ec8b5230491686e64bf8818cb2ae4afba3f6ddfbce"
+  },
+  {
+    "task_id": "d05817",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/robertdebock/certbot/tasks/main.yml",
+    "row_index": 5817,
+    "input_sha256": "568b80267c22d2633da2b6a51a515a19340ab3826a5b88e636918aad305337d7",
+    "nl_sha256": "14043a8c926b316c6379fc476cddcc55c908fc740a2a0dc43f0e551d3ecb4bdd"
+  },
+  {
+    "task_id": "d01916",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/dalee/install-golang/tasks/godeps.yml",
+    "row_index": 1916,
+    "input_sha256": "499ce7afcaa0fdc46916ae98b07d719c28dd8fedc9b7bc6e8c8abefa161fadd7",
+    "nl_sha256": "16a9775c490a23977cfd8697e8d25edc9b3f1acdb4448739bf28f11e508b0c4d"
+  },
+  {
+    "task_id": "d00238",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/adnanhodzic/docker-compose/tasks/main.yml",
+    "row_index": 238,
+    "input_sha256": "9f3db8931b42a8eab5ae5e8c0a3c8a9e0a6734ab329eb0c7ea3cff1588d45c4f",
+    "nl_sha256": "15024177a6e23024516ed01192b4ddd143ddf8ea2449affa1c07c9c0a1e495b9"
+  },
+  {
+    "task_id": "d07520",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/chriswayg/msmtp-mailer/tasks/main.yml",
+    "row_index": 7520,
+    "input_sha256": "ef9ddcde05f0569f47cbd78feadf42024ce4776b8cb30d5f2cf7f6c233bc4506",
+    "nl_sha256": "0ec273098185361b35e51bb67692b941ff20f6241497b04d1a0678317d797c3b"
+  },
+  {
+    "task_id": "d07687",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/vikash232/windows_docker_role/tasks/main.yml",
+    "row_index": 7687,
+    "input_sha256": "8c5d471dccaef8e5390860f0e5d87157266e61037bd89f13c4da6597a58dca4e",
+    "nl_sha256": "17655fe3184ec6ee203136d46b246299f64a26cbba7f689f861208b5e6c11d1f"
+  },
+  {
+    "task_id": "d03036",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/aniketsantra25/k8s_masternode_setup/tasks/main.yml",
+    "row_index": 3036,
+    "input_sha256": "f1c493e813d5d1f0d27a90ce421de3c0a9dae22445934a76addb18569e0f4505",
+    "nl_sha256": "064a1aa8f4186457c7e12a36e01feb57a558eed05f343c7c9e00b3e56234e3b0"
+  },
+  {
+    "task_id": "d09151",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/yoshz/common/tasks/configure.yml",
+    "row_index": 9151,
+    "input_sha256": "ba113be294a8b726f27cdd8ed8be328fb8655141ad163a952372b25d198c9541",
+    "nl_sha256": "05fab1eea11e19c1d6a9e07b0c274ed05f8a8e425203bbc89943730606c68638"
+  },
+  {
+    "task_id": "d08203",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/shrenikdoshi/tomcat/tasks/main.yml",
+    "row_index": 8203,
+    "input_sha256": "21055d356de3e637e0856ff6e1efa9765b24bd6e0e854133300f95b6735359e6",
+    "nl_sha256": "0216589d4be27e7783b992e49985f33e816e6eab93f35b302d2521889b82a00d"
+  },
+  {
+    "task_id": "d07662",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/swapnil0309/k8s_multinode/k8s_worker/tasks/main.yml",
+    "row_index": 7662,
+    "input_sha256": "d4fda828fdff5430d677f0f71b8d567cb4669cbcffc1d5887fd6b13f82ea28c9",
+    "nl_sha256": "07850dec01f425404c8c7b3d84bf308c1b9b8440a8e2b364748d5540d24c0fdf"
+  },
+  {
+    "task_id": "d02769",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ome/fluentd/tasks/main.yml",
+    "row_index": 2769,
+    "input_sha256": "48395259f2fccfb108d60064b95556751254a53d3734e9b0caec3475ef4a76cf",
+    "nl_sha256": "064f8a37811696f7f2c811c27deb77ece5d88dc98d12319e96956c5e0022b1a7"
+  },
+  {
+    "task_id": "d11375",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/hamdiuluturk/hamdiuluturk_mycollection/wordpress/tasks/main.yml",
+    "row_index": 11375,
+    "input_sha256": "2d4c0ff4e8d74ece7630e7a83ead6cfffb022ee934f4ccbb76d6d0c564c21d28",
+    "nl_sha256": "09a06afca2b87065cb9bd7d277af7bc8bbb1088e8d2465a7ccd95a0242fba096"
+  },
+  {
+    "task_id": "d05407",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/snowpoke/cozy_environment/tasks/main.yml",
+    "row_index": 5407,
+    "input_sha256": "85bd8014bd9322c1192fee1654453b7676c4fb821bd57fd9ed1d53fe3af9b007",
+    "nl_sha256": "19f2f35db7148bbf287524c937f476f126750b5a70bca1abb413821677c0715c"
+  },
+  {
+    "task_id": "d05028",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/rubrik-devops/rubrik-connector/tasks/setup-RedHat.yml",
+    "row_index": 5028,
+    "input_sha256": "27853a1ba8ee9b5ec7f8507f97dc308438e18d5638353c0e435eb9ea1c76b520",
+    "nl_sha256": "057fe0987a659fe2adb99ce39bf33608b5fc5d9dcd686dcbba5ef122313fc862"
+  },
+  {
+    "task_id": "d08736",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/samber/airbyte/tasks/main.yml",
+    "row_index": 8736,
+    "input_sha256": "9d39d8ce869897b853cf6f36172323d52ee14a038ac9aa8272d6400eae1dcc5e",
+    "nl_sha256": "00ea533401edc6df9dc6294f32b1a88259959868aec6fcac88a885542af54d83"
+  },
+  {
+    "task_id": "d03911",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/jm1/kvm_nested_virtualization/tasks/main.yml",
+    "row_index": 3911,
+    "input_sha256": "b5cd1e81238180dea59ac6aad038f0a1eac91a3ed58d574ab50a6f74570d6ec4",
+    "nl_sha256": "0c0fc5531da5a3c59f4b04bef5b409e918606d1d72c9ec544b9cd7cf6e20ac9e"
+  },
+  {
+    "task_id": "d11618",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/cyverse-ansible/gateone-server/tasks/main.yml",
+    "row_index": 11618,
+    "input_sha256": "0718feb693afbc59c58d2e802ef4cace9285878ad5a3c980efcbfe0a7700a141",
+    "nl_sha256": "05335fb1542db5eddcea9f3fa6945c390a301147e68d0bc57d78a45029fa7c6a"
+  },
+  {
+    "task_id": "d02096",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/valugi/ansible_mattermost_role/tasks/main.yml",
+    "row_index": 2096,
+    "input_sha256": "45b57e66374a32f76d3ee03ac4a5d739014dc028cd5bb09f8a9f5a62a12ce93c",
+    "nl_sha256": "17bed041e2ccba029c51463f67a494d92dc3b269005a7caa06a8a1902a90875c"
+  },
+  {
+    "task_id": "d06303",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mindpointgroup/windows_2016_cis/tasks/section17.yml",
+    "row_index": 6303,
+    "input_sha256": "c137f55e68512a53c39208ed959d23ebbe9404ff95ce843e58c52b77d574e37a",
+    "nl_sha256": "0cf6f36aee14a9b37f6769a28eca97a24af0f30763753e351206cb0a741ae3f8"
+  },
+  {
+    "task_id": "d06869",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/republic/infra/fail2ban/tasks/main.yml",
+    "row_index": 6869,
+    "input_sha256": "3803d037b5e734bfa5d5b67c035c1c55483252b411bf67ce1beabfc3249d5f1b",
+    "nl_sha256": "0b05b6fd7c0800c764b579a9ed0a7f02f2168da178f517a1772699a01da7b9d1"
+  },
+  {
+    "task_id": "d04559",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/tleguern/left4dead2/tasks/main.yml",
+    "row_index": 4559,
+    "input_sha256": "040d08d9a9365fd84f524b3ed00425db6f1e2988e95185ddeeb2cd6106960191",
+    "nl_sha256": "0b283161ce3cc86114e487bc55758ae57d448a8f9ef2844eb0dab8aebd8f0e0e"
+  },
+  {
+    "task_id": "d09904",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/ahrenstein/mac_setup/tasks/system-preferences.yml",
+    "row_index": 9904,
+    "input_sha256": "f8ada744f3d6a12c4d9fb1c80d86dc369f0b8e3c255ea46ce5006fc59e3ff940",
+    "nl_sha256": "0f8963c1da0baa04efb06f5140ce84da27a77d4787cdadaadff7258793c455d9"
+  },
+  {
+    "task_id": "d12552",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/midonet/ansible-midonet-repo/tasks/debian.yml",
+    "row_index": 12552,
+    "input_sha256": "b994a70db8c2a90114739b54705042c497f8b33285e0d9c104693eaec3d04306",
+    "nl_sha256": "0caaa27037d5c7267a86e2a9690a6ecbd1bca515fdb237044dc1bed3cd693e9b"
+  },
+  {
+    "task_id": "d03031",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/junaid18183/jenkins/tasks/main.yml",
+    "row_index": 3031,
+    "input_sha256": "913e758d24bc1bc47208e19d6c3b0cc9e06459fa2df10a1c7672972e0ee314fa",
+    "nl_sha256": "0699dd05fa17795ab659440fc08cbf161ff531094fd5f92cef0faa75e5962163"
+  },
+  {
+    "task_id": "d06152",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mrlesmithjr/config-interfaces/tasks/debian.yml",
+    "row_index": 6152,
+    "input_sha256": "bc4a728fc43d173e993cfd14303b02b694b27dccd15fc71106c5f253f75d512e",
+    "nl_sha256": "1862057fc6bb226a26320cef5a917026d82026205036c457710da6a30796635b"
+  },
+  {
+    "task_id": "d12605",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/haghighi_ahmad/update/tasks/main.yml",
+    "row_index": 12605,
+    "input_sha256": "7b7fa2c68ae6730be1cbcc1c544cf97305a39ed0647465361a338e5724c2c8ec",
+    "nl_sha256": "17be58673dffdf0ddf55f293c832a850b0cff951a52b2b4bd58992ca22e15cd0"
+  },
+  {
+    "task_id": "d02507",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/jlozadad/install_vagrant/tasks/main.yml",
+    "row_index": 2507,
+    "input_sha256": "5ed67b24dcc7ef02b277dbefee3f028d4aeb42561dfb06f92e88bd5ffda409a5",
+    "nl_sha256": "030d6eb95e57ba164ab31aa7db2bc9d1fc87abd7ace7178361d32e6a5715cc62"
+  },
+  {
+    "task_id": "d08394",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/netflakes/elixir-deploy/tasks/monit.yml",
+    "row_index": 8394,
+    "input_sha256": "4d45de20c21d32e339d312511386989b5f4cfb20602f20873af168c59f478aab",
+    "nl_sha256": "086c79a4ebed02a6809b672e93431d1bf213d5fb0619dcffa85daca23c49cdf6"
+  },
+  {
+    "task_id": "d04091",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/burnfaker/zabbix-repo/tasks/repo-Debian.yml",
+    "row_index": 4091,
+    "input_sha256": "6a2d4cbaa7365d07fb760d33ebfa3293fc5a134c290114b54a530ec85d05b793",
+    "nl_sha256": "07b644f25b4b7473ab13d18605de9fe7932c8a60d894a66ad3fd1b377ea6339d"
+  },
+  {
+    "task_id": "d00909",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/medsalahmeddeb/web_role/tasks/main.yml",
+    "row_index": 909,
+    "input_sha256": "c5f17ade9ee42ef6860c7ee9905af5fffbd437e1ea4cb9594eb256fc390421df",
+    "nl_sha256": "0ff2e080826c0f2a30f53f08f4e3c371f9a820fafe7557ee6eecf506372d9518"
+  },
+  {
+    "task_id": "d01543",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mahdizada1/mycollection/wordpress/tasks/main.yml",
+    "row_index": 1543,
+    "input_sha256": "2d4c0ff4e8d74ece7630e7a83ead6cfffb022ee934f4ccbb76d6d0c564c21d28",
+    "nl_sha256": "09a06afca2b87065cb9bd7d277af7bc8bbb1088e8d2465a7ccd95a0242fba096"
+  },
+  {
+    "task_id": "d01350",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/uelei/python_setup_pyenv_pipx_poetry/tasks/main.yml",
+    "row_index": 1350,
+    "input_sha256": "9530054f9cf78e28ee93009a74f4b12fc9845fff81a354cf70ee9e23cd89ecbd",
+    "nl_sha256": "0cdde6b203076853506e8b973214aec9067fbe9714c6d7ed972713ded400137a"
+  },
+  {
+    "task_id": "d03682",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/thibaultmontaufray/ansible_role_rancher_hosts_clean/tasks/main.yml",
+    "row_index": 3682,
+    "input_sha256": "9e2f459f3798ec52493fcd2b734161e1f63835ec6541ddcee629e36119991c04",
+    "nl_sha256": "0bcabac8ab20cf7da64bc461399708b2a7b8d1fc03da0c82a40bd45e5f0d1cf7"
+  },
+  {
+    "task_id": "d04067",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/starcraft66/borgbackup/tasks/main.yml",
+    "row_index": 4067,
+    "input_sha256": "fd343f6e0df47c5e47964d6e2bfaed8b58e2c72506c367274aa8e8324c7125d6",
+    "nl_sha256": "098b5e15020631ee7b8d930bd45d42d22474b2beea0e2b7c3c4814632c9a6fcf"
+  },
+  {
+    "task_id": "d00744",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/devops-coop/haproxy/tasks/install.yml",
+    "row_index": 744,
+    "input_sha256": "4189e317612ae183d85645f8c5266c1190ccc985b9e5e0ae029042ab35fdfcb3",
+    "nl_sha256": "0894980b845c53cdce6aac9faf9440179c494cdf08d702078bcc3f2f1b23ccd3"
+  },
+  {
+    "task_id": "d03580",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/cjsteel/update/tasks/main.yml",
+    "row_index": 3580,
+    "input_sha256": "7b7fa2c68ae6730be1cbcc1c544cf97305a39ed0647465361a338e5724c2c8ec",
+    "nl_sha256": "17be58673dffdf0ddf55f293c832a850b0cff951a52b2b4bd58992ca22e15cd0"
+  },
+  {
+    "task_id": "d06499",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/raylas/linux_common/tasks/main.yml",
+    "row_index": 6499,
+    "input_sha256": "bf096dfe42c751fb7e071357cb7d115f120d1e3d86a097bd4f71184cc1b0bdba",
+    "nl_sha256": "0a2fd476088fb9b1d5e2dc86a59faf43a4615582237a3365c10f01dd9bcaa99e"
+  },
+  {
+    "task_id": "d02026",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/loydpadgett/minikuber/tasks/user_configs.yml",
+    "row_index": 2026,
+    "input_sha256": "38bf611de8b51060e80123ae3347eab5158bfe0e67a18629721b940d753e7bb4",
+    "nl_sha256": "0e26a292dc85192c49c57cde8cb29b3d7ff4fa6d81f890766bd6d229c8731bbb"
+  },
+  {
+    "task_id": "d09236",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/reallyenglish/ansible/tasks/install-FreeBSD.yml",
+    "row_index": 9236,
+    "input_sha256": "c9d5df5180220c06a2249adb8ef98120d31505051a869bd46aba3a86a159e88b",
+    "nl_sha256": "0bad96ebb2440b7c49817a022b630bad80118546ed9534d9af70eea6520e13f3"
+  },
+  {
+    "task_id": "d10789",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mmartinello/ansible_java/tasks/main.yml",
+    "row_index": 10789,
+    "input_sha256": "80aa4c7df9263798a9cb3b6e3193952cf40f0ee987db3188c9eadcdf3b335837",
+    "nl_sha256": "1681934eb420e9bbb24bd80a395ada2518a946c73f29af6e7a4585d3816915d1"
+  },
+  {
+    "task_id": "d02668",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/mamercad/mariadb-galera-haproxy-keepalived/tasks/main.yml",
+    "row_index": 2668,
+    "input_sha256": "9089bf65f294c0b2c1453efae105ad4a8031a371d74229ea7179c5101b1f36c7",
+    "nl_sha256": "0562646d1c30bb4495831277bfccdf5aaa7b3e3f523f7333cad5e72bd4151baa"
+  },
+  {
+    "task_id": "d10795",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/jigarvora17/tomcat/tasks/main.yml",
+    "row_index": 10795,
+    "input_sha256": "bdb2557d704f46ea6e3f9c63c67366c91c8f8e9a8d62ec4e55c5959dfdd5fb31",
+    "nl_sha256": "1344a753ebf5592fcde937a9807d9d10e49587855e18c63a372f7337e786b114"
+  },
+  {
+    "task_id": "d00495",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/cocoy/strider/tasks/setup-RedHat.yml",
+    "row_index": 495,
+    "input_sha256": "44775927ca1c661f995a480c20a44ff594ae24fc6f81171a9bd56943e06c937d",
+    "nl_sha256": "05787a603de3b429de6e35c01bdd8c92df67a3df94b56301eaf608b19e728f7b"
+  },
+  {
+    "task_id": "d05449",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/jas02/openshift-prepare-environment/tasks/configure_docker.yml",
+    "row_index": 5449,
+    "input_sha256": "2733918de433394cbd7d8a01b40cd2eaa0629aa98fa1f5e6508d9a7fbe882218",
+    "nl_sha256": "0ed9950910aab101f596373982497e525694f488be35fdeeb10ddf3de0b4c5f0"
+  },
+  {
+    "task_id": "d04024",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/naftulikay/packer/tasks/main.yml",
+    "row_index": 4024,
+    "input_sha256": "4c3b0c3c015e4be04a1177aa81d24920f8dbcd7350c1e076f94b4272edd4582b",
+    "nl_sha256": "17fc0dce25f78505eeea64b0a95ba797c66777a0aa1f08848e08f338e8b1a645"
+  },
+  {
+    "task_id": "d08384",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/makarenalabs/kimai/tasks/main.yml",
+    "row_index": 8384,
+    "input_sha256": "05d69f74861987be53e1282c155a13d2e3beeb0ab412c7523c0c35d783088971",
+    "nl_sha256": "0c5efc894d8f1ff4b525567424c5fbf7ed9e92197ebdcd3e586389e1462b40ce"
+  },
+  {
+    "task_id": "d11670",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/jaredhocutt/libvirt/tasks/main.yml",
+    "row_index": 11670,
+    "input_sha256": "63d153aa72e19f44b041d0105b707a28d2149b4299042ce3bdea67ddebf98756",
+    "nl_sha256": "0fb18b6d27952860e929fb4e3b6da8c3e8af0944e810d6038adeb759bb619dc6"
+  },
+  {
+    "task_id": "d07363",
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "repo_path": "data/repos/jayroad/win_cis/win_cis/tasks/main.yml",
+    "row_index": 7363,
+    "input_sha256": "705328f4fd3106a4e924c708db45613744296e8a9f270b1b6c2da4a79bd7c6ba",
+    "nl_sha256": "0934e64fcc675dcd134e8b2a156d13eb8554e31af6a56f652ca3522c1b2a7af9"
+  }
+]

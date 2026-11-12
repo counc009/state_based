@@ -1,0 +1,5 @@
+FQL has no standalone "check" action. A condition must be followed by `then` and a statement, and the request does not say what to do if `banco.php` exists. The path is also relative, with no directory given.
+
+The condition itself would be written `file "banco.php" exists`. A valid query needs an action, for example:
+
+if file "banco.php" exists then delete file at "banco.php"

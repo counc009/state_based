@@ -1,0 +1,3 @@
+This request can't be expressed in Astrogator FQL. The language has no standalone check or test action. Existence tests like `file "/etc/init" exists` or `directory "/etc/init" exists` are only valid as the condition of an `if ... then STATEMENT`. To build a query, specify what should happen depending on the result, for example:
+
+`if directory "/etc/init" not exists then create directory at "/etc/init"`

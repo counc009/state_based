@@ -1,0 +1,16 @@
+This request cannot be expressed in Astrogator FQL. The language has no action for updating a package-manager cache, and there is no OS condition for Alpine, the distribution that uses apk.
+
+Also, my earlier answers left literals unquoted. The corrected queries are:
+
+```
+set file permissions in "/srv/path" with read=all, write=owner, list directory=all
+```
+```
+delete directory at "/home/mydata/web"
+```
+```
+delete files in "/home/mydata/web"
+```
+```
+if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file
+```

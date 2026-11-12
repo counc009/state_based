@@ -1,0 +1,3 @@
+
+
+set environment variable AUDIT_CREDENTIAL_VALIDATION to "Success"

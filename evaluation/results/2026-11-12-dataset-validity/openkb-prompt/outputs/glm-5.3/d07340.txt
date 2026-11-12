@@ -1,0 +1,1 @@
+if open-vm-tools installed then uninstall open-vm-tools

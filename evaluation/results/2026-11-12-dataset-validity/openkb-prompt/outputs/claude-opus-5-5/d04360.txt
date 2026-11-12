@@ -1,0 +1,1 @@
+There is no Astrogator FQL action for creating a database, so this request can't be expressed as a query.

@@ -1,0 +1,1 @@
+check if k9s installed

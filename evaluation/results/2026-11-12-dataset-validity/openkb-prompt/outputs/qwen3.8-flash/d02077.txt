@@ -1,0 +1,3 @@
+
+
+if Starbound running then stop Starbound service

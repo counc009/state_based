@@ -1,0 +1,10 @@
+Astrogator FQL has no action for updating package repositories or the package index, so this request cannot be expressed as a valid query.
+
+My earlier queries also left literal paths unquoted. The corrected forms are:
+
+```
+set file permissions in "/srv/path" with read=all, write=owner, list directory=all.
+delete directory at "/home/mydata/web".
+delete files in "/home/mydata/web".
+if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file.
+```

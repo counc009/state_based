@@ -1,0 +1,12 @@
+This request can't be expressed in Astrogator FQL. FQL has no condition that tests whether a directory is empty and no action that inspects or reports results. The request also doesn't give a full path for the "nighthawk" folder.
+
+The closest supported check is whether the directory exists, and a conditional requires an action to follow `then`:
+
+`if directory "?path" exists then ...`
+
+My earlier queries also broke the quoting and argument rules. Corrected versions:
+
+- `set file permissions in "/srv/path" with read=all, write=owner, list directory=all`
+- `delete directory at "/home/mydata/web"`
+- `delete files in "/home/mydata/web"`
+- `if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file`

@@ -1,0 +1,7 @@
+model,n,attempted,completed,incomplete,responses,api_failures,deadline_stopped,pending_billing,pending_budget,controller_stopped,cost_usd
+gpt-6.1-sol,300,300,300,0,300,0,0,0,0,0,0.6580965
+claude-opus-5-5,300,236,236,0,236,0,0,0,64,0,4.241164
+deepseek-v4.1-flash,300,300,300,0,300,0,0,0,0,0,0.5156636718359999
+deepseek-v4-flash,300,275,262,0,262,0,38,0,0,0,0.8264791323280001
+glm-5.3,300,300,300,0,300,0,0,0,0,0,4.8761319448650005
+qwen3.8-flash,300,300,300,0,300,0,0,0,0,0,0.382603405484

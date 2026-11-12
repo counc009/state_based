@@ -1,0 +1,1 @@
+Astrogator FQL has no firewall action, so it can't express opening port 1515 for ossec-authd.

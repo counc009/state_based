@@ -1,0 +1,13 @@
+model,kb,n,responses,parsed,semantic_accepted,interpreted,unavailable
+claude-opus-5-5,example,300,236,182,38,38,64
+claude-opus-5-5,fallback,300,236,182,176,173,64
+deepseek-v4-flash,example,300,262,252,57,56,38
+deepseek-v4-flash,fallback,300,262,252,246,237,38
+deepseek-v4.1-flash,example,300,300,256,54,54,0
+deepseek-v4.1-flash,fallback,300,300,256,237,230,0
+glm-5.3,example,300,300,243,43,42,0
+glm-5.3,fallback,300,300,243,226,220,0
+gpt-6.1-sol,example,300,300,255,55,55,0
+gpt-6.1-sol,fallback,300,300,255,227,221,0
+qwen3.8-flash,example,300,300,231,53,52,0
+qwen3.8-flash,fallback,300,300,231,214,205,0

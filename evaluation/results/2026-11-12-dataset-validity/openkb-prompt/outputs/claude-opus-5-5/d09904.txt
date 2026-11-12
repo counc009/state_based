@@ -1,0 +1,1 @@
+This request cannot be expressed in Astrogator FQL. The language has no action for macOS System Preferences or for keyboard and text-substitution settings such as smart dashes, so I have not produced a query.

@@ -1,0 +1,3 @@
+
+
+The FQL grammar provided does not include an action to update all system packages (there is only `install` and `uninstall`). There is no valid Astrogator FQL query for updating all packages via dnf.

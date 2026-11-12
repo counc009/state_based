@@ -1,0 +1,25 @@
+{
+  "checked_receipts": 1773,
+  "pre_recovery_state_sha256": "e60ca35c84b7d412a458419519e92db6cc7c8b46d5555c362116585ccf1db133",
+  "reconciled_state_sha256": "b142a02746f43d7dba99a1d1c814fdde6ada0c4acf29cc00b419dbff2b10fa73",
+  "original_ledger_backup_sha256": "81dcb57919e795cc8786b815fe7aebc424ffda99b75591c507326ccb5f48f0ed",
+  "recovered_provider_receipts": 1,
+  "recovered_canonical_files": 1,
+  "events": [
+    {
+      "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d07473--r0",
+      "attempt": 2,
+      "action": "recover_durable_provider_receipt",
+      "prior_status": "interrupted_unknown_billing",
+      "recovered_status": "completed",
+      "prior_cost_usd": 0.014303010542,
+      "recovered_cost_usd": 0.0046590035640000005
+    },
+    {
+      "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d07473--r0",
+      "attempt": 2,
+      "action": "recover_missing_canonical",
+      "status": "completed"
+    }
+  ]
+}

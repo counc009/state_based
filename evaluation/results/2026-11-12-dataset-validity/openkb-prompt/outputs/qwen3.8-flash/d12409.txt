@@ -1,0 +1,3 @@
+
+
+install oh my zsh

@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. The language has no action or condition for checking CPU features such as AMD-V/SVM support. Its conditions only cover OS, file or directory existence, installed packages, running services, and reboot-required status, and a condition must guard an action rather than just report a result.

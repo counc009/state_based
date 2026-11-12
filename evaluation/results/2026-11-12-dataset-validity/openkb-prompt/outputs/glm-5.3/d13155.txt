@@ -1,0 +1,1 @@
+write "{\n  \"exec-opts\": [\"native.cgroupdriver=systemd\"]\n}" to "/etc/docker/daemon.json" with position=overwrite; stop docker service; start docker service

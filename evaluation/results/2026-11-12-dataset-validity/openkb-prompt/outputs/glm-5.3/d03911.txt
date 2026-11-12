@@ -1,0 +1,1 @@
+*(No query — reading a file to inspect its contents is an informational action with no FQL equivalent, and "later" indicates no operation should be performed now.)*
