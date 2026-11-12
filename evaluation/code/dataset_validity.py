@@ -111,7 +111,7 @@ def classify_request(cell,config):
     return result
 
 
-def matrix(manifest,out,total,anthropic,workers,request):
+def matrix(manifest,out,total,anthropic,workers,request,worker_overrides=None):
     out.mkdir(parents=True,exist_ok=True)
     with (out/'.matrix.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
@@ -123,23 +123,35 @@ def matrix(manifest,out,total,anthropic,workers,request):
                 terminal.replace(history/(terminal.stem+f'--after{result["attempt"]}.json'))
         runner=Matrix(manifest,out,total,anthropic,8,request,transport.build)
         if manifest.get('phase')=='NL-to-FQL dataset validity':
-            parallel_generate(runner)
+            parallel_generate(runner,worker_overrides)
         else:runner.run(workers)
 
 
-def parallel_generate(runner):
-    """Shared durable budget/ledger, independent model pools; slow models start first."""
-    from contextlib import ExitStack
-    limits=runner.manifest['config']['generation_model_workers']
-    while True:
-        before=len(runner.state['attempts'])
-        with ExitStack() as stack:
-            futures=[]
-            for model,count in limits.items():
-                pool=stack.enter_context(ThreadPoolExecutor(max_workers=count))
-                futures.extend(pool.submit(runner.process,c) for c in runner.manifest['cells'] if c['model']==model)
-            for future in as_completed(futures):future.result()
-        if len(runner.state['attempts'])==before:break
+def parallel_generate(runner,overrides=None):
+    """One durable ledger, model-local readmission after temporary reservations settle."""
+    limits={**runner.manifest['config']['generation_model_workers'],**(overrides or {})}
+    history=runner.out/'execution-settings.json';invocations=ev.load(history) if history.exists() else []
+    invocations.append({'started_at':now(),'model_workers':limits,'scheduler':'independent per-model readmission','max_attempts':runner.max_attempts,'total_budget_usd':runner.total,'anthropic_budget_usd':runner.anthropic});save(history,invocations)
+    def generate_model(model):
+        cells=[c for c in runner.manifest['cells'] if c['model']==model];cell_ids={c['id'] for c in cells}
+        provider=runner.manifest['config']['models'][model]['provider']
+        while True:
+            pending=[c for c in cells if not (runner.out/'responses'/(c['id']+'.json')).exists()]
+            if not pending:return
+            with runner.lock:before=sum(a['cell_id'] in cell_ids for a in runner.state['attempts'])
+            with ThreadPoolExecutor(max_workers=limits[model]) as pool:
+                for future in as_completed([pool.submit(runner.process,c) for c in pending]):future.result()
+            with runner.lock:
+                after=sum(a['cell_id'] in cell_ids for a in runner.state['attempts'])
+                inflight=any(a['status']=='in_flight' for a in runner.state['attempts'])
+                own_inflight=any(a['status']=='in_flight' and a['provider']==provider for a in runner.state['attempts'])
+                own_guard=provider=='anthropic' and all(runner.spend(provider)+ev.reserve(c,runner.manifest['config'])>runner.anthropic+1e-9 for c in pending)
+            if after==before:
+                if (own_guard and not own_inflight) or not inflight:return
+                time.sleep(1)
+    with ThreadPoolExecutor(max_workers=len(limits)) as controller:
+        futures=[controller.submit(generate_model,model) for model in limits]
+        for future in as_completed(futures):future.result()
     terminal=sum((runner.out/'responses'/(c['id']+'.json')).exists() for c in runner.manifest['cells'])
     status={'planned':len(runner.cells),'terminal':terminal,'pending':len(runner.cells)-terminal,
        'attempts':len(runner.state['attempts']),'accounted_usd':runner.spend(),
@@ -308,7 +320,8 @@ def export(run):
       'funnel':ev.load(private/'funnel.json'),'models':m['config']['models'],'settings':{'variant':'handbook-v3','sample_seed':SEED,'samples_per_model_task':1,
         'max_output_tokens':32768,'reasoning_effort':'HIGH; Qwen XHIGH','temperature':None,'top_p':None,'seed':None,
         'demonstration_policy':'Fixed first recovered target set a13,a02,a03,a19; old 21-task matrix used target-specific sets',
-        'generation_model_workers':m['config']['generation_model_workers'],
+        'initial_generation_model_workers':m['config']['generation_model_workers'],
+        'generation_invocations':ev.load(private/'generation/execution-settings.json') if (private/'generation/execution-settings.json').exists() else [],
         'demonstration_ids':['a13','a02','a03','a19'],'filter_model':'deepseek-v4-flash','filter_effort':'low','filter_max_output_tokens':4096,'filter_batch_size':20,'max_attempts':8},
       'sources':{**m['sources'],**{'filter_'+k:v for k,v in fm['sources'].items()}},'budget_guards':{'total_usd':20,'anthropic_usd':8},
       'costs':{'classifier_usd':fcost,'generation_usd':gcost,'total_accounted_usd':total,'anthropic_usd':anthropic,'unknown_billing_reserve_usd':unknown,
@@ -319,9 +332,12 @@ def export(run):
         'effects_binary_sha256':ev.digest((REPO/'_build/default/evaluation/native/effects.exe').read_bytes()),'query_interp_binary_sha256':ev.digest((REPO/'_build/default/bin/query_interp.exe').read_bytes()),
         'module_sha256':{str(p.relative_to(REPO)):ev.digest(p.read_bytes()) for p in sorted((REPO/'modules').glob('*.type'))}},
       'summary':summary,'privacy':'Source dataset, original NL/YAML, complete message manifests and raw provider reasoning remain private; only IDs/hashes, model outputs and counts exported.',
+      'runtime_driver_snapshots':{p.name:ev.digest(p.read_bytes()) for p in (private/'generation/runtime-source').glob('*')},
       'operator_events':ev.load(private/'operator-events.json') if (private/'operator-events.json').exists() else [],
       'correctness_claim':False,'reference_comparison':False,'output_judge':False,'runtime_execution':False}
     for source in (private/'generation/source').glob('*'):
+        target=run/'sources'/source.name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(source.read_bytes())
+    for source in (private/'generation/runtime-source').glob('*'):
         target=run/'sources'/source.name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(source.read_bytes())
     for source in [ROOT/'prompts/detail-filter-v1.txt',ROOT/'docs/dataset-detail-rubric.md']:
         target=run/'sources'/source.name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(source.read_bytes())
@@ -331,7 +347,9 @@ def export(run):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('command',choices=['prepare','filter','sample','generate','score','export','all']);p.add_argument('--run',type=Path,required=True)
-    p.add_argument('--hash-prefix-batches',type=int);p.add_argument('--source',type=Path);p.add_argument('--credentials-file',type=Path);p.add_argument('--workers',type=int,default=24);a=p.parse_args();private=a.run/'private'
+    p.add_argument('--deepseek-v4-workers',type=int);p.add_argument('--hash-prefix-batches',type=int);p.add_argument('--source',type=Path);p.add_argument('--credentials-file',type=Path);p.add_argument('--workers',type=int,default=24);a=p.parse_args();private=a.run/'private'
+    if a.deepseek_v4_workers is not None:assert 1<=a.deepseek_v4_workers<=128
+    if a.hash_prefix_batches is not None:assert a.hash_prefix_batches>0
     if a.credentials_file:credentials(a.credentials_file)
     if a.command=='all':
         assert all((REPO/p).exists() for p in ['_build/default/evaluation/native/effects.exe','_build/default/bin/query_interp.exe']),'Build native diagnostics before starting a funded run'
@@ -340,7 +358,8 @@ def main():
         m=ev.load(private/'filter/manifest.json');matrix(m,private/'filter',20,0,a.workers,classify_request)
     if a.command in ('sample','all'):select(a.run,a.hash_prefix_batches)
     if a.command in ('generate','all'):
-        m=freeze_generation(a.run);matrix(m,private/'generation',20,8,a.workers,transport.request)
+        m=freeze_generation(a.run);overrides={'deepseek-v4-flash':a.deepseek_v4_workers} if a.deepseek_v4_workers else None
+        matrix(m,private/'generation',20,8,a.workers,transport.request,overrides)
     if a.command in ('score','all'):score(a.run,min(8,a.workers))
     if a.command in ('export','all'):export(a.run)
 

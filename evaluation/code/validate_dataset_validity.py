@@ -51,6 +51,8 @@ def validate(run):
         provider_keys=Path('/tmp/astrogator-provider-env.json')
         if provider_keys.exists():
             secrets=[value.encode() for key,value in ev.load(provider_keys).items() if key.endswith(('_KEY','_TOKEN')) and value]
+            pat=Path('/tmp/astrogator-gh-token')
+            if pat.exists():secrets.append(pat.read_bytes().strip())
             public=[p for p in run.rglob('*') if p.is_file() and 'private' not in p.relative_to(run).parts]
             assert not any(secret in p.read_bytes() for p in public for secret in secrets),'Secret detected in public artifact'
     print(json.dumps({'validated':True,'source_rows':len(filtered),'sampled':n,'cells':len(rows),'outputs':sum(bool(r['output_path']) for r in rows),'accounted_usd':cost['total_accounted_usd']}))

@@ -63,3 +63,23 @@ class DatasetValidityTests(unittest.TestCase):
             self.assertEqual(len(sample),20)
             self.assertTrue(all(int(r['classifier_id'][1:])<20 for r in sample))
             self.assertEqual(d.ev.load(run/'private/funnel.json')['detail_unresolved_rows'],0)
+
+    def test_model_local_readmission_does_not_wait_for_another_model(self):
+        import time
+        with tempfile.TemporaryDirectory() as tmp:
+            out=Path(tmp);config=d.ev.load(d.ROOT/'configs/models.json')
+            config.update(max_output_tokens=32768,prior_cost_usd=0,prior_anthropic_cost_usd=0,generation_model_workers={'opus':8,'sol':1})
+            config['models']={k:config['models'][k] for k in ['opus','sol']}
+            messages=[{'role':'system','content':'test'},{'role':'user','content':'test'}]
+            cells=[{'id':f'opus-{i}','model':'opus','messages':messages} for i in range(20)]+[{'id':'sol-slow','model':'sol','messages':messages}]
+            m={'config':config,'cells':cells};observed=[]
+            def request(cell,config):
+                if cell['model']=='sol':
+                    time.sleep(1)
+                    observed.append(len(list((out/'responses').glob('opus*.json'))))
+                else:time.sleep(.005)
+                return {'status':'completed','text':'create directory at /srv/www','usage':{'input_tokens':100,'output_tokens':10}}
+            r=d.Matrix(m,out,total=10,anthropic=1,max_attempts=2,request_fn=request,build_fn=lambda c,k:('https://fixture.invalid',{},{}))
+            with patch('sys.stdout',new=io.StringIO()):d.parallel_generate(r)
+            self.assertEqual(observed,[20])
+            self.assertLessEqual(r.spend('anthropic'),1)
