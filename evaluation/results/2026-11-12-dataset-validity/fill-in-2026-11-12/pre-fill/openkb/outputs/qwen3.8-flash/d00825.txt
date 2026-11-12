@@ -1,0 +1,3 @@
+
+
+if directory at "/etc/init" exists

@@ -1,0 +1,3 @@
+start tomcat service
+
+Note: Tomcat is not in the pinned example KB's service catalog, which lists only ssh server, postfix, and apache server. This query follows the grammar but will not resolve unless a Tomcat service description is added to the KB.

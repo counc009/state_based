@@ -11,16 +11,21 @@ claude-opus-5-5,fallback,Unhandled arguments for install,1
 claude-opus-5-5,fallback,Unknown package,1
 claude-opus-5-5,fallback,"Expected a single string as file content, found",1
 claude-opus-5-5,fallback,"Expected single value for 'user' for set shall, found",1
-deepseek-v4-flash,example,Unknown package,126
-deepseek-v4-flash,example,Unknown service,53
-deepseek-v4-flash,example,non-parsing output,15
+deepseek-v4-flash,example,Unknown package,137
+deepseek-v4-flash,example,Unknown service,54
+deepseek-v4-flash,example,non-parsing output,22
+deepseek-v4-flash,example,empty query,4
 deepseek-v4-flash,example,Unhandled creation of,2
-deepseek-v4-flash,example,empty query,1
-deepseek-v4-flash,fallback,non-parsing output,15
+deepseek-v4-flash,example,Unhandled enabling of,2
+deepseek-v4-flash,example,Unhandled set of,1
+deepseek-v4-flash,example,Unknown OS,1
+deepseek-v4-flash,fallback,non-parsing output,22
+deepseek-v4-flash,fallback,empty query,4
 deepseek-v4-flash,fallback,Unhandled arguments for install,3
+deepseek-v4-flash,fallback,Unhandled enabling of,3
 deepseek-v4-flash,fallback,Unhandled creation of,2
-deepseek-v4-flash,fallback,empty query,1
-deepseek-v4-flash,fallback,Unhandled enabling of,1
+deepseek-v4-flash,fallback,Unhandled set of,1
+deepseek-v4-flash,fallback,Unknown OS,1
 deepseek-v4.1-flash,example,Unknown package,119
 deepseek-v4.1-flash,example,Unknown service,54
 deepseek-v4.1-flash,example,non-parsing output,40

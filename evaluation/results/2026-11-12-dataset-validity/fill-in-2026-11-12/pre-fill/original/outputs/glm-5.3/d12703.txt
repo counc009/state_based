@@ -1,0 +1,1 @@
+The request cannot be expressed in Astrogator FQL: kubelet and kubeadm are not in the knowledge-base package catalog, which only supports bash, zsh, postfix, apache server, ssh client, ssh server, and numpy.

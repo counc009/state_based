@@ -1,0 +1,3 @@
+
+
+clone github repository with name="ohmyzsh/ohmyzsh" into "~/.oh-my-zsh"

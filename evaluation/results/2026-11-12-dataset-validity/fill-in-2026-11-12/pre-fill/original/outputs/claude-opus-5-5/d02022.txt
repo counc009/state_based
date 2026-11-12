@@ -1,0 +1,5 @@
+Pip can't be expressed as a query because it isn't in the pinned knowledge-base package catalog. The catalog only covers bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy, and numpy in a virtual environment.
+
+The closest supported alternative is a virtual environment, which typically includes pip:
+
+create virtual environment in "?path"

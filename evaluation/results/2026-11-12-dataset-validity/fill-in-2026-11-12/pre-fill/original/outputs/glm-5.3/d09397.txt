@@ -1,0 +1,1 @@
+This request cannot be expressed in Astrogator FQL. The language provides no action or condition for checking hardware capabilities such as AMD virtualization support; its conditions are limited to OS checks, file/directory existence, package installation, service state, and reboot-required status.

@@ -1,0 +1,3 @@
+
+
+set iptables policy for OUTPUT chain to "ACCEPT"

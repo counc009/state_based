@@ -1,0 +1,10 @@
+This request can't be expressed as a valid Astrogator FQL query:
+
+- **kubelet is not in the knowledge-base catalog.** The only supported services are `ssh server`, `postfix`, and `apache server`, so `start kubelet service` would not resolve.
+- **There is no "enable" action for services.** Only `start SERVICE service` and `stop SERVICE service` exist.
+
+If kubelet were added to the KB, the start portion would be:
+
+start kubelet service
+
+Enabling it at boot would still need a new action in the language.

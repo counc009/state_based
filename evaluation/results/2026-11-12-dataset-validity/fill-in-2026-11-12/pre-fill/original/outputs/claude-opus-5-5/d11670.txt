@@ -1,0 +1,6 @@
+This request can't be expressed in Astrogator FQL with the pinned KB:
+
+- **`libvirtd` is not in the service catalog.** The only supported services are `ssh server`, `postfix`, and `apache server`, so `start libvirtd service` would not resolve.
+- **There is no action to enable a service at boot.** Only `start SERVICE service` and `stop SERVICE service` exist.
+
+Supporting this would require a KB entry for libvirtd and a new action for enabling services.

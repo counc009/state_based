@@ -1,0 +1,1 @@
+delete file at "/usr/sbin/sendmail"; create symbolic link at "/usr/sbin/sendmail" to "/usr/bin/msmtp".

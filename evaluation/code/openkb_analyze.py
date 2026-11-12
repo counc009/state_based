@@ -27,6 +27,9 @@ def reported_price(usage,model):
 
 
 def baseline_audit():
+ from fill_finalize import phase_accounting,snapshot_baseline_audit
+ if phase_accounting(RUN)is not None:
+  result=snapshot_baseline_audit();save(RUN/'baseline-unchanged-audit.json',result);return result
  commit='b9e9a06a1b23800fc00ae3c582fdaf579ac36185';repo=ROOT.parent;prefix=str(BASE.relative_to(repo))
  tree=subprocess.run(['git','ls-tree','-r','-z',commit,'--',prefix],cwd=repo,capture_output=True,check=True).stdout
  records=[]
@@ -71,7 +74,7 @@ def recover_receipts():
    except(ValueError,OSError):
     retained=terminal.with_suffix('.partial-preserved');terminal.rename(retained)
     events.append({'cell_id':a['cell_id'],'attempt':a['attempt'],'action':'preserve_partial_canonical','sha256':ev.digest(retained.read_bytes())})
-  final=r['status']in('completed','incomplete')or r['status']=='provider_error'and r.get('http_status',0)not in __import__('matrix_run').TRANSIENT or a['attempt']>=3
+  final=r['status']in('completed','incomplete')or r['status']=='provider_error'and r.get('http_status',0)not in __import__('matrix_run').TRANSIENT or a.get('phase_attempt',a['attempt'])>=(6 if a.get('funding_phase')=='fill-in-2026-11-12'else 3)
   if a is last[a['cell_id']]and final and not canonical_valid:
    ev.write_new(terminal,r);events.append({'cell_id':a['cell_id'],'attempt':a['attempt'],'action':'recover_missing_canonical','status':r['status']})
  if changed:save(out/'state.json',state)
@@ -155,10 +158,15 @@ def validate(rows,public,evidence):
  for c in m['cells']:
   old=oldcells[c['id'].replace('--handbook-v3-openkb--','--handbook-v3--')]
   assert c['messages'][0]['content']==prompt.decode()and c['messages'][1:]==old['messages'][1:]and c['demonstration_ids']==old['demonstration_ids']
+ from fill_finalize import phase_accounting,PHASE,FILL
+ funding=phase_accounting(RUN)
+ fill_start=ev.load(FILL/'private/job-start.json')if funding else None
  attempts=Counter();recomputed_total=0.;conservative_with_usage=0
  for a in state['attempts']:
-  attempts[a['cell_id']]+=1;assert attempts[a['cell_id']]<=3 and a['attempt']<=3
-  assert datetime.fromisoformat(a['started_at'])<=deadline
+  phase=a.get('funding_phase','initial');phase_index=a.get('phase_attempt',a['attempt']);attempts[(a['cell_id'],phase)]+=1
+  assert attempts[(a['cell_id'],phase)]<=(6 if phase==PHASE else 3)and phase_index<=(6 if phase==PHASE else 3)
+  limit=datetime.fromisoformat(fill_start['deadline_at'])if phase==PHASE else deadline
+  assert datetime.fromisoformat(a['started_at'])<=limit
   c=cells[a['cell_id']];body=a['request_body'];model=m['config']['models'][c['model']]
   receipt=ev.load(private/'generation/attempts'/(a['cell_id']+f'--attempt{a["attempt"]}.json'))
   quoted=reported_price(receipt.get('usage'),model)
@@ -172,8 +180,10 @@ def validate(rows,public,evidence):
   else:assert body['messages']==c['messages']
  assert abs(recomputed_total-public['costs']['accounted_usd'])<1e-8
  original_audit=baseline_audit()
- assert sum(r['cost_usd']for r in rows)<=12+1e-8
- assert sum(r['cost_usd']for r in rows if r['model']=='claude-opus-5-5')<=7+1e-8
+ if funding is None:
+  assert sum(r['cost_usd']for r in rows)<=12+1e-8
+  assert sum(r['cost_usd']for r in rows if r['model']=='claude-opus-5-5')<=7+1e-8
+ else:assert abs(funding['cumulative']['accounted_usd']-sum(r['cost_usd']for r in rows))<1e-8
  assert abs(sum(r['cost_usd']for r in rows)-public['costs']['accounted_usd'])<1e-8
  assert evidence['original_example_cell_flags_reproduced']and evidence['parse_flags_identical']
  assert evidence['source_hashes']==ev.load(BASE/'extended-kb/validation.json')['source_hashes']
@@ -183,7 +193,9 @@ def validate(rows,public,evidence):
   text=p.read_text()
   for value in secrets:
    if len(value)>20 and not value.startswith('https://'):assert value not in text,p
- result={'same_300_sample_rows':True,'distinct_normalized_descriptions':len({r['nl_sha256']for r in rows}),'same_demos_and_non_system_messages':True,'base_prompt_verbatim_prefix':True,'same_models_reasoning_32768_cap_and_seed_free_sampling':True,'all_attempts_within_three_attempt_limit':True,'all_admissions_before_deadline':True,'deadline_at':start['deadline_at'],'paid_cells':len(attempts),'physical_attempts':len(state['attempts']),'public_files_secret_audited':len(publicfiles),'secret_audit_passed':True,'budget_guards_respected':True,'independent_frozen_rate_repricing_passed':True,'recomputed_accounted_usd':recomputed_total,'conservative_receipts_with_reported_usage':conservative_with_usage,'original_export_files_unchanged':original_audit['files'],'baseline_git_commit':original_audit['baseline_commit'],'native_example_flags_reproduced':True,'native_sources_identical_to_offline_benchmark_invariance_audit':True,'parse_flags_identical_across_kbs':True,'known_token_usd':public['costs']['known_token_usd'],'unknown_billing_reserve_usd':public['costs']['unknown_billing_reserve_usd'],'accounted_usd':public['costs']['accounted_usd'],'anthropic_usd':public['costs']['anthropic_usd']}
+ result={'same_300_sample_rows':True,'distinct_normalized_descriptions':len({r['nl_sha256']for r in rows}),'same_demos_and_non_system_messages':True,'base_prompt_verbatim_prefix':True,'same_models_reasoning_32768_cap_and_seed_free_sampling':True,'all_attempts_within_three_attempt_limit':True,'all_admissions_before_deadline':True,'deadline_at':start['deadline_at'],'paid_cells':len({a['cell_id']for a in state['attempts']}),'physical_attempts':len(state['attempts']),'public_files_secret_audited':len(publicfiles),'secret_audit_passed':True,'budget_guards_respected':True,'independent_frozen_rate_repricing_passed':True,'recomputed_accounted_usd':recomputed_total,'conservative_receipts_with_reported_usage':conservative_with_usage,'original_export_files_unchanged':original_audit['files'],'baseline_git_commit':original_audit['baseline_commit'],'native_example_flags_reproduced':True,'native_sources_identical_to_offline_benchmark_invariance_audit':True,'parse_flags_identical_across_kbs':True,'known_token_usd':public['costs']['known_token_usd'],'unknown_billing_reserve_usd':public['costs']['unknown_billing_reserve_usd'],'accounted_usd':public['costs']['accounted_usd'],'anthropic_usd':public['costs']['anthropic_usd']}
+ if funding is not None:
+  result.pop('original_export_files_unchanged',None);result['pre_fill_original_exports_preserved']=True;result['pre_fill_original_export_files']=original_audit['files'];result['original_exports_intentionally_refreshed']=True;result['phased_funding']=funding;result.pop('all_attempts_within_three_attempt_limit',None);result['phase_attempt_limits_verified']={'initial':3,'fill':6};result['all_admissions_before_deadline']=True;result['phase_deadlines']={'initial':start['deadline_at'],'fill':fill_start['deadline_at']}
  billing=private/'generation/anthropic-billing-stop.json'
  if billing.exists():
   try:result['anthropic_billing_stop']=ev.load(billing)
@@ -204,7 +216,9 @@ def report(conditions,cross,manifest,rows):
  for r in availability:lines.append('| '+r['model']+' | '+' | '.join(str(r[k])for k in ['original_responses','openkb_responses','openkb_api_failures','openkb_budget_pending','openkb_deadline_stopped','openkb_billing_pending'])+' |')
  lines+=['','| Condition | At least one semantically valid | All responding valid | All six responded and valid |','|---|---:|---:|---:|']
  for r in cross:lines.append(f"| {r['condition']} | {r['at_least_one_semantically_valid']} | {r['all_responding_models_semantically_valid']} | {r['all_six_responded_and_semantically_valid']} |")
- lines+=['',f"Paid generation start: {manifest['started_at']}; hard deadline: {manifest['deadline_at']}. Guard: $12 total / $7 Anthropic, three attempts maximum per cell.",'',f"Accounted USD {manifest['costs']['accounted_usd']:.12f} = known token charges {manifest['costs']['known_token_usd']:.12f} + unknown-billing reservations {manifest['costs']['unknown_billing_reserve_usd']:.12f}; Anthropic {manifest['costs']['anthropic_usd']:.12f}. Accounting at frozen rates is not a provider invoice.",'','The source corpus, NL/Ansible rows, private message manifests and provider reasoning remain private. IDs/hashes, generated formal queries, costs and native validity diagnostics are public. No LLM judge or managed-host runtime tests were used.','']
+ if manifest.get('phased_funding'):
+  f=manifest['phased_funding'];lines+=['',f"Historical initial guard $12/$7 applies to the original35-minute phase only. The separately authorized40-minute fill has a shared $6/$3 guard; this prompt received ${f['fill_allocated_to_run']['accounted_usd']:.12f} of the fill cost. Cumulative prompt costs below include that allocation once. Pre-fill exports are preserved under fill-in-2026-11-12/pre-fill."]
+ lines+=['',f"Initial generation start: {manifest['started_at']}; hard deadline: {manifest['deadline_at']}. Guard: $12 total / $7 Anthropic, three attempts maximum per cell.",'',f"Accounted USD {manifest['costs']['accounted_usd']:.12f} = known token charges {manifest['costs']['known_token_usd']:.12f} + unknown-billing reservations {manifest['costs']['unknown_billing_reserve_usd']:.12f}; Anthropic {manifest['costs']['anthropic_usd']:.12f}. Accounting at frozen rates is not a provider invoice.",'','The source corpus, NL/Ansible rows, private message manifests and provider reasoning remain private. IDs/hashes, generated formal queries, costs and native validity diagnostics are public. No LLM judge or managed-host runtime tests were used.','']
  (RUN/'report.md').write_text('\n'.join(lines));print('\n'.join(lines),flush=True)
 
 if __name__=='__main__':

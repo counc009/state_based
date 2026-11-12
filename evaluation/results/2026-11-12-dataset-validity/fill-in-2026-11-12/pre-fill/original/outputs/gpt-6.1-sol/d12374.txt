@@ -1,0 +1,1 @@
+write ?content_with_all_wlan0_settings_commented to "/etc/network/interfaces" with position=overwrite

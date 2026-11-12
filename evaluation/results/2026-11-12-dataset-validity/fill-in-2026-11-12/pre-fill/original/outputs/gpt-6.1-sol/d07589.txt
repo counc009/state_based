@@ -1,0 +1,1 @@
+add ppa with name="webupd8team/java".

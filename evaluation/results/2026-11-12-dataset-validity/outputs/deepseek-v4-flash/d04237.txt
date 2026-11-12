@@ -1,0 +1,1 @@
+write "false" to "WSMan:\localhost\Service\AllowUnencrypted" with position=overwrite

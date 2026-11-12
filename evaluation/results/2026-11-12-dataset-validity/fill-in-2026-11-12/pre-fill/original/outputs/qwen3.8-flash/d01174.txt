@@ -1,0 +1,3 @@
+
+
+if file "banco.php" exists then true otherwise false

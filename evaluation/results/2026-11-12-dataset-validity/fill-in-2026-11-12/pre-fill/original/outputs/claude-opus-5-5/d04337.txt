@@ -1,0 +1,1 @@
+No valid FQL query exists for this request: `git` is not in the pinned knowledge-base package catalog, so `install git` would not resolve. The available packages are bash, zsh, postfix, apache, ssh client, ssh server, and numpy.

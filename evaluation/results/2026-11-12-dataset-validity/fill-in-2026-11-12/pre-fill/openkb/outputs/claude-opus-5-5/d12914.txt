@@ -1,0 +1,3 @@
+FQL has no action for enabling a service at boot. It supports only `start SERVICE service` and `stop SERVICE service`, so this request can't be expressed exactly. The closest supported query starts the service now but won't make it survive a reboot:
+
+start titan server service

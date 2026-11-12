@@ -1,0 +1,3 @@
+install configparser
+
+Note: `configparser` is not in the pinned KB package catalog, so this query will not resolve unless the knowledge base gains an entry for it.

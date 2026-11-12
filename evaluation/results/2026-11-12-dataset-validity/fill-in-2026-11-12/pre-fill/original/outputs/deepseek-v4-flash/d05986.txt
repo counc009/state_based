@@ -1,0 +1,1 @@
+if supervisor service not running then start supervisor service

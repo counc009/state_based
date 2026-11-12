@@ -50,7 +50,10 @@ def validate(run):
         expected,_=usage_cost({'usage':json.loads(attempt['provider_usage_json'])},models_by_id[attempt['model']],float(attempt['reserved_usd']))
         assert abs(expected-float(attempt['cost_usd']))<1e-8
     cost=manifest['costs'];assert abs(sum(float(a['cost_usd']) for a in attempts)-cost['total_accounted_usd'])<1e-8
-    assert cost['total_accounted_usd']<=20+1e-8 and cost['anthropic_usd']<=8+1e-8
+    if manifest.get('phased_funding'):
+        from fill_finalize import phase_accounting
+        phased=phase_accounting(run);assert abs(phased['cumulative']['accounted_usd']-cost['total_accounted_usd'])<1e-8
+    else:assert cost['total_accounted_usd']<=20+1e-8 and cost['anthropic_usd']<=8+1e-8
     assert manifest['correctness_claim'] is False and manifest['reference_comparison'] is False and manifest['output_judge'] is False and manifest['runtime_execution'] is False
     private=run/'private'
     if private.exists():

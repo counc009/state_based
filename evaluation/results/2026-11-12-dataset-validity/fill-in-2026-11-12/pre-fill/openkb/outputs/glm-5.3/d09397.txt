@@ -1,0 +1,1 @@
+I can't express this request in Astrogator FQL. The language has no action or condition for inspecting file contents (such as the `svm` flag in /proc/cpuinfo) or for checking hardware capabilities, so "check if AMD virtualization is supported" has no valid translation.

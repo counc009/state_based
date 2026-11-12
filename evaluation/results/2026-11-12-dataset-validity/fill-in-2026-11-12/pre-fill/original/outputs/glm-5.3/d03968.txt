@@ -1,0 +1,1 @@
+The request cannot be translated: `git` is not a package in the knowledge-base catalog, and Astrogator FQL can only install packages the catalog describes (bash, zsh, postfix, apache server, ssh client, ssh server, numpy).

@@ -1,0 +1,1 @@
+PHP-CLI isn't in the pinned knowledge-base package catalog (bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy), so Astrogator FQL can't express this request. Adding a PHP-CLI package entry to the KB would make it possible.

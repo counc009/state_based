@@ -1,0 +1,1 @@
+This request cannot be expressed in Astrogator FQL. Disabling unencrypted WinRM traffic means setting the Windows `AllowUnencryptedTraffic` policy (registry or Group Policy) to 0. FQL has no actions for the Windows registry, Group Policy, or WinRM, and its OS conditions cover only Debian, Ubuntu, and RedHat systems.

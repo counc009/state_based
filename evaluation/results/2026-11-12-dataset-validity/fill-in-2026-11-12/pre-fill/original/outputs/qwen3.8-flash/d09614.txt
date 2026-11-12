@@ -1,0 +1,3 @@
+
+
+if directory "/home/nighhawk" exists then delete files in "/home/nighhawk" otherwise create directory at "/home/nighhawk"

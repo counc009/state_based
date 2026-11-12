@@ -1,0 +1,1 @@
+install mysql client via yum

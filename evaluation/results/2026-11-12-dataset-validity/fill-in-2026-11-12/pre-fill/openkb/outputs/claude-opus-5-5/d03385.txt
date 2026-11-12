@@ -1,0 +1,3 @@
+The query language has no standalone "check" action; a file test can only be the condition of an `if`, and your request names no follow-up action. The consequent below is a placeholder (`?statement` is not valid syntax) to replace with the intended action:
+
+if file "banco.php" exists then ?statement

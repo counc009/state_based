@@ -1,0 +1,1 @@
+This request cannot be expressed in Astrogator FQL. CIS 17.1.1 configures a Windows Advanced Audit Policy setting (Audit Credential Validation: Success), and FQL has no Windows OS context, no audit-policy action, and no way to run commands such as `auditpol`.

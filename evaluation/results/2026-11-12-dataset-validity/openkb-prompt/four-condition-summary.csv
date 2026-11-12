@@ -1,8 +1,8 @@
 condition,prompt,model,kb,n,responses,parsed,semantic_accepted,interpreted,unavailable,generation_cost_usd,offline_scoring_cost_usd
 original+example,original,claude-opus-5-5,example,300,300,66,54,52,0,6.290804,0
 original+fallback,original,claude-opus-5-5,fallback,300,300,66,61,58,0,6.290804,0
-original+example,original,deepseek-v4-flash,example,300,261,245,64,61,39,7.038196401425,0
-original+fallback,original,deepseek-v4-flash,fallback,300,261,245,239,228,39,7.038196401425,0
+original+example,original,deepseek-v4-flash,example,300,300,274,77,74,0,7.577109983031001,0
+original+fallback,original,deepseek-v4-flash,fallback,300,300,274,264,252,0,7.577109983031001,0
 original+example,original,deepseek-v4.1-flash,example,300,300,253,61,60,0,1.7538230462589999,0
 original+fallback,original,deepseek-v4.1-flash,fallback,300,300,253,232,228,0,1.7538230462589999,0
 original+example,original,glm-5.3,example,300,300,218,52,52,0,1.187695621677,0
@@ -11,10 +11,10 @@ original+example,original,gpt-6.1-sol,example,300,300,250,67,65,0,1.0016185,0
 original+fallback,original,gpt-6.1-sol,fallback,300,300,250,212,208,0,1.0016185,0
 original+example,original,qwen3.8-flash,example,300,300,219,50,50,0,1.510038516894,0
 original+fallback,original,qwen3.8-flash,fallback,300,300,219,200,192,0,1.510038516894,0
-openkb+example,openkb,claude-opus-5-5,example,300,236,182,38,38,64,4.241164,0
-openkb+fallback,openkb,claude-opus-5-5,fallback,300,236,182,176,173,64,4.241164,0
-openkb+example,openkb,deepseek-v4-flash,example,300,262,252,57,56,38,0.8264791323280001,0
-openkb+fallback,openkb,deepseek-v4-flash,fallback,300,262,252,246,237,38,0.8264791323280001,0
+openkb+example,openkb,claude-opus-5-5,example,300,300,231,49,49,0,5.382204,0
+openkb+fallback,openkb,claude-opus-5-5,fallback,300,300,231,225,220,0,5.382204,0
+openkb+example,openkb,deepseek-v4-flash,example,300,300,287,69,68,0,1.1077671990890001,0
+openkb+fallback,openkb,deepseek-v4-flash,fallback,300,300,287,279,270,0,1.1077671990890001,0
 openkb+example,openkb,deepseek-v4.1-flash,example,300,300,256,54,54,0,0.5156636718359999,0
 openkb+fallback,openkb,deepseek-v4.1-flash,fallback,300,300,256,237,230,0,0.5156636718359999,0
 openkb+example,openkb,glm-5.3,example,300,300,243,43,42,0,4.8761319448650005,0

@@ -1,8 +1,8 @@
 {
   "paid_calls": 0,
   "cost_usd": 0,
-  "source_run": "evaluation/results/2026-11-12-dataset-validity",
-  "source_cells_sha256": "5736b8d1376a79ddc04691b4009e071d7feb7be460587063c731f5f4d37b323f",
+  "source_run": "/home/user/workspaces/state_based/evaluation/results/2026-11-12-dataset-validity",
+  "source_cells_sha256": "71ef74f3f11f8b5125d5b3ca6900b5e8a65fb8f24562432e478e5cc54e9c8148",
   "original_example_cell_flags_reproduced": true,
   "parse_flags_identical": true,
   "source_hashes": {
@@ -40,21 +40,21 @@
       "model": "deepseek-v4-flash",
       "kb": "example",
       "n": 300,
-      "responses": 261,
-      "parsed": 245,
-      "semantic_accepted": 64,
-      "interpreted": 61,
-      "unavailable": 39
+      "responses": 300,
+      "parsed": 274,
+      "semantic_accepted": 77,
+      "interpreted": 74,
+      "unavailable": 0
     },
     {
       "model": "deepseek-v4-flash",
       "kb": "fallback",
       "n": 300,
-      "responses": 261,
-      "parsed": 245,
-      "semantic_accepted": 239,
-      "interpreted": 228,
-      "unavailable": 39
+      "responses": 300,
+      "parsed": 274,
+      "semantic_accepted": 264,
+      "interpreted": 252,
+      "unavailable": 0
     },
     {
       "model": "deepseek-v4.1-flash",
@@ -141,14 +141,14 @@
     {
       "kb": "example",
       "descriptions": 300,
-      "at_least_one_semantically_valid": 89,
+      "at_least_one_semantically_valid": 93,
       "all_responding_models_semantically_valid": 32,
       "all_six_responded_and_semantically_valid": 32
     },
     {
       "kb": "fallback",
       "descriptions": 300,
-      "at_least_one_semantically_valid": 267,
+      "at_least_one_semantically_valid": 275,
       "all_responding_models_semantically_valid": 42,
       "all_six_responded_and_semantically_valid": 42
     }

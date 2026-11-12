@@ -1,3 +1,5 @@
+> Current canonical exports include the separately authorized missing-cell fill. All six models now have 300 responses; earlier partial counts below describe the preserved initial phase. Frozen initial files are in fill-in-2026-11-12/pre-fill/ (relative to the parent dataset directory). Current counts and cumulative phase costs are in fill-in-2026-11-12/report.md.
+
 # Open package/service catalog prompt experiment
 
 This is a separate generation experiment on exactly the same frozen 300 prior-work descriptions as the original dataset-validity run. Only the system prompt changes: `handbook-v3-openkb.txt` preserves handbook-v3 byte-for-byte and appends:
@@ -48,3 +50,7 @@ The supervisor stopped at 2026-11-12 22:44:28.762148 UTC. There are 1,698 comple
 Receipt reconciliation recovered one already-complete DeepSeek response missing from state/canonical output; the original ledger is preserved privately and `receipt-recovery.json` records the correction. Final accounting is $11.500138654513 = $6.792664830311 reported-token charges + $4.707473824202 unknown-billing reserves. Anthropic accounts for $4.241164; no billing stop occurred. All 1,791 original tracked exports match commit b9e9a06 byte-for-byte.
 
 Generation charges in four-condition and paired CSVs repeat across the two KB conditions because each prompt was generated once and scored twice for free. Do not sum duplicate KB-row charges. Read response availability and paired-common-response counts alongside the full 300-row comparisons.
+
+## Current post-fill publication
+
+Open-KB handbook-v3-openkb now has 1,800 responses across the same 300 rows, with no previous answer replaced. Original initial funding limits remain historical; additional charges are allocated from the separately approved shared $6/$3 fill phase. See the parent fill-in-2026-11-12/cumulative-accounting.json and report.md for known/reserved costs and current four-condition counts. Source corpus, NL/Ansible and provider reasoning remain private.

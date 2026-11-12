@@ -1,0 +1,3 @@
+
+
+copy file from "/proc/cpuinfo" to ?path

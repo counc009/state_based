@@ -1,0 +1,1 @@
+if directory "/sys/module/kvm_amd" exists then set environment variable AMD_VIRTUALIZATION_SUPPORTED to "true" otherwise set environment variable AMD_VIRTUALIZATION_SUPPORTED to "false".

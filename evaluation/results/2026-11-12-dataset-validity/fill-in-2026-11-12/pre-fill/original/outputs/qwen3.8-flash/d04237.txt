@@ -1,0 +1,3 @@
+
+
+disable allow unencrypted winrm traffic

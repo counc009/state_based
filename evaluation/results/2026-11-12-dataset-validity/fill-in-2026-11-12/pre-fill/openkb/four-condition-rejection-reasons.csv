@@ -1,0 +1,221 @@
+condition,prompt,model,kb,reason,count
+original+example,original,claude-opus-5-5,example,non-parsing output,234
+original+example,original,claude-opus-5-5,example,Unknown package,6
+original+example,original,claude-opus-5-5,example,Unknown service,3
+original+example,original,claude-opus-5-5,example,"Expected a single string as url to download from, found",1
+original+example,original,claude-opus-5-5,example,"Expected a single string as file content, found",1
+original+example,original,claude-opus-5-5,example,"Expected single value for 'user' for set shall, found",1
+original+fallback,original,claude-opus-5-5,fallback,non-parsing output,234
+original+fallback,original,claude-opus-5-5,fallback,"Expected a single string as url to download from, found",1
+original+fallback,original,claude-opus-5-5,fallback,Unhandled arguments for install,1
+original+fallback,original,claude-opus-5-5,fallback,Unknown package,1
+original+fallback,original,claude-opus-5-5,fallback,"Expected a single string as file content, found",1
+original+fallback,original,claude-opus-5-5,fallback,"Expected single value for 'user' for set shall, found",1
+original+example,original,deepseek-v4-flash,example,Unknown package,126
+original+example,original,deepseek-v4-flash,example,Unknown service,53
+original+example,original,deepseek-v4-flash,example,non-parsing output,15
+original+example,original,deepseek-v4-flash,example,Unhandled creation of,2
+original+example,original,deepseek-v4-flash,example,empty query,1
+original+fallback,original,deepseek-v4-flash,fallback,non-parsing output,15
+original+fallback,original,deepseek-v4-flash,fallback,Unhandled arguments for install,3
+original+fallback,original,deepseek-v4-flash,fallback,Unhandled creation of,2
+original+fallback,original,deepseek-v4-flash,fallback,empty query,1
+original+fallback,original,deepseek-v4-flash,fallback,Unhandled enabling of,1
+original+example,original,deepseek-v4.1-flash,example,Unknown package,119
+original+example,original,deepseek-v4.1-flash,example,Unknown service,54
+original+example,original,deepseek-v4.1-flash,example,non-parsing output,40
+original+example,original,deepseek-v4.1-flash,example,empty query,7
+original+example,original,deepseek-v4.1-flash,example,Unhandled enabling of,5
+original+example,original,deepseek-v4.1-flash,example,Unhandled set of,4
+original+example,original,deepseek-v4.1-flash,example,Unhandled creation of,3
+original+example,original,deepseek-v4.1-flash,example,cannot handle apache server service without knowing OS,3
+original+example,original,deepseek-v4.1-flash,example,cannot handle apache server without knowing OS,1
+original+example,original,deepseek-v4.1-flash,example,Unhandled copy of,1
+original+example,original,deepseek-v4.1-flash,example,Unhandled disabling of,1
+original+example,original,deepseek-v4.1-flash,example,Unhandled arguments for set,1
+original+fallback,original,deepseek-v4.1-flash,fallback,non-parsing output,40
+original+fallback,original,deepseek-v4.1-flash,fallback,empty query,7
+original+fallback,original,deepseek-v4.1-flash,fallback,Unhandled enabling of,6
+original+fallback,original,deepseek-v4.1-flash,fallback,Unhandled set of,4
+original+fallback,original,deepseek-v4.1-flash,fallback,Unhandled creation of,3
+original+fallback,original,deepseek-v4.1-flash,fallback,cannot handle apache server service without knowing OS,3
+original+fallback,original,deepseek-v4.1-flash,fallback,cannot handle apache server without knowing OS,1
+original+fallback,original,deepseek-v4.1-flash,fallback,Unhandled copy of,1
+original+fallback,original,deepseek-v4.1-flash,fallback,Unhandled disabling of,1
+original+fallback,original,deepseek-v4.1-flash,fallback,Unhandled arguments for set,1
+original+fallback,original,deepseek-v4.1-flash,fallback,Unhandled arguments for install,1
+original+example,original,glm-5.3,example,Unknown package,110
+original+example,original,glm-5.3,example,non-parsing output,81
+original+example,original,glm-5.3,example,Unknown service,47
+original+example,original,glm-5.3,example,Unhandled disabling of,3
+original+example,original,glm-5.3,example,Unhandled enabling of,2
+original+example,original,glm-5.3,example,Unhandled arguments for set,1
+original+example,original,glm-5.3,example,Unhandled set of,1
+original+example,original,glm-5.3,example,empty query,1
+original+example,original,glm-5.3,example,"Expected a single string as url to download from, found",1
+original+example,original,glm-5.3,example,cannot handle apache server service without knowing OS,1
+original+fallback,original,glm-5.3,fallback,non-parsing output,81
+original+fallback,original,glm-5.3,fallback,Unhandled enabling of,3
+original+fallback,original,glm-5.3,fallback,Unhandled disabling of,3
+original+fallback,original,glm-5.3,fallback,Unhandled arguments for install,2
+original+fallback,original,glm-5.3,fallback,Unhandled arguments for set,1
+original+fallback,original,glm-5.3,fallback,Unhandled set of,1
+original+fallback,original,glm-5.3,fallback,empty query,1
+original+fallback,original,glm-5.3,fallback,"Expected a single string as url to download from, found",1
+original+fallback,original,glm-5.3,fallback,"Expected a single string as package version, found",1
+original+fallback,original,glm-5.3,fallback,cannot handle apache server service without knowing OS,1
+original+example,original,gpt-6.1-sol,example,Unknown package,117
+original+example,original,gpt-6.1-sol,example,non-parsing output,50
+original+example,original,gpt-6.1-sol,example,Unknown service,47
+original+example,original,gpt-6.1-sol,example,Unhandled creation of,4
+original+example,original,gpt-6.1-sol,example,Unhandled enabling of,4
+original+example,original,gpt-6.1-sol,example,"Expected a single string as file content, found",2
+original+example,original,gpt-6.1-sol,example,Unhandled set of,2
+original+example,original,gpt-6.1-sol,example,"Expected a single string as url to download from, found",2
+original+example,original,gpt-6.1-sol,example,Unhandled deletion of,1
+original+example,original,gpt-6.1-sol,example,Unknown OS,1
+original+example,original,gpt-6.1-sol,example,Unhandled arguments for set,1
+original+example,original,gpt-6.1-sol,example,Unhandled start of,1
+original+example,original,gpt-6.1-sol,example,Unhandled disabling of,1
+original+fallback,original,gpt-6.1-sol,fallback,non-parsing output,50
+original+fallback,original,gpt-6.1-sol,fallback,Unknown package,12
+original+fallback,original,gpt-6.1-sol,fallback,Unhandled enabling of,7
+original+fallback,original,gpt-6.1-sol,fallback,Unhandled creation of,4
+original+fallback,original,gpt-6.1-sol,fallback,"Expected a single string as file content, found",2
+original+fallback,original,gpt-6.1-sol,fallback,Unhandled set of,2
+original+fallback,original,gpt-6.1-sol,fallback,Unhandled arguments for install,2
+original+fallback,original,gpt-6.1-sol,fallback,"Expected a single string as url to download from, found",2
+original+fallback,original,gpt-6.1-sol,fallback,Unknown service,2
+original+fallback,original,gpt-6.1-sol,fallback,Unhandled deletion of,1
+original+fallback,original,gpt-6.1-sol,fallback,Unknown OS,1
+original+fallback,original,gpt-6.1-sol,fallback,Unhandled arguments for set,1
+original+fallback,original,gpt-6.1-sol,fallback,Unhandled start of,1
+original+fallback,original,gpt-6.1-sol,fallback,Unhandled disabling of,1
+original+example,original,qwen3.8-flash,example,Unknown package,111
+original+example,original,qwen3.8-flash,example,non-parsing output,50
+original+example,original,qwen3.8-flash,example,Unknown service,45
+original+example,original,qwen3.8-flash,example,empty query,31
+original+example,original,qwen3.8-flash,example,Unhandled disabling of,3
+original+example,original,qwen3.8-flash,example,Unhandled enabling of,2
+original+example,original,qwen3.8-flash,example,Unhandled set of,2
+original+example,original,qwen3.8-flash,example,Unknown OS,2
+original+example,original,qwen3.8-flash,example,cannot check existance of,2
+original+example,original,qwen3.8-flash,example,cannot handle apache server service without knowing OS,1
+original+example,original,qwen3.8-flash,example,Unhandled arguments for set,1
+original+fallback,original,qwen3.8-flash,fallback,non-parsing output,50
+original+fallback,original,qwen3.8-flash,fallback,empty query,31
+original+fallback,original,qwen3.8-flash,fallback,Unhandled arguments for install,5
+original+fallback,original,qwen3.8-flash,fallback,Unhandled enabling of,3
+original+fallback,original,qwen3.8-flash,fallback,Unhandled disabling of,3
+original+fallback,original,qwen3.8-flash,fallback,Unhandled set of,2
+original+fallback,original,qwen3.8-flash,fallback,Unknown OS,2
+original+fallback,original,qwen3.8-flash,fallback,cannot check existance of,2
+original+fallback,original,qwen3.8-flash,fallback,cannot handle apache server service without knowing OS,1
+original+fallback,original,qwen3.8-flash,fallback,Unhandled arguments for set,1
+openkb+example,openkb,claude-opus-5-5,example,Unknown package,102
+openkb+example,openkb,claude-opus-5-5,example,non-parsing output,54
+openkb+example,openkb,claude-opus-5-5,example,Unknown service,39
+openkb+example,openkb,claude-opus-5-5,example,"Expected a single string as url to download from, found",1
+openkb+example,openkb,claude-opus-5-5,example,Unhandled arguments for set,1
+openkb+example,openkb,claude-opus-5-5,example,"Expected a single string as file content, found",1
+openkb+fallback,openkb,claude-opus-5-5,fallback,non-parsing output,54
+openkb+fallback,openkb,claude-opus-5-5,fallback,Unhandled arguments for install,3
+openkb+fallback,openkb,claude-opus-5-5,fallback,"Expected a single string as url to download from, found",1
+openkb+fallback,openkb,claude-opus-5-5,fallback,Unhandled arguments for set,1
+openkb+fallback,openkb,claude-opus-5-5,fallback,"Expected a single string as file content, found",1
+openkb+example,openkb,deepseek-v4-flash,example,Unknown package,136
+openkb+example,openkb,deepseek-v4-flash,example,Unknown service,55
+openkb+example,openkb,deepseek-v4-flash,example,non-parsing output,9
+openkb+example,openkb,deepseek-v4-flash,example,Unhandled creation of,2
+openkb+example,openkb,deepseek-v4-flash,example,Unhandled set of,1
+openkb+example,openkb,deepseek-v4-flash,example,empty query,1
+openkb+example,openkb,deepseek-v4-flash,example,Unknown file,1
+openkb+fallback,openkb,deepseek-v4-flash,fallback,non-parsing output,9
+openkb+fallback,openkb,deepseek-v4-flash,fallback,Unhandled creation of,2
+openkb+fallback,openkb,deepseek-v4-flash,fallback,Unhandled arguments for install,2
+openkb+fallback,openkb,deepseek-v4-flash,fallback,Unhandled set of,1
+openkb+fallback,openkb,deepseek-v4-flash,fallback,empty query,1
+openkb+fallback,openkb,deepseek-v4-flash,fallback,Unknown file,1
+openkb+example,openkb,deepseek-v4.1-flash,example,Unknown package,130
+openkb+example,openkb,deepseek-v4.1-flash,example,Unknown service,57
+openkb+example,openkb,deepseek-v4.1-flash,example,non-parsing output,40
+openkb+example,openkb,deepseek-v4.1-flash,example,Unhandled enabling of,5
+openkb+example,openkb,deepseek-v4.1-flash,example,Unhandled creation of,5
+openkb+example,openkb,deepseek-v4.1-flash,example,empty query,4
+openkb+example,openkb,deepseek-v4.1-flash,example,Unhandled set of,3
+openkb+example,openkb,deepseek-v4.1-flash,example,cannot handle apache server service without knowing OS,1
+openkb+example,openkb,deepseek-v4.1-flash,example,Unhandled arguments for set,1
+openkb+fallback,openkb,deepseek-v4.1-flash,fallback,non-parsing output,40
+openkb+fallback,openkb,deepseek-v4.1-flash,fallback,Unhandled enabling of,7
+openkb+fallback,openkb,deepseek-v4.1-flash,fallback,Unhandled creation of,5
+openkb+fallback,openkb,deepseek-v4.1-flash,fallback,empty query,4
+openkb+fallback,openkb,deepseek-v4.1-flash,fallback,Unhandled set of,3
+openkb+fallback,openkb,deepseek-v4.1-flash,fallback,Unhandled arguments for install,2
+openkb+fallback,openkb,deepseek-v4.1-flash,fallback,cannot handle apache server service without knowing OS,1
+openkb+fallback,openkb,deepseek-v4.1-flash,fallback,Unhandled arguments for set,1
+openkb+example,openkb,glm-5.3,example,Unknown package,134
+openkb+example,openkb,glm-5.3,example,Unknown service,55
+openkb+example,openkb,glm-5.3,example,non-parsing output,55
+openkb+example,openkb,glm-5.3,example,Unhandled enabling of,5
+openkb+example,openkb,glm-5.3,example,empty query,2
+openkb+example,openkb,glm-5.3,example,Unhandled creation of,2
+openkb+example,openkb,glm-5.3,example,cannot handle apache server service without knowing OS,1
+openkb+example,openkb,glm-5.3,example,Unhandled set of,1
+openkb+example,openkb,glm-5.3,example,Unknown file,1
+openkb+example,openkb,glm-5.3,example,Unhandled arguments for set,1
+openkb+fallback,openkb,glm-5.3,fallback,non-parsing output,55
+openkb+fallback,openkb,glm-5.3,fallback,Unhandled enabling of,8
+openkb+fallback,openkb,glm-5.3,fallback,Unhandled arguments for install,3
+openkb+fallback,openkb,glm-5.3,fallback,empty query,2
+openkb+fallback,openkb,glm-5.3,fallback,Unhandled creation of,2
+openkb+fallback,openkb,glm-5.3,fallback,cannot handle apache server service without knowing OS,1
+openkb+fallback,openkb,glm-5.3,fallback,Unhandled set of,1
+openkb+fallback,openkb,glm-5.3,fallback,Unknown file,1
+openkb+fallback,openkb,glm-5.3,fallback,Unhandled arguments for set,1
+openkb+example,openkb,gpt-6.1-sol,example,Unknown package,124
+openkb+example,openkb,gpt-6.1-sol,example,Unknown service,55
+openkb+example,openkb,gpt-6.1-sol,example,non-parsing output,45
+openkb+example,openkb,gpt-6.1-sol,example,Unhandled enabling of,4
+openkb+example,openkb,gpt-6.1-sol,example,Unhandled creation of,4
+openkb+example,openkb,gpt-6.1-sol,example,"Expected a single string as file content, found",4
+openkb+example,openkb,gpt-6.1-sol,example,Unhandled disabling of,3
+openkb+example,openkb,gpt-6.1-sol,example,Unhandled set of,2
+openkb+example,openkb,gpt-6.1-sol,example,Unhandled deletion of,1
+openkb+example,openkb,gpt-6.1-sol,example,Unknown OS,1
+openkb+example,openkb,gpt-6.1-sol,example,Unhandled arguments for set,1
+openkb+example,openkb,gpt-6.1-sol,example,"Expected a single string as url to download from, found",1
+openkb+fallback,openkb,gpt-6.1-sol,fallback,non-parsing output,45
+openkb+fallback,openkb,gpt-6.1-sol,fallback,Unhandled arguments for install,6
+openkb+fallback,openkb,gpt-6.1-sol,fallback,Unhandled enabling of,5
+openkb+fallback,openkb,gpt-6.1-sol,fallback,Unhandled creation of,4
+openkb+fallback,openkb,gpt-6.1-sol,fallback,"Expected a single string as file content, found",4
+openkb+fallback,openkb,gpt-6.1-sol,fallback,Unhandled disabling of,3
+openkb+fallback,openkb,gpt-6.1-sol,fallback,Unhandled set of,2
+openkb+fallback,openkb,gpt-6.1-sol,fallback,Unhandled deletion of,1
+openkb+fallback,openkb,gpt-6.1-sol,fallback,Unknown OS,1
+openkb+fallback,openkb,gpt-6.1-sol,fallback,Unhandled arguments for set,1
+openkb+fallback,openkb,gpt-6.1-sol,fallback,"Expected a single string as url to download from, found",1
+openkb+example,openkb,qwen3.8-flash,example,Unknown package,117
+openkb+example,openkb,qwen3.8-flash,example,Unknown service,51
+openkb+example,openkb,qwen3.8-flash,example,non-parsing output,37
+openkb+example,openkb,qwen3.8-flash,example,empty query,32
+openkb+example,openkb,qwen3.8-flash,example,Unhandled creation of,3
+openkb+example,openkb,qwen3.8-flash,example,Unhandled start of,1
+openkb+example,openkb,qwen3.8-flash,example,cannot handle apache server service without knowing OS,1
+openkb+example,openkb,qwen3.8-flash,example,Unhandled set of,1
+openkb+example,openkb,qwen3.8-flash,example,Unhandled disabling of,1
+openkb+example,openkb,qwen3.8-flash,example,Unknown OS,1
+openkb+example,openkb,qwen3.8-flash,example,Unhandled arguments for set,1
+openkb+example,openkb,qwen3.8-flash,example,Unhandled enabling of,1
+openkb+fallback,openkb,qwen3.8-flash,fallback,non-parsing output,37
+openkb+fallback,openkb,qwen3.8-flash,fallback,empty query,32
+openkb+fallback,openkb,qwen3.8-flash,fallback,Unhandled enabling of,4
+openkb+fallback,openkb,qwen3.8-flash,fallback,Unhandled arguments for install,3
+openkb+fallback,openkb,qwen3.8-flash,fallback,Unhandled creation of,3
+openkb+fallback,openkb,qwen3.8-flash,fallback,Unhandled start of,1
+openkb+fallback,openkb,qwen3.8-flash,fallback,cannot handle apache server service without knowing OS,1
+openkb+fallback,openkb,qwen3.8-flash,fallback,Unhandled set of,1
+openkb+fallback,openkb,qwen3.8-flash,fallback,Unhandled disabling of,1
+openkb+fallback,openkb,qwen3.8-flash,fallback,Unknown OS,1
+openkb+fallback,openkb,qwen3.8-flash,fallback,Unhandled arguments for set,1
+openkb+fallback,openkb,qwen3.8-flash,fallback,Unknown package,1

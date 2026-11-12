@@ -1,0 +1,1 @@
+I'm unable to translate this request into Astrogator FQL. The action vocabulary does not include any repository-management action (only package installation, service control, and the other listed actions are supported), and "Docker CE" is not part of the pinned knowledge-base catalog, so there is no supported package or repository description for it.

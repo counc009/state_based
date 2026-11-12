@@ -1,0 +1,7 @@
+This request can't be expressed with the pinned knowledge base: Docker is not in the package catalog, so `install docker` would not resolve.
+
+If Docker is added to the KB, the query would be:
+
+install docker
+
+Omitting `version=` means no version is pinned, so the installed version depends on the package source. FQL has no explicit "latest" option.

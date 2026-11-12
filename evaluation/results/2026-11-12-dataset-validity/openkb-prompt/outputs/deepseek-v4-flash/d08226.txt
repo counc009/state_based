@@ -1,0 +1,1 @@
+set file permissions for "/srv/repos" with list directory=all

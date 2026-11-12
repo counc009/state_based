@@ -1,0 +1,1 @@
+I can't translate this request: Shadowsocks is not in the knowledge-base package catalog, so there is no valid Astrogator FQL query that installs it.

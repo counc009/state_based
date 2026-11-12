@@ -1,0 +1,1 @@
+FQL has no standalone check action. A condition such as `if Wiki.js installed then ...` must guard an action, and this request does not specify one. Tell me what should happen depending on whether Wiki.js is installed (for example, install it if missing), and I can write that query.

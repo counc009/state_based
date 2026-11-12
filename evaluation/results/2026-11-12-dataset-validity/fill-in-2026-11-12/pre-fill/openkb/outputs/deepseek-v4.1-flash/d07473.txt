@@ -1,0 +1,1 @@
+create symbolic link from tcollector start stop script file to "/etc/init.d/tcollector"

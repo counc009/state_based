@@ -1,0 +1,6 @@
+This request can't be expressed in Astrogator FQL with the pinned knowledge base:
+
+- There is no `restart` action. Only `start SERVICE service` and `stop SERVICE service` exist.
+- `container-storage-support` is not a catalog service. The only services are ssh server, postfix, and apache server.
+
+A stop/start sequence such as `stop container-storage-support service; start container-storage-support service` would fail to resolve against the knowledge base. The service would need to be added to the KB first.

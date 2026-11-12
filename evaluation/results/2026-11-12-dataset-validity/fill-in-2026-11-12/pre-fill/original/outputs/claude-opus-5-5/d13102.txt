@@ -1,0 +1,10 @@
+This request can't be expressed in Astrogator FQL:
+
+- **Zscaler Agent isn't in the package catalog**, so `if ... installed` can't refer to it.
+- **FQL has no standalone "check" or "report" action.** Conditions only work as guards inside `if CONDITION then STATEMENT`, and they require an action to perform.
+
+If you know where the agent installs and what should happen based on whether it exists, a file-existence guard can express that. For example, given an install directory and a follow-up action:
+
+if directory "/opt/zscaler" exists then ACTION
+
+Here `/opt/zscaler` is only an illustration, not a known install path, and `ACTION` stands for the statement you want to run.

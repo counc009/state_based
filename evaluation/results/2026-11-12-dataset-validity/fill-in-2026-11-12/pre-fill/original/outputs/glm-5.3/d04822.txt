@@ -1,0 +1,1 @@
+I can't translate this request: the Astrogator FQL action set has no package-manager update or repository refresh action, so "update apt" cannot be expressed.

@@ -1,0 +1,3 @@
+if file "/etc/selinux/config" exists then write "SELINUX=disabled
+SELINUXTYPE=targeted
+" to "/etc/selinux/config" with position=overwrite; reboot

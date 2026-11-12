@@ -1,0 +1,1 @@
+Astrogator FQL cannot express this request because it has no action for creating databases. The supported actions cover files and directories, users, groups and privileges, packages, services, repositories, virtual environments, environment variables, and reboot.

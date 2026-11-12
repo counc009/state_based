@@ -1,0 +1,16 @@
+No FQL query exists for this request. The language has no action for refreshing package indexes (e.g., `apt update`); the only package actions are `install PACKAGE` and `uninstall PACKAGE`.
+
+My earlier answers also broke the syntax rules. Corrected versions:
+
+```
+set file permissions in "/srv/path" with read=all, write=owner, list directory=all
+```
+```
+delete directory at "/home/mydata/web"
+```
+```
+delete files in "/home/mydata/web"
+```
+```
+if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file
+```

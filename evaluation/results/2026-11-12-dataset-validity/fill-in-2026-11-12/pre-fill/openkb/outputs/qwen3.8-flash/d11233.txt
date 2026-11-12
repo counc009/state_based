@@ -1,0 +1,3 @@
+
+
+start salt server service; start salt server service

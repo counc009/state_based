@@ -1,0 +1,1 @@
+if os is RedHat based then write "https://packages.cloud.google.com/yum/repos/cloud-sdk-el7-x86_64" to "/etc/yum.repos.d/cloud-sdk-el7-x86_64.repo" with position=overwrite

@@ -265,7 +265,7 @@ def public_attempts(run,phase,manifest):
         rows.append({'phase':phase,'cell_id':a['cell_id'],'model':model['id'],'attempt':a['attempt'],'status':a['status'],
           'http_status':r.get('http_status'),'provider_usage_json':json.dumps(r.get('usage'),sort_keys=True),'input_tokens':inp,'output_tokens':out,'reasoning_tokens':reasoning,
           'cost_usd':a.get('cost_usd',a['reserved_usd']),'reserved_usd':a['reserved_usd'],'cost_source':a.get('cost_source'),'latency_s':a.get('seconds'),
-          'started_at':a['started_at'],'request_sha256':ev.digest(a['request_body']),'stop_reason':stop_reason(r),'error':r.get('error','')})
+          'started_at':a['started_at'],'funding_phase':a.get('funding_phase','initial'),'phase_attempt':a.get('phase_attempt',a['attempt']),'fill_source_manifest_sha256':a.get('fill_source_manifest_sha256'),'fill_source_receipt_sha256':a.get('fill_source_receipt_sha256'),'request_sha256':ev.digest(a['request_body']),'stop_reason':stop_reason(r),'error':r.get('error','')})
     return rows
 
 
@@ -278,7 +278,7 @@ def export(run):
     write_csv(run/'sample-ids.csv',[{k:v for k,v in r.items() if k!='nl'} for r in sample.values()])
     rows=[];diagpublic=[];outputs=[]
     for c in m['cells']:
-        ident=c['id'];rpath=private/'generation/responses'/(ident+'.json');response=ev.load(rpath) if rpath.exists() else {'status':'pending_budget','text':''};text=response.get('text','');digest=ev.digest(text.encode());src=sample[c['task_id']];model=m['config']['models'][c['model']]
+        ident=c['id'];rpath=private/'generation/responses'/(ident+'.json');response=__import__('fill_finalize').canonical_response(run,ident,rpath);text=response.get('text','');digest=ev.digest(text.encode());src=sample[c['task_id']];model=m['config']['models'][c['model']]
         gpath=private/'diagnostics'/(digest+'.json');g=ev.load(gpath) if response['status'] in ('completed','incomplete') and gpath.exists() else {}
         receipts=[ev.load(private/'generation/attempts'/(ident+f'--attempt{a["attempt"]}.json')) for a in attempts[ident]]
         inp,out,reason=totals(receipts,model['provider']);path=None
@@ -303,7 +303,7 @@ def export(run):
           'incomplete':sum(r['status']=='incomplete' for r in rs),'parsed':sum(r['parsed'] is True for r in rs),
           'semantic_accepted':sum(r['semantic_accepted'] is True for r in rs),'interpreted':sum(r['interpreted'] is True for r in rs),
           'api_failures':sum(r['api_failure'] for r in rs),'pending_budget':sum(r['status']=='pending_budget' for r in rs),
-          'cost_usd':sum(r['cost_usd'] for r in rs),'mean_latency_s':sum(r['latency_s'] for r in rs if r['attempts'])/max(1,sum(bool(r['attempts']) for r in rs))})
+          'deadline_stopped':sum(r['status']in('pending_deadline','interrupted_deadline')for r in rs),'pending_billing':sum(r['status']=='pending_billing'for r in rs),'cost_usd':sum(r['cost_usd'] for r in rs),'mean_latency_s':sum(r['latency_s'] for r in rs if r['attempts'])/max(1,sum(bool(r['attempts']) for r in rs))})
     write_csv(run/'model-summary.csv',summary)
     filter_attempts=public_attempts(run,'filter',fm);generation_attempts=public_attempts(run,'generation',m)
     write_csv(run/'per-attempt.csv',filter_attempts+generation_attempts)
@@ -314,7 +314,10 @@ def export(run):
             result=ev.load(path);classifier_outputs.append({'cell_id':c['id'],'label_ids':c['label_ids'],'status':result['status'],'output':result.get('text','')})
     save(run/'classifier-outputs.json',classifier_outputs);save(run/'native-diagnostics.json',diagpublic)
     fcost=cost(ev.load(private/'filter/state.json'));gcost=cost(state);total=fcost+gcost;anthropic=sum(a.get('cost_usd',a['reserved_usd']) for a in state['attempts'] if a['provider']=='anthropic')
-    assert total<=20+1e-8 and anthropic<=8+1e-8
+    from fill_finalize import phase_accounting
+    funding=phase_accounting(run)
+    if funding is None:assert total<=20+1e-8 and anthropic<=8+1e-8
+    else:assert abs(funding['cumulative']['accounted_usd']-total)<1e-8
     unknown=sum(a['cost_usd'] for a in filter_attempts+generation_attempts if a['cost_source']!='reported_tokens_at_frozen_rates')
     manifest={'experiment':'Prior-work NL-to-FQL dataset validity only','created_at':m['created_at'],'exported_at':now(),'source':fm['source'],
       'funnel':ev.load(private/'funnel.json'),'models':m['config']['models'],'settings':{'variant':'handbook-v3','sample_seed':SEED,'samples_per_model_task':1,
@@ -341,6 +344,11 @@ def export(run):
         target=run/'sources'/source.name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(source.read_bytes())
     for source in [ROOT/'prompts/detail-filter-v1.txt',ROOT/'docs/dataset-detail-rubric.md']:
         target=run/'sources'/source.name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(source.read_bytes())
+    if funding is not None:
+        manifest['phased_funding']=funding
+        manifest['settings']['attempt_policy']='Initial generation cap8; separately authorized fill cap6; cumulative attempt indices can exceed either phase cap.'
+        manifest['settings']['fill_max_attempts']=6
+        manifest['costs']['notes']+=' Separately authorized fill charges are included cumulatively; initial and fill guards are audited by phase.'
     save(run/'manifest.json',manifest)
     print(json.dumps({'funnel':manifest['funnel'],'costs':manifest['costs'],'summary':summary},indent=2),flush=True)
 

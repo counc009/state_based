@@ -1,0 +1,6 @@
+This request can't be expressed in Astrogator FQL with the pinned KB:
+
+- **keepalived** isn't in the service catalog, which only has ssh server, postfix, and apache server, so `start keepalived service` won't resolve.
+- **"Enable"** (start at boot) has no action. Only `start SERVICE service` and `stop SERVICE service` exist.
+
+To support this, the KB would need a keepalived service entry (and probably a package entry to install it), and FQL would need an enable-service action.

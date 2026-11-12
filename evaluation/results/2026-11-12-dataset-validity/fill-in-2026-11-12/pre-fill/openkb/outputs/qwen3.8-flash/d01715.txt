@@ -1,0 +1,3 @@
+
+
+if elasticsearch service not running then start elasticsearch service

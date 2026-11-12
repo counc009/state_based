@@ -1,0 +1,1 @@
+disable sshd password authentication; disable sshd root login

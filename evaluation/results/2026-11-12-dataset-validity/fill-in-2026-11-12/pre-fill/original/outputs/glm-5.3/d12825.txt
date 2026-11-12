@@ -1,0 +1,1 @@
+No valid FQL query exists for this request: the language and its action signatures provide no way to check a package version (only install/uninstall and `installed` conditions are supported), and yarn is not in the knowledge-base catalog.

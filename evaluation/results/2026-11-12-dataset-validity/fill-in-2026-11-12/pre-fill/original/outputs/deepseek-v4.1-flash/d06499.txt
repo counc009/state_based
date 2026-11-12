@@ -1,0 +1,1 @@
+write "PasswordAuthentication no" to "/etc/ssh/sshd_config" with position=end; write "PermitRootLogin no" to "/etc/ssh/sshd_config" with position=end

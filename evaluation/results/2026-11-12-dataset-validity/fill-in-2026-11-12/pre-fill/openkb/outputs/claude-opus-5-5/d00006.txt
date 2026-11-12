@@ -1,0 +1,8 @@
+This request cannot be expressed in Astrogator FQL. The language has no action for enabling package repositories such as the RedHat optional RPM repo. The only repository actions are `clone git repository` and `clone github repository`, and there is no generic command action. Enabling it would require a knowledge-base or deployment extension that adds such an action.
+
+Correction to my earlier answers: the rules require quoting literal paths and names, so they should have been:
+
+- `set file permissions in "/srv/path" with read=all, write=owner, list directory=all`
+- `delete directory at "/home/mydata/web"`
+- `delete files in "/home/mydata/web"`
+- `if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file`

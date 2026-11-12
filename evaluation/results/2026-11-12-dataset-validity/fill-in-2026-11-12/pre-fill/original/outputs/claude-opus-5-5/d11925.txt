@@ -1,0 +1,12 @@
+This request can't be expressed in Astrogator FQL with the pinned knowledge base. `install PACKAGE` only accepts packages from the catalog (bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy, and numpy in a virtual environment), and certbot is not among them.
+
+The knowledge base would need a certbot package entry before this could be written as `install certbot`.
+
+The earlier queries in this conversation also left literals unquoted. Under the quoting rules, they should have been:
+
+```
+set file permissions in "/srv/path" with read=all, write=owner, list directory=all
+delete directory at "/home/mydata/web"
+delete files in "/home/mydata/web"
+if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file
+```

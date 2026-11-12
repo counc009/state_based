@@ -1,0 +1,1 @@
+set file permissions for "/var/lib/php/session" with owner="root", group="oemrusers"

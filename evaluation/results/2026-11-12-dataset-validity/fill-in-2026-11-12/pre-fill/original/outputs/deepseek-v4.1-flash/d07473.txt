@@ -1,0 +1,1 @@
+copy file from "tcollector start stop script" to "/etc/init.d/tcollector"

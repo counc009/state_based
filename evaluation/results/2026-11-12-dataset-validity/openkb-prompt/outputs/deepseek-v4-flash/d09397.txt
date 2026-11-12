@@ -1,0 +1,1 @@
+if directory "/sys/module/kvm_amd" exists then write "supported" to "/tmp/amd_virtualization_status" with position=overwrite otherwise write "not supported" to "/tmp/amd_virtualization_status" with position=overwrite

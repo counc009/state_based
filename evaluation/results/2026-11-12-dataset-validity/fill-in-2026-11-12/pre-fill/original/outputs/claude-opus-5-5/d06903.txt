@@ -1,0 +1,7 @@
+This request can't be expressed in Astrogator FQL for the pinned KB, so I can't return a valid query:
+
+- **No module action:** there is no action for DNF module streams (e.g. `dnf module disable mysql`). The supported package actions are only `install` and `uninstall`.
+- **No mysql entry:** mysql is not in the package or service catalog.
+- **No version condition:** you can test `os is RedHat` or `os is RedHat based`, but not a specific release such as 8, or CentOS specifically.
+
+The closest valid query is just the OS guard, `if os is RedHat based then ...`, but no supported statement can follow it to disable the module.

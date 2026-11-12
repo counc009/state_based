@@ -1,0 +1,3 @@
+
+
+if os is RedHat based then delete files in "/var/cache/yum"

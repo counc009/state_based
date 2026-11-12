@@ -1,0 +1,4 @@
+This request can't be translated into Astrogator FQL:
+
+- **No supported action:** "Network security: LAN Manager authentication level" is a Windows security policy. FQL has no actions for Windows security policies or registry settings, and its OS conditions cover only Debian, Ubuntu, and RedHat.
+- **Incomplete request:** The target value is cut off at "Send…", so the intended setting is unknown.

@@ -1,0 +1,1 @@
+install Docker with version="latest"

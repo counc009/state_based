@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. "Network security: LAN Manager authentication level" is a Windows security policy, and FQL has no action for Windows security policies or registry values. The request also appears cut off after "Send."

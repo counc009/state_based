@@ -1,0 +1,9 @@
+This request can't be expressed in Astrogator FQL with the pinned example KB. The package catalog has no EPEL entry, and there is no action for adding or enabling repositories.
+
+You could add an EPEL (or `epel-release`) entry to the knowledge base, scoped to the RedHat side. The query would then be:
+
+```
+if os is RedHat based then install epel release.
+```
+
+That query is not valid against the current catalog.

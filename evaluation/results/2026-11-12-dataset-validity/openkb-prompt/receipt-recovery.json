@@ -1,7 +1,7 @@
 {
-  "checked_receipts": 1773,
-  "pre_recovery_state_sha256": "e60ca35c84b7d412a458419519e92db6cc7c8b46d5555c362116585ccf1db133",
-  "reconciled_state_sha256": "b142a02746f43d7dba99a1d1c814fdde6ada0c4acf29cc00b419dbff2b10fa73",
+  "checked_receipts": 1889,
+  "pre_recovery_state_sha256": "77ba9e58dfa04c26d03494e2f3d1658b4805b551e617076df622797629e6380f",
+  "reconciled_state_sha256": "77ba9e58dfa04c26d03494e2f3d1658b4805b551e617076df622797629e6380f",
   "original_ledger_backup_sha256": "81dcb57919e795cc8786b815fe7aebc424ffda99b75591c507326ccb5f48f0ed",
   "recovered_provider_receipts": 1,
   "recovered_canonical_files": 1,

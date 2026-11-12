@@ -1,0 +1,1 @@
+create file at "/etc/apt/sources.list.d/kubernetes.list" with content=?kubernetes_apt_repository_entry

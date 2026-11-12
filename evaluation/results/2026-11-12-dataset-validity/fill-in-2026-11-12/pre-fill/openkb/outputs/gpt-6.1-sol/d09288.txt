@@ -1,0 +1,1 @@
+install aiwacs agent; start aiwacs agent service.

@@ -125,7 +125,7 @@ def export_raw():
   missing='pending_billing' if model['provider']=='anthropic' and (out/'anthropic-billing-stop.json').exists() else 'pending_budget' if budget_blocked else 'pending_deadline' if deadline_reached else 'pending_controller_stop'
   interrupted=receipts and receipts[-1]['status']=='interrupted_unknown_billing'
   status=('interrupted_deadline' if deadline_reached else 'interrupted_controller_stop') if interrupted else missing
-  response=ev.load(path) if path.exists() else {'status':status,'text':''}
+  response=__import__('fill_finalize').canonical_response(RUN,c['id'],path)if(out/'fill-overlay.json').exists()else ev.load(path)if path.exists()else {'status':status,'text':''}
   text=response.get('text','');target=None
   if response['status']in ('completed','incomplete'):
    dest=RUN/'outputs'/model['id']/(c['task_id']+'.txt');dest.parent.mkdir(parents=True,exist_ok=True);dest.write_text(text);target=str(dest.relative_to(RUN))
@@ -135,12 +135,22 @@ def export_raw():
  rows.sort(key=lambda r:(r['model'],r['row_index']));save(RUN/'per-cell.json',rows);write_csv(RUN/'per-cell.csv',rows)
  attempts=public_attempts(RUN,'generation',m);write_csv(RUN/'per-attempt.csv',attempts);save(RUN/'per-attempt.json',attempts)
  save(RUN/'sample-ids.json',[{k:r[k]for k in ['task_id','source_path','repo_path','row_index','input_sha256','nl_sha256']}for r in sample.values()])
- cost=sum(a.get('cost_usd',a['reserved_usd'])for a in state['attempts']);anthropic=sum(a.get('cost_usd',a['reserved_usd'])for a in state['attempts']if a['provider']=='anthropic');assert cost<=12+1e-8 and anthropic<=7+1e-8
+ cost=sum(a.get('cost_usd',a['reserved_usd'])for a in state['attempts']);anthropic=sum(a.get('cost_usd',a['reserved_usd'])for a in state['attempts']if a['provider']=='anthropic')
+ from fill_finalize import phase_accounting
+ funding=phase_accounting(RUN)
+ if funding is None:assert cost<=12+1e-8 and anthropic<=7+1e-8
+ else:assert abs(funding['cumulative']['accounted_usd']-cost)<1e-8
  summary=[]
  for model in m['config']['models'].values():
   rs=[r for r in rows if r['model']==model['id']];summary.append({'model':model['id'],'n':len(rs),'attempted':sum(r['attempts'] > 0 for r in rs),'completed':sum(r['status']=='completed'for r in rs),'incomplete':sum(r['status']=='incomplete'for r in rs),'responses':sum(bool(r['output_path'])for r in rs),'api_failures':sum(r['api_failure']for r in rs),'deadline_stopped':sum(r['deadline_stopped']for r in rs),'pending_billing':sum(r['status']=='pending_billing'for r in rs),'pending_budget':sum(r['status']=='pending_budget'for r in rs),'controller_stopped':sum(r['status']in('pending_controller_stop','interrupted_controller_stop')for r in rs),'cost_usd':sum(r['cost_usd']for r in rs)})
  write_csv(RUN/'generation-summary.csv',summary)
  public={'experiment':'handbook-v3-openkb prompt variant','variant':'handbook-v3-openkb','models':m['config']['models'],'settings':m['execution'],'started_at':start['started_at'],'deadline_at':start['deadline_at'],'finished_at':supervisor.get('finished_at',utc()),'exported_at':utc(),'supervisor':supervisor,'sources':m['sources'],'baseline_manifest_sha256':m['sources']['base_generation_manifest_sha256'],'prompt_sha256':ev.digest((ROOT/'prompts/handbook-v3-openkb.txt').read_bytes()),'sampled':300,'planned':1800,'costs':{'accounted_usd':cost,'anthropic_usd':anthropic,'known_token_usd':sum(a['cost_usd']for a in attempts if a['cost_source']=='reported_tokens_at_frozen_rates'),'unknown_billing_reserve_usd':sum(a['cost_usd']for a in attempts if a['cost_source']!='reported_tokens_at_frozen_rates'),'notes':'Frozen-rate token accounting plus conservative reserves, not invoices.'},'summary':summary,'reference_comparison':False,'output_judge':False,'runtime_execution':False,'privacy':'Original NL, Ansible, full message manifests and provider reasoning stay private; IDs/hashes and model outputs only.'}
+ if funding is not None:
+  public['phased_funding']=funding;public['initial_finished_at']=public['finished_at']
+  from fill_finalize import FILL
+  public['fill_window']=ev.load(FILL/'private/job-start.json')
+  public['finished_at']=ev.load(FILL/'private/supervisor-result.json')['finished_at']
+  public['settings']={**public['settings'],'initial_wall_clock_minutes':35,'fill_wall_clock_minutes':40,'initial_max_attempts':3,'fill_max_attempts':6,'attempt_policy':'Original35min phase cap3; fresh40min fill phase cap6; cumulative indices are monotonic across phases.'}
  marker=out/'anthropic-billing-stop.json'
  if marker.exists():
   try:public['anthropic_billing_stop']=ev.load(marker)

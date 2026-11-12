@@ -1,0 +1,3 @@
+
+
+This request cannot be translated into Astrogator FQL. The supported conditions and actions do not include a mechanism for checking hardware virtualization support (e.g., AMD-V).

@@ -1,0 +1,3 @@
+This request can't be expressed in Astrogator FQL. The language has no action for running commands or reporting versions, and docker-compose is not in the knowledge-base package catalog.
+
+The closest supported checks are package-presence conditions such as `if PACKAGE installed then ...`, and only for cataloged packages (bash, zsh, postfix, apache server, ssh client, ssh server, numpy).

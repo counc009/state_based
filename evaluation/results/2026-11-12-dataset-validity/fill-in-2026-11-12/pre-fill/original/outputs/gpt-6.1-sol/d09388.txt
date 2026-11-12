@@ -1,0 +1,1 @@
+enable firewall for "ossec-authd" with port="1515".

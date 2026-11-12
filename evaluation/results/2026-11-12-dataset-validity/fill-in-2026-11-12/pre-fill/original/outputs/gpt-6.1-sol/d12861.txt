@@ -1,0 +1,5 @@
+if os is RedHat based then create file at "/etc/yum.repos.d/google-cloud-sdk.repo" with content="[google-cloud-sdk]
+name=Google Cloud SDK
+baseurl=https://packages.cloud.google.com/yum/repos/cloud-sdk-el7-x86_64
+enabled=1
+".

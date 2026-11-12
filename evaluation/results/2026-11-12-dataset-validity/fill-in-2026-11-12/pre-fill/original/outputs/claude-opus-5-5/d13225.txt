@@ -1,0 +1,1 @@
+This request can't be translated: NTP and tzdata are not in the pinned knowledge-base package catalog. `install` only accepts these packages: bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy, or numpy in a virtual environment.

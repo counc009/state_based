@@ -1,0 +1,1 @@
+I can't translate this request: the Astrogator FQL grammar has no action for enabling or configuring package repositories, so "enable disabled postinstallerf repository with dnf" cannot be expressed.

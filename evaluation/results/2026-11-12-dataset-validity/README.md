@@ -1,3 +1,5 @@
+> Current canonical exports include the separately authorized missing-cell fill. All six models now have 300 responses; earlier partial counts below describe the preserved initial phase. Frozen initial files are in fill-in-2026-11-12/pre-fill/ (relative to the parent dataset directory). Current counts and cumulative phase costs are in fill-in-2026-11-12/report.md.
+
 # External dataset: NL-to-FQL validity counts
 
 This experiment counts strict raw-output grammar parsing, semantic acceptance and native symbolic interpretation. It has no gold FQL, reference-effect comparison, execution tests, LLM output judge or correctness claim. Original NL descriptions and Ansible implementations stay private.
@@ -63,3 +65,7 @@ Toolchain versions and native source hashes are recorded in `toolchain.json`. Fr
 Generation is stopped; no more gateway retries will run. Of 1,800 planned cells, 1,761 returned complete responses, 20 exhausted API retries, and 19 remain budget-pending. All unavailable outputs are separate from parsing results. DeepSeek V4 Flash accounts for all 39 unavailable cells. There were no in-flight requests at the final stop.
 
 Total local accounting is $19.985888492705: $1.203712406450 classification and $18.782176086255 generation. This includes $10.526035672359 of conservative unknown-billing reservations for interrupted/transient requests that returned no usage; usage-priced receipts account for $9.459852820346. These are not provider invoices. Repeated gateway/stream failures, whole-cap reservations on attempts without usage, and extra classification before cutoff explain approaching the $20 guard. Anthropic accounts for $6.290804, below its $8 guard. See per-attempt.csv for the full audit.
+
+## Current post-fill publication
+
+Original handbook-v3 now has 1,800 responses across the same 300 rows, with no previous answer replaced. Original initial funding limits remain historical; additional charges are allocated from the separately approved shared $6/$3 fill phase. See the parent fill-in-2026-11-12/cumulative-accounting.json and report.md for known/reserved costs and current four-condition counts. Source corpus, NL/Ansible and provider reasoning remain private.

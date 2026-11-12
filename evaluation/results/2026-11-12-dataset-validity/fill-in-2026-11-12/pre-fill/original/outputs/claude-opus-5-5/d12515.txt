@@ -1,0 +1,14 @@
+This request can't be expressed in Astrogator FQL with the pinned KB:
+
+- **No service:** elasticsearch isn't in the catalog. The only services are ssh server, postfix, and apache server.
+- **No package:** elasticsearch isn't a catalog package either, so it can't be installed.
+- **No enable action:** services only support `start SERVICE service` and `stop SERVICE service`.
+
+If elasticsearch were added to the KB, the closest query would be `start elasticsearch service`.
+
+My earlier answers also left literal paths unquoted, which the rules don't allow. The corrected forms are:
+
+- `set file permissions in "/srv/path" with read=all, write=owner, list directory=all`
+- `delete directory at "/home/mydata/web"`
+- `delete files in "/home/mydata/web"`
+- `if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file`

@@ -1,0 +1,5 @@
+This request can't be expressed as a valid query: `bridge-utils` is not in the pinned knowledge-base package catalog, so `install` cannot resolve it.
+
+If `bridge-utils` were added to the catalog, the query would be:
+
+`if os is Debian then install bridge-utils`

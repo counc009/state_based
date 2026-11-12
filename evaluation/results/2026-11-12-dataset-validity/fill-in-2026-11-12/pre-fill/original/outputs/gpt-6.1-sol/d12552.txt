@@ -1,0 +1,1 @@
+add ppa repository with name="openjdk-r/ppa"

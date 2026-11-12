@@ -11,16 +11,21 @@ original+fallback,original,claude-opus-5-5,fallback,Unhandled arguments for inst
 original+fallback,original,claude-opus-5-5,fallback,Unknown package,1
 original+fallback,original,claude-opus-5-5,fallback,"Expected a single string as file content, found",1
 original+fallback,original,claude-opus-5-5,fallback,"Expected single value for 'user' for set shall, found",1
-original+example,original,deepseek-v4-flash,example,Unknown package,126
-original+example,original,deepseek-v4-flash,example,Unknown service,53
-original+example,original,deepseek-v4-flash,example,non-parsing output,15
+original+example,original,deepseek-v4-flash,example,Unknown package,137
+original+example,original,deepseek-v4-flash,example,Unknown service,54
+original+example,original,deepseek-v4-flash,example,non-parsing output,22
+original+example,original,deepseek-v4-flash,example,empty query,4
 original+example,original,deepseek-v4-flash,example,Unhandled creation of,2
-original+example,original,deepseek-v4-flash,example,empty query,1
-original+fallback,original,deepseek-v4-flash,fallback,non-parsing output,15
+original+example,original,deepseek-v4-flash,example,Unhandled enabling of,2
+original+example,original,deepseek-v4-flash,example,Unhandled set of,1
+original+example,original,deepseek-v4-flash,example,Unknown OS,1
+original+fallback,original,deepseek-v4-flash,fallback,non-parsing output,22
+original+fallback,original,deepseek-v4-flash,fallback,empty query,4
 original+fallback,original,deepseek-v4-flash,fallback,Unhandled arguments for install,3
+original+fallback,original,deepseek-v4-flash,fallback,Unhandled enabling of,3
 original+fallback,original,deepseek-v4-flash,fallback,Unhandled creation of,2
-original+fallback,original,deepseek-v4-flash,fallback,empty query,1
-original+fallback,original,deepseek-v4-flash,fallback,Unhandled enabling of,1
+original+fallback,original,deepseek-v4-flash,fallback,Unhandled set of,1
+original+fallback,original,deepseek-v4-flash,fallback,Unknown OS,1
 original+example,original,deepseek-v4.1-flash,example,Unknown package,119
 original+example,original,deepseek-v4.1-flash,example,Unknown service,54
 original+example,original,deepseek-v4.1-flash,example,non-parsing output,40
@@ -112,29 +117,31 @@ original+fallback,original,qwen3.8-flash,fallback,Unknown OS,2
 original+fallback,original,qwen3.8-flash,fallback,cannot check existance of,2
 original+fallback,original,qwen3.8-flash,fallback,cannot handle apache server service without knowing OS,1
 original+fallback,original,qwen3.8-flash,fallback,Unhandled arguments for set,1
-openkb+example,openkb,claude-opus-5-5,example,Unknown package,102
-openkb+example,openkb,claude-opus-5-5,example,non-parsing output,54
-openkb+example,openkb,claude-opus-5-5,example,Unknown service,39
+openkb+example,openkb,claude-opus-5-5,example,Unknown package,125
+openkb+example,openkb,claude-opus-5-5,example,non-parsing output,69
+openkb+example,openkb,claude-opus-5-5,example,Unknown service,54
 openkb+example,openkb,claude-opus-5-5,example,"Expected a single string as url to download from, found",1
 openkb+example,openkb,claude-opus-5-5,example,Unhandled arguments for set,1
 openkb+example,openkb,claude-opus-5-5,example,"Expected a single string as file content, found",1
-openkb+fallback,openkb,claude-opus-5-5,fallback,non-parsing output,54
+openkb+fallback,openkb,claude-opus-5-5,fallback,non-parsing output,69
 openkb+fallback,openkb,claude-opus-5-5,fallback,Unhandled arguments for install,3
 openkb+fallback,openkb,claude-opus-5-5,fallback,"Expected a single string as url to download from, found",1
 openkb+fallback,openkb,claude-opus-5-5,fallback,Unhandled arguments for set,1
 openkb+fallback,openkb,claude-opus-5-5,fallback,"Expected a single string as file content, found",1
-openkb+example,openkb,deepseek-v4-flash,example,Unknown package,136
-openkb+example,openkb,deepseek-v4-flash,example,Unknown service,55
-openkb+example,openkb,deepseek-v4-flash,example,non-parsing output,9
+openkb+example,openkb,deepseek-v4-flash,example,Unknown package,153
+openkb+example,openkb,deepseek-v4-flash,example,Unknown service,59
+openkb+example,openkb,deepseek-v4-flash,example,non-parsing output,12
 openkb+example,openkb,deepseek-v4-flash,example,Unhandled creation of,2
-openkb+example,openkb,deepseek-v4-flash,example,Unhandled set of,1
+openkb+example,openkb,deepseek-v4-flash,example,Unhandled set of,2
 openkb+example,openkb,deepseek-v4-flash,example,empty query,1
+openkb+example,openkb,deepseek-v4-flash,example,Unknown OS,1
 openkb+example,openkb,deepseek-v4-flash,example,Unknown file,1
-openkb+fallback,openkb,deepseek-v4-flash,fallback,non-parsing output,9
+openkb+fallback,openkb,deepseek-v4-flash,fallback,non-parsing output,12
 openkb+fallback,openkb,deepseek-v4-flash,fallback,Unhandled creation of,2
 openkb+fallback,openkb,deepseek-v4-flash,fallback,Unhandled arguments for install,2
-openkb+fallback,openkb,deepseek-v4-flash,fallback,Unhandled set of,1
+openkb+fallback,openkb,deepseek-v4-flash,fallback,Unhandled set of,2
 openkb+fallback,openkb,deepseek-v4-flash,fallback,empty query,1
+openkb+fallback,openkb,deepseek-v4-flash,fallback,Unknown OS,1
 openkb+fallback,openkb,deepseek-v4-flash,fallback,Unknown file,1
 openkb+example,openkb,deepseek-v4.1-flash,example,Unknown package,130
 openkb+example,openkb,deepseek-v4.1-flash,example,Unknown service,57

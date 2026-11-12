@@ -1,27 +1,29 @@
 model,kb,reason,count
-claude-opus-5-5,example,Unknown package,102
-claude-opus-5-5,example,non-parsing output,54
-claude-opus-5-5,example,Unknown service,39
+claude-opus-5-5,example,Unknown package,125
+claude-opus-5-5,example,non-parsing output,69
+claude-opus-5-5,example,Unknown service,54
 claude-opus-5-5,example,"Expected a single string as url to download from, found",1
 claude-opus-5-5,example,Unhandled arguments for set,1
 claude-opus-5-5,example,"Expected a single string as file content, found",1
-claude-opus-5-5,fallback,non-parsing output,54
+claude-opus-5-5,fallback,non-parsing output,69
 claude-opus-5-5,fallback,Unhandled arguments for install,3
 claude-opus-5-5,fallback,"Expected a single string as url to download from, found",1
 claude-opus-5-5,fallback,Unhandled arguments for set,1
 claude-opus-5-5,fallback,"Expected a single string as file content, found",1
-deepseek-v4-flash,example,Unknown package,136
-deepseek-v4-flash,example,Unknown service,55
-deepseek-v4-flash,example,non-parsing output,9
+deepseek-v4-flash,example,Unknown package,153
+deepseek-v4-flash,example,Unknown service,59
+deepseek-v4-flash,example,non-parsing output,12
 deepseek-v4-flash,example,Unhandled creation of,2
-deepseek-v4-flash,example,Unhandled set of,1
+deepseek-v4-flash,example,Unhandled set of,2
 deepseek-v4-flash,example,empty query,1
+deepseek-v4-flash,example,Unknown OS,1
 deepseek-v4-flash,example,Unknown file,1
-deepseek-v4-flash,fallback,non-parsing output,9
+deepseek-v4-flash,fallback,non-parsing output,12
 deepseek-v4-flash,fallback,Unhandled creation of,2
 deepseek-v4-flash,fallback,Unhandled arguments for install,2
-deepseek-v4-flash,fallback,Unhandled set of,1
+deepseek-v4-flash,fallback,Unhandled set of,2
 deepseek-v4-flash,fallback,empty query,1
+deepseek-v4-flash,fallback,Unknown OS,1
 deepseek-v4-flash,fallback,Unknown file,1
 deepseek-v4.1-flash,example,Unknown package,130
 deepseek-v4.1-flash,example,Unknown service,57

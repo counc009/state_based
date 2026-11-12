@@ -1,0 +1,1 @@
+clone git repository from "https://github.com/travis-ci/gimme" into "/usr/local/gimme"

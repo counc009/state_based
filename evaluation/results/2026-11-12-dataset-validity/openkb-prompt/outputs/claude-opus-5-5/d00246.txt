@@ -1,0 +1,1 @@
+This can't be expressed in Astrogator FQL: the language has no action for creating a database.

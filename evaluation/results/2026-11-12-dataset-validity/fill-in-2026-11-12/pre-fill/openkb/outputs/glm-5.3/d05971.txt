@@ -1,0 +1,1 @@
+(no equivalent action — yum clean all clears the local package cache, which is not expressible in Astrogator FQL)

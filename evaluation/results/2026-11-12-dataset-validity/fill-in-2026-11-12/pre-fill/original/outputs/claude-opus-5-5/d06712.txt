@@ -1,0 +1,5 @@
+This request can't be expressed with the pinned KB, because `nfs` isn't in the service catalog. Only ssh server, postfix, and apache server are supported as services.
+
+If `nfs` were added to the KB as a service, the query would be:
+
+if nfs running then stop nfs service

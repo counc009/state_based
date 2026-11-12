@@ -1,0 +1,3 @@
+
+
+if os is RedHat then write "enabled=1" to "/etc/yum.repos.d/redhat-optional.repo" with position=end

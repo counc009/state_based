@@ -1,0 +1,9 @@
+This request can't be expressed in Astrogator FQL against the pinned knowledge base. **Elasticsearch** is not in the catalog. The only services available for `start`, `stop`, `running`, and `not running` are **ssh server**, **postfix**, and **apache server**, so I can't write a valid query without inventing a service name.
+
+For a supported service, the pattern would be:
+
+```
+if postfix not running then start postfix service
+```
+
+To manage Elasticsearch, it would first need to be added to the knowledge base as a service, along with its OS-specific service names.

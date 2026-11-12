@@ -1,0 +1,3 @@
+
+
+The action `add repository` (or similar, e.g. adding an EPEL repo) is not present in the supported action signatures. The available actions cover files/directories, users/groups, packages, services, git clones, virtual environments, environment variables, and reboot — but there is no action for managing package repositories. No valid Astrogator FQL query can be constructed for this request.

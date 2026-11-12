@@ -1,0 +1,3 @@
+
+
+set environment variable PATH to "~/.rbenv/bin:$PATH"

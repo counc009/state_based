@@ -1,0 +1,5 @@
+This request can't be expressed with the pinned knowledge base. `iptables` is not in the package catalog, which includes only bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy, and numpy in a virtual environment. `install PACKAGE` and `if PACKAGE installed` only accept catalog descriptions.
+
+If `iptables` were added to the KB, the query would be:
+
+if os is Debian then install iptables

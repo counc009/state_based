@@ -1,0 +1,1 @@
+Cannot translate: the pinned KB has no "mattermost" package or service, and FQL has no "enable" action for services. The only supported service actions are `start`/`stop` for ssh server, postfix, and apache server.

@@ -1,0 +1,3 @@
+Python setuptools isn't in the pinned KB package catalog, so this request can't be expressed as a resolvable FQL query. If a `python setuptools` entry were added to the KB, the query would be:
+
+if os is Debian then install python setuptools

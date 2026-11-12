@@ -1,0 +1,3 @@
+install git
+
+That installs the git package.

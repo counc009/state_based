@@ -1,0 +1,8 @@
+This request can't be expressed in Astrogator FQL with the pinned example KB:
+
+- **go** and **gimme** are not in the package catalog, so `install` can't resolve them.
+- There is no action that runs a script such as gimme, so a Go installation through gimme isn't possible.
+
+The closest supported step only fetches the gimme script. It does not install Go:
+
+download file from "https://raw.githubusercontent.com/travis-ci/gimme/master/gimme" to "/usr/local/bin/gimme" with read=all, execute=all, write=owner

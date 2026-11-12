@@ -1,0 +1,3 @@
+FQL has no action or condition for checking whether a service responds to requests, so this can't be expressed as a query. FQL also has no standalone check action: a `running` condition needs a `then` action. If ensuring the service is running is acceptable instead, the closest query is:
+
+start airbyte service

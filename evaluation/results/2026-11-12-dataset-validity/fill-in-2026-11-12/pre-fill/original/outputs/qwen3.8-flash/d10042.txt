@@ -1,0 +1,12 @@
+
+
+create file at "/etc/systemd/system/mattermost-github-integration.service" with content="[Unit]
+Description=Mattermost GitHub Integration
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/mattermost-github-integration
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target"

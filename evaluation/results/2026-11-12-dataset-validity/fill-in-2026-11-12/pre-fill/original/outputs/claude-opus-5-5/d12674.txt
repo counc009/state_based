@@ -1,0 +1,7 @@
+No valid Astrogator FQL query exists for this request. `install` requires a package from the knowledge-base catalog, and buildbot is not in it. Supported packages are bash, zsh, postfix, apache (apache server), ssh client, ssh server, numpy, and numpy in virtual environment.
+
+My earlier answers left literal paths unquoted, which the lexical rules forbid. They should have been:
+- `set file permissions in "/srv/path" with read=all, write=owner, list directory=all`
+- `delete directory at "/home/mydata/web"`
+- `delete files in "/home/mydata/web"`
+- `if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file`

@@ -1,0 +1,1 @@
+if supervisord not running then start supervisord service

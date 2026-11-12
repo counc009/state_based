@@ -1,0 +1,1 @@
+write ?content to "/etc/docker/daemon.json" with position=overwrite. reboot

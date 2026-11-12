@@ -1,0 +1,1 @@
+This request cannot be expressed in Astrogator FQL: there is no repository-management action in the action signatures, and `fish` is not in the knowledge-base package catalog, so no install target exists for it either.

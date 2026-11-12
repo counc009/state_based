@@ -1,0 +1,22 @@
+This request can't be expressed in Astrogator FQL. The language has no action for adding a package repository or PPA, so I won't invent one such as `add ppa repository ...`.
+
+A workaround that writes an APT sources file with `write ... to "/etc/apt/sources.list.d/..."` would not be faithful either. It needs the Ubuntu release codename, which a quoted literal can't leave unspecified. It also can't import the PPA's signing key, so the result would be an incomplete or broken repository setup.
+
+**Possible options:**
+- If your deployment's knowledge base adds a repository action or an OpenJDK entry, I can write the query against it.
+- If you only need Java installed, you can name the package directly: `install openjdk-8-jdk`. This works only if that package is available from repositories already configured on the host.
+
+**Corrections to my earlier answers.** They left literals unquoted, which the lexical rules don't allow, and the first one used the wrong separator. The corrected queries are:
+
+```
+set file permissions in "/srv/path" with read=all, write=owner, list directory=all
+```
+```
+delete directory at "/home/mydata/web"
+```
+```
+delete files in "/home/mydata/web"
+```
+```
+if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file
+```

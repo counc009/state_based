@@ -1,0 +1,1 @@
+pip3 can't be expressed as an Astrogator FQL query against the pinned knowledge base. The catalog defines only bash, zsh, postfix, apache, ssh client, ssh server, and numpy, and `install` requires a catalog package description.

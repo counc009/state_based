@@ -1,0 +1,2 @@
+write "LS_USER=root
+LS_GROUP=root" to "/etc/logstash/startup.options" with position=end

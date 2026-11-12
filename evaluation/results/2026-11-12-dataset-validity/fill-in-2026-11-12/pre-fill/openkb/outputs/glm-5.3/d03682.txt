@@ -1,0 +1,1 @@
+I can't express that request in Astrogator FQL. The action catalog covers files, directories, users, groups, packages, services, repositories, and environment variables, but it has no action for managing or removing Docker containers.

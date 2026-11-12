@@ -1,0 +1,1 @@
+This can't be expressed in Astrogator FQL with the pinned knowledge base. `install` only accepts packages from the catalog (bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy), and EPEL isn't one of them. There's also no action for adding package repositories.

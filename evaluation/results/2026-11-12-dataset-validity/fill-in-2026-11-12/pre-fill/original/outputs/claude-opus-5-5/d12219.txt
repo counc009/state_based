@@ -1,0 +1,7 @@
+This request can't be expressed as a valid query because NTP isn't in the pinned knowledge-base catalog. The only packages and services available are bash, zsh, postfix, apache, ssh client, ssh server, and numpy.
+
+If an `ntp` entry were added to the KB, the query would be:
+
+```
+if os is Debian based then install ntp
+```

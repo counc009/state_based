@@ -1,0 +1,3 @@
+
+
+if os is Ubuntu then add repository from "ppa:openjdk-r/ppa"

@@ -1,0 +1,1 @@
+Install Flux isn't supported by the pinned knowledge base — the catalog only defines bash, zsh, postfix, apache, ssh client, ssh server, and numpy, so there is no package description for Flux and I can't produce a valid query for it.

@@ -1,0 +1,1 @@
+fluentd isn't in the pinned knowledge-base package catalog, so `install fluentd` would not resolve. The supported packages are bash, zsh, postfix, apache server, ssh client, ssh server, and numpy.

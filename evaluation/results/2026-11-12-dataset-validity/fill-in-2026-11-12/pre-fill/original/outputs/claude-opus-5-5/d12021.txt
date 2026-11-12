@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL with the pinned example knowledge base. `install` only accepts packages from the catalog: bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy, and numpy in a virtual environment. There is no entry for "docker" or for a pip-installed "docker" package.

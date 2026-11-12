@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. Disabling unencrypted WinRM traffic is a Windows setting, and FQL has no Windows OS context or registry action. Its knowledge base also has no WinRM package, service, or configuration file.

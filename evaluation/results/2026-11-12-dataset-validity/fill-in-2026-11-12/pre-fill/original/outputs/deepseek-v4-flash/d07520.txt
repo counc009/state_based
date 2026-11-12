@@ -1,0 +1,1 @@
+write "mSMTP" to "busybox sendmail link" with position=overwrite

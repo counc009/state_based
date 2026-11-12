@@ -1,0 +1,4 @@
+
+
+write "-a always,exit -F arch=b64 -S execve -F success=1 -k credential
+-a always,exit -F arch=b32 -S execve -F success=1 -k credential" to "/etc/audit/rules.d/audit.rules" with position=end

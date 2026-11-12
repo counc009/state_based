@@ -1,0 +1,3 @@
+
+
+if os is Ubuntu then install "CFN Bootstrap Init"

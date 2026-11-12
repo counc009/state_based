@@ -1,0 +1,1 @@
+write "upload_max_filesize=100M" to "php.ini" with position=bottom

@@ -4,24 +4,69 @@
   "same_demos_and_non_system_messages": true,
   "base_prompt_verbatim_prefix": true,
   "same_models_reasoning_32768_cap_and_seed_free_sampling": true,
-  "all_attempts_within_three_attempt_limit": true,
   "all_admissions_before_deadline": true,
   "deadline_at": "2026-11-12T22:44:28.745335+00:00",
-  "paid_cells": 1711,
-  "physical_attempts": 1773,
-  "public_files_secret_audited": 1724,
+  "paid_cells": 1800,
+  "physical_attempts": 1889,
+  "public_files_secret_audited": 1829,
   "secret_audit_passed": true,
   "budget_guards_respected": true,
   "independent_frozen_rate_repricing_passed": true,
-  "recomputed_accounted_usd": 11.500138654513016,
+  "recomputed_accounted_usd": 12.922466721274013,
   "conservative_receipts_with_reported_usage": 0,
-  "original_export_files_unchanged": 1791,
   "baseline_git_commit": "b9e9a06a1b23800fc00ae3c582fdaf579ac36185",
   "native_example_flags_reproduced": true,
   "native_sources_identical_to_offline_benchmark_invariance_audit": true,
   "parse_flags_identical_across_kbs": true,
-  "known_token_usd": 6.792664830311,
-  "unknown_billing_reserve_usd": 4.707473824202,
-  "accounted_usd": 11.500138654513,
-  "anthropic_usd": 4.241164
+  "known_token_usd": 8.014768391897,
+  "unknown_billing_reserve_usd": 4.907698329377,
+  "accounted_usd": 12.922466721274,
+  "anthropic_usd": 5.382204,
+  "pre_fill_original_exports_preserved": true,
+  "pre_fill_original_export_files": 1791,
+  "original_exports_intentionally_refreshed": true,
+  "phased_funding": {
+    "phase": "fill-in-2026-11-12",
+    "initial_guard_usd": 12,
+    "initial_anthropic_guard_usd": 7,
+    "initial": {
+      "accounted_usd": 11.500138654513,
+      "known_token_usd": 6.792664830311,
+      "unknown_billing_reserve_usd": 4.707473824202,
+      "anthropic_usd": 4.241164,
+      "attempts": 1773
+    },
+    "fill_allocated_to_run": {
+      "accounted_usd": 1.422328066761,
+      "known_token_usd": 1.222103561586,
+      "unknown_billing_reserve_usd": 0.200224505175,
+      "anthropic_usd": 1.14104,
+      "attempts": 116
+    },
+    "fill_shared_guard_usd": 6,
+    "fill_shared_anthropic_guard_usd": 3,
+    "fill_shared": {
+      "accounted_usd": 1.961241648367,
+      "known_token_usd": 1.361642539608,
+      "unknown_billing_reserve_usd": 0.599599108759,
+      "anthropic_usd": 1.14104,
+      "attempts": 183
+    },
+    "cumulative": {
+      "accounted_usd": 12.922466721274,
+      "known_token_usd": 8.014768391897,
+      "unknown_billing_reserve_usd": 4.907698329377,
+      "anthropic_usd": 5.382204,
+      "attempts": 1889
+    },
+    "note": "Historical guards apply to their original phases. Fill is separately authorized and counted once globally; KB scoring has no generation charge."
+  },
+  "phase_attempt_limits_verified": {
+    "initial": 3,
+    "fill": 6
+  },
+  "phase_deadlines": {
+    "initial": "2026-11-12T22:44:28.745335+00:00",
+    "fill": "2026-11-12T23:59:04.742142+00:00"
+  }
 }

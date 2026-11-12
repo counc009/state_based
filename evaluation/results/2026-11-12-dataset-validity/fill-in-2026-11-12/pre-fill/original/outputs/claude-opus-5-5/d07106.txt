@@ -1,0 +1,1 @@
+This request can't be translated: Java is not in the pinned knowledge-base package catalog, and `install` accepts only catalog packages (bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy). Java would need to be added to the knowledge base first.

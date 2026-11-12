@@ -1,0 +1,5 @@
+This request can't be expressed in Astrogator FQL with the pinned KB:
+
+- **No "check" action:** Conditions like `if PACKAGE installed then ...` must guard an action. There is no standalone query or report action.
+- **ufw is not in the package catalog:** The only packages are bash, zsh, postfix, apache/apache server, ssh client, ssh server, and numpy.
+- **Archlinux is not a supported OS:** OS conditions only accept Debian, Ubuntu, RedHat, `Debian based`, and `RedHat based`.

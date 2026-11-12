@@ -1,0 +1,14 @@
+This request can't be expressed as a valid query against the pinned knowledge base. The `install PACKAGE` action only accepts package descriptions from the catalog (bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy, numpy in virtual environment), and neither docker-ce nor docker-compose is listed.
+
+If those packages were added to the KB, the query would be:
+
+```
+install docker-ce; install docker-compose
+```
+
+Separately, some of my earlier answers left paths unquoted, which the rules don't allow. Corrected versions:
+
+- `set file permissions in "/srv/path" with read=all, write=owner, list directory=all`
+- `delete directory at "/home/mydata/web"`
+- `delete files in "/home/mydata/web"`
+- `if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file`

@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. The language has no action for adding a package repository or PPA, and the WebUpd8 Oracle Java PPA is not in the knowledge-base catalog.

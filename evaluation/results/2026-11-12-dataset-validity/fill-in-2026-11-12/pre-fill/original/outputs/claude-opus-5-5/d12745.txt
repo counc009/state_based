@@ -1,0 +1,13 @@
+Astrogator FQL can't express this request. `software-properties-common` is not in the pinned knowledge-base package catalog, and `install` only accepts catalog descriptions: bash, zsh, postfix, apache/apache server, ssh client, ssh server, and numpy.
+
+If the knowledge base were extended with this package, the query would be:
+
+```
+install software-properties-common
+```
+
+Because `software-properties-common` is a Debian/Ubuntu package, the extended entry might need an OS condition:
+
+```
+if os is Debian based then install software-properties-common
+```
