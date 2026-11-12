@@ -1,0 +1,1 @@
+copy scaleio client for CentOS file to "/tmp"

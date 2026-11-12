@@ -1,0 +1,3 @@
+
+
+write "1" to "/proc/sys/net/ipv4/ip_forward" with position=overwrite

@@ -1,0 +1,8 @@
+No valid FQL query exists for this request. `install` needs a package description from the knowledge-base catalog, and tshark isn't in it. The catalog only has bash, zsh, postfix, apache/apache server, ssh client, ssh server, and numpy. Writing `install tshark` would not resolve against the pinned KB.
+
+My earlier answers in this conversation also left literal paths unquoted, which breaks the quoting rule. Corrected:
+
+- `set file permissions in "/srv/path" with read=all, write=owner, list directory=all`
+- `delete directory at "/home/mydata/web"`
+- `delete files in "/home/mydata/web"`
+- `if os is RedHat then install apache server; if apache server html home page file not exists then create apache server html home page file; create user with name="webdev"`

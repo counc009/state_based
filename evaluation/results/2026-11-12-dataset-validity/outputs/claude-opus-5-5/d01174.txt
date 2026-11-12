@@ -1,0 +1,5 @@
+FQL has no standalone "check" action. A condition must guard a statement with `if ... then STATEMENT`, so this request cannot be written as a complete query by itself. The condition you need is:
+
+`if file "banco.php" exists then`
+
+Tell me what should happen if the file exists, or if it doesn't, and I'll complete the query. Also note that `"banco.php"` is a relative path on the remote host; give the full path if you know it.

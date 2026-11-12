@@ -1,0 +1,3 @@
+
+
+set repository pxc-80 to testing

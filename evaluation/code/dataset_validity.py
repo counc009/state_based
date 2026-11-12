@@ -263,8 +263,8 @@ def public_attempts(run,phase,manifest):
         c=cells[a['cell_id']];p=private/'attempts'/(a['cell_id']+f'--attempt{a["attempt"]}.json');r=ev.load(p) if p.exists() else {}
         inp,out,reasoning=totals([r],a['provider']);model=manifest['config']['models'][c['model']]
         rows.append({'phase':phase,'cell_id':a['cell_id'],'model':model['id'],'attempt':a['attempt'],'status':a['status'],
-          'http_status':r.get('http_status'),'input_tokens':inp,'output_tokens':out,'reasoning_tokens':reasoning,
-          'cost_usd':a.get('cost_usd',a['reserved_usd']),'cost_source':a.get('cost_source'),'latency_s':a.get('seconds'),
+          'http_status':r.get('http_status'),'provider_usage_json':json.dumps(r.get('usage'),sort_keys=True),'input_tokens':inp,'output_tokens':out,'reasoning_tokens':reasoning,
+          'cost_usd':a.get('cost_usd',a['reserved_usd']),'reserved_usd':a['reserved_usd'],'cost_source':a.get('cost_source'),'latency_s':a.get('seconds'),
           'started_at':a['started_at'],'request_sha256':ev.digest(a['request_body']),'stop_reason':stop_reason(r),'error':r.get('error','')})
     return rows
 
@@ -299,7 +299,7 @@ def export(run):
     rows.sort(key=lambda r:(r['model'],r['row_index']));write_csv(run/'per-cell.csv',rows);save(run/'per-cell.json',rows)
     summary=[]
     for model in sorted({r['model'] for r in rows}):
-        rs=[r for r in rows if r['model']==model];summary.append({'model':model,'n':len(rs),'completed':sum(r['status']=='completed' for r in rs),
+        rs=[r for r in rows if r['model']==model];summary.append({'model':model,'n':len(rs),'attempted':sum(r['attempts']>0 for r in rs),'responses':sum(r['status'] in ('completed','incomplete') for r in rs),'completed':sum(r['status']=='completed' for r in rs),
           'incomplete':sum(r['status']=='incomplete' for r in rs),'parsed':sum(r['parsed'] is True for r in rs),
           'semantic_accepted':sum(r['semantic_accepted'] is True for r in rs),'interpreted':sum(r['interpreted'] is True for r in rs),
           'api_failures':sum(r['api_failure'] for r in rs),'pending_budget':sum(r['status']=='pending_budget' for r in rs),

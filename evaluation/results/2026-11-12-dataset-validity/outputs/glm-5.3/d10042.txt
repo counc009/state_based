@@ -1,0 +1,1 @@
+This request cannot be expressed in Astrogator FQL: there is no action for creating or registering a systemd service, and the knowledge base contains no "mattermost-github-integration" service entry. Creating one manually would require actions (such as writing arbitrary service unit files and reloading systemd) that the query language does not support.

@@ -1,0 +1,1 @@
+set screen shot path to "~/Scratch"

@@ -1,0 +1,77 @@
+Translate the final natural-language request into Astrogator FQL. Return only the query.
+
+LEXICAL AND CONTROL-FLOW RULES
+Keywords are lower case; OS names are case sensitive. Quote literal paths, URLs, versions, and text with double quotes. Quoted strings preserve literal characters: a literal newline is permitted, and backslash-n denotes two characters. Each double quote begins or ends a string. A question-mark-prefixed identifier such as ?path represents an unspecified value.
+
+A query consists of period-separated statements. An atomic statement has an action followed by arguments. Semicolons sequence actions, and a conditional may follow a semicolon. Periods terminate statements and reset the semantic OS context. Conditional syntax is `if CONDITION then STATEMENT otherwise STATEMENT`; `otherwise` is optional and binds to the nearest unmatched if. Conditions combine with `and` or `or`, with `and` binding more tightly. A period after a guarded statement makes the following statement unconditional.
+
+Arguments use the separators at, for, from, in, into, to, via, with. A separator followed by a value names that argument, e.g. `at "/srv/example"`. Named arguments use `with name="example", primary group="staff"`; their names are the words before `=`. Multiword names such as `supplemental groups` and `list directory` are separate unquoted words. Commas separate named arguments. List values are whitespace-separated, e.g. `supplemental groups="staff" "operators"`.
+
+PATHS AND FILE METADATA
+A path is a single quoted value, `remote "PATH"`, or `controller "PATH"`. A bare path means the remote managed host. Actions introduce literal paths through arguments, e.g. `create directory at "PATH"`.
+
+File metadata consists of optional `owner="USER"`, `group="GROUP"`, `read=owner group other`, `write=owner`, `execute=owner group`, `list directory=owner group`, `setuid=true`, `setgid=false`, `sticky=true`. Permission values are whitespace-separated lists of one or more subjects: owner, group, other, all. Values enumerate the subjects having that permission; an omitted permission field remains unspecified. Permissions use these subject fields and special-bit fields.
+
+ACTION SIGNATURES
+Replace placeholders with the requested literals. Optional arguments are described after each signature.
+
+Files and directories:
+- `create file at "PATH"`; optional content="TEXT" and file metadata.
+- `create directory at "PATH"`; optional file metadata.
+- `delete file at "PATH"` and `delete directory at "PATH"`.
+- `delete files in "DIRECTORY"`; optional glob="PATTERN".
+- `copy file from "SOURCE" to "DESTINATION"`, `copy directory from "SOURCE" to "DESTINATION"`, or `copy files from "DIRECTORY" to "DIRECTORY"`; all accept file metadata, and plural files additionally accept glob="PATTERN".
+- `move file from "SOURCE" to "DESTINATION"`, `move directory from "SOURCE" to "DESTINATION"`, or `move files from "DIRECTORY" to "DIRECTORY"`; metadata and plural glob as for copy.
+- `download file from "URL" to "PATH"`; optional file metadata.
+- `write "TEXT" to "PATH" with position=overwrite`; position is required and may be overwrite, top/start, or bottom/end. Optional file metadata.
+- `set file permissions for "PATH" with read=all, write=owner`; accepts the permission fields above. `in "DIRECTORY"` selects files in a directory.
+
+Identity and privileges:
+- `create user with name="USER"`; optional primary group="GROUP" and supplemental groups="GROUP1" "GROUP2".
+- `delete user with name="USER"`.
+- `create group with name="GROUP"` and `delete group with name="GROUP"`.
+- `disable password for user="USER"`.
+- `enable sudo for user="USER"`, `disable sudo for user="USER"`, `enable passwordless sudo for group="GROUP"`, `disable passwordless sudo for group="GROUP"`. Each form requires exactly one user or group.
+- `set default shell for user="USER" to bash` or `to zsh`. Shell names resolve through the knowledge base.
+- `create ssh key for user="USER" with name="KEYNAME"`; alternatively use at "PATH". User and exactly one of at or name are required.
+
+Packages, services, repositories, and environment:
+- `install PACKAGE`; optional version="VERSION". `uninstall PACKAGE`. PACKAGE is a knowledge-base description from the catalog below.
+- `start SERVICE service` and `stop SERVICE service`; SERVICE is a knowledge-base description below.
+- `clone git repository from "URL" into "PATH"`; optional branch="BRANCH" or tag="TAG", plus file metadata. Branch and tag are mutually exclusive.
+- `clone github repository with name="ORG/REPO" into "PATH"`; optional via ssh or via https (default), branch or tag, and metadata. URLs with and without .git are represented as alternatives.
+- `create virtual environment in "PATH"`; optional python="VERSION".
+- `set environment variable VARIABLE to "VALUE"`.
+- `reboot`.
+
+SUPPORTED CONDITIONS AND OS CONTEXT
+- `if os is Debian then ...`, Ubuntu, RedHat, `Debian based`, or `RedHat based`. Exact distribution and family are distinct. OS comparisons also accept `is not`, `equals`, and `not equals`.
+- `if file "PATH" exists then ...`, `if directory "PATH" not exists then ...`; `file at "PATH"` and `directory at "PATH"` are alternatives. Named file/directory descriptions below also work.
+- `if PACKAGE installed then ...` or `not installed`, using the package catalog.
+- `if SERVICE running then ...` or `not running`, using the catalog name itself, e.g. `if ssh server running then ...`.
+- `if reboot required then ...` or `not required` requires an enclosing Debian, Ubuntu, or Debian based OS condition. The KB interprets this as presence of either /var/run/reboot-required or /run/reboot-required.
+
+An OS conditional refines the semantic context inside its branches. OS-dependent package and service descriptions use that branch context. Each period-separated statement starts with a fresh OS context.
+
+KNOWLEDGE-BASE CATALOG FOR THE PINNED EXAMPLE KB
+Packages:
+- bash, zsh, postfix: system package manager, same name, available in any OS context.
+- apache or apache server: requires OS; Debian/Ubuntu/Debian based resolves to apt apache2, RedHat/RedHat based to dnf httpd.
+- ssh client: requires OS; Debian side apt openssh-client, RedHat side dnf openssh-clients.
+- ssh server: system openssh-server, available in any OS context.
+- numpy: system-wide requires OS. Debian/Debian based uses apt python3-numpy. Ubuntu also permits pip numpy. RedHat side permits pip numpy, dnf numpy, or dnf python3-numpy.
+- `numpy in virtual environment at "PATH"`: pip numpy in that environment, available in any OS context.
+
+Services:
+- ssh server: permits names sshd or ssh, available in any OS context.
+- postfix: postfix, available in any OS context.
+- apache server: requires OS, resolving to apache2 on Debian side or httpd on RedHat side.
+
+Named files (append the word file to these descriptions):
+- postfix configuration: /etc/postfix/main.cf.
+- apache server html home page: /var/www/html/index.html.
+- apache server php home page: /var/www/html/index.php.
+- bash configuration or bashrc: .bashrc in the home of the required user="USER".
+- zsh configuration or zshrc: .zshrc in the home of the required user="USER".
+Named directory: `zsh configuration directory for user="USER"` resolves to .zshrc.d in that user's home.
+A named description supplies the resource for an action, e.g. `create bash configuration file for user="USER"`; `write "TEXT" to bash configuration file for user="USER" with position=end`; `copy postfix configuration file to "BACKUP"`. In copy/move, the named resource fills a single omitted from/to endpoint.

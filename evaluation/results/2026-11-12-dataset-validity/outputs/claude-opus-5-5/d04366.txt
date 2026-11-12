@@ -1,0 +1,3 @@
+Cassandra isn't in the pinned KB service catalog, which only covers ssh server, postfix, and apache server, so no valid query can be written. If a `cassandra` service entry were added to the KB, the query would be:
+
+stop cassandra service

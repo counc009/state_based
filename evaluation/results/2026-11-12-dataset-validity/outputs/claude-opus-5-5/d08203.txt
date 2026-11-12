@@ -1,0 +1,1 @@
+Tomcat cannot be expressed as a query: it is not in the pinned knowledge-base service catalog, which supports only ssh server, postfix, and apache server.

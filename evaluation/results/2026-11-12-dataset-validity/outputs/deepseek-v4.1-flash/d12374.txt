@@ -1,0 +1,1 @@
+write "# wlan0-related settings" to "/etc/network/interfaces" with position=end

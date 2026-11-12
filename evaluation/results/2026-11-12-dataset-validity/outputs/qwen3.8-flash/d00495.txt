@@ -1,0 +1,3 @@
+
+
+if os is RedHat based then install MySQL client

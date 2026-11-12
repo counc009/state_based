@@ -1,0 +1,5 @@
+No valid query can be written: nginx is not in the knowledge-base package catalog, so `install nginx` would not resolve. The catalog supports only bash, zsh, postfix, apache/apache server, ssh client, ssh server, and numpy.
+
+If Apache is an acceptable substitute, this query is valid:
+
+if os is Debian based then install apache server otherwise if os is RedHat based then install apache server

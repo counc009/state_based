@@ -1,0 +1,3 @@
+
+
+This request is not supported by the ASTROGATOR FQL action set. There is no action to modify kernel boot parameters (such as `cgroup_memory=1` or `swapaccount=1`), nor a generic file-editing action for files like `/etc/default/grub`.

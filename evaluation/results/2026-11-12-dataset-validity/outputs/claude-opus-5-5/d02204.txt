@@ -1,0 +1,21 @@
+Plex Media Server can't be expressed in this FQL. `install` only accepts packages from the knowledge-base catalog (bash, zsh, postfix, apache server, ssh client, ssh server, numpy), and Plex isn't one of them.
+
+If you provide a download URL and target path for the Plex installer, I can write a `download file from "URL" to "PATH"` query instead.
+
+Some of my earlier answers also left paths unquoted. They should have been written like this:
+
+```
+set file permissions in "/srv/path" with read=all, write=owner, list directory=all
+```
+
+```
+delete directory at "/home/mydata/web"
+```
+
+```
+delete files in "/home/mydata/web"
+```
+
+```
+if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file
+```

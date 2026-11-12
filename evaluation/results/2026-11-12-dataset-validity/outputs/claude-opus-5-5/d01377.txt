@@ -1,0 +1,7 @@
+This request can't be expressed with the pinned KB. `git` is not in the package catalog, so `install git` would not resolve. The catalog only covers bash, zsh, postfix, apache, ssh client, ssh server, and numpy.
+
+If the KB is extended with a `git` package entry, the query would be:
+
+```
+install git
+```

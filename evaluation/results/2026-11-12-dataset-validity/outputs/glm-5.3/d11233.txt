@@ -1,0 +1,1 @@
+The requested action cannot be expressed in Astrogator FQL: the pinned knowledge base supports only ssh server, postfix, and apache server as services, and no package description exists for a salt server.

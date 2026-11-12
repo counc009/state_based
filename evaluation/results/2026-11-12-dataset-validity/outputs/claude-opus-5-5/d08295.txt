@@ -1,0 +1,3 @@
+This request cannot be written as a valid Astrogator FQL query. `install` only accepts packages from the knowledge-base catalog (bash, zsh, postfix, apache server, ssh client, ssh server, numpy), and Grafana is not among them.
+
+The closest form, `if os is Debian then install grafana`, would not resolve against the pinned KB. Grafana would need to be added to the knowledge base first.

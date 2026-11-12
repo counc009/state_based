@@ -1,0 +1,8 @@
+This request can't be expressed in Astrogator FQL. The language has no action for extracting or unpacking archives. Its file actions cover only create, delete, copy, move, download, write, and set permissions. Any query I wrote would either use an invented `extract` action or only copy the `.tgz` without unpacking it.
+
+My earlier answers also broke the quoting rule. Literal paths and values must be in double quotes. The corrected queries are:
+
+- `set file permissions in "/srv/path" with read=all, write=owner, list directory=all`
+- `delete directory at "/home/mydata/web"`
+- `delete files in "/home/mydata/web"`
+- `if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file`

@@ -1,0 +1,10 @@
+This request can't be expressed as a valid Astrogator FQL query against the pinned knowledge base:
+
+- **No Percona package:** "Percona MySQL Server" (or any MySQL server) is not in the package catalog. `install` only accepts catalog descriptions: bash, zsh, postfix, apache/apache server, ssh client, ssh server, and numpy.
+- **No repository action:** FQL has no action for adding or enabling a package repository, such as Percona's RHEL repos via `percona-release`.
+
+Only the OS guard and the version argument can be expressed. The package itself would have to be a placeholder:
+
+if os is RedHat then install ?package with version="8.0"
+
+This becomes executable only if the knowledge base adds a Percona MySQL Server package entry and a repository-setup action.

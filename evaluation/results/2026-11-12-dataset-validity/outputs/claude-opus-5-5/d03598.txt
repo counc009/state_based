@@ -1,0 +1,5 @@
+This request can't be expressed in Astrogator FQL with the pinned knowledge base. `install` takes a package description from the catalog, and fail2ban isn't listed. The catalog has bash, zsh, postfix, apache/apache server, ssh client, ssh server, and numpy.
+
+To support this request, a fail2ban package entry would have to be added to the knowledge base. After that, the query would be:
+
+install fail2ban

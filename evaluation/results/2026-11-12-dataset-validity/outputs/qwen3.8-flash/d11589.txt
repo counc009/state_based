@@ -1,0 +1,3 @@
+
+
+if os is Debian then if cron running then stop cron service

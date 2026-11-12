@@ -1,0 +1,1 @@
+No FQL query is possible: "geoipupdate" is not in the package catalog of the pinned knowledge base. `install` accepts only catalog descriptions (bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy, numpy in virtual environment).

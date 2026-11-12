@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. The language has no action for refreshing the package index (e.g. `apt update`). The only package actions are `install PACKAGE` and `uninstall PACKAGE`, using the knowledge-base catalog.

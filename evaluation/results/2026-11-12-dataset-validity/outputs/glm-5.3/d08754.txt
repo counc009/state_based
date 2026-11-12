@@ -1,0 +1,1 @@
+(empty query — rsync via yum is not expressible with this knowledge base)

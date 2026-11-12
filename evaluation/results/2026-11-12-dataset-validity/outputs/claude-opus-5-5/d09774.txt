@@ -1,0 +1,1 @@
+install ?package; create user with name="monitoror"

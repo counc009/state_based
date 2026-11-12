@@ -1,0 +1,5 @@
+The pinned knowledge base has no nginx service, so this request can't be expressed as a valid query. The catalog's only services are `ssh server`, `postfix`, and `apache server`.
+
+If nginx were added to the KB, the query would be:
+
+start nginx service

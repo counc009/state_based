@@ -1,0 +1,7 @@
+This request can't be expressed with the pinned knowledge base. `node_exporter` is not in the service catalog, which only includes ssh server, postfix, and apache server.
+
+The syntactically valid form would be:
+
+start node_exporter service
+
+The knowledge base can't resolve it, though. A `node_exporter` service entry would need to be added first.

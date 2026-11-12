@@ -1,0 +1,1 @@
+if k9s not installed then install k9s.

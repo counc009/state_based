@@ -1,0 +1,1 @@
+if os is RedHat then write "enabled=1" to ?optionals_rpm_repository_configuration with position=end

@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. The language has no condition that tests whether a directory is empty (conditions cover only `exists` and `not exists`), and it has no action that inspects or reports anything. The "nighhawk" folder's full path is also unspecified.

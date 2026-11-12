@@ -1,0 +1,5 @@
+phpMemcachedAdmin is not in the pinned knowledge-base package catalog, so `install phpMemcachedAdmin` is not valid FQL.
+
+If you can give its source repository and install path, I can write it as a clone, for example:
+
+`clone github repository with name="ORG/REPO" into "PATH"`

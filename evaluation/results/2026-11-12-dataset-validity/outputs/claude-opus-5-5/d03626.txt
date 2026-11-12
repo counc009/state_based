@@ -1,0 +1,7 @@
+This request can't be expressed with the pinned KB. `install` only accepts packages from the catalog (bash, zsh, postfix, apache, ssh client, ssh server, numpy), and docker-ce is not one of them. The literal form would be:
+
+install docker-ce
+
+It would fail knowledge-base resolution. You would need to add docker-ce to the KB, or choose a supported package.
+
+Also, my earlier translations omitted the required double quotes. Literal paths and values must be quoted, for example `delete directory at "/home/mydata/web"`, `delete files in "/home/mydata/web"`, `create user with name="webdev"`, and `set file permissions in "/srv/path" with read=all, write=owner, list directory=all`.

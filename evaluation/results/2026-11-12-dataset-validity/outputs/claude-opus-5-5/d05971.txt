@@ -1,0 +1,1 @@
+`yum clean all` can't be expressed in Astrogator FQL because the language has no action for clearing package-manager caches. The only supported package actions are `install` and `uninstall`.

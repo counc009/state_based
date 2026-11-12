@@ -1,0 +1,18 @@
+This request can't be expressed in Astrogator FQL with the pinned KB:
+- There is no action for enabling a service at boot. Only `start SERVICE service` and `stop SERVICE service` exist.
+- `apt-cacher-ng` isn't in the catalog as a package or a service.
+
+My earlier answers also broke the quoting rule for literal paths and names. The corrected queries are:
+
+```
+set file permissions in "/srv/path" with read=all, write=owner, list directory=all
+```
+```
+delete directory at "/home/mydata/web"
+```
+```
+delete files in "/home/mydata/web"
+```
+```
+if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file
+```

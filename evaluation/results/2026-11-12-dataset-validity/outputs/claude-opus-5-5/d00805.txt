@@ -1,0 +1,12 @@
+This request can't be expressed in Astrogator FQL with the pinned KB:
+
+- There is no action for enabling a service at boot. Only `start SERVICE service` and `stop SERVICE service` exist.
+- `php-fpm` is not in the service catalog. The only services are ssh server, postfix, and apache server.
+
+If you only need to start a cataloged service now, for example Apache on RedHat, this is the closest valid query:
+
+```
+if os is RedHat then start apache server service
+```
+
+My earlier answers left paths unquoted, but literal paths must be quoted. For example: `delete directory at "/home/mydata/web"`.

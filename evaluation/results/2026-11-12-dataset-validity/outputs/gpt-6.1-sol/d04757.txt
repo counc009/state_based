@@ -1,0 +1,1 @@
+if os is OpenBSD then create user with name="munin-async".

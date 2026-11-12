@@ -1,0 +1,1 @@
+Astrogator FQL has no action for updating package repositories (for example, `apt update`), so this request cannot be written as a query. The supported package actions are only `install` and `uninstall`.

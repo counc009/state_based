@@ -1,0 +1,1 @@
+No Astrogator FQL query can express this. The language has no action for changing System Preferences settings such as the screenshot save location. Its supported actions cover files, users, packages, services, repositories, and environment variables.

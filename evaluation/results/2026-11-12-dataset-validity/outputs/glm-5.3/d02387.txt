@@ -1,0 +1,1 @@
+This request cannot be expressed in Astrogator FQL, as the supported action set includes no action for extracting archives.

@@ -1,0 +1,1 @@
+This request cannot be translated against the pinned knowledge base. `jira` is not a catalogued service; the only supported services are ssh server, postfix, and apache server. The syntactic form would be `start jira service`, but it would fail KB resolution.

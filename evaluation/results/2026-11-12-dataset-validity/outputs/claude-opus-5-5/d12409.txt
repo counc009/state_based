@@ -1,0 +1,1 @@
+install zsh; clone github repository with name="ohmyzsh/ohmyzsh" into ?path; set default shell for user=?user to zsh

@@ -1,0 +1,3 @@
+I can't translate that request: Astrogator FQL has no action for updating all installed packages (`yum update`). The package actions available are `install PACKAGE` (with optional `version="VERSION"`) and `uninstall PACKAGE`.
+
+If you tell me which specific packages should be upgraded, or want a concrete install/uninstall performed, I can produce the query.

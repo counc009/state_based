@@ -1,0 +1,1 @@
+No valid query can be produced: `nodejs` is not in the pinned knowledge-base package catalog. The catalog only supports bash, zsh, postfix, apache/apache server, ssh client, ssh server, and numpy. A syntactically formed `install nodejs` would fail knowledge-base resolution.

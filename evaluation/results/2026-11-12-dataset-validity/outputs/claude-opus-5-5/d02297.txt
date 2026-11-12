@@ -1,0 +1,5 @@
+Mailhog is not in the pinned knowledge-base package catalog, so `install mailhog` would not resolve to a valid package. Only bash, zsh, postfix, apache server, ssh client, ssh server, and numpy are supported.
+
+If you can provide a download URL and destination path for the Mailhog binary, it could be expressed as:
+
+download file from ?url to ?path with execute=all

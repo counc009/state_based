@@ -1,0 +1,7 @@
+This request can't be expressed in Astrogator FQL with the pinned KB:
+
+- **No repository action.** FQL has no action for adding or installing a package repository. `clone git repository` and `clone github repository` fetch source code; they don't configure dnf/yum repos.
+- **Zabbix isn't in the package catalog.** `install PACKAGE` accepts only catalog descriptions (bash, zsh, postfix, apache, ssh client, ssh server, numpy), so `install zabbix-release` won't resolve.
+- **No CentOS condition.** OS conditions support Debian, Ubuntu, RedHat, `Debian based`, and `RedHat based`. The closest guard for CentOS is `if os is RedHat based then ...`, but no supported action can go inside it.
+
+Supporting this would require a KB extension, such as a Zabbix repository package entry for the RedHat side, or a repository-management action.

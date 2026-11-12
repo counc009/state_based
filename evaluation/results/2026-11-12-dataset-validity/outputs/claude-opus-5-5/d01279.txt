@@ -1,0 +1,9 @@
+This request can't be expressed as a valid query. Google Chrome isn't in the pinned knowledge-base package catalog, and `install` only accepts catalog package descriptions.
+
+The syntactically correct form below would fail knowledge-base resolution:
+
+```
+install google chrome
+```
+
+Supported packages are: bash, zsh, postfix, apache (server), ssh client, ssh server, numpy, and numpy in a virtual environment.

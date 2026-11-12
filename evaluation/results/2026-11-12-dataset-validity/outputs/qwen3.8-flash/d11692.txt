@@ -1,0 +1,3 @@
+
+
+write "pxe_just_once: true" to "/etc/cobbler/settings" with position=end

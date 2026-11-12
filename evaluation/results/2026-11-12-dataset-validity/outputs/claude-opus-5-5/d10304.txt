@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. The available actions cover repository cloning but not enabling package repositories, so there is no valid query for enabling the pxc-80 testing repo.

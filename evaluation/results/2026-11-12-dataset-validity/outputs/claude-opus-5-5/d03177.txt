@@ -1,0 +1,8 @@
+This request can't be expressed as a valid Astrogator FQL query:
+
+- **libvirt** is not in the pinned knowledge-base package catalog. `install` only accepts the listed packages: bash, zsh, postfix, apache/apache server, ssh client, ssh server, and numpy.
+- **CentOS** is not a supported OS condition. The closest match is `if os is RedHat based then ...`.
+
+If libvirt is added to the KB, the query would be:
+
+if os is RedHat based then install libvirt

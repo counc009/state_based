@@ -1,0 +1,5 @@
+Shadowsocks cannot be expressed in Astrogator FQL with the pinned knowledge base. `install` requires a package from the catalog, and the catalog only includes bash, zsh, postfix, apache/apache server, ssh client, ssh server, and numpy.
+
+To support it, add a Shadowsocks package entry to the knowledge base. The query would then be:
+
+install shadowsocks

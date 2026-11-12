@@ -1,0 +1,8 @@
+This request can't be expressed in Astrogator FQL with the pinned KB:
+
+- **No boot-persistence action:** FQL can only `start` or `stop` a service. It has no action to enable a service at boot.
+- **Unknown service:** "titan server" isn't in the catalog. The only services are ssh server, postfix, and apache server.
+
+If starting it now is enough and the service gets added to the KB, the query would be:
+
+`start titan server service`

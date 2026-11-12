@@ -1,0 +1,1 @@
+Astrogator FQL cannot express this request. The language has no action for extracting or unpacking archives such as .tgz files. The closest supported actions (copy file, move file, download file) only transfer the archive and do not unpack it.

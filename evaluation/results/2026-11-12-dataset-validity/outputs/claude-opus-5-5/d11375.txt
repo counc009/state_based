@@ -1,0 +1,1 @@
+Astrogator FQL has no action for extracting archives, so this request can't be expressed as a query.

@@ -1,0 +1,5 @@
+The pinned knowledge base has no MySQL service, so this request has no valid Astrogator FQL query. The catalog only defines the `ssh server`, `postfix`, and `apache server` services.
+
+If a `mysql server` service entry were added to the KB, the query would be:
+
+start mysql server service

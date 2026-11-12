@@ -1,0 +1,1 @@
+This request cannot be expressed in Astrogator FQL: the language has no action for loading a kernel module, and "zeroconf" is not in the package or service catalog.

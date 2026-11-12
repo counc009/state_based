@@ -1,0 +1,3 @@
+
+
+if dnsmasq not installed then install dnsmasq; if dnsmasq not running then start dnsmasq service

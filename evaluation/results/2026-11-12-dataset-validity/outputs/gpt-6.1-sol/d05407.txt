@@ -1,0 +1,1 @@
+if os is Debian then create file at "/etc/apt/sources.list.d/fish.list" with content="deb https://download.opensuse.org/repositories/shells:/fish:/release:/3/Debian_9.0/ /".

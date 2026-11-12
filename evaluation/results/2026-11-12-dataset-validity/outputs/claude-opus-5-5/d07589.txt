@@ -1,0 +1,7 @@
+Astrogator FQL cannot express this request. The catalog has no action for adding an apt repository or PPA, and the pinned knowledge base does not describe the WebUpd8 Oracle Java PPA.
+
+Writing a sources entry with `write` would not be a faithful translation for two reasons:
+- The entry depends on the Ubuntu release codename, which the request does not give.
+- No action exists to import the repository's signing key.
+
+Also, the WebUpd8 team discontinued that PPA in 2019, so it no longer provides working Oracle Java installers.
