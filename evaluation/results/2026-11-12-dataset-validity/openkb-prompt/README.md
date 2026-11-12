@@ -12,7 +12,7 @@ The target NL and four demonstrations (a13, a02, a03, a19), their message order,
 
 The paid controller started at **2026-11-12 22:09:28.745335 UTC**, with a persisted hard deadline of **22:44:28.745335 UTC**. It uses a separate zero-prior ledger and guards of **$12 total / $7 Anthropic**, including conservative in-flight and unknown-billing reservations. Each cell has at most three attempts (initial plus two transient retries). Billing errors stop new Opus admissions only. Successful cells are never repeated. Restarting the controller preserves the original deadline; it cannot extend the paid window.
 
-Independent model pools launch in Opus/Sol, GLM, DeepSeek V4.1, Qwen, DeepSeek V4 order. Conservative reservation guards dynamically constrain concurrency. At the deadline the supervisor terminates its own generation child, preserves unknown-billing receipts at their full reservations, and exports available responses. It does not run VMs, containers, generated tasks or a judge.
+Independent concurrent model pools launch in Opus/Sol, GLM, DeepSeek V4.1, Qwen, DeepSeek V4 order. This is concurrent launch order, not serial stage completion or guaranteed priority after each reservation settles. Conservative reservation guards dynamically constrain concurrency. At the deadline the supervisor terminates its own generation child, preserves unknown-billing receipts at their full reservations, and exports available responses. It does not run VMs, containers, generated tasks or a judge.
 
 Unavailable rows distinguish provider/transport failures, explicit billing stops, final conservative budget gates, and the deadline. Where a cell was never admitted, its unavailable reason is classified from the final billing marker and conservative reservation gates before the deadline condition. Such rows are not parse failures. Costs are frozen-rate local accounting, not invoices; unavailable usage is never assumed free.
 
@@ -40,3 +40,11 @@ The fallback changes neither the compiler nor the default Example KB. Its 21 sup
 - `sources/`: the actual first-launch driver/transport, fixed project demonstrations and prompt snapshots; these contain no prior-work corpus rows or provider reasoning.
 
 Run `python3 evaluation/code/openkb_prompt.py run` only within the original persisted window; expired windows make no further paid calls. Free finalization is `python3 evaluation/code/openkb_analyze.py --wait`. The native Example/fallback effects and query_interp binaries must already be built; no model API is used by finalization.
+
+## Settled result
+
+The supervisor stopped at 2026-11-12 22:44:28.762148 UTC. There are 1,698 completed outputs, no cap-limited outputs and no terminal API failures. Opus has 64 global-budget-pending cells (not billing failures); DeepSeek V4 Flash has 38 deadline-stopped cells: 13 interrupted requests and 25 never admitted. The sample has 300 rows and 253 distinct normalized descriptions.
+
+Receipt reconciliation recovered one already-complete DeepSeek response missing from state/canonical output; the original ledger is preserved privately and `receipt-recovery.json` records the correction. Final accounting is $11.500138654513 = $6.792664830311 reported-token charges + $4.707473824202 unknown-billing reserves. Anthropic accounts for $4.241164; no billing stop occurred. All 1,791 original tracked exports match commit b9e9a06 byte-for-byte.
+
+Generation charges in four-condition and paired CSVs repeat across the two KB conditions because each prompt was generated once and scored twice for free. Do not sum duplicate KB-row charges. Read response availability and paired-common-response counts alongside the full 300-row comparisons.
