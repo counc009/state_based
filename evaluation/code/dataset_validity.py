@@ -2,7 +2,7 @@
 """Private prior-work NL filtering -> sampled FQL generation -> native validity counts."""
 import argparse
 from collections import Counter,defaultdict
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor,as_completed
 import copy
 from datetime import datetime,timezone
 import fcntl
@@ -55,11 +55,12 @@ def model_config(run):
             c=catalog[m['id']];assert c['limit']['output']>=32768
             for dest,source in [('input_per_million','input'),('output_per_million','output'),('cached_input_per_million','cache_read'),('cache_write_per_million','cache_write')]:m[dest]=c['cost'][source]
             m['catalog_limits']=c['limit']
+    config['generation_model_workers']={'deepseek-v4.1-flash':32,'qwen3.8-flash':32,'deepseek-v4-flash':24,'glm-5.3':24,'sol':8,'opus':8}
     config.update(repetitions=1,max_output_tokens=32768,stream_deadline_s=3600,prior_cost_usd=0,prior_anthropic_cost_usd=0,total_budget_usd=20,provider_budgets_usd={'anthropic':8})
     return config
 
 
-def prepare(run,source):
+def prepare(run,source,prefix_batches=None):
     private=run/'private';target=private/'filter/manifest.json'
     if target.exists():return ev.load(target)
     rows=ev.load(source);assert isinstance(rows,list)
@@ -83,7 +84,8 @@ def prepare(run,source):
         batch=values[start:start+20];cells.append({'id':f'detail-b{n:05d}','model':'deepseek-v4-flash','variant':'detail-filter-v1',
             'task_id':f'b{n:05d}','repeat':0,'label_ids':[r['id'] for r in batch],
             'messages':[{'role':'system','content':prompt},{'role':'user','content':json.dumps(batch)}]})
-    manifest={'schema_version':1,'phase':'NL-only detail filter','created_at':now(),'config':config,'cells':cells,
+    if prefix_batches is not None:cells=cells[:prefix_batches]
+    manifest={'schema_version':1,'hash_prefix_batches':prefix_batches,'phase':'NL-only detail filter','created_at':now(),'config':config,'cells':cells,
        'source':{'source_path':origin,'file_sha256':ev.digest(source.read_bytes()),'total_rows':len(rows),'unique_survivor_nl':len(unique)},
        'sources':{'prompt_sha256':ev.digest(prompt.encode()),'rubric_sha256':ev.digest((ROOT/'docs/dataset-detail-rubric.md').read_bytes()),
           'heuristics_sha256':ev.digest((ROOT/'code/dataset_filter.py').read_bytes()),'driver_sha256':ev.digest(Path(__file__).read_bytes())}}
@@ -119,10 +121,34 @@ def matrix(manifest,out,total,anthropic,workers,request):
             if retryable(result) and result.get('attempt',8)<8:
                 history=out/'terminal-history';history.mkdir(exist_ok=True)
                 terminal.replace(history/(terminal.stem+f'--after{result["attempt"]}.json'))
-        Matrix(manifest,out,total,anthropic,8,request,transport.build).run(workers)
+        runner=Matrix(manifest,out,total,anthropic,8,request,transport.build)
+        if manifest.get('phase')=='NL-to-FQL dataset validity':
+            parallel_generate(runner)
+        else:runner.run(workers)
 
 
-def select(run):
+def parallel_generate(runner):
+    """Shared durable budget/ledger, independent model pools; slow models start first."""
+    from contextlib import ExitStack
+    limits=runner.manifest['config']['generation_model_workers']
+    while True:
+        before=len(runner.state['attempts'])
+        with ExitStack() as stack:
+            futures=[]
+            for model,count in limits.items():
+                pool=stack.enter_context(ThreadPoolExecutor(max_workers=count))
+                futures.extend(pool.submit(runner.process,c) for c in runner.manifest['cells'] if c['model']==model)
+            for future in as_completed(futures):future.result()
+        if len(runner.state['attempts'])==before:break
+    terminal=sum((runner.out/'responses'/(c['id']+'.json')).exists() for c in runner.manifest['cells'])
+    status={'planned':len(runner.cells),'terminal':terminal,'pending':len(runner.cells)-terminal,
+       'attempts':len(runner.state['attempts']),'accounted_usd':runner.spend(),
+       'anthropic_accounted_usd':runner.spend('anthropic'),'total_limit_usd':runner.total,
+       'anthropic_limit_usd':runner.anthropic,'model_workers':limits}
+    save(runner.out/'run-status.json',status);print(json.dumps(status),flush=True)
+
+
+def select(run,prefix_batches=None):
     private=run/'private'
     if (private/'generation/manifest.json').exists():
         print('Sample already frozen for generation; preserving row selection',flush=True)
@@ -138,14 +164,24 @@ def select(run):
         r.update(detail_status='not_checked_heuristic_drop' if not r['heuristic_keep'] else ('resolved' if label else 'unresolved'),
           detail_keep=label['keep'] if label else False,detail_reason=label['reason'] if label else r['heuristic_reason'] if not r['heuristic_keep'] else 'classifier_unresolved',
           classifier_cell_id=label.get('classifier_cell_id') if label else None)
-    kept=[r for r in rows if r['detail_keep']];sample=random.Random(SEED).sample(kept,min(300,len(kept)))
+    for r in rows:r['in_filter_subset']=r['heuristic_keep'] and (prefix_batches is None or int(r['classifier_id'][1:])<prefix_batches*20)
+    population=[r for r in rows if r['in_filter_subset']]
+    if prefix_batches is not None:assert all(r['detail_status']=='resolved' for r in population),'The fixed filter subset must have every label before sampling'
+    kept=[r for r in population if r['detail_keep']];sample=random.Random(SEED).sample(kept,min(300,len(kept)))
     sampled={r['task_id'] for r in sample}
     for r in rows:r['sampled']=r['task_id'] in sampled
     save(private/'filtered-rows.json',rows);save(private/'sample.json',sample)
     funnel={'total':len(rows),'after_heuristics':sum(r['heuristic_keep'] for r in rows),'after_detail_check':len(kept),'sampled':len(sample),
        'unique_heuristic_survivor_nl':m['source']['unique_survivor_nl'],'classifier_batches':len(m['cells']),
-       'detail_unresolved_rows':sum(r['detail_status']=='unresolved' for r in rows),'heuristic_reasons':dict(Counter(r['heuristic_reason'] for r in rows)),
-       'detail_reasons':dict(Counter(r['detail_reason'] for r in rows if r['heuristic_keep'])),'sample_seed':SEED}
+       'filter_subset_rows':len(population),'filter_subset_unique_nl':len({r['nl_sha256'] for r in population}),
+       'rows_classified_in_subset':sum(r['detail_status']=='resolved' for r in population),
+       'rows_classified_total':sum(r['detail_status']=='resolved' for r in rows),
+       'kept_total_collected':sum(r['detail_keep'] for r in rows),
+       'classified_outside_subset':sum(r['detail_status']=='resolved' and not r['in_filter_subset'] for r in rows),
+       'filter_subset_rule':'All rows whose surviving normalized-NL SHA256 is in the first '+str(prefix_batches*20)+' sorted distinct digests' if prefix_batches is not None else 'All heuristic survivors',
+       'hash_prefix_batches':prefix_batches,
+       'detail_unresolved_rows':sum(r['detail_status']=='unresolved' for r in population),'heuristic_reasons':dict(Counter(r['heuristic_reason'] for r in rows)),
+       'detail_reasons':dict(Counter(r['detail_reason'] for r in population)),'sample_seed':SEED}
     save(private/'funnel.json',funnel);print(json.dumps(funnel,indent=2),flush=True)
     return sample
 
@@ -165,7 +201,8 @@ def freeze_generation(run):
         for model in config['models']:
             cells.append({'id':f'{model}--handbook-v3--{row["task_id"]}--r0','model':model,'variant':'handbook-v3','task_id':row['task_id'],
                 'repeat':0,'demonstration_ids':[d['id'] for d in demos['demonstrations']],'messages':messages})
-    cells.sort(key=lambda c:ev.digest(c['id']))
+    priority={'deepseek-v4.1-flash':0,'qwen3.8-flash':1,'deepseek-v4-flash':2,'glm-5.3':3,'sol':4,'opus':5}
+    cells.sort(key=lambda c:(priority[c['model']],ev.digest(c['id'])))
     m={'schema_version':1,'phase':'NL-to-FQL dataset validity','created_at':now(),'config':config,'cells':cells,'repetitions':1,
        'scope':'Counts of nonempty grammar parsing, semantic acceptance and native symbolic interpretation only; no reference or execution comparison',
        'sources':{'handbook_sha256':ev.digest(system.encode()),'demos_sha256':ev.digest((ROOT/'prompts/fixed-fql-demos-v1.json').read_bytes()),
@@ -271,6 +308,7 @@ def export(run):
       'funnel':ev.load(private/'funnel.json'),'models':m['config']['models'],'settings':{'variant':'handbook-v3','sample_seed':SEED,'samples_per_model_task':1,
         'max_output_tokens':32768,'reasoning_effort':'HIGH; Qwen XHIGH','temperature':None,'top_p':None,'seed':None,
         'demonstration_policy':'Fixed first recovered target set a13,a02,a03,a19; old 21-task matrix used target-specific sets',
+        'generation_model_workers':m['config']['generation_model_workers'],
         'demonstration_ids':['a13','a02','a03','a19'],'filter_model':'deepseek-v4-flash','filter_effort':'low','filter_max_output_tokens':4096,'filter_batch_size':20,'max_attempts':8},
       'sources':{**m['sources'],**{'filter_'+k:v for k,v in fm['sources'].items()}},'budget_guards':{'total_usd':20,'anthropic_usd':8},
       'costs':{'classifier_usd':fcost,'generation_usd':gcost,'total_accounted_usd':total,'anthropic_usd':anthropic,'unknown_billing_reserve_usd':unknown,
@@ -283,20 +321,24 @@ def export(run):
       'summary':summary,'privacy':'Source dataset, original NL/YAML, complete message manifests and raw provider reasoning remain private; only IDs/hashes, model outputs and counts exported.',
       'operator_events':ev.load(private/'operator-events.json') if (private/'operator-events.json').exists() else [],
       'correctness_claim':False,'reference_comparison':False,'output_judge':False,'runtime_execution':False}
+    for source in (private/'generation/source').glob('*'):
+        target=run/'sources'/source.name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(source.read_bytes())
+    for source in [ROOT/'prompts/detail-filter-v1.txt',ROOT/'docs/dataset-detail-rubric.md']:
+        target=run/'sources'/source.name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(source.read_bytes())
     save(run/'manifest.json',manifest)
     print(json.dumps({'funnel':manifest['funnel'],'costs':manifest['costs'],'summary':summary},indent=2),flush=True)
 
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('command',choices=['prepare','filter','sample','generate','score','export','all']);p.add_argument('--run',type=Path,required=True)
-    p.add_argument('--source',type=Path);p.add_argument('--credentials-file',type=Path);p.add_argument('--workers',type=int,default=24);a=p.parse_args();private=a.run/'private'
+    p.add_argument('--hash-prefix-batches',type=int);p.add_argument('--source',type=Path);p.add_argument('--credentials-file',type=Path);p.add_argument('--workers',type=int,default=24);a=p.parse_args();private=a.run/'private'
     if a.credentials_file:credentials(a.credentials_file)
     if a.command=='all':
         assert all((REPO/p).exists() for p in ['_build/default/evaluation/native/effects.exe','_build/default/bin/query_interp.exe']),'Build native diagnostics before starting a funded run'
-    if a.command in ('prepare','all'):prepare(a.run,a.source or private/'source/withheld_ftdata-new.json')
+    if a.command in ('prepare','all'):prepare(a.run,a.source or private/'source/withheld_ftdata-new.json',a.hash_prefix_batches)
     if a.command in ('filter','all') and not (private/'generation/manifest.json').exists():
         m=ev.load(private/'filter/manifest.json');matrix(m,private/'filter',20,0,a.workers,classify_request)
-    if a.command in ('sample','all'):select(a.run)
+    if a.command in ('sample','all'):select(a.run,a.hash_prefix_batches)
     if a.command in ('generate','all'):
         m=freeze_generation(a.run);matrix(m,private/'generation',20,8,a.workers,transport.request)
     if a.command in ('score','all'):score(a.run,min(8,a.workers))

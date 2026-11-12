@@ -49,3 +49,17 @@ class DatasetValidityTests(unittest.TestCase):
         for text,status,parsed,semantic in cases:
             result=d.probe(text,binary)
             self.assertEqual((result['status'],result['parsed'],result['semantic_accepted']),(status,parsed,semantic))
+
+    def test_hash_prefix_population_ignores_completion_order_and_keeps_row_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run=Path(tmp)/'run';source=Path(tmp)/'source.json'
+            source.write_text(json.dumps([{'input':f'Install package pkg{i:03}'} for i in range(45)]))
+            catalog={m['id']:{'limit':{'output':32768},'cost':{'input':0.1,'output':0.2,'cache_read':0.01,'cache_write':0.1}} for m in d.ev.load(d.ROOT/'configs/models.json')['models'].values() if m['provider']=='agentfanclub'}
+            d.save(run/'private/router-catalog.json',catalog)
+            with patch('sys.stdout',new=io.StringIO()):m=d.prepare(run,source,1)
+            self.assertEqual(len(m['cells']),1)
+            c=m['cells'][0];d.save(run/'private/filter/responses'/(c['id']+'.json'),{'status':'completed','labels':[{'id':i,'keep':True,'reason':'concrete_self_contained'} for i in c['label_ids']]})
+            with patch('sys.stdout',new=io.StringIO()):sample=d.select(run,1)
+            self.assertEqual(len(sample),20)
+            self.assertTrue(all(int(r['classifier_id'][1:])<20 for r in sample))
+            self.assertEqual(d.ev.load(run/'private/funnel.json')['detail_unresolved_rows'],0)
