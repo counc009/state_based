@@ -1,0 +1,1 @@
+ca-certificates can't be translated: it isn't in the pinned KB package catalog. `install` only accepts these packages: bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy, and numpy in virtual environment.

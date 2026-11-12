@@ -1,0 +1,15 @@
+---
+- name: "Model claude-opus-5-5, Problem p09, Response 8"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure 'module load gcc' is at the end of foo's .bashrc
+    ansible.builtin.lineinfile:
+      path: /home/foo/.bashrc
+      line: module load gcc
+      insertafter: EOF
+      create: true
+      owner: foo
+      group: foo
+      mode: '0644'
+

@@ -1,0 +1,1 @@
+The request cannot be expressed in Astrogator FQL: "jenkins-git" is not a package in the pinned knowledge base, and FQL has no loop construct.

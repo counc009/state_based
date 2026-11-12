@@ -1,0 +1,3 @@
+FQL has no action for enabling a service at boot. The closest supported statement only starts the service now and does not make it persist across reboots:
+
+start apt-cacher-ng service

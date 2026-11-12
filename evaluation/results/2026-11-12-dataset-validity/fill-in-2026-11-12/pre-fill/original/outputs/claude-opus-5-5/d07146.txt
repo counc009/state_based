@@ -1,0 +1,6 @@
+This request can't be expressed in Astrogator FQL with the pinned KB:
+
+- **kubelet** is not in the service catalog. Only `ssh server`, `postfix`, and `apache server` are defined.
+- **Enabling** a service at boot is not a supported action. Only `start SERVICE service` and `stop SERVICE service` exist.
+
+Supporting it would require adding a kubelet service entry to the KB. The start would then be written as `start kubelet service`. Enabling it would also need a new action.

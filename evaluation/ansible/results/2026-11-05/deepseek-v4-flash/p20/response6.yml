@@ -1,0 +1,53 @@
+---
+- name: "Model deepseek-v4-flash, Problem p20, Response 6"
+  hosts: redhat,debian
+  become: true
+  tasks:
+  - name: Install SSH client and server packages
+    ansible.builtin.package:
+      name: "{{ ssh_packages }}"
+      state: present
+    vars:
+      ssh_packages: "{{ ['openssh-client', 'openssh-server'] if ansible_os_family
+        == 'Debian' else ['openssh-clients', 'openssh-server'] }}"
+    when: ansible_os_family in ['Debian', 'RedHat']
+  - name: Ensure SSH server is started and enabled
+    ansible.builtin.service:
+      name: "{{ 'sshd' if ansible_os_family == 'RedHat' else 'ssh' }}"
+      state: started
+      enabled: true
+    when: ansible_os_family in ['Debian', 'RedHat']
+  - name: Ensure user fizbaz exists
+    ansible.builtin.user:
+      name: fizbaz
+      state: present
+      create_home: true
+  - name: Ensure /.ssh directory exists
+    ansible.builtin.file:
+      path: /.ssh
+      state: directory
+      owner: fizbaz
+      group: fizbaz
+      mode: "0700"
+  - name: Generate SSH key for fizbaz
+    ansible.builtin.user:
+      name: fizbaz
+      generate_ssh_key: true
+      ssh_key_file: /.ssh/fizbaz_rsa
+      ssh_key_type: rsa
+      ssh_key_bits: 4096
+      ssh_key_comment: "fizbaz@{{ ansible_hostname }}"
+      ssh_key_passphrase: ""
+  - name: Ensure private key ownership and permissions
+    ansible.builtin.file:
+      path: /.ssh/fizbaz_rsa
+      owner: fizbaz
+      group: fizbaz
+      mode: "0600"
+  - name: Ensure public key ownership and permissions
+    ansible.builtin.file:
+      path: /.ssh/fizbaz_rsa.pub
+      owner: fizbaz
+      group: fizbaz
+      mode: "0644"
+

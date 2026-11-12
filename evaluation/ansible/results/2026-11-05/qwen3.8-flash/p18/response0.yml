@@ -1,0 +1,57 @@
+---
+- name: "Model qwen3.8-flash, Problem p18, Response 10"
+  hosts: redhat
+  become: true
+  vars:
+    httpd_package: httpd
+    httpd_service: httpd
+    httpd_document_root: /var/www/html
+    httpd_home_page: index.html
+    webdev_user: webdev
+  tasks:
+  - name: Apply RedHat-specific configuration
+    when: ansible_facts['os_family'] == 'RedHat'
+    block:
+    - name: Install Apache HTTP server
+      ansible.builtin.package:
+        name: "{{ httpd_package }}"
+        state: present
+    - name: Ensure Apache document root exists
+      ansible.builtin.file:
+        path: "{{ httpd_document_root }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+    - name: Ensure Apache home page exists
+      ansible.builtin.copy:
+        dest: "{{ httpd_document_root }}/{{ httpd_home_page }}"
+        content: |
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Apache Home Page</title>
+            </head>
+            <body>
+              <h1>Apache is installed and running</h1>
+            </body>
+          </html>
+        owner: root
+        group: root
+        mode: "0644"
+        force: false
+    - name: Start and enable Apache HTTP server
+      ansible.builtin.service:
+        name: "{{ httpd_service }}"
+        state: started
+        enabled: true
+    - name: Create webdev user
+      ansible.builtin.user:
+        name: "{{ webdev_user }}"
+        state: present
+        create_home: true
+        home: "/home/{{ webdev_user }}"
+        comment: "Web development user"
+        shell: /bin/bash
+        mode: "0700"
+

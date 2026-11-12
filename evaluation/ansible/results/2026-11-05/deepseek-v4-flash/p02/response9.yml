@@ -1,0 +1,12 @@
+---
+- name: "Model deepseek-v4-flash, Problem p02, Response 9"
+  hosts: all
+  become: true
+  tasks:
+  - name: Create profile script with LC_ALL set to C
+    ansible.builtin.copy:
+      dest: /etc/profile.d/lc_all.sh
+      content: |
+        export LC_ALL=C
+      mode: "0644"
+

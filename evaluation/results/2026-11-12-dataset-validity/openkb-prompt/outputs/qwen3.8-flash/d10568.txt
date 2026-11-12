@@ -1,0 +1,3 @@
+
+
+create file at "/etc/yum.repos.d/docker-ce.repo" with content="[docker-ce-stable]\nname=Docker CE Stable\nbaseurl=https://download.docker.com/linux/centos/$releasever/$basearch/stable\nenabled=1\ngpgcheck=1\ngpgkey=https://download.docker.com/linux/centos/gpg"

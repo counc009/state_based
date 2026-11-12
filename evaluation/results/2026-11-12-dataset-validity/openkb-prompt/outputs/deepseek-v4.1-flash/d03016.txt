@@ -1,0 +1,1 @@
+set policy for chain="OUTPUT" to accept

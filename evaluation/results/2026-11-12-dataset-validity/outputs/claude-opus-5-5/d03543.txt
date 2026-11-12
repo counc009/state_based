@@ -1,0 +1,1 @@
+This request can't be expressed in FQL with the current knowledge base. `install` only accepts packages from the catalog (bash, zsh, postfix, apache, apache server, ssh client, ssh server, numpy), and filebeat isn't listed. It would need to be added to the knowledge base first.

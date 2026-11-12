@@ -1,0 +1,1 @@
+WinRM configuration is not supported by the provided FQL.

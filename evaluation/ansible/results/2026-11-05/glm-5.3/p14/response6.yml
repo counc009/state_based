@@ -1,0 +1,16 @@
+---
+- name: "Model glm-5.3, Problem p14, Response 6"
+  hosts: debian
+  become: true
+  tasks:
+  - name: Check if system restart is required
+    ansible.builtin.stat:
+      path: /var/run/reboot-required
+    register: reboot_required_file
+  - name: Restart the system
+    ansible.builtin.reboot:
+      reboot_timeout: 600
+    when:
+    - ansible_facts['os_family'] == "Debian"
+    - reboot_required_file.stat.exists
+

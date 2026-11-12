@@ -1,0 +1,5 @@
+This request can't be expressed as a standalone Astrogator FQL query. FQL has no "check" or "verify" action. An existence test can only appear as a condition that guards an action:
+
+`if file "banco.php" exists then <ACTION>`
+
+Please tell me what should happen if banco.php exists (or doesn't), and give its full path, for example "/var/www/html/banco.php".

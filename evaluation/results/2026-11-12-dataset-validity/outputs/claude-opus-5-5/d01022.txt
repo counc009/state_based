@@ -1,0 +1,10 @@
+This request can't be expressed in Astrogator FQL with the pinned knowledge base:
+
+- **Sendmail is not in the service catalog.** The only services are ssh server, postfix, and apache server.
+- **FQL has no "start at boot" action.** It supports `start SERVICE service` and `stop SERVICE service`, but nothing that enables a service at boot.
+
+If you meant the system's mail server and Postfix is acceptable, the closest supported query is:
+
+start postfix service
+
+This starts Postfix but does not make it start at boot.

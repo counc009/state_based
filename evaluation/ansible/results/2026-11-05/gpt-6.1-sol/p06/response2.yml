@@ -1,0 +1,25 @@
+---
+- name: "Model gpt-6.1-sol, Problem p06, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Install Python 3.10 and virtual environment prerequisites
+    ansible.builtin.apt:
+      name:
+      - python3.10
+      - python3.10-venv
+      - python3-pip
+      state: present
+      update_cache: true
+  - name: Ensure the parent directory exists
+    ansible.builtin.file:
+      path: /user/home
+      state: directory
+      mode: "0755"
+  - name: Create the virtual environment and install numpy
+    ansible.builtin.pip:
+      name: numpy
+      state: present
+      virtualenv: /user/home/venv
+      virtualenv_command: /usr/bin/python3.10 -m venv
+

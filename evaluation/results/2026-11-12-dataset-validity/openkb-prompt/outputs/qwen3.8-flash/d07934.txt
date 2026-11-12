@@ -1,0 +1,3 @@
+
+
+delete directory at "/var/lib/etcd"

@@ -1,0 +1,3 @@
+
+
+if zscaler agent installed then set environment variable ZSCALER_AGENT_INSTALLED to "true" otherwise set environment variable ZSCALER_AGENT_INSTALLED to "false"

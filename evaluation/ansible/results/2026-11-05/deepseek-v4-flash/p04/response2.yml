@@ -1,0 +1,13 @@
+---
+- name: "Model deepseek-v4-flash, Problem p04, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Make directories listable/traversable and files readable by all, writable
+      only by owner
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      mode: 'u=rwX,go=rX'
+      recurse: true
+

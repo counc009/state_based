@@ -1,0 +1,1 @@
+Not expressible: Astrogator FQL has no action for updating or upgrading all packages. It supports only `install PACKAGE` and `uninstall PACKAGE`.

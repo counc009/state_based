@@ -1,0 +1,11 @@
+---
+- name: "Model qwen3.8-flash, Problem p10, Response 1"
+  hosts: all
+  become: true
+  tasks:
+  - name: Set password field to unusable for service user
+    ansible.builtin.user:
+      name: service
+      password: '!'
+      state: present
+

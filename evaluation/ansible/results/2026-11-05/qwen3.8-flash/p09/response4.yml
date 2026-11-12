@@ -1,0 +1,15 @@
+---
+- name: "Model qwen3.8-flash, Problem p09, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure foo's bashrc exists and line is present at the end
+    ansible.builtin.lineinfile:
+      path: /home/foo/.bashrc
+      line: module load gcc
+      state: present
+      insertafter: EOF
+      create: true
+      owner: foo
+      mode: "0644"
+

@@ -1,0 +1,1 @@
+(empty query — reading files is not expressible in Astrogator FQL)

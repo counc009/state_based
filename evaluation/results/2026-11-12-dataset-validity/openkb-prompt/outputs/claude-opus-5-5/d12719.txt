@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. The language has no action for refreshing the apt package index (`apt update`) or upgrading packages. The closest supported action, `install apt`, only ensures the apt package is present and doesn't update anything.

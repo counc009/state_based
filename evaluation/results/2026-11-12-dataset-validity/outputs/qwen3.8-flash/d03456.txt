@@ -1,0 +1,3 @@
+
+
+if k9s installed then true

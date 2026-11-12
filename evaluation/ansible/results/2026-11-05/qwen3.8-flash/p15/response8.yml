@@ -1,0 +1,29 @@
+---
+- name: "Model qwen3.8-flash, Problem p15, Response 8"
+  hosts: all
+  become: true
+  vars:
+    target_dir: /home/mydata/web
+  tasks:
+  - name: Check target directory status
+    ansible.builtin.stat:
+      path: "{{ target_dir }}"
+    register: target_stat
+  - name: Find all contents inside target directory
+    ansible.builtin.find:
+      paths: "{{ target_dir }}"
+      patterns: "*"
+      hidden: true
+      file_type: any
+    register: target_contents
+    when:
+    - target_stat.stat.exists | default(false)
+    - target_stat.stat.isdir | default(false)
+  - name: Delete all contents inside target directory
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: absent
+    loop: "{{ target_contents.files | default([]) }}"
+    loop_control:
+      label: "{{ item.path }}"
+

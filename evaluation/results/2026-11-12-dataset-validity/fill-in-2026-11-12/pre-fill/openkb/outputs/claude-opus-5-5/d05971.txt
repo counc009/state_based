@@ -1,0 +1,1 @@
+No Astrogator FQL action exists for cleaning package-manager caches, so `yum clean all` cannot be expressed as a query.

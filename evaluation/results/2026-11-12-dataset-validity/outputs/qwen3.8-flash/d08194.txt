@@ -1,0 +1,3 @@
+
+
+install rpy2 in virtual environment at "galaxy"

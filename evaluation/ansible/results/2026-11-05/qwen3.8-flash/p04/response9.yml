@@ -1,0 +1,51 @@
+---
+- name: "Model qwen3.8-flash, Problem p04, Response 9"
+  hosts: all
+  become: true
+  vars:
+    target_path: /srv/path
+  tasks:
+  - name: Check target path exists
+    ansible.builtin.stat:
+      path: "{{ target_path }}"
+    register: target_stat
+  - name: Assert target path is a directory
+    ansible.builtin.assert:
+      that:
+      - target_stat.stat.exists
+      - target_stat.stat.isdir
+      fail_msg: "{{ target_path }} must exist and be a directory"
+  - name: Set permissions for the target directory itself
+    ansible.builtin.file:
+      path: "{{ target_path }}"
+      state: directory
+      mode: "0755"
+  - name: Find directories under the target path
+    ansible.builtin.find:
+      paths: "{{ target_path }}"
+      file_type: directory
+      recurse: true
+    register: target_directories
+  - name: Find files under the target path
+    ansible.builtin.find:
+      paths: "{{ target_path }}"
+      file_type: file
+      recurse: true
+    register: target_files
+  - name: Set permissions for directories
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: directory
+      mode: "0755"
+    loop: "{{ target_directories.files | default([]) }}"
+    loop_control:
+      label: "{{ item.path }}"
+  - name: Set permissions for files
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: file
+      mode: "0644"
+    loop: "{{ target_files.files | default([]) }}"
+    loop_control:
+      label: "{{ item.path }}"
+

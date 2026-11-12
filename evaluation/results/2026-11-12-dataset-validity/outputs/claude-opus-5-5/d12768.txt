@@ -1,0 +1,6 @@
+This request can't be expressed in Astrogator FQL with the pinned knowledge base:
+
+- **No enable action exists.** FQL only supports `start SERVICE service` and `stop SERVICE service`. It cannot enable a service at boot.
+- **Docker and kubelet aren't in the catalog.** The only services the knowledge base defines are `ssh server`, `postfix`, and `apache server`. So even `start docker service` would be invalid.
+
+To support this, add docker and kubelet service descriptions to the knowledge base and an enable-service action to the language.

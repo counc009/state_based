@@ -1,0 +1,1 @@
+The request cannot be expressed in Astrogator FQL: Node.js is not in the knowledge-base package catalog, and Homebrew is not a supported package manager (only system package managers apt and dnf are available via the OS context).

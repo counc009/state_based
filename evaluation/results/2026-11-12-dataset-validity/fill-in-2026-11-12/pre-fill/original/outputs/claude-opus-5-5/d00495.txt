@@ -1,0 +1,10 @@
+This request can't be expressed in Astrogator FQL with the pinned knowledge base:
+
+- **MySQL client is not in the package catalog.** `install` only accepts catalog descriptions: bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy, or numpy in virtual environment.
+- **There is no syntax for choosing a package manager such as yum.** The manager is resolved from the knowledge base and the OS context. For example, RedHat resolves to dnf.
+
+To translate it, a `mysql client` package entry would need to be added to the knowledge base. With that entry, the query would be:
+
+```
+if os is RedHat based then install mysql client
+```

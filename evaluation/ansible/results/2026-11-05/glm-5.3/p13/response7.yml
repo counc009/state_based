@@ -1,0 +1,18 @@
+---
+- name: "Model glm-5.3, Problem p13, Response 7"
+  hosts: all
+  become: true
+  tasks:
+  - name: Check if /etc/file.txt exists
+    ansible.builtin.stat:
+      path: /etc/file.txt
+    register: file_status
+  - name: Create /etc/file.txt with content if it does not exist
+    ansible.builtin.copy:
+      dest: /etc/file.txt
+      content: "beginning"
+      owner: root
+      group: root
+      mode: '0644'
+    when: not file_status.stat.exists
+

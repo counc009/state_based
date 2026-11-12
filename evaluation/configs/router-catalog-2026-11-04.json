@@ -1,0 +1,104 @@
+{
+  "deepseek-v4-flash": {
+    "id": "deepseek-v4-flash",
+    "name": "DeepSeek V4 Flash",
+    "attachment": false,
+    "reasoning": true,
+    "tool_call": true,
+    "limit": {
+      "context": 511994,
+      "output": 128000
+    },
+    "cost": {
+      "input": 0.161857,
+      "output": 0.37146,
+      "cache_read": 0.161857,
+      "cache_write": 0
+    },
+    "modalities": {
+      "input": [
+        "text"
+      ],
+      "output": [
+        "text"
+      ]
+    }
+  },
+  "deepseek-v4.1-flash": {
+    "id": "deepseek-v4.1-flash",
+    "name": "DeepSeek V4.1 Flash",
+    "attachment": true,
+    "reasoning": true,
+    "tool_call": true,
+    "limit": {
+      "context": 1048570,
+      "output": 384000
+    },
+    "cost": {
+      "input": 0.256856,
+      "output": 0.930653,
+      "cache_read": 0.256856,
+      "cache_write": 0
+    },
+    "modalities": {
+      "input": [
+        "text",
+        "image"
+      ],
+      "output": [
+        "text"
+      ]
+    }
+  },
+  "glm-5.3": {
+    "id": "glm-5.3",
+    "name": "GLM-5.3",
+    "attachment": false,
+    "reasoning": true,
+    "tool_call": true,
+    "limit": {
+      "context": 524282,
+      "output": 131072
+    },
+    "cost": {
+      "input": 1.321413,
+      "output": 4.248318,
+      "cache_read": 1.321413,
+      "cache_write": 0
+    },
+    "modalities": {
+      "input": [
+        "text"
+      ],
+      "output": [
+        "text"
+      ]
+    }
+  },
+  "qwen3.8-flash": {
+    "id": "qwen3.8-flash",
+    "name": "Qwen3.8 Flash",
+    "attachment": true,
+    "reasoning": false,
+    "tool_call": true,
+    "limit": {
+      "context": 262138,
+      "output": 131072
+    },
+    "cost": {
+      "input": 0.142798,
+      "output": 0.452902,
+      "cache_read": 0.142798,
+      "cache_write": 0
+    },
+    "modalities": {
+      "input": [
+        "text",
+        "image"
+      ],
+      "output": [
+        "text"
+      ]
+    }
+  }
+}

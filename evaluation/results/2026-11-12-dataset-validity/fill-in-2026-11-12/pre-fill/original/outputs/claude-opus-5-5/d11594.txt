@@ -1,0 +1,3 @@
+This can't be expressed as a valid query. AWS CLI isn't in the pinned knowledge-base package catalog, so `install aws cli` wouldn't resolve. FQL also has no action to unzip or run an installer, so the official bundle can't be installed either. The closest supported step is downloading the bundle:
+
+download file from "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" to "/tmp/awscliv2.zip"

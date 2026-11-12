@@ -1,0 +1,1 @@
+if os is RedHat based then download file from ?url to "/etc/yum.repos.d/zabbix.repo"

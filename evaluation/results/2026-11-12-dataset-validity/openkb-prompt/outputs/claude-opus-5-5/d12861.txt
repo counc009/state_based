@@ -1,0 +1,1 @@
+This request cannot be expressed in Astrogator FQL. The language has no action for adding a package repository. The only repository actions clone git or GitHub repositories, and those do not register a yum/dnf repository. The `if os is RedHat based then ...` condition is available, but there is no valid statement to put inside it.

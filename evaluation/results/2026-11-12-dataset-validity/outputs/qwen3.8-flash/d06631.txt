@@ -1,0 +1,3 @@
+
+
+start VNC socket service

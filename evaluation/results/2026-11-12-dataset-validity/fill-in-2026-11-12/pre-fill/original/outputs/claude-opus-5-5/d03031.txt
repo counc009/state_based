@@ -1,0 +1,16 @@
+This request can't be expressed with the pinned example KB. The package catalog has no entries for Jenkins or Java. It only covers bash, zsh, postfix, apache/apache server, ssh client, ssh server, and numpy. Writing `install jenkins; install java` would use package descriptions the KB can't resolve.
+
+To support this, the KB would need entries such as:
+- jenkins: package name and repository for each OS context
+- java: for example, apt `default-jdk` or `openjdk-17-jdk` on the Debian side, and dnf `java-17-openjdk` on the RedHat side
+
+With those entries added, the query would be:
+
+`install jenkins; install java`
+
+Separately, my earlier answers left literal paths and names unquoted, which the lexical rules forbid. Corrected:
+
+- `set file permissions in "/srv/path" with read=all, write=owner, list directory=all`
+- `delete directory at "/home/mydata/web"`
+- `delete files in "/home/mydata/web"`
+- `if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file`

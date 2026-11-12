@@ -1,0 +1,7 @@
+memcached isn't in the pinned knowledge-base package catalog, so there is no valid FQL query for this request. The catalog supports only bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy, and numpy in a virtual environment.
+
+The syntactically closest form would be:
+
+install memcached
+
+That query would not resolve unless a memcached entry is added to the knowledge base.

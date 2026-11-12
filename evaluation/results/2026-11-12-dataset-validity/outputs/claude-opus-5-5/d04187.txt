@@ -1,0 +1,5 @@
+fail2ban is not in the pinned knowledge-base package catalog. The catalog only supports bash, zsh, postfix, apache/apache server, ssh client, ssh server, and numpy, so `install fail2ban` would not resolve and no valid Astrogator FQL query exists for this request.
+
+To support it, add a fail2ban entry to the KB (e.g., system package manager, same name). Then the query would be:
+
+install fail2ban

@@ -1,0 +1,11 @@
+---
+- name: "Model glm-5.3, Problem p13, Response 1"
+  hosts: all
+  become: true
+  tasks:
+  - name: Create /etc/file.txt with contents 'beginning' if not present
+    ansible.builtin.copy:
+      dest: /etc/file.txt
+      content: "beginning"
+      force: false
+

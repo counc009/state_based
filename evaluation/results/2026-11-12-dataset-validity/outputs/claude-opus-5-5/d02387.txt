@@ -1,0 +1,5 @@
+This can't be expressed in Astrogator FQL. The language has no action for extracting or unpacking archives such as `.tgz` files. The closest supported action would only copy the archive without unpacking it:
+
+```
+copy file from "wordpress.tgz" to "/tmp/wordpress.tgz"
+```

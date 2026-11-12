@@ -1,0 +1,1 @@
+No Astrogator FQL query can express this. The language has no action for enabling a package-manager repository: no repository-enable action, no dnf configuration action, and no way to run arbitrary commands.

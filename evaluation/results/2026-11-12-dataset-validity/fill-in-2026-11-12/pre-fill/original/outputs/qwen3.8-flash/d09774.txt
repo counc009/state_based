@@ -1,0 +1,3 @@
+
+
+install monitoror; create user with name="monitoror"

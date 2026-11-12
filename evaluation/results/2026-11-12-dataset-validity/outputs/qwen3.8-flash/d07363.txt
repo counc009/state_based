@@ -1,0 +1,3 @@
+
+
+write "Send" to "Network security: LAN Manager authentication level" with position=overwrite

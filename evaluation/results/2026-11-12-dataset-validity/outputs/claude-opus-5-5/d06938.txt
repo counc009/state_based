@@ -1,0 +1,5 @@
+The pinned knowledge base has no Elasticsearch service, so this request can't be translated into a valid query. The only supported services are `ssh server`, `postfix`, and `apache server`.
+
+If the knowledge base gains an `elasticsearch` service entry, the query would be:
+
+start elasticsearch service

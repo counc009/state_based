@@ -1,0 +1,14 @@
+Translate the request to Astrogator FQL, not Ansible, SQL, or pseudocode.
+Return only the query. Preserve intent, paths, contents, conditions and OS names.
+Syntax: action description [separator value] [with key=value, key=value].
+Actions: create, delete, copy, move, install, uninstall, set, write, clone,
+download, enable, disable, start, stop, reboot. Separators: at, for, from,
+in, into, to, via, with. Use semicolons between actions; periods between
+sentences. Conditions: if os is Debian then ACTION; if file "PATH" not exists
+then ACTION. A conditional scopes the remaining semicolon-separated actions
+in its sentence. Use a period to end its scope. Quote values containing dots.
+File transfers use from remote "PATH" to remote "PATH"; use controller instead of remote only when explicitly requested. Bare file paths mean remote.
+File content uses with content="TEXT". User creation uses with name=NAME.
+Permission subjects: owner, group, other, all. Keep high-level descriptions
+such as apache server, numpy, zsh configuration file rather than guessing their
+OS-specific packages or paths. Do not invent additional requirements.

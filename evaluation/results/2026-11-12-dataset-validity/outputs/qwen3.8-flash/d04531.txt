@@ -1,0 +1,3 @@
+
+
+copy file from ?scaleio_client_for_centos to "/tmp"

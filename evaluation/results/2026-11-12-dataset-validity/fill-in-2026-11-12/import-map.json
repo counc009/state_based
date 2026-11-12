@@ -1,0 +1,1649 @@
+[
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d13102--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "8e70a9459c8d8c0b366146267588fc2075ce320233f6817a1943acee4063ae9d",
+    "cost_usd": 0.00273459632,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d08226--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "a701a8a29ab59da198b3bfe7ac214be14b07c82a172788d096cb1a9cc36f1697",
+    "cost_usd": 0.014261898864,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d12861--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "dd86ddb7ce9ddc4020ac11c8276f5a9e0c3d0a1074b7d42f26d8b051b972bbde",
+    "cost_usd": 0.014271448426999999,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d12147--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "7f8b3341ad2151f4a8dfc246693643f25d3f9993d8a769c0ddd6235b5b181624",
+    "cost_usd": 0.001805413003,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d04523--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "ebb954c7d497d7f68fd4200a0b09ae9714eb8662e15aef30b04cc836e7a65f71",
+    "cost_usd": 0.002174272783,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d09397--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "50d5e5abf576637a2b7936f970f30bd857e0035891de3a46dff3fdc981e9e36f",
+    "cost_usd": 0.002923717206,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d09265--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "0055ee20506a3ff8043fa73b929a71707fee2be69a4bfdb40c21c850d6c13b57",
+    "cost_usd": 0.014264326719000001,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d01261--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "2f7e4fa00ada845d663fee3e7bad8d0021a915bbb3380bfd9e85ffe88d37594b",
+    "cost_usd": 0.014262222578,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d11275--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "2c1ab70af3b8bd563e456896476cd657b846b13c4ce0a9592974ecacc86299b5",
+    "cost_usd": 0.001723519438,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d09388--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "dcf4496087a57ce95295257af2ef6f315c0b44613d85140af5348cc0f28c9bda",
+    "cost_usd": 0.014262870006000001,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d00825--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "2ee0985ab169edbebbb62966b929921172b0722261f5fa520670c8bdb40e457c",
+    "cost_usd": 0.014260280294,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d12552--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "2e90b8eceff63a8437a7d7c53ce8d6ff30cc2d6a546baccfea9db60f05e50708",
+    "cost_usd": 0.002375927817,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d09614--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "1a0ef28279f8f989b166c846f9bce3fb231f88cf46281697c17e60c5aed536ac",
+    "cost_usd": 0.01426157515,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d12825--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "b8efacf69aa4428af5fcede142211bf288222957c108d5df23f2c8fa55e3371f",
+    "cost_usd": 0.014260604008,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d12605--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "8647b6810079566fe1e41be7863c8d8d2ae4bfe1447d6afe6e8d6a48b77b1f18",
+    "cost_usd": 0.014259147295,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d09997--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "4dd44504166aba1da54a948a50b985737343ef1f8752bb6deb6cd953850f80b4",
+    "cost_usd": 0.014260280294,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d08569--r0",
+    "source_attempt": 1,
+    "target_attempt": 8,
+    "source_receipt_sha256": "19148332b3b7a664d638027418a700191d2ef607bd5afe4aceb2a3c0240f999e",
+    "cost_usd": 0.001604386778,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d07181--r0",
+    "source_attempt": 1,
+    "target_attempt": 7,
+    "source_receipt_sha256": "a4c9451ce9af9847b9966e496189c5951e92341777cab2271ca74df3668efd10",
+    "cost_usd": 0.014262060721,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d09904--r0",
+    "source_attempt": 1,
+    "target_attempt": 7,
+    "source_receipt_sha256": "b6ed5c883a1a7451fe926fab89ee980aa07d75b6900b812864dc2786d063e811",
+    "cost_usd": 0.014262870006000001,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d03456--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "101da989a4570d667478f316e2c6d20b8907cd95b4da6b70f5425e28bf93fd48",
+    "cost_usd": 0.014262708149,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d06303--r0",
+    "source_attempt": 1,
+    "target_attempt": 8,
+    "source_receipt_sha256": "d02adc6ff5782380715b320d14a399956b1ad128fabccee9ef2cc4ee440d10c3",
+    "cost_usd": 0.014269344286,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d12374--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "1ab1d1f7c578f1b5fbcc55178a386308c1108f07386580cb3c81c1d654ef70cf",
+    "cost_usd": 0.014268696858,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d06907--r0",
+    "source_attempt": 1,
+    "target_attempt": 8,
+    "source_receipt_sha256": "698eef0a33a2b1be404557d0c303671bdf998ed3f5d0519537dd6dfba391c740",
+    "cost_usd": 0.014264164862000002,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d04237--r0",
+    "source_attempt": 1,
+    "target_attempt": 8,
+    "source_receipt_sha256": "5e7874ed31f1a8885dab88de5e5c800f300da4f740983a7d4f34c676f47091ab",
+    "cost_usd": 0.014263031863,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d07473--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "aa8497c2300f3c7867bcf43bee48122482a806501be5cb7e736a6502d352729c",
+    "cost_usd": 0.014264003005000001,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d03016--r0",
+    "source_attempt": 1,
+    "target_attempt": 8,
+    "source_receipt_sha256": "3a33c9c2a81e03bddcf2f103406ff73403a4d51ee607e9ca402380556d53659b",
+    "cost_usd": 0.014263517434,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d02477--r0",
+    "source_attempt": 1,
+    "target_attempt": 8,
+    "source_receipt_sha256": "fd8e43ef240fe6eba79c6a0db387475c7061e18ec96a2c990393c2e1808e973b",
+    "cost_usd": 0.0025564387580000003,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d08736--r0",
+    "source_attempt": 1,
+    "target_attempt": 8,
+    "source_receipt_sha256": "0feeb016bc35c464f4d5dc141a4e13dfbcc38c4919455447fb6e9b2f5a2c5901",
+    "cost_usd": 0.0020299367000000002,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d00006--r0",
+    "source_attempt": 1,
+    "target_attempt": 7,
+    "source_receipt_sha256": "dcfaa7f6240d5229b3aa29c39d64146dceb9e3b04857efa54525beac5552d9a7",
+    "cost_usd": 0.00182823392,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d06903--r0",
+    "source_attempt": 1,
+    "target_attempt": 8,
+    "source_receipt_sha256": "4f2b2229b44ba8e6594b236a0ad145c6ca4f5322627b11c523312973b29d7207",
+    "cost_usd": 0.014262870006000001,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d07589--r0",
+    "source_attempt": 1,
+    "target_attempt": 7,
+    "source_receipt_sha256": "3c600c10f0c4b828b2428a8c106bccbaa7358c1e7e9fb8c702292ff4757dc246",
+    "cost_usd": 0.001710804814,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d02155--r0",
+    "source_attempt": 1,
+    "target_attempt": 9,
+    "source_receipt_sha256": "38c60bc9a50bf3440f9a850f8521911cbe3fc7a8a30021626c96fe4f7d143445",
+    "cost_usd": 0.0030453464830000002,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d13124--r0",
+    "source_attempt": 1,
+    "target_attempt": 6,
+    "source_receipt_sha256": "b0c39278777b686ae7266641a054b8ea110269fc8ef7b3ef444e9b5e2612b490",
+    "cost_usd": 0.014257852439000001,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d07513--r0",
+    "source_attempt": 1,
+    "target_attempt": 7,
+    "source_receipt_sha256": "7314aa01191d794e0d1940d52b71a2d7a5c3c35eae393b86aa154e4506e8adc0",
+    "cost_usd": 0.014264164862000002,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d03580--r0",
+    "source_attempt": 1,
+    "target_attempt": 7,
+    "source_receipt_sha256": "d7e917fb4218ed80643159518fbbf8284ba5649873c9400da870ceae206eb341",
+    "cost_usd": 0.001053044646,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d11668--r0",
+    "source_attempt": 1,
+    "target_attempt": 6,
+    "source_receipt_sha256": "f9c0349d2cedcd7f2150b837d16609d69597b20762f264bde1318f7434a65ffb",
+    "cost_usd": 0.014264974147,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d12719--r0",
+    "source_attempt": 1,
+    "target_attempt": 5,
+    "source_receipt_sha256": "dfb5986a48b0853ff948ac9e74f7a534608a8fb8061230422f454497870aea9e",
+    "cost_usd": 0.0034256551580000003,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d03385--r0",
+    "source_attempt": 1,
+    "target_attempt": 6,
+    "source_receipt_sha256": "523efba9fa97295590b9c3fe0b3262927334a4e2b45b4bf0c8448c279579a6d6",
+    "cost_usd": 0.014262060721,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d10304--r0",
+    "source_attempt": 1,
+    "target_attempt": 6,
+    "source_receipt_sha256": "2287fb620a3ecd5358a0d4e2ec7288c2b8bcf3cb754bedd8ca47cfae65493ff8",
+    "cost_usd": 0.00228401534,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d07181--r0",
+    "source_attempt": 2,
+    "target_attempt": 8,
+    "source_receipt_sha256": "10e3bb48a7997f2cbe79f805e9d0d7f15beb389795d86a381fe7b5c6b464dc44",
+    "cost_usd": 0.014262060721,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d00825--r0",
+    "source_attempt": 2,
+    "target_attempt": 10,
+    "source_receipt_sha256": "23dc7acd93ecbb09986fcdfaa91c8876a8bc977ec7b9bffece7ff1b871a15941",
+    "cost_usd": 0.006688997623,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d03385--r0",
+    "source_attempt": 2,
+    "target_attempt": 7,
+    "source_receipt_sha256": "7a7a898459b6df7454b05c362df56c270e9c4d668a058bd7a5911a662f1927fa",
+    "cost_usd": 0.0027440446770000005,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d07513--r0",
+    "source_attempt": 2,
+    "target_attempt": 8,
+    "source_receipt_sha256": "25a6026a5990311d7b7251a25f2684d1c47cb098c2676a8e83972d78a280590c",
+    "cost_usd": 0.007672318608,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d04237--r0",
+    "source_attempt": 2,
+    "target_attempt": 9,
+    "source_receipt_sha256": "79a62e29d1a63edf0827b22a885ddc6fd0b06b63674bebc23041847c9ec2cc82",
+    "cost_usd": 0.003301558391,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d06907--r0",
+    "source_attempt": 2,
+    "target_attempt": 9,
+    "source_receipt_sha256": "e9e3ecef1340d314f8e044a08c7fd854c9e35061cf9da1615d7ed554ec34a659",
+    "cost_usd": 0.014264164862000002,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d13124--r0",
+    "source_attempt": 2,
+    "target_attempt": 7,
+    "source_receipt_sha256": "5b6fd3c3c3842508c62ea847a63f8ca90224e75980615495878c062185fab703",
+    "cost_usd": 0.000610893135,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d12861--r0",
+    "source_attempt": 2,
+    "target_attempt": 10,
+    "source_receipt_sha256": "ce2eadd502642cf5e94f7fb3b4a6fb8343b8896ab13333ffc46f30c82153bb42",
+    "cost_usd": 0.0033292455260000003,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d09388--r0",
+    "source_attempt": 2,
+    "target_attempt": 10,
+    "source_receipt_sha256": "015767447cdfd83e75456908d4fb197c4b4d686766758bdd1b3c527f079d7dda",
+    "cost_usd": 0.0031609369080000003,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d12374--r0",
+    "source_attempt": 2,
+    "target_attempt": 10,
+    "source_receipt_sha256": "96275324197701da3ea19618e1c7442b90c03c398fcbe334a2344628f0fd7044",
+    "cost_usd": 0.014268696858,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d09265--r0",
+    "source_attempt": 2,
+    "target_attempt": 10,
+    "source_receipt_sha256": "04d42aa868261779704579187482bfe4af52a40964be3b3b72fbbd58168aa5b1",
+    "cost_usd": 0.0077607738340000005,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d01261--r0",
+    "source_attempt": 2,
+    "target_attempt": 10,
+    "source_receipt_sha256": "6b4bf22e14a5bf34f3e6ede17702df5a9650ec304edcf47af852e0a1b89f8682",
+    "cost_usd": 0.003947622823,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d09997--r0",
+    "source_attempt": 2,
+    "target_attempt": 10,
+    "source_receipt_sha256": "90b9e5e8a888f2839afc07f879295f1a7ecb61e48ae2e255dc76754960fc7996",
+    "cost_usd": 0.004972319106,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d06303--r0",
+    "source_attempt": 2,
+    "target_attempt": 9,
+    "source_receipt_sha256": "9b80889a5ea6cafef493941f4855325fff14d3825a4f45534c7b668f3e9a5b77",
+    "cost_usd": 0.004895530489000001,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d03016--r0",
+    "source_attempt": 2,
+    "target_attempt": 9,
+    "source_receipt_sha256": "ba3750549d2c1934694db915c3701020b781af1f7b1f84d01138b34c47296a3a",
+    "cost_usd": 0.001493872174,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d09614--r0",
+    "source_attempt": 2,
+    "target_attempt": 10,
+    "source_receipt_sha256": "5b2b51f81241b19de88215179bbaf4da811a1a0504cd58ee0878dbc7c622cd6c",
+    "cost_usd": 0.006525088271,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d07473--r0",
+    "source_attempt": 2,
+    "target_attempt": 10,
+    "source_receipt_sha256": "2fa678d0313a5611c920fd09eb153304aee0041d3e0e9b513e3730bff085ffbd",
+    "cost_usd": 0.005377972045,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d09904--r0",
+    "source_attempt": 2,
+    "target_attempt": 8,
+    "source_receipt_sha256": "08667055c618521b9a06ff9fb5d4f690bc04ca1e7faec91ac1fbbf9e371bb88d",
+    "cost_usd": 0.0036130992200000002,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d08226--r0",
+    "source_attempt": 2,
+    "target_attempt": 10,
+    "source_receipt_sha256": "a788f7dda5f7337df7d1234d5a792286a9b0fdc545c3915e715202ee1822ca33",
+    "cost_usd": 0.007223042991999999,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d06903--r0",
+    "source_attempt": 2,
+    "target_attempt": 9,
+    "source_receipt_sha256": "6e97a1014956041c8010a4f6de570761d48265514e1ff0a4421e29067d1ffd19",
+    "cost_usd": 0.001477270585,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d12605--r0",
+    "source_attempt": 2,
+    "target_attempt": 10,
+    "source_receipt_sha256": "1068f8e9ca0f9d17204597c2017cac18749525c3d7504a3bd501a2a1d2fb04ec",
+    "cost_usd": 0.004085272626,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d12825--r0",
+    "source_attempt": 2,
+    "target_attempt": 10,
+    "source_receipt_sha256": "d3001373cf4d43c4aff67ca6f028cefd7862941a3ae6f501ee0ba5e50b7523e9",
+    "cost_usd": 0.002439171509,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d03456--r0",
+    "source_attempt": 2,
+    "target_attempt": 10,
+    "source_receipt_sha256": "fc7b4e13db5af05c8fec2bea4fcfd2d87b6bd9eb6876794942cc4bc2cbe6f3a4",
+    "cost_usd": 0.014262708149,
+    "status": "transport_error"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d11668--r0",
+    "source_attempt": 2,
+    "target_attempt": 7,
+    "source_receipt_sha256": "6071eb7c205bffb48bea8d9c83e66fb74a12a2a7368bc49872457befaa2998c7",
+    "cost_usd": 0.001318285705,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d12374--r0",
+    "source_attempt": 3,
+    "target_attempt": 11,
+    "source_receipt_sha256": "105910667266aeee9881871f2e96d55d4d1f869f2c6a466aa0af4afad8c64449",
+    "cost_usd": 0.005006692521,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d03456--r0",
+    "source_attempt": 3,
+    "target_attempt": 11,
+    "source_receipt_sha256": "0765e589ca4b2158bd9c883b68c3605f8271eecd82c5525d75c810df840a75e8",
+    "cost_usd": 0.005466750985,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d07181--r0",
+    "source_attempt": 3,
+    "target_attempt": 9,
+    "source_receipt_sha256": "0aa708fc490f0684bc14f1b5cc9d831721a04691de6b6deacafda0c5fd8fec0e",
+    "cost_usd": 0.0040029226170000005,
+    "status": "completed"
+  },
+  {
+    "run": "original",
+    "cell_id": "deepseek-v4-flash--handbook-v3--d06907--r0",
+    "source_attempt": 3,
+    "target_attempt": 10,
+    "source_receipt_sha256": "b8d0bb8d510be4510b3473a50f659bf987e7d81ef493e67a20897a3bda190572",
+    "cost_usd": 0.009149986488,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d07243--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "3691a3fade0f3b8fceb11ac991360b609e3d9157ab98ff7a6f231123919cf8ab",
+    "cost_usd": 0.0157,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d13197--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "8abd17b37b7134c67b61d1c378e69aade9d1a4b38be126815fa1abd299ba3289",
+    "cost_usd": 0.017216,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d06499--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "9ad44b9064305844d4cd76982396ecfd15baf57ae1f0e96c39b701354139876a",
+    "cost_usd": 0.02772,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d07363--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "a34c07c065a614b2a18eb9d537b94e16c5ba6b0355c78db2ac0b6915e8550458",
+    "cost_usd": 0.019172,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d07513--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "fd085440b28301d0f78a1d6b022cf15814bf3f1c7333936d64aac9479f9d2ec0",
+    "cost_usd": 0.024984,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d01543--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "59bc36fd4ad18454030c7d3b21cfe1c315d2617b19f62154357bf0c5f6766bc9",
+    "cost_usd": 0.019496,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d04559--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "cb6500aca86eca272ab0c9d8b44e1d6e84a6aa2b63599b0b0febb2cd6253877c",
+    "cost_usd": 0.01532,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d12861--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "8542c6e178a9904555343b668278c3d0e761704e27d09f1f101dd7901b3ccb6b",
+    "cost_usd": 0.019388,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d01016--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "5b7515d83be639fa18a35cbdcac6b4a8a1d53b3b90f0840dbd2e25a02f06d449",
+    "cost_usd": 0.014724,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d12768--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "6e8b6500432ce7aa79656f9f1bbc368a80d5c21a6872effc7a4584220ddfddc7",
+    "cost_usd": 0.0176,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d10795--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "9c15510f38256132dd199c0cefceffe9e399e336e0f81f34da48dd5467ad0f25",
+    "cost_usd": 0.014644,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d02769--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "af4f69edd58c5722e51e6d79fe5b3df0711699248b59919ba5822d8123ef5ad6",
+    "cost_usd": 0.014916,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d04366--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "c1b0203dc869b865018727efd43e39c6fe3e9db6cbf66d33b067145858bf6e0e",
+    "cost_usd": 0.015996,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d09571--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "7d1a359bc7e3333aa82ef81a9e3afa4c761e9586b8eb056c886138c2e4ec3b2b",
+    "cost_usd": 0.01446,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d10081--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "9ffb626f3d7120bc8dcf79d8e7baf10944b213981a5e7edb2869a6310bf5dd5a",
+    "cost_usd": 0.014328,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d03003--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "cbf6fcbbb2fcb77065913aa7c1c4ea697bc79f80d625311c5ae439061bdeff89",
+    "cost_usd": 0.021216,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d02297--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "2c472d78ec60099949a8d7622793b21316a19d92be3da6e8d2021e5950bad23f",
+    "cost_usd": 0.016524,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d01059--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "53693f50c99f34cd7e6cbbf821798b74a85b015c25b1cacb7ed97005249ee0e2",
+    "cost_usd": 0.014292,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d00802--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "51d10663c3be7b76668ab32f8f38458f52bdb799b16ea2aff923c9d6acf410e0",
+    "cost_usd": 0.013216,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d02546--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "873056b70265ccf1a7efd80e282fe64d8237cd5a43bc1228e982e98e6227c4aa",
+    "cost_usd": 0.015904,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d06303--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "14de0646c70525daffe97416dedfe9cde87831f67e1a338f852033c3b4207510",
+    "cost_usd": 0.020612,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d10787--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "6e978bb7081f879ed4353a4314284abcb29562f8b8b49aac236d9c483bfbdff1",
+    "cost_usd": 0.01408,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d04822--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "b4b6a948a874694856669e06147d8ca31d883f3806e5d30226fae6eff2561b9d",
+    "cost_usd": 0.018808,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d08384--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "3b9a61d528ebb60db4e426b71710ccb3de232e1bf6b7ed35697c22f36153dd87",
+    "cost_usd": 0.014432,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d11860--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "4cb6402a1e63c6d83ea1654be759024dcfe33200ab465a074efbb57f795cd604",
+    "cost_usd": 0.014436,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d12147--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "da17a3ebcc3c046cd49771df44c34bf3c9709f6f9264a045ab6f28434e41a91d",
+    "cost_usd": 0.020792,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d05028--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "0a85a23b5702350de4a7819569bf45a3966467f8a161a85e6877cac7c8ceb4da",
+    "cost_usd": 0.015044,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d08691--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "98c0cf9a2905a1b012aa8359aa8c5cbf645baa12939bfa35979ab8f2fb48c8dd",
+    "cost_usd": 0.025024,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d04636--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "af46c681438a58ec85f1bc2b23370e9ff80a607972d29fdfae0d6a654deedf8e",
+    "cost_usd": 0.028484,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d12788--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "f48483e903b1a3984e75a0102016a301923fec6c700f2d69638e6765d04d0f36",
+    "cost_usd": 0.016724,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d12374--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "49a996fb127e501d8cdcc7d8916a1bcc7c0ef083bac4c57d933e6c31bf9b6be7",
+    "cost_usd": 0.019932,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d08732--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "e661c7ffbea645e7514286d55e88a9160af254382160625573af72268d6cd0f8",
+    "cost_usd": 0.02088,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d04809--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "07705aa8463e32652f1f0769d858f2b8b76d116f4353b856ffe0f1dc73f3f284",
+    "cost_usd": 0.0145,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d12274--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "22c24e6faf905b2caba0f91a7313a575862f7697362ff5870acd64ba6fe35324",
+    "cost_usd": 0.015728,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d04056--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "f432e7592d5187bbc33c7afd8e3133e4c478ebe43bd5cc522f74a01bdd5dc18b",
+    "cost_usd": 0.01774,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d09200--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "d65ac29d000c92a01e9687fd0aecc264bd538953d1806b0c80eaf2dff176cc80",
+    "cost_usd": 0.017172,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d11963--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "d7a01b237acf8e31a8e5d5d3692a94fec2f1a89b391e44e88c47d7c1f1fbfbf4",
+    "cost_usd": 0.014776,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d11233--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "ae5b40f99066a9fbd1f2ceee42f33d81f7ed3eff82467f48ee57a6487a62de76",
+    "cost_usd": 0.015324,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d11275--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "edf62f04704d48bc72456de4ceb13bea7cd841aa354f82063acec373755d5548",
+    "cost_usd": 0.03186,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d12955--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "e9da8769738e11cb5af8840c5a671a6cb0d39b7a8102ce812c3190099c42b5df",
+    "cost_usd": 0.015572,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d07261--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "86dd7a7b2a71f2390dc587c08058062ebaaf3f430a75f68bf50435f6961b9131",
+    "cost_usd": 0.018332,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d04278--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "1efeb786ab3e1c06ad1c8cff2b60312b98ac42abe82cba713b765658bc2c2487",
+    "cost_usd": 0.014956,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d02919--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "6e17afe51a7cf357a19fc361414f6f438237b9523cb0ba4a8b94e6ef572857b0",
+    "cost_usd": 0.015528,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d10789--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "1ed907b689d8be2206b66dcf29a7e1d5c27302b596317e0d0ddf6f0c63b729ec",
+    "cost_usd": 0.014632,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d02250--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "e31e0f63b1fc4865681f0d7dc9a22c252cbfca1d49b5b9cf51db76c8e41a3abb",
+    "cost_usd": 0.017168,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d10394--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "712eb9afb2d73a43f12b2ce97fafc778f0640ea76c3141a74faa3e1ba4c22b9a",
+    "cost_usd": 0.014944,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d01858--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "e2faed3b8d58f0c9e8a7f5af55a4e9ff28c3b7a03f7f89d2217da8c13ecb2ba0",
+    "cost_usd": 0.017788,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d01732--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "91b244e0f8a6125179752ba896f3eb259e40f811c9532519da8a67219d65a684",
+    "cost_usd": 0.014696,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d06989--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "096b054f495ed7f777bf30732de3f56674bbea8dd599dff48a4072241fe637f5",
+    "cost_usd": 0.018996,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d06938--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "c74ace89f988ef8245b2e696d1f81aaafd3261a860d08264af24db4d91a47943",
+    "cost_usd": 0.014392,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d00246--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "72752862423cc42abd71f191040ebac1008e450516edbc8b506064ad3aaf6b4d",
+    "cost_usd": 0.018876,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d12719--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "12090157c316f250c55c9cacdba4ae06522a947d39222247759feea0ffd39c8e",
+    "cost_usd": 0.022128,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d07934--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "b5af27485131e9db7d0f1fc44b79cc4ec294fe93b34e4d05dbc4aa2b2f3fdebd",
+    "cost_usd": 0.015392,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d04003--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "23613bea95a00f4dbde673437420f806fb8ab229e8f9402c3228a34b29be1f84",
+    "cost_usd": 0.013896,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d12491--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "22120e12e1c686fcf67b46dda7437636139335e9319c45fd0041c2f3b9dca911",
+    "cost_usd": 0.01766,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d04847--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "a25ac869ca068d0257a416113f1865898290294998544cffa2c718f011e899c1",
+    "cost_usd": 0.01452,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d02243--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "bb7876b50e6870b0bb3182a08a08362b1f5384f11bb8ce69bc4a33d7a6f50fbe",
+    "cost_usd": 0.0191,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d10492--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "d4f3c49e0ed1ca8c39720db5f467314e459048aacbc16c69a3c862718dcebab6",
+    "cost_usd": 0.015264,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d01715--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "0c5665a79c82c5df99e30774e08e3096c5d2a423ec3db509b12e3cc00e5bc830",
+    "cost_usd": 0.016908,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d05449--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "e5099a6c38c74b06810afb8370c8c176c87fff25d2d2c2fff5c56aa8e2591b12",
+    "cost_usd": 0.015484,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d12528--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "c155bf62fcace65d3960a48843fd9def53844d6931ff17a2313abff5a38a99be",
+    "cost_usd": 0.017988,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d05278--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "9fa39a1a67fca1dd095a4615de2b0751f0363905316f32de19ec682af4405519",
+    "cost_usd": 0.017016,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d12552--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "6da0b22f7e621514d2c944b121243859bcf9ec6098625103d70891aca5bccb61",
+    "cost_usd": 0.035456,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "opus--handbook-v3-openkb--d12825--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "061ca1effc77b65c23b556c1ec17253bce48f4caea74ef951697bf9eaf9f57fd",
+    "cost_usd": 0.021184,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d12861--r0",
+    "source_attempt": 1,
+    "target_attempt": 3,
+    "source_receipt_sha256": "e3340d188dc630364cde381b60857c9d2e9bb71fc9d17a56545531724fdb2cde",
+    "cost_usd": 0.014310455964000001,
+    "status": "transport_error"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d07243--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "5e97b2ec3159b89fd450fe97445de9f569de414646c069dda92b803bd920ab75",
+    "cost_usd": 0.000452200445,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d11925--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "2609207827eb295511d2f62f95d8b4e224b557da855220d0b59acdc3857ca7c4",
+    "cost_usd": 0.000538636514,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d09165--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "6204962a91e903345a4ad88aafb6e9c1ee543c4cc108324099db675481ead52d",
+    "cost_usd": 0.0004180738710000001,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d03253--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "d2bd7290536ae26a3a87708f5817a39e05150052c80ed1b0af2140188e304870",
+    "cost_usd": 0.014301068258,
+    "status": "transport_error"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d01051--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "a5509ed7d2d32f1f45bccc045d38d3bf0781b1ea539f8d69f86d13e99963a42e",
+    "cost_usd": 0.00045533398199999996,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d05091--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "c37a3e74363dd504fdec00d8c555f9c5c9afe4342d39f29f89d8701adaeeeb65",
+    "cost_usd": 0.000408530022,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d02418--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "7d6426c9b90a1f64241eb846446f1e4b8f26b7dceb2598b6b54bee8f3fc9c383",
+    "cost_usd": 0.000387080834,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d07057--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "b8fb34fae0653a85fa86f205dd30a81588626f92e0830b5d378505c75147b1c9",
+    "cost_usd": 0.000377422874,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d12674--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "8a151f56ea3dff8018c92215fc44c38e93a00fa5ac054b3fb44dd0780fec4b4d",
+    "cost_usd": 0.000380023094,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d04941--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "f9a5b40be62dc68fb298541afb9164b68e7737cb7bc7bc195c5163186106687a",
+    "cost_usd": 0.0010738626280000002,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d04278--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "288fdec15e2ba60c588463c0cbd486a8b046880ebfe9b9a9409e6a6c3c142d89",
+    "cost_usd": 0.000426036388,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d11668--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "e4110f379860c89f43a3164f644a32b0912591a34a86fd6856ddaa53c1b40369",
+    "cost_usd": 0.002027952384,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d10659--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "89b5aa310b34978ac8378f4b0cbd87543599475b5c6a52de92ccf052cea38fd5",
+    "cost_usd": 0.0006837341360000001,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d06869--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "a439b40b478615a714d7d2d5c80ea6ea5e652ce2b1e7cd7ffc37765e1ace1b55",
+    "cost_usd": 0.00040953029100000005,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d08226--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "3ee13d696c93fbe3f54fc9c6493af090fc45be4ee52b5611367233280e5134b0",
+    "cost_usd": 0.014300906401000001,
+    "status": "transport_error"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d12515--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "8f085ed73564692f281319aeb9fc17dafa327e4f323f2e1735982606eda6e6ea",
+    "cost_usd": 0.00048291751400000003,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d07934--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "8a69b40ad218314c07d79e190c9964de65f279ba8bf447b387b48b5921b20679",
+    "cost_usd": 0.0005189200069999999,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d12788--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "b7313da6e69397fa6d83cc985b294e8c7d45df578cb1294a684797308a31d11e",
+    "cost_usd": 0.000453572174,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d07106--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "e6bec7395508773bee279b32d017d5387be0a8f9f6ffc3f11bc68f7af0ac3e28",
+    "cost_usd": 0.0007785519280000001,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d12147--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "2f0a89d7b5b226fbaf3e0a1d3a95a930196b3568d11c0fca79d1e38b5af7200f",
+    "cost_usd": 0.001240600422,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d12021--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "0356116199debfe8fa026abdd19cfa529e04bf08bebc8aade76a34ec38c82f18",
+    "cost_usd": 0.000884094314,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d09997--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "aad81a4853dfe7d80eb33a61aa2cbda56f3dc32654ed6ccc4d9f72cc37ea95b9",
+    "cost_usd": 0.014299287831000002,
+    "status": "transport_error"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d08155--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "b225d467c272ec204c97988696f8e2ca57604797041ec01d6c8809dd5f71574c",
+    "cost_usd": 0.014298478546,
+    "status": "transport_error"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d01261--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "461afdd9eb6be9eca887d12442e10c1513dc86b8f39e933016231415b7592ee5",
+    "cost_usd": 0.014301230115,
+    "status": "transport_error"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d01916--r0",
+    "source_attempt": 1,
+    "target_attempt": 1,
+    "source_receipt_sha256": "65e88e2c7252b368f212a33d21c02d3a181f4fe9002e47ebb7d0a91d930ac636",
+    "cost_usd": 0.0005450654449999999,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d06907--r0",
+    "source_attempt": 1,
+    "target_attempt": 3,
+    "source_receipt_sha256": "2cfcf468b7bfe10aa92b8e24d1ac9b2299ee55c5ddf0c55d25c8898d129d3739",
+    "cost_usd": 0.014303172399,
+    "status": "transport_error"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d09614--r0",
+    "source_attempt": 1,
+    "target_attempt": 4,
+    "source_receipt_sha256": "48e60041bee37596cb5793522fa3b2b34dcd59d887c4028526923cc07699be72",
+    "cost_usd": 0.014300582687,
+    "status": "transport_error"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d03385--r0",
+    "source_attempt": 1,
+    "target_attempt": 3,
+    "source_receipt_sha256": "c90cb58b6540957523fcaaaaa71cf9797b85d0e0786ea2aaf1d9a574ead3b051",
+    "cost_usd": 0.014301068258,
+    "status": "transport_error"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d04531--r0",
+    "source_attempt": 1,
+    "target_attempt": 3,
+    "source_receipt_sha256": "719ff2a7fd846a7b5532ba315c6d90f8235562bf9b231803c0d0616ff561ee29",
+    "cost_usd": 0.014302363113999999,
+    "status": "transport_error"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d00825--r0",
+    "source_attempt": 1,
+    "target_attempt": 3,
+    "source_receipt_sha256": "2846b379248921dbb556e1618bb6a11968d91b4075efe6a51184554225acfe29",
+    "cost_usd": 0.014299287831000002,
+    "status": "transport_error"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d09904--r0",
+    "source_attempt": 1,
+    "target_attempt": 3,
+    "source_receipt_sha256": "eeb7c52b1c00272c03af20aaba48bb5fab08c6f717240c2cb7bb7af1327854db",
+    "cost_usd": 0.001667569819,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d10905--r0",
+    "source_attempt": 1,
+    "target_attempt": 4,
+    "source_receipt_sha256": "a5698dfa7f3c334b2bdbff9330bc5b30886cb4123e16e4101bab766b8d4a3da7",
+    "cost_usd": 0.001831545536,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d11375--r0",
+    "source_attempt": 1,
+    "target_attempt": 3,
+    "source_receipt_sha256": "102998ca659205a1e7ccf3d0dfaf4824d33f1ab956d66534a86be55f59ef27e5",
+    "cost_usd": 0.002596381676,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d05407--r0",
+    "source_attempt": 1,
+    "target_attempt": 3,
+    "source_receipt_sha256": "c3c49bc1c9984f50e5b31acbc6085a1e22eaed141ebbc366bc33181d34bccd6c",
+    "cost_usd": 0.003032008764,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d07513--r0",
+    "source_attempt": 1,
+    "target_attempt": 3,
+    "source_receipt_sha256": "8eaad45cb995f257b86bf84cae9212429644daf5d5cb4dd31c903ba92ca7ef2e",
+    "cost_usd": 0.014303172399,
+    "status": "transport_error"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d12493--r0",
+    "source_attempt": 1,
+    "target_attempt": 2,
+    "source_receipt_sha256": "ae36f5710d73c0750a9c4ea6b6f2f83145abea71ce8b6420073f71c16e80ccb2",
+    "cost_usd": 0.002035991774,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d09397--r0",
+    "source_attempt": 1,
+    "target_attempt": 2,
+    "source_receipt_sha256": "1f643ebffb8bbcb8f4fcbf8268d2f281d3ad4bfba7a5f411408d88f698647c1f",
+    "cost_usd": 0.014301715686,
+    "status": "transport_error"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d03385--r0",
+    "source_attempt": 2,
+    "target_attempt": 4,
+    "source_receipt_sha256": "9f056e6ac8a47d717b4780e2fd400ba049d3209ef3198b2300b56464a44b1f5d",
+    "cost_usd": 0.003048077036,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d09614--r0",
+    "source_attempt": 2,
+    "target_attempt": 5,
+    "source_receipt_sha256": "54743b26393d60f77d32e0c4c782f362fdbfb3b0f97171b140fb2808dea9ab88",
+    "cost_usd": 0.00269774251,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d12861--r0",
+    "source_attempt": 2,
+    "target_attempt": 4,
+    "source_receipt_sha256": "e94c583b89ec2dbab1b5e774b31288a29e17794009ac78345ef345b8f483b4b8",
+    "cost_usd": 0.003801920725,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d03253--r0",
+    "source_attempt": 2,
+    "target_attempt": 2,
+    "source_receipt_sha256": "72500de72a168a4e3c97920ca32cb78bdd2e22db1eba00f44e54b1eed52618a2",
+    "cost_usd": 0.006394607922,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d00825--r0",
+    "source_attempt": 2,
+    "target_attempt": 4,
+    "source_receipt_sha256": "6a1d9a51d0bdca3efc2768b3f1929800db4d2d2647fdc8b0c1348c64d2cdf425",
+    "cost_usd": 0.007568421522,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d01261--r0",
+    "source_attempt": 2,
+    "target_attempt": 2,
+    "source_receipt_sha256": "b047141edd8e1a55ea33a619292e5db2d6e4df45254a3a576b9bd300a9e5e035",
+    "cost_usd": 0.005828874342,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d09997--r0",
+    "source_attempt": 2,
+    "target_attempt": 2,
+    "source_receipt_sha256": "fbb29168d9b878af941e149e41b6db079b54e43273873ad94238f1f9719e707a",
+    "cost_usd": 0.0031991471449999997,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d06907--r0",
+    "source_attempt": 2,
+    "target_attempt": 4,
+    "source_receipt_sha256": "aa4b98bb4aea4cc6f78c63f09606a6bdc06dea7848b9236fb26bcdc488e1a84f",
+    "cost_usd": 0.005248720187,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d08226--r0",
+    "source_attempt": 2,
+    "target_attempt": 2,
+    "source_receipt_sha256": "be3fd76de1be8873aaf96b7c3466b46fc1f3760563e6973befbd5e6b275c3947",
+    "cost_usd": 0.0034432441110000002,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d08155--r0",
+    "source_attempt": 2,
+    "target_attempt": 2,
+    "source_receipt_sha256": "60011509ddb6dabf62362e93c98e9c0c8eab749d84b6ce5cbb9a4bc81df3f116",
+    "cost_usd": 0.004120787151000001,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d04531--r0",
+    "source_attempt": 2,
+    "target_attempt": 4,
+    "source_receipt_sha256": "73e3137dc79d0229d312c8102c377d9496e5da3980a31ae9f2503e6cb46e3ddc",
+    "cost_usd": 0.004840485647000001,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d07513--r0",
+    "source_attempt": 2,
+    "target_attempt": 4,
+    "source_receipt_sha256": "6d434f3cfaa950c86f2204ad862308ded5b338904b01fb2e1155712f4f497d4e",
+    "cost_usd": 0.0022863266870000003,
+    "status": "completed"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d09397--r0",
+    "source_attempt": 2,
+    "target_attempt": 3,
+    "source_receipt_sha256": "6424905e82e9fbd6882bc7f2e9ea13241f228ce327c1dea43f4563b81f9bb38e",
+    "cost_usd": 0.014301715686,
+    "status": "transport_error"
+  },
+  {
+    "run": "openkb",
+    "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d09397--r0",
+    "source_attempt": 3,
+    "target_attempt": 4,
+    "source_receipt_sha256": "228cd1ae65382dc8b9f9be0a86f5d7d936e3967e83c99e4ef5a54baea1755db1",
+    "cost_usd": 0.004479569765,
+    "status": "completed"
+  }
+]

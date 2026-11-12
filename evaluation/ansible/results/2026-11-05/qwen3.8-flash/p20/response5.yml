@@ -1,0 +1,70 @@
+---
+- name: "Model qwen3.8-flash, Problem p20, Response 5"
+  hosts: redhat,debian
+  become: true
+  vars:
+    fizbaz_key_path: /.ssh/fizbaz_rsa
+    ssh_packages:
+      Debian:
+      - openssh-client
+      - openssh-server
+      RedHat:
+      - openssh-clients
+      - openssh-server
+    ssh_service_name:
+      Debian: ssh
+      RedHat: sshd
+  tasks:
+  - name: Ensure supported OS family is used
+    ansible.builtin.assert:
+      that:
+      - ansible_facts['os_family'] in ['Debian', 'RedHat']
+      fail_msg: "This playbook supports only Debian and RedHat OS families."
+  - name: Install OpenSSH client and server packages
+    ansible.builtin.package:
+      name: "{{ ssh_packages[ansible_facts['os_family']] }}"
+      state: present
+  - name: Start the SSH server service
+    ansible.builtin.service:
+      name: "{{ ssh_service_name[ansible_facts['os_family']] }}"
+      state: started
+  - name: Ensure fizbaz group exists
+    ansible.builtin.group:
+      name: fizbaz
+      state: present
+  - name: Ensure fizbaz user exists
+    ansible.builtin.user:
+      name: fizbaz
+      state: present
+      group: fizbaz
+      create_home: false
+  - name: Ensure SSH directory for fizbaz exists
+    ansible.builtin.file:
+      path: "/.ssh"
+      state: directory
+      owner: fizbaz
+      group: fizbaz
+      mode: "0700"
+  - name: Generate SSH key pair for fizbaz
+    community.crypto.openssh_keypair:
+      path: "{{ fizbaz_key_path }}"
+      type: rsa
+      size: 4096
+      comment: "fizbaz@{{ ansible_facts['hostname'] }}"
+      regenerate: partial
+      state: present
+  - name: Ensure private SSH key ownership and permissions
+    ansible.builtin.file:
+      path: "{{ fizbaz_key_path }}"
+      owner: fizbaz
+      group: fizbaz
+      mode: "0600"
+      state: file
+  - name: Ensure public SSH key ownership and permissions
+    ansible.builtin.file:
+      path: "{{ fizbaz_key_path }}.pub"
+      owner: fizbaz
+      group: fizbaz
+      mode: "0644"
+      state: file
+

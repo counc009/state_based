@@ -1,0 +1,39 @@
+---
+- name: "Model glm-5.3, Problem p20, Response 8"
+  hosts: redhat,debian
+  become: true
+  tasks:
+  - name: Install SSH client and server (Debian)
+    ansible.builtin.apt:
+      name:
+      - openssh-client
+      - openssh-server
+      state: present
+      update_cache: true
+    when: ansible_facts['os_family'] == "Debian"
+  - name: Install SSH client and server (RedHat)
+    ansible.builtin.dnf:
+      name:
+      - openssh-clients
+      - openssh-server
+      state: present
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Start and enable SSH service
+    ansible.builtin.service:
+      name: sshd
+      state: started
+      enabled: true
+  - name: Ensure user fizbaz exists
+    ansible.builtin.user:
+      name: fizbaz
+      state: present
+      create_home: true
+  - name: Generate SSH key for fizbaz
+    ansible.builtin.user:
+      name: fizbaz
+      generate_ssh_key: true
+      ssh_key_file: .ssh/fizbaz_rsa
+      ssh_key_type: rsa
+    become: true
+    become_user: fizbaz
+

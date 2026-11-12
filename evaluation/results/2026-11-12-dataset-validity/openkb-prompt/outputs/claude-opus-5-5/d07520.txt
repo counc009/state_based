@@ -1,0 +1,9 @@
+This request cannot be expressed in Astrogator FQL. The language has no action for creating or replacing symbolic links. Approximating it with `copy file` or `move file` would be unsafe. For example, copying the msmtp binary to the sendmail path would write through the link and could overwrite the busybox binary itself.
+
+The closest supported step is installing the package:
+
+install msmtp
+
+You would still need to repoint the link, for example `/usr/sbin/sendmail` to `/usr/bin/msmtp`, outside FQL. Alternatively, a deployment could add a link action to the knowledge base.
+
+Also, my earlier answers left paths unquoted, which the rules forbid. They should read `in "/srv/path"`, `at "/home/mydata/web"`, `in "/home/mydata/web"`, and `name="webdev"`.

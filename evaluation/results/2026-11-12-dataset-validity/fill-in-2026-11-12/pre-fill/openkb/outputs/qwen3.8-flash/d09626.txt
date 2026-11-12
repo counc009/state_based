@@ -1,0 +1,3 @@
+
+
+if directory "/home/vagrant/consul" not exists then create directory at "/home/vagrant/consul"

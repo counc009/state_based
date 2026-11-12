@@ -1,0 +1,64 @@
+---
+- name: "Model qwen3.8-flash, Problem p20, Response 4"
+  hosts: redhat,debian
+  become: true
+  tasks:
+  - name: Install OpenSSH client and server (Debian)
+    ansible.builtin.package:
+      name:
+      - openssh-client
+      - openssh-server
+      state: present
+    when: ansible_facts.os_family == 'Debian'
+  - name: Install OpenSSH client and server (RedHat)
+    ansible.builtin.package:
+      name:
+      - openssh-clients
+      - openssh-server
+      state: present
+    when: ansible_facts.os_family == 'RedHat'
+  - name: Start and enable SSH service (Debian)
+    ansible.builtin.service:
+      name: ssh
+      state: started
+      enabled: true
+    when: ansible_facts.os_family == 'Debian'
+  - name: Start and enable SSH service (RedHat)
+    ansible.builtin.service:
+      name: sshd
+      state: started
+      enabled: true
+    when: ansible_facts.os_family == 'RedHat'
+  - name: Ensure group fizbaz exists
+    ansible.builtin.group:
+      name: fizbaz
+      state: present
+    when: ansible_facts.os_family in ['Debian', 'RedHat']
+  - name: Ensure user fizbaz exists
+    ansible.builtin.user:
+      name: fizbaz
+      group: fizbaz
+      state: present
+      create_home: false
+      generate_ssh_keys: false
+      comment: fizbaz
+    when: ansible_facts.os_family in ['Debian', 'RedHat']
+  - name: Ensure /.ssh directory exists with correct ownership
+    ansible.builtin.file:
+      path: /.ssh
+      state: directory
+      owner: fizbaz
+      group: fizbaz
+      mode: "0700"
+    when: ansible_facts.os_family in ['Debian', 'RedHat']
+  - name: Generate SSH key for fizbaz
+    community.crypto.openssh_keypair:
+      path: /.ssh/fizbaz_rsa
+      type: rsa
+      size: 4096
+      comment: fizbaz
+      owner: fizbaz
+      group: fizbaz
+      mode: "0600"
+    when: ansible_facts.os_family in ['Debian', 'RedHat']
+

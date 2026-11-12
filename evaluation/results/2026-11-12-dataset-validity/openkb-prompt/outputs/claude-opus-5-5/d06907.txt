@@ -1,0 +1,4 @@
+This request can't be expressed in Astrogator FQL:
+
+- **No Archlinux condition.** OS conditions only support Debian, Ubuntu, RedHat, `Debian based`, and `RedHat based`.
+- **No standalone check.** `if ufw installed` must be followed by `then STATEMENT`, and no action reports or returns a check result.

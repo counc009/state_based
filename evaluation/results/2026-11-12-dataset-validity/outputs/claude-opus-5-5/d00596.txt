@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL with the pinned KB. Node.js isn't in the package catalog, Homebrew isn't a supported package manager, and there is no way to request the "latest stable" version.

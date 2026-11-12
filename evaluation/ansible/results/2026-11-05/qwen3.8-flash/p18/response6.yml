@@ -1,0 +1,58 @@
+---
+- name: "Model qwen3.8-flash, Problem p18, Response 6"
+  hosts: redhat
+  become: true
+  vars:
+    apache_package: httpd
+    apache_service: httpd
+    apache_group: apache
+    web_user: webdev
+    web_document_root: /var/www/html
+    index_html: |
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <title>Managed Web Server</title>
+        </head>
+        <body>
+          <h1>Ansible managed Apache server</h1>
+        </body>
+      </html>
+  tasks:
+  - name: Ensure Apache server package is installed
+    ansible.builtin.package:
+      name: "{{ apache_package }}"
+      state: present
+    when: ansible_facts['os_family'] == 'RedHat'
+  - name: Ensure Apache document root exists
+    ansible.builtin.file:
+      path: "{{ web_document_root }}"
+      state: directory
+      owner: root
+      group: "{{ apache_group }}"
+      mode: "0755"
+    when: ansible_facts['os_family'] == 'RedHat'
+  - name: Ensure home page exists
+    ansible.builtin.copy:
+      dest: "{{ web_document_root }}/index.html"
+      content: "{{ index_html }}"
+      owner: root
+      group: "{{ apache_group }}"
+      mode: "0644"
+      force: false
+    when: ansible_facts['os_family'] == 'RedHat'
+  - name: Ensure webdev user exists
+    ansible.builtin.user:
+      name: "{{ web_user }}"
+      state: present
+      createhome: true
+      shell: /bin/bash
+    when: ansible_facts['os_family'] == 'RedHat'
+  - name: Ensure Apache service is started and enabled
+    ansible.builtin.service:
+      name: "{{ apache_service }}"
+      state: started
+      enabled: true
+    when: ansible_facts['os_family'] == 'RedHat'
+

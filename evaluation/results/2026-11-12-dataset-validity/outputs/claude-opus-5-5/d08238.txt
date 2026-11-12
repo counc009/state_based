@@ -1,0 +1,5 @@
+docker-compose is not in the pinned knowledge-base catalog, so this request can't be expressed as a valid FQL query. The supported packages are bash, zsh, postfix, apache/apache server, ssh client, ssh server, and numpy.
+
+If the KB were extended with a docker-compose entry, the query would be:
+
+install docker-compose

@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL: no supported action updates package repositories, such as `apt update`. The closest available form is a Debian condition, but there is no valid action to put inside it.

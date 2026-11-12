@@ -1,0 +1,15 @@
+create directory at "/etc/systemd/system/multi-user.target.wants";
+create file at "/etc/systemd/system/supervisor.service" with content="[Unit]
+Description=Supervisor
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/env supervisord -n
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+";
+copy file from "/etc/systemd/system/supervisor.service" to "/etc/systemd/system/multi-user.target.wants/supervisor.service";
+reboot.

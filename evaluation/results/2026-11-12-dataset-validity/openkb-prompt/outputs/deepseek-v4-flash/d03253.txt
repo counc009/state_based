@@ -1,0 +1,1 @@
+set environment variable cgroup_enable to "memory"; set environment variable swapaccount to "1"

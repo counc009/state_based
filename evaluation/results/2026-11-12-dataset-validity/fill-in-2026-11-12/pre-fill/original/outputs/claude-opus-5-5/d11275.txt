@@ -1,0 +1,1 @@
+if os is Debian based then write "LS_USER=root" to "/etc/default/logstash" with position=end. if os is RedHat based then write "LS_USER=root" to "/etc/sysconfig/logstash" with position=end

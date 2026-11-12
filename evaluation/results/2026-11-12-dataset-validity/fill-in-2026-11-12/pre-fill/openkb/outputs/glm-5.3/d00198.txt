@@ -1,0 +1,1 @@
+if os is RedHat then if ferm not installed then install ferm

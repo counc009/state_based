@@ -1,0 +1,3 @@
+
+
+if os is RedHat then enable repository with name="optionals"

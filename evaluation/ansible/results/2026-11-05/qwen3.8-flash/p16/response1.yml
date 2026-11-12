@@ -1,0 +1,23 @@
+---
+- name: "Model qwen3.8-flash, Problem p16, Response 1"
+  hosts: all
+  become: true
+  tasks:
+  - name: Install zsh
+    ansible.builtin.package:
+      name: zsh
+      state: present
+  - name: Ensure dev user exists and uses zsh as default shell
+    ansible.builtin.user:
+      name: dev
+      shell: /usr/bin/zsh
+      home: /home/dev
+      create_home: true
+      state: present
+  - name: Ensure zsh configuration file exists
+    ansible.builtin.file:
+      path: /home/dev/.zshrc
+      state: touch
+      owner: dev
+      mode: "0644"
+

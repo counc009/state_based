@@ -1,0 +1,5 @@
+condition,prompt,kb,descriptions,at_least_one_semantically_valid,all_responding_models_semantically_valid,all_six_responded_and_semantically_valid
+original+example,original,example,300,89,32,32
+original+fallback,original,fallback,300,267,42,42
+openkb+example,openkb,example,300,81,34,25
+openkb+fallback,openkb,fallback,300,284,183,130

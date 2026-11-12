@@ -1,0 +1,18 @@
+---
+- name: "Model qwen3.8-flash, Problem p14, Response 1"
+  hosts: debian
+  become: true
+  tasks:
+  - name: Check if Debian requires a reboot
+    ansible.builtin.stat:
+      path: /var/run/reboot-required
+    register: debian_reboot_required
+    when: ansible_os_family == "Debian"
+  - name: Restart the system if needed
+    ansible.builtin.reboot:
+      reboot_timeout: 600
+      msg: "Restarting Debian system because reboot is required"
+    when:
+    - ansible_os_family == "Debian"
+    - debian_reboot_required.stat.exists | default(false)
+

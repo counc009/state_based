@@ -1,0 +1,1 @@
+Astrogator FQL cannot express this request. It has no action or condition for checking CPU features such as AMD-V/SVM. Its conditions only cover OS, file or directory existence, installed packages, running services, and reboot-required.

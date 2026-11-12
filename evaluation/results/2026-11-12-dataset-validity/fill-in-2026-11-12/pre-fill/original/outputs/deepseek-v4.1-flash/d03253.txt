@@ -1,0 +1,1 @@
+write "cgroup_enable=memory swapaccount=1" to "/boot/firmware/cmdline.txt" with position=end

@@ -1,0 +1,1 @@
+install vmware-tools repository

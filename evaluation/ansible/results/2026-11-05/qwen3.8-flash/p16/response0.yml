@@ -1,0 +1,85 @@
+---
+- name: "Model qwen3.8-flash, Problem p16, Response 10"
+  hosts: all
+  become: true
+  vars:
+    dev_user: dev
+    zsh_config_content: |
+      # Zsh configuration managed by Ansible
+  tasks:
+  - name: Install zsh
+    ansible.builtin.package:
+      name: zsh
+      state: present
+  - name: Check zsh executable locations
+    ansible.builtin.stat:
+      path: "{{ item }}"
+    loop:
+    - /usr/bin/zsh
+    - /bin/zsh
+    register: zsh_stat
+  - name: Build list of existing zsh paths
+    ansible.builtin.set_fact:
+      zsh_existing_paths: "{{ zsh_stat.results | selectattr('stat.exists') | map(attribute='item')
+        | list }}"
+  - name: Set zsh shell path
+    ansible.builtin.set_fact:
+      zsh_shell: "{{ zsh_existing_paths[0] if (zsh_existing_paths | length > 0) else
+        '/usr/bin/zsh' }}"
+  - name: Ensure zsh is registered as a valid login shell
+    ansible.builtin.lineinfile:
+      path: /etc/shells
+      line: "{{ item }}"
+      state: present
+    loop:
+    - /usr/bin/zsh
+    - /bin/zsh
+  - name: Ensure dev group exists
+    ansible.builtin.group:
+      name: "{{ dev_user }}"
+      state: present
+  - name: Ensure dev user has zsh as default shell
+    ansible.builtin.user:
+      name: "{{ dev_user }}"
+      shell: "{{ zsh_shell }}"
+      create_home: true
+      state: present
+  - name: Get dev user passwd entry
+    ansible.builtin.getent:
+      database: passwd
+      key: "{{ dev_user }}"
+    register: dev_passwd
+    failed_when: false
+  - name: Normalize dev passwd entries
+    ansible.builtin.set_fact:
+      dev_passwd_entries: "{{ (dev_passwd.entries | default({})) if (dev_passwd.entries
+        | default({})) is mapping else {} }}"
+  - name: Select dev passwd entry
+    ansible.builtin.set_fact:
+      dev_passwd_entry: "{{ dev_passwd_entries.get(dev_user, dev_passwd_entries) if
+        dev_passwd_entries is mapping else {} }}"
+  - name: Ensure selected entry is mapping
+    ansible.builtin.set_fact:
+      dev_passwd_entry: "{{ dev_passwd_entry if (dev_passwd_entry is mapping) else
+        {} }}"
+  - name: Determine dev home directory
+    ansible.builtin.set_fact:
+      dev_home: "{{ dev_passwd_entry.home | default(dev_passwd_entry.dir, true) |
+        default('/home/' ~ dev_user, true) }}"
+  - name: Ensure dev home directory exists and is owned by dev
+    ansible.builtin.file:
+      path: "{{ dev_home }}"
+      state: directory
+      owner: "{{ dev_user }}"
+      group: "{{ dev_user }}"
+      mode: "0700"
+  - name: Ensure zsh configuration file exists
+    ansible.builtin.copy:
+      dest: "{{ dev_home }}/.zshrc"
+      owner: "{{ dev_user }}"
+      group: "{{ dev_user }}"
+      mode: "0600"
+      content: "{{ zsh_config_content }}"
+      force: false
+      create_remote_dir: true
+

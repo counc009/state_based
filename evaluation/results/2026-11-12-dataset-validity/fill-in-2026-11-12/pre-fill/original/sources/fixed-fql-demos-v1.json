@@ -1,0 +1,30 @@
+{
+  "version": "fixed-fql-demos-v1",
+  "provenance": "First frozen target (a01) demonstration set from the recovered full matrix; new dataset uses this fixed policy, not a claim that the old matrix had global fixed demos.",
+  "demonstrations": [
+    {
+      "id": "a13",
+      "paper_id": "p04",
+      "nl": "Set permissions for the files and directories under /srv/path so that all users can list and read all files but only the owner can write",
+      "fql": "set file permissions in /srv/path to read=all, write=owner, list directory=all"
+    },
+    {
+      "id": "a02",
+      "paper_id": "p05",
+      "nl": "Delete the directory /home/mydata/web",
+      "fql": "delete directory at /home/mydata/web"
+    },
+    {
+      "id": "a03",
+      "paper_id": "p15",
+      "nl": "Delete the contents of the /home/mydata/web directory",
+      "fql": "delete files in /home/mydata/web"
+    },
+    {
+      "id": "a19",
+      "paper_id": "p18",
+      "nl": "For RedHat, install apache server, ensure the home page exists, and create a `webdev' user",
+      "fql": "if os is RedHat then install apache server; create user with name=webdev; if apache server html home page file not exists then create apache server html home page file"
+    }
+  ]
+}

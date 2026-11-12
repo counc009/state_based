@@ -1,0 +1,10 @@
+This request can't be expressed in Astrogator FQL with the pinned KB:
+
+- **No VNC service:** The service catalog has only ssh server, postfix, and apache server. There is no VNC or VNC socket entry, so `start VNC socket service` would not resolve.
+- **No "enable" action:** FQL has `start` and `stop` for services, but nothing to enable a service or socket at boot.
+
+If the KB catalog gets a VNC service entry (for example, "vnc socket"), the start part would be:
+
+`start vnc socket service`
+
+The "enable" part would still need a new action in the language.

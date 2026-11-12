@@ -1,0 +1,1 @@
+This request targets macOS System Preferences, which is outside the supported OS contexts (Debian, Ubuntu, RedHat families) and has no corresponding Astrogator FQL action, so it cannot be translated into a query.

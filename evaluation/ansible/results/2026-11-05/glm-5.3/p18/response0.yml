@@ -1,0 +1,47 @@
+---
+- name: "Model glm-5.3, Problem p18, Response 10"
+  hosts: redhat
+  become: true
+  vars:
+    httpd_port: 80
+    homepage_path: /var/www/html/index.html
+  tasks:
+  - name: Block for RedHat family systems
+    when: ansible_facts['os_family'] == "RedHat"
+    block:
+    - name: Install apache server (httpd)
+      ansible.builtin.yum:
+        name: httpd
+        state: present
+    - name: Ensure apache service is started and enabled
+      ansible.builtin.service:
+        name: httpd
+        state: started
+        enabled: true
+    - name: Ensure the home page exists
+      ansible.builtin.copy:
+        dest: "{{ homepage_path }}"
+        owner: apache
+        group: apache
+        mode: '0644'
+        content: |
+          <html>
+            <head>
+              <title>Welcome</title>
+            </head>
+            <body>
+              <h1>Hello, this is the default home page</h1>
+            </body>
+          </html>
+    - name: Allow HTTP traffic through the firewall
+      ansible.posix.firewalld:
+        service: http
+        permanent: true
+        state: enabled
+        immediate: true
+    - name: Create webdev user
+      ansible.builtin.user:
+        name: webdev
+        state: present
+        shell: /bin/bash
+

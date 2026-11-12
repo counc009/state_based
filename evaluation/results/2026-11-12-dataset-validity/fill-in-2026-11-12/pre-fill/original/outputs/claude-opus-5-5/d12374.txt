@@ -1,0 +1,5 @@
+This request cannot be expressed in Astrogator FQL. The language can write text to a file only at the top, at the bottom, or by overwriting the whole file. It has no action for finding existing lines in `/etc/network/interfaces` and commenting them out.
+
+To do it with FQL, you would need to supply the full corrected contents of the file. Those could then be written with:
+
+`write "FULL_NEW_CONTENTS" to "/etc/network/interfaces" with position=overwrite`

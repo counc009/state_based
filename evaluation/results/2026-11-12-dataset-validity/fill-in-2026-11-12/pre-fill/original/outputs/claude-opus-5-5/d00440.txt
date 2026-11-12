@@ -1,0 +1,1 @@
+set file permissions for ?grpcurl with execute=all

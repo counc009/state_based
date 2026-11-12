@@ -1,0 +1,1 @@
+Astrogator FQL has no action for enabling package repositories, so "enable optionals rpm repo for RedHat" has no valid query. The OS guard `if os is RedHat then ...` is supported, but nothing can go after `then`.

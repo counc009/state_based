@@ -1,0 +1,3 @@
+
+
+install "Mono runtime"; install "mcs"; install "xsp4"

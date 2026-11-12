@@ -1,0 +1,8 @@
+This request can't be expressed in Astrogator FQL with the pinned KB:
+
+- **No "enable" action exists.** FQL has only `start SERVICE service` and `stop SERVICE service`. Enabling a unit at boot is different from starting it.
+- **`sanoid-prune.service` isn't in the KB catalog.** The only known services are `ssh server`, `postfix`, and `apache server`.
+
+If starting the unit would be enough, the KB would need a `sanoid prune` service entry. Then the query would be:
+
+start sanoid prune service

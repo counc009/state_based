@@ -1,0 +1,11 @@
+---
+- name: "Model gpt-6.1-sol, Problem p11a, Response 1"
+  hosts: all
+  become: true
+  tasks:
+  - name: Copy each WAR file to /tmp
+    ansible.builtin.copy:
+      src: "{{ item }}"
+      dest: /tmp/
+    loop: "{{ query('ansible.builtin.fileglob', '/backup/*.war') }}"
+

@@ -1,0 +1,21 @@
+---
+- name: "Model glm-5.3, Problem p02, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure LC_ALL is set in /etc/environment
+    ansible.builtin.lineinfile:
+      path: /etc/environment
+      line: 'LC_ALL=C'
+      state: present
+      create: true
+      mode: '0644'
+  - name: Ensure LC_ALL is set in /etc/profile.d for login shells
+    ansible.builtin.copy:
+      dest: /etc/profile.d/00-lc-all.sh
+      content: |
+        export LC_ALL=C
+      owner: root
+      group: root
+      mode: '0644'
+

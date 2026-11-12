@@ -1,0 +1,20 @@
+condition,model,reason,native_returncode,count
+original+example,claude-opus-5-5,native query_interp nonzero,4,2
+original+fallback,claude-opus-5-5,native query_interp nonzero,4,3
+original+example,deepseek-v4-flash,native query_interp nonzero,4,3
+original+fallback,deepseek-v4-flash,native query_interp nonzero,4,11
+original+example,deepseek-v4.1-flash,native query_interp nonzero,4,1
+original+fallback,deepseek-v4.1-flash,native query_interp nonzero,4,4
+original+fallback,glm-5.3,native query_interp nonzero,4,5
+original+example,gpt-6.1-sol,native query_interp nonzero,4,2
+original+fallback,gpt-6.1-sol,native query_interp nonzero,4,4
+original+fallback,qwen3.8-flash,native query_interp nonzero,4,8
+openkb+fallback,claude-opus-5-5,native query_interp nonzero,4,3
+openkb+example,deepseek-v4-flash,native query_interp nonzero,4,1
+openkb+fallback,deepseek-v4-flash,native query_interp nonzero,4,9
+openkb+fallback,deepseek-v4.1-flash,native query_interp nonzero,4,7
+openkb+example,glm-5.3,native query_interp nonzero,4,1
+openkb+fallback,glm-5.3,native query_interp nonzero,4,6
+openkb+fallback,gpt-6.1-sol,native query_interp nonzero,4,6
+openkb+example,qwen3.8-flash,native query_interp nonzero,4,1
+openkb+fallback,qwen3.8-flash,native query_interp nonzero,4,9

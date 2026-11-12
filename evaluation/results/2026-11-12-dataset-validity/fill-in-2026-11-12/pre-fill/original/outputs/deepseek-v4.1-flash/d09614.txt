@@ -1,0 +1,1 @@
+if directory "nighhawk" exists then set environment variable NIGHTHAWK_DIRECTORY to "exists" otherwise set environment variable NIGHTHAWK_DIRECTORY to "missing"

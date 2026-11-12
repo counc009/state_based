@@ -1,0 +1,3 @@
+
+
+if docker not running then start docker service

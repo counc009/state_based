@@ -1,0 +1,1 @@
+if directory "/sys/module/kvm_amd" exists then create directory at "/tmp/amd-virt-supported" otherwise delete directory at "/tmp/amd-virt-supported".

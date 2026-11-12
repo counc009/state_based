@@ -1,0 +1,19 @@
+---
+- name: "Model gpt-6.1-sol, Problem p09, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Look up foo's home directory
+    ansible.builtin.getent:
+      database: passwd
+      key: foo
+  - name: Ensure foo's bashrc loads GCC
+    ansible.builtin.lineinfile:
+      path: "{{ ansible_facts.getent_passwd['foo'][4] }}/.bashrc"
+      line: "module load gcc"
+      insertafter: EOF
+      state: present
+      create: true
+      owner: foo
+      mode: "0644"
+

@@ -1,0 +1,61 @@
+---
+- name: "Model claude-opus-5-5, Problem p20, Response 1"
+  hosts: redhat,debian
+  become: true
+  vars:
+    ssh_user: fizbaz
+    ssh_key_path: /.ssh/fizbaz_rsa
+  tasks:
+  - name: Set SSH package and service names for Debian
+    ansible.builtin.set_fact:
+      ssh_packages:
+      - openssh-client
+      - openssh-server
+      ssh_service: ssh
+    when: ansible_facts['os_family'] == 'Debian'
+  - name: Set SSH package and service names for RedHat
+    ansible.builtin.set_fact:
+      ssh_packages:
+      - openssh-clients
+      - openssh-server
+      ssh_service: sshd
+    when: ansible_facts['os_family'] == 'RedHat'
+  - name: Fail on unsupported OS family
+    ansible.builtin.fail:
+      msg: "Unsupported OS family: {{ ansible_facts['os_family'] }}"
+    when: ansible_facts['os_family'] not in ['Debian', 'RedHat']
+  - name: Update apt cache on Debian
+    ansible.builtin.apt:
+      update_cache: true
+      cache_valid_time: 3600
+    when: ansible_facts['os_family'] == 'Debian'
+  - name: Install SSH client and server
+    ansible.builtin.package:
+      name: "{{ ssh_packages }}"
+      state: present
+  - name: Start and enable SSH server
+    ansible.builtin.service:
+      name: "{{ ssh_service }}"
+      state: started
+      enabled: true
+  - name: Ensure user fizbaz exists
+    ansible.builtin.user:
+      name: "{{ ssh_user }}"
+      state: present
+      create_home: true
+  - name: Ensure /.ssh directory exists
+    ansible.builtin.file:
+      path: "{{ ssh_key_path | dirname }}"
+      state: directory
+      owner: "{{ ssh_user }}"
+      group: "{{ ssh_user }}"
+      mode: '0700'
+  - name: Generate SSH key for fizbaz
+    ansible.builtin.user:
+      name: "{{ ssh_user }}"
+      generate_ssh_key: true
+      ssh_key_type: rsa
+      ssh_key_bits: 4096
+      ssh_key_file: "{{ ssh_key_path }}"
+      ssh_key_comment: "{{ ssh_user }}@{{ ansible_facts['hostname'] }}"
+

@@ -1,0 +1,1 @@
+set environment variable screen_shot_path to "~/Scratch".

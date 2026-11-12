@@ -1,0 +1,10 @@
+---
+- name: "Model gpt-6.1-sol, Problem p10, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Lock the service user's password
+    ansible.builtin.user:
+      name: service
+      password_lock: true
+

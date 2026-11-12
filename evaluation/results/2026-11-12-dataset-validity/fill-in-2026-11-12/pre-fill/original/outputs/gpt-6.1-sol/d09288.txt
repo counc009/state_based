@@ -1,0 +1,1 @@
+install ?aiwacs_agent_package; start ?aiwacs_agent_service service

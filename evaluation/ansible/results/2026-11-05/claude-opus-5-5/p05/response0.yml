@@ -1,0 +1,10 @@
+---
+- name: "Model claude-opus-5-5, Problem p05, Response 10"
+  hosts: all
+  become: true
+  tasks:
+  - name: Remove /home/mydata/web directory and its contents
+    ansible.builtin.file:
+      path: /home/mydata/web
+      state: absent
+

@@ -1,0 +1,1 @@
+I'm unable to translate this request: setting macOS System Preferences values such as the screen shot save path is outside the scope of the Astrogator FQL action set, which covers only files and directories, identity and privileges, packages, services, repositories, and environment configuration.

@@ -1,0 +1,1 @@
+if os is RedHat based then if apache server service not running then start apache server service

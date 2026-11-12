@@ -1,0 +1,1 @@
+Astrogator FQL has no action for extracting archives, so "extract wordpress.tgz into /tmp" can't be expressed as a query. The closest supported actions (`copy file`, `move file`, `download file`) place the archive somewhere but don't unpack it.

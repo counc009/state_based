@@ -1,0 +1,1 @@
+Astrogator FQL cannot express this request: it has no action for refreshing the package index (`apt update`). The closest supported operations are `install PACKAGE` and `uninstall PACKAGE`, and neither one updates apt.

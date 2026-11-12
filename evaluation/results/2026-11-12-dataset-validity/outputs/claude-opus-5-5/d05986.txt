@@ -1,0 +1,6 @@
+This request can't be expressed as a valid Astrogator FQL query:
+
+- **Supervisor isn't in the knowledge-base catalog.** Only `ssh server`, `postfix`, and `apache server` are supported, so `start supervisor service` wouldn't resolve.
+- **FQL has no action for starting a service on boot.** Only `start SERVICE service` and `stop SERVICE service` exist.
+
+To support this, the KB would need a Supervisor service entry and an "enable at boot" action.

@@ -1,0 +1,36 @@
+---
+- name: "Model gpt-6.1-sol, Problem p18, Response 6"
+  hosts: redhat
+  become: true
+  tasks:
+  - name: Configure RedHat systems
+    when: ansible_facts['os_family'] == 'RedHat'
+    block:
+    - name: Install Apache
+      ansible.builtin.package:
+        name: httpd
+        state: present
+    - name: Ensure the home page exists without overwriting existing content
+      ansible.builtin.copy:
+        dest: /var/www/html/index.html
+        content: |
+          <!DOCTYPE html>
+          <html>
+            <head><title>Welcome</title></head>
+            <body><h1>Welcome to Apache</h1></body>
+          </html>
+        owner: root
+        group: root
+        mode: '0644'
+        force: false
+    - name: Enable and start Apache
+      ansible.builtin.service:
+        name: httpd
+        enabled: true
+        state: started
+    - name: Create the webdev user
+      ansible.builtin.user:
+        name: webdev
+        state: present
+        create_home: true
+

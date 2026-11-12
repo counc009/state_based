@@ -1,0 +1,1 @@
+write "exclude xorg-x11-server-Xorg" to "/etc/yum.conf" with position=bottom

@@ -1,0 +1,11 @@
+---
+- name: "Model deepseek-v4-flash, Problem p11a, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Copy each .war file
+    ansible.builtin.copy:
+      src: "{{ item }}"
+      dest: /tmp/
+    loop: "{{ query('fileglob', '/backup/*.war') }}"
+

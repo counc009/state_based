@@ -1,0 +1,20 @@
+(library
+ (name evaluation_fallback_kb)
+ (wrapped false)
+ (modules fallback_kb)
+ (libraries fql modules))
+
+(executable
+ (name effects)
+ (modules effects)
+ (libraries fql modules))
+
+(executable
+ (name effects_fallback)
+ (modules effects_fallback)
+ (libraries fql modules evaluation_fallback_kb))
+
+(executable
+ (name query_interp_fallback)
+ (modules query_interp_fallback)
+ (libraries fql modules evaluation_fallback_kb))

@@ -1,0 +1,434 @@
+{
+  "experiment": "Prior-work NL-to-FQL dataset validity only",
+  "created_at": "2026-11-12T20:12:34.047570+00:00",
+  "exported_at": "2026-11-12T23:46:21.993991+00:00",
+  "source": {
+    "source_path": "/tmp/AnsibleDataset/withheld_ftdata-new.json",
+    "file_sha256": "4800b0c38ceca7d24458d5ed40709f5ca94cda6b583fe8618045b4aee8185e74",
+    "total_rows": 13239,
+    "unique_survivor_nl": 9822
+  },
+  "funnel": {
+    "total": 13239,
+    "after_heuristics": 10788,
+    "after_detail_check": 311,
+    "sampled": 300,
+    "unique_heuristic_survivor_nl": 9822,
+    "classifier_batches": 492,
+    "filter_subset_rows": 1093,
+    "filter_subset_unique_nl": 1000,
+    "rows_classified_in_subset": 1093,
+    "rows_classified_total": 4265,
+    "kept_total_collected": 1272,
+    "classified_outside_subset": 3172,
+    "filter_subset_rule": "All rows whose surviving normalized-NL SHA256 is in the first 1000 sorted distinct digests",
+    "hash_prefix_batches": 50,
+    "detail_unresolved_rows": 0,
+    "heuristic_reasons": {
+      "heuristic_survivor": 10788,
+      "no_concrete_object": 893,
+      "excluded_task_style": 1469,
+      "unresolved_jinja": 89
+    },
+    "detail_reasons": {
+      "concrete_self_contained": 311,
+      "missing_value_or_content": 190,
+      "vague_object": 210,
+      "missing_source_or_destination": 167,
+      "missing_path": 115,
+      "ambiguous_action": 62,
+      "other_missing_detail": 5,
+      "missing_condition_or_context": 33
+    },
+    "sample_seed": 20261112
+  },
+  "models": {
+    "sol": {
+      "provider": "openai",
+      "id": "gpt-6.1-sol",
+      "stratum": "balanced",
+      "input_per_million": 2,
+      "output_per_million": 10,
+      "cache_write_per_million": 2.5,
+      "cached_input_per_million": 0.1,
+      "pricing_checked": "2026-11-12",
+      "pricing_source": "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "enabled": true
+    },
+    "opus": {
+      "provider": "anthropic",
+      "id": "claude-opus-5-5",
+      "stratum": "frontier",
+      "enabled": true,
+      "optional": true,
+      "reasoning_effort": "high",
+      "input_per_million": 4,
+      "output_per_million": 20,
+      "cache_write_per_million": 5,
+      "cached_input_per_million": 0.2,
+      "pricing_checked": "2026-11-12",
+      "pricing_source": "https://platform.claude.com/docs/en/models/opus-5-5/overview"
+    },
+    "deepseek-v4.1-flash": {
+      "provider": "agentfanclub",
+      "id": "deepseek-v4.1-flash",
+      "enabled": true,
+      "base_url": "https://api.router.agentfan.club/inference/v1",
+      "reasoning_effort": "high",
+      "catalog_reasoning": true,
+      "input_per_million": 0.256856,
+      "output_per_million": 0.930653,
+      "cache_write_per_million": 0,
+      "cached_input_per_million": 0.256856,
+      "pricing_source": "https://api.router.agentfan.club/api/models",
+      "pricing_checked": "2026-11-12",
+      "pricing_unit_assumption": "USD per million tokens; catalog itself does not label currency or denominator",
+      "catalog_limits": {
+        "context": 1048570,
+        "output": 384000
+      },
+      "reasoning_validation": "HIGH accepted in one Chat Completions connectivity call"
+    },
+    "deepseek-v4-flash": {
+      "provider": "agentfanclub",
+      "id": "deepseek-v4-flash",
+      "enabled": true,
+      "base_url": "https://api.router.agentfan.club/inference/v1",
+      "reasoning_effort": "high",
+      "catalog_reasoning": true,
+      "input_per_million": 0.161857,
+      "output_per_million": 0.37146,
+      "cache_write_per_million": 0,
+      "cached_input_per_million": 0.161857,
+      "pricing_source": "https://api.router.agentfan.club/api/models",
+      "pricing_checked": "2026-11-12",
+      "pricing_unit_assumption": "USD per million tokens; catalog itself does not label currency or denominator",
+      "catalog_limits": {
+        "context": 511994,
+        "output": 128000
+      },
+      "reasoning_validation": "HIGH accepted in one Chat Completions connectivity call"
+    },
+    "glm-5.3": {
+      "provider": "agentfanclub",
+      "id": "glm-5.3",
+      "enabled": true,
+      "base_url": "https://api.router.agentfan.club/inference/v1",
+      "reasoning_effort": "high",
+      "catalog_reasoning": true,
+      "input_per_million": 1.321413,
+      "output_per_million": 4.248318,
+      "cache_write_per_million": 0,
+      "cached_input_per_million": 1.321413,
+      "pricing_source": "https://api.router.agentfan.club/api/models",
+      "pricing_checked": "2026-11-12",
+      "pricing_unit_assumption": "USD per million tokens; catalog itself does not label currency or denominator",
+      "catalog_limits": {
+        "context": 524282,
+        "output": 131072
+      },
+      "reasoning_validation": "HIGH accepted in one Chat Completions connectivity call"
+    },
+    "qwen3.8-flash": {
+      "provider": "agentfanclub",
+      "id": "qwen3.8-flash",
+      "enabled": true,
+      "base_url": "https://api.router.agentfan.club/inference/v1",
+      "reasoning_effort": "xhigh",
+      "catalog_reasoning": false,
+      "input_per_million": 0.142798,
+      "output_per_million": 0.452902,
+      "cache_write_per_million": 0,
+      "cached_input_per_million": 0.142798,
+      "pricing_source": "https://api.router.agentfan.club/api/models",
+      "pricing_checked": "2026-11-12",
+      "pricing_unit_assumption": "USD per million tokens; catalog itself does not label currency or denominator",
+      "catalog_limits": {
+        "context": 262138,
+        "output": 131072
+      },
+      "reasoning_validation": "HIGH rejected HTTP 400; error reports xhigh (default), medium, low. Explicit XHIGH configured from that supported-values response; first effort-omitted call completed. No third call made."
+    }
+  },
+  "settings": {
+    "variant": "handbook-v3",
+    "sample_seed": 20261112,
+    "samples_per_model_task": 1,
+    "max_output_tokens": 32768,
+    "reasoning_effort": "HIGH; Qwen XHIGH",
+    "temperature": null,
+    "top_p": null,
+    "seed": null,
+    "demonstration_policy": "Fixed first recovered target set a13,a02,a03,a19; old 21-task matrix used target-specific sets",
+    "initial_generation_model_workers": {
+      "deepseek-v4.1-flash": 32,
+      "qwen3.8-flash": 32,
+      "deepseek-v4-flash": 24,
+      "glm-5.3": 24,
+      "sol": 8,
+      "opus": 8
+    },
+    "generation_invocations": [
+      {
+        "started_at": "2026-11-12T20:43:47.110051+00:00",
+        "model_workers": {
+          "deepseek-v4.1-flash": 32,
+          "qwen3.8-flash": 32,
+          "deepseek-v4-flash": 64,
+          "glm-5.3": 24,
+          "sol": 8,
+          "opus": 8
+        },
+        "scheduler": "independent per-model readmission",
+        "max_attempts": 8,
+        "total_budget_usd": 20,
+        "anthropic_budget_usd": 8
+      }
+    ],
+    "demonstration_ids": [
+      "a13",
+      "a02",
+      "a03",
+      "a19"
+    ],
+    "filter_model": "deepseek-v4-flash",
+    "filter_effort": "low",
+    "filter_max_output_tokens": 4096,
+    "filter_batch_size": 20,
+    "max_attempts": 8,
+    "attempt_policy": "Initial generation cap8; separately authorized fill cap6; cumulative attempt indices can exceed either phase cap.",
+    "fill_max_attempts": 6
+  },
+  "sources": {
+    "handbook_sha256": "fa729aeaf773aab55c88d9457ae0e742094e97bd72517ac62f32bfaf81ad6a3b",
+    "demos_sha256": "f197045fa7c7bbe6b400b69fdcd790dc6c67cef456f140092485cd28e4097605",
+    "source_file_sha256": "4800b0c38ceca7d24458d5ed40709f5ca94cda6b583fe8618045b4aee8185e74",
+    "sample_sha256": "125ef247785a12c58a7c21b744cbdd1444562a7491ab41238090771a828d72f6",
+    "transport_sha256": "94e7e9a8618e4e97291a03ded0c881cc29ca0ebe6ca92969be63d2b5db4e06e8",
+    "driver_sha256": "9fc3245fa7c6e3805d1a96b1adaacbf07dcc234e3e310535a50cd1f429a42cdb",
+    "filter_prompt_sha256": "cb14372532847f6c666b141d0d1d7ff7f339268e532fd2391199c4fa19b1d033",
+    "filter_rubric_sha256": "40ede4e1a19e6434a9ba55a2856b26b70a0b488edfc51bc28faa029b841d7c0c",
+    "filter_heuristics_sha256": "7079ecc0cf72b350c9860350359226030ae3d88570e4d4a7f9618ddb9161b082",
+    "filter_driver_sha256": "4162a3487525beceb22a6f957f9f864a3247cce765c318773811003243ebb176"
+  },
+  "budget_guards": {
+    "total_usd": 20,
+    "anthropic_usd": 8
+  },
+  "costs": {
+    "classifier_usd": 1.20371240645,
+    "generation_usd": 19.321089667861,
+    "total_accounted_usd": 20.524802074310998,
+    "anthropic_usd": 6.290804,
+    "unknown_billing_reserve_usd": 10.925410275943,
+    "notes": "Token-based local accounting at frozen rates, not invoices; router catalog units assumed USD/MTok. Includes transient retries; no prior experiments charged to this run. Separately authorized fill charges are included cumulatively; initial and fill guards are audited by phase."
+  },
+  "native": {
+    "parse_definition": "Nonempty grammar parse; semantic-error queries can parse. Empty query counts false.",
+    "semantic_definition": "Existing analyze_top returns Ok; stage flag retained independently of effect serialization errors.",
+    "interpretation_definition": "Semantic accepted and native query_interp exits zero; symbolic interpretation, no managed-host execution.",
+    "effects_binary_sha256": "708b33e857d746b1556155754b844c2fd61cf42aae136714d07b6a1a668f4ec3",
+    "query_interp_binary_sha256": "01bf77a73cd5d0a370d17dab22e89c20b929627c8f45b5364da56dc5b364be16",
+    "module_sha256": {
+      "modules/ansible_utils.type": "63a9310cf45d57ef9371a0d834395108ed111fffe37670846e6e787c1f89879c",
+      "modules/apt.type": "07fa5a284194af18e5fae7595a5ec1a0c327ba0a1c1905e638d760366067634a",
+      "modules/blockinfile.type": "befbd720321fae4464ec82b659296c5214d49eafe36ffe65b12bc61459998543",
+      "modules/copy.type": "aa231e532fbc53f93203187e813aa2ad14097f17f46def24f60ab77030a3104e",
+      "modules/debug.type": "b8c087101634d7a004d1af376dec6d771498de9d3229ed65e3a5bd4f27e26aab",
+      "modules/dnf.type": "9dd135410e8a620b219af5994f192405de4b5684614c6650d0d2886d296323db",
+      "modules/env.type": "b8c216542896ef402feafd8a5838959f2ec13794476e0e5b8b656f9619b3c2f0",
+      "modules/fetch.type": "5e0d9486c8b8195b5a5287db85999603bedf503137d5910311a861a8fdd9d784",
+      "modules/file.type": "1d68154723251ce3afad0ed574919da21dc09310706e40b2be035c9400eacd3d",
+      "modules/find.type": "0f02a348889bac506c297a2247ef8891ff6dc854b1863c5ad221c13d91156394",
+      "modules/fs.type": "65c03c5c0db08a5cb7346ac394063a0b5772dd6c657ee99f052a772f2dcd3172",
+      "modules/get_url.type": "0ab7cd5424df7b2d88052d2c34f7d1aa20a36bb11e413f29a4975f22710dcf3a",
+      "modules/git.type": "6653b71e38f3314557b0212d16166af41d4030e87b978e8ec1735f96bf59b441",
+      "modules/group.type": "a49b1a7a8e405d7eb2f9d75e10c188d67344992bc72971f55c77f4267399dad2",
+      "modules/lineinfile.type": "fb1d25e8ade79af2139249891bd0d80c474564dd5fc79f26efe98da59ead62af",
+      "modules/package.type": "5dea475a998209c71719f9066bf4f9e9d0b9e3a0aeb03de1f70c50cff45aa591",
+      "modules/pip.type": "960e7f323c979cd36728cb9a51773538d5d754849c1b66dd6fefa87814a5213f",
+      "modules/pkgs.type": "206250838b48624afcfc556c7556645630be5b06b5b9d3e198a158be9a5fa8fd",
+      "modules/reboot.type": "c97de2de6e2af3e351396577497024963e81dc0e442104efdbaad5b8a21cca13",
+      "modules/service.type": "ff125e1cbd4ac3ffd39834f5521c8b89ca4050e4bc9b8ffda418debd2ce859f6",
+      "modules/stat.type": "c415d5ba3bf7b09d60262d0c810a891159fdf9195dabbc435bc370718a126db1",
+      "modules/test_delete.type": "ab47fa65bbc6afa8de21939d31fc25f34d6d3892caa4fdcd37b922551b22fbe4",
+      "modules/uri.type": "bcd9b64cd924fb7fd0a9f2c4700640b5f18e75e246ffe36281aa5bec01b966e2",
+      "modules/user.type": "a24e5addc5d8b83f5e2e867b4b0a698b01ad4d37a99fc23d2240ab4d26c40de1",
+      "modules/users.type": "2f533331404c44920e241d0f610d6da2d4e983c4653d3d66a22e0c56af19074f"
+    }
+  },
+  "summary": [
+    {
+      "model": "claude-opus-5-5",
+      "n": 300,
+      "attempted": 300,
+      "responses": 300,
+      "completed": 300,
+      "incomplete": 0,
+      "parsed": 66,
+      "semantic_accepted": 54,
+      "interpreted": 52,
+      "api_failures": 0,
+      "pending_budget": 0,
+      "deadline_stopped": 0,
+      "pending_billing": 0,
+      "cost_usd": 6.290804,
+      "mean_latency_s": 5.3320133033333335
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "n": 300,
+      "attempted": 300,
+      "responses": 300,
+      "completed": 300,
+      "incomplete": 0,
+      "parsed": 274,
+      "semantic_accepted": 77,
+      "interpreted": 74,
+      "api_failures": 0,
+      "pending_budget": 0,
+      "deadline_stopped": 0,
+      "pending_billing": 0,
+      "cost_usd": 7.577109983031001,
+      "mean_latency_s": 584.62664911
+    },
+    {
+      "model": "deepseek-v4.1-flash",
+      "n": 300,
+      "attempted": 300,
+      "responses": 300,
+      "completed": 300,
+      "incomplete": 0,
+      "parsed": 253,
+      "semantic_accepted": 61,
+      "interpreted": 60,
+      "api_failures": 0,
+      "pending_budget": 0,
+      "deadline_stopped": 0,
+      "pending_billing": 0,
+      "cost_usd": 1.7538230462589999,
+      "mean_latency_s": 78.08084004999999
+    },
+    {
+      "model": "glm-5.3",
+      "n": 300,
+      "attempted": 300,
+      "responses": 300,
+      "completed": 300,
+      "incomplete": 0,
+      "parsed": 218,
+      "semantic_accepted": 52,
+      "interpreted": 52,
+      "api_failures": 0,
+      "pending_budget": 0,
+      "deadline_stopped": 0,
+      "pending_billing": 0,
+      "cost_usd": 1.187695621677,
+      "mean_latency_s": 24.41901495666667
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "n": 300,
+      "attempted": 300,
+      "responses": 300,
+      "completed": 300,
+      "incomplete": 0,
+      "parsed": 250,
+      "semantic_accepted": 67,
+      "interpreted": 65,
+      "api_failures": 0,
+      "pending_budget": 0,
+      "deadline_stopped": 0,
+      "pending_billing": 0,
+      "cost_usd": 1.0016185,
+      "mean_latency_s": 8.069518473333332
+    },
+    {
+      "model": "qwen3.8-flash",
+      "n": 300,
+      "attempted": 300,
+      "responses": 300,
+      "completed": 300,
+      "incomplete": 0,
+      "parsed": 219,
+      "semantic_accepted": 50,
+      "interpreted": 50,
+      "api_failures": 0,
+      "pending_budget": 0,
+      "deadline_stopped": 0,
+      "pending_billing": 0,
+      "cost_usd": 1.510038516894,
+      "mean_latency_s": 130.60437578333332
+    }
+  ],
+  "privacy": "Source dataset, original NL/YAML, complete message manifests and raw provider reasoning remain private; only IDs/hashes, model outputs and counts exported.",
+  "runtime_driver_snapshots": {
+    "resume-2026-11-12T204346-dataset_transport.py": "94e7e9a8618e4e97291a03ded0c881cc29ca0ebe6ca92969be63d2b5db4e06e8",
+    "resume-2026-11-12T204346-dataset_validity.py": "450443cb8b6aa1e94f6951552ac063f5d2901a38f757ce90c838f4aeeec2a64e"
+  },
+  "operator_events": [
+    {
+      "event": "resize classifier workers24 to64",
+      "reason": "paper deadline; preserve interrupted attempts at full reservation",
+      "interrupted_attempts": 24
+    },
+    {
+      "event": "resize classifier workers64 to128",
+      "reason": "paper deadline; classifier latency median~355s; preserve interrupted attempts at full reservation",
+      "interrupted_attempts": 63,
+      "time": "2026-11-12T19:53:19.331948+00:00"
+    },
+    {
+      "event": "User authorizes subset speedup: stop classifier, use complete first50 hash-ranked batches",
+      "time": "2026-11-12T20:12:21.891896+00:00",
+      "interrupted_attempts": 128
+    },
+    {
+      "event": "Fix per-model budget readmission and increase DS V4 Flash pool24 to64 for deadline; completed cells preserved",
+      "time": "2026-11-12T20:43:46.422368+00:00",
+      "interrupted_attempts": 24,
+      "interrupted_full_reservation_usd": 0.342304671862
+    }
+  ],
+  "correctness_claim": false,
+  "reference_comparison": false,
+  "output_judge": false,
+  "runtime_execution": false,
+  "phased_funding": {
+    "phase": "fill-in-2026-11-12",
+    "initial_guard_usd": 20,
+    "initial_anthropic_guard_usd": 8,
+    "initial": {
+      "accounted_usd": 19.985888492705,
+      "known_token_usd": 9.459852820346,
+      "unknown_billing_reserve_usd": 10.526035672359,
+      "anthropic_usd": 6.290804,
+      "attempts": 2909
+    },
+    "fill_allocated_to_run": {
+      "accounted_usd": 0.538913581606,
+      "known_token_usd": 0.139538978022,
+      "unknown_billing_reserve_usd": 0.399374603584,
+      "anthropic_usd": 0,
+      "attempts": 67
+    },
+    "fill_shared_guard_usd": 6,
+    "fill_shared_anthropic_guard_usd": 3,
+    "fill_shared": {
+      "accounted_usd": 1.961241648367,
+      "known_token_usd": 1.361642539608,
+      "unknown_billing_reserve_usd": 0.599599108759,
+      "anthropic_usd": 1.14104,
+      "attempts": 183
+    },
+    "cumulative": {
+      "accounted_usd": 20.524802074311,
+      "known_token_usd": 9.599391798368,
+      "unknown_billing_reserve_usd": 10.925410275943,
+      "anthropic_usd": 6.290804,
+      "attempts": 2976
+    },
+    "note": "Historical guards apply to their original phases. Fill is separately authorized and counted once globally; KB scoring has no generation charge."
+  }
+}

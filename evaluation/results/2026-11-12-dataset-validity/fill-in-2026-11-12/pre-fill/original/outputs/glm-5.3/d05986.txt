@@ -1,0 +1,1 @@
+This request cannot be translated into a valid Astrogator FQL query: "supervisor" is not a service in the knowledge-base catalog, and the language provides no action for enabling a service to start on boot (only `start` and `stop` are available).

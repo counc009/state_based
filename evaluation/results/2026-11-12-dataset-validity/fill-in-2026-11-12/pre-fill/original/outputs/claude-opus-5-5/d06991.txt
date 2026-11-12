@@ -1,0 +1,5 @@
+I can't express this request in Astrogator FQL with the pinned KB. Zabbix Agent isn't a package or service in the knowledge-base catalog, so no query can resolve it.
+
+There is also no "enable at boot" action; the closest is `start SERVICE service`. If a `zabbix agent` service description were added to the KB, the query would be:
+
+start zabbix agent service

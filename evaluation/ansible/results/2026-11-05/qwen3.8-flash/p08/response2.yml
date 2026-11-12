@@ -1,0 +1,21 @@
+---
+- name: "Model qwen3.8-flash, Problem p08, Response 2"
+  hosts: all
+  become: true
+  vars:
+    numpy_package:
+      Debian: python3-numpy
+      RedHat: python3-numpy
+  tasks:
+  - name: Install numpy on Debian based systems
+    ansible.builtin.apt:
+      name: "{{ numpy_package.Debian }}"
+      state: present
+      update_cache: true
+    when: ansible_os_family == "Debian"
+  - name: Install numpy on RedHat based systems
+    ansible.builtin.package:
+      name: "{{ numpy_package.RedHat }}"
+      state: present
+    when: ansible_os_family == "RedHat"
+

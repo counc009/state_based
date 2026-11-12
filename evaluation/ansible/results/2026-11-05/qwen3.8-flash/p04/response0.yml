@@ -1,0 +1,42 @@
+---
+- name: "Model qwen3.8-flash, Problem p04, Response 10"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure /srv/path exists with correct directory permissions
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      mode: "0755"
+      recurse: false
+  - name: Find all directories under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      recurse: true
+      file_type: directory
+      hidden: true
+    register: directories_to_fix
+  - name: Set permissions for directories under /srv/path
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: directory
+      mode: "0755"
+    loop: "{{ directories_to_fix.files | map(attribute='path') | list }}"
+    loop_control:
+      label: "{{ item }}"
+  - name: Find all files under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      recurse: true
+      file_type: file
+      hidden: true
+    register: files_to_fix
+  - name: Set permissions for files under /srv/path
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: file
+      mode: "0644"
+    loop: "{{ files_to_fix.files | map(attribute='path') | list }}"
+    loop_control:
+      label: "{{ item }}"
+

@@ -1,0 +1,3 @@
+
+
+Astrogator FQL provides no archive-extraction action; this operation cannot be expressed as a query.

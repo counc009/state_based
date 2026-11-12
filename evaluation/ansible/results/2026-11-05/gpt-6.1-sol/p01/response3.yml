@@ -1,0 +1,11 @@
+---
+- name: "Model gpt-6.1-sol, Problem p01, Response 3"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure /srv/www exists
+    ansible.builtin.file:
+      path: /srv/www
+      state: directory
+      mode: '0755'
+

@@ -1,0 +1,1 @@
+firewalld isn't in the pinned knowledge base's service catalog, which only covers ssh server, postfix, and apache server, so I can't write a valid Astrogator FQL query for this. `stop firewalld service` would fail to resolve.

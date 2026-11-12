@@ -1,0 +1,1 @@
+There is no valid FQL translation for this request: the action signatures do not include database creation, and zabbix is not in the knowledge-base catalog.

@@ -1,0 +1,3 @@
+
+
+copy files from "wordpress.tgz" to "/tmp"

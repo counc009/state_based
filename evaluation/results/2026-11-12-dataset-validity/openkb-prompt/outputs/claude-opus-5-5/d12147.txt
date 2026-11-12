@@ -1,0 +1,1 @@
+There is no FQL query for this. Astrogator FQL has no action that reads or reports a package's installed version. The `version="VERSION"` argument only pins a version during `install`, and the `installed` condition only checks presence, not version.

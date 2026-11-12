@@ -1,0 +1,295 @@
+{
+  "experiment": "handbook-v3-openkb prompt variant",
+  "variant": "handbook-v3-openkb",
+  "models": {
+    "sol": {
+      "provider": "openai",
+      "id": "gpt-6.1-sol",
+      "stratum": "balanced",
+      "input_per_million": 2,
+      "output_per_million": 10,
+      "cache_write_per_million": 2.5,
+      "cached_input_per_million": 0.1,
+      "pricing_checked": "2026-11-12",
+      "pricing_source": "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "enabled": true
+    },
+    "opus": {
+      "provider": "anthropic",
+      "id": "claude-opus-5-5",
+      "stratum": "frontier",
+      "enabled": true,
+      "optional": true,
+      "reasoning_effort": "high",
+      "input_per_million": 4,
+      "output_per_million": 20,
+      "cache_write_per_million": 5,
+      "cached_input_per_million": 0.2,
+      "pricing_checked": "2026-11-12",
+      "pricing_source": "https://platform.claude.com/docs/en/models/opus-5-5/overview"
+    },
+    "deepseek-v4.1-flash": {
+      "provider": "agentfanclub",
+      "id": "deepseek-v4.1-flash",
+      "enabled": true,
+      "base_url": "https://api.router.agentfan.club/inference/v1",
+      "reasoning_effort": "high",
+      "catalog_reasoning": true,
+      "input_per_million": 0.256856,
+      "output_per_million": 0.930653,
+      "cache_write_per_million": 0,
+      "cached_input_per_million": 0.256856,
+      "pricing_source": "https://api.router.agentfan.club/api/models",
+      "pricing_checked": "2026-11-12",
+      "pricing_unit_assumption": "USD per million tokens; catalog itself does not label currency or denominator",
+      "catalog_limits": {
+        "context": 1048570,
+        "output": 384000
+      },
+      "reasoning_validation": "HIGH accepted in one Chat Completions connectivity call"
+    },
+    "deepseek-v4-flash": {
+      "provider": "agentfanclub",
+      "id": "deepseek-v4-flash",
+      "enabled": true,
+      "base_url": "https://api.router.agentfan.club/inference/v1",
+      "reasoning_effort": "high",
+      "catalog_reasoning": true,
+      "input_per_million": 0.161857,
+      "output_per_million": 0.37146,
+      "cache_write_per_million": 0,
+      "cached_input_per_million": 0.161857,
+      "pricing_source": "https://api.router.agentfan.club/api/models",
+      "pricing_checked": "2026-11-12",
+      "pricing_unit_assumption": "USD per million tokens; catalog itself does not label currency or denominator",
+      "catalog_limits": {
+        "context": 511994,
+        "output": 128000
+      },
+      "reasoning_validation": "HIGH accepted in one Chat Completions connectivity call"
+    },
+    "glm-5.3": {
+      "provider": "agentfanclub",
+      "id": "glm-5.3",
+      "enabled": true,
+      "base_url": "https://api.router.agentfan.club/inference/v1",
+      "reasoning_effort": "high",
+      "catalog_reasoning": true,
+      "input_per_million": 1.321413,
+      "output_per_million": 4.248318,
+      "cache_write_per_million": 0,
+      "cached_input_per_million": 1.321413,
+      "pricing_source": "https://api.router.agentfan.club/api/models",
+      "pricing_checked": "2026-11-12",
+      "pricing_unit_assumption": "USD per million tokens; catalog itself does not label currency or denominator",
+      "catalog_limits": {
+        "context": 524282,
+        "output": 131072
+      },
+      "reasoning_validation": "HIGH accepted in one Chat Completions connectivity call"
+    },
+    "qwen3.8-flash": {
+      "provider": "agentfanclub",
+      "id": "qwen3.8-flash",
+      "enabled": true,
+      "base_url": "https://api.router.agentfan.club/inference/v1",
+      "reasoning_effort": "xhigh",
+      "catalog_reasoning": false,
+      "input_per_million": 0.142798,
+      "output_per_million": 0.452902,
+      "cache_write_per_million": 0,
+      "cached_input_per_million": 0.142798,
+      "pricing_source": "https://api.router.agentfan.club/api/models",
+      "pricing_checked": "2026-11-12",
+      "pricing_unit_assumption": "USD per million tokens; catalog itself does not label currency or denominator",
+      "catalog_limits": {
+        "context": 262138,
+        "output": 131072
+      },
+      "reasoning_validation": "HIGH rejected HTTP 400; error reports xhigh (default), medium, low. Explicit XHIGH configured from that supported-values response; first effort-omitted call completed. No third call made."
+    }
+  },
+  "settings": {
+    "wall_clock_minutes": 35,
+    "max_attempts": 3,
+    "total_guard_usd": 12,
+    "anthropic_guard_usd": 7,
+    "priority": [
+      "opus",
+      "sol",
+      "glm-5.3",
+      "deepseek-v4.1-flash",
+      "qwen3.8-flash",
+      "deepseek-v4-flash"
+    ],
+    "workers": {
+      "opus": 16,
+      "sol": 16,
+      "glm-5.3": 32,
+      "deepseek-v4.1-flash": 64,
+      "qwen3.8-flash": 64,
+      "deepseek-v4-flash": 64
+    },
+    "billing_policy": "Anthropic billing errors stop new Opus admission only"
+  },
+  "started_at": "2026-11-12T22:09:28.745335+00:00",
+  "deadline_at": "2026-11-12T22:44:28.745335+00:00",
+  "finished_at": "2026-11-12T22:44:28.762148+00:00",
+  "exported_at": "2026-11-12T22:45:07.796615+00:00",
+  "supervisor": {
+    "finished_at": "2026-11-12T22:44:28.762148+00:00",
+    "returncode": -15,
+    "hard_deadline_reached": true
+  },
+  "sources": {
+    "handbook_sha256": "347a2245f2d28b89ba9a2dad70fe0cb8879b696036044356fe0f0e9fddc063d1",
+    "demos_sha256": "f197045fa7c7bbe6b400b69fdcd790dc6c67cef456f140092485cd28e4097605",
+    "source_file_sha256": "4800b0c38ceca7d24458d5ed40709f5ca94cda6b583fe8618045b4aee8185e74",
+    "sample_sha256": "125ef247785a12c58a7c21b744cbdd1444562a7491ab41238090771a828d72f6",
+    "transport_sha256": "94e7e9a8618e4e97291a03ded0c881cc29ca0ebe6ca92969be63d2b5db4e06e8",
+    "driver_sha256": "9fc3245fa7c6e3805d1a96b1adaacbf07dcc234e3e310535a50cd1f429a42cdb",
+    "base_generation_manifest_sha256": "6eeba1360ac22b89b3c23bfb6628c463a0b9bfa61ca6fc6245ab9d52fe9af7f1",
+    "base_system_sha256": "fa729aeaf773aab55c88d9457ae0e742094e97bd72517ac62f32bfaf81ad6a3b",
+    "openkb_driver_sha256": "43bcc7f417bfc81f8e3409991ebd7760c32dc88f0a9c6aff555a0503ab57047c"
+  },
+  "baseline_manifest_sha256": "6eeba1360ac22b89b3c23bfb6628c463a0b9bfa61ca6fc6245ab9d52fe9af7f1",
+  "prompt_sha256": "347a2245f2d28b89ba9a2dad70fe0cb8879b696036044356fe0f0e9fddc063d1",
+  "sampled": 300,
+  "planned": 1800,
+  "costs": {
+    "accounted_usd": 11.500138654513,
+    "anthropic_usd": 4.241164,
+    "known_token_usd": 6.792664830311,
+    "unknown_billing_reserve_usd": 4.707473824202,
+    "notes": "Frozen-rate token accounting plus conservative reserves, not invoices."
+  },
+  "summary": [
+    {
+      "model": "gpt-6.1-sol",
+      "n": 300,
+      "attempted": 300,
+      "completed": 300,
+      "incomplete": 0,
+      "responses": 300,
+      "api_failures": 0,
+      "deadline_stopped": 0,
+      "pending_billing": 0,
+      "pending_budget": 0,
+      "controller_stopped": 0,
+      "cost_usd": 0.6580965
+    },
+    {
+      "model": "claude-opus-5-5",
+      "n": 300,
+      "attempted": 236,
+      "completed": 236,
+      "incomplete": 0,
+      "responses": 236,
+      "api_failures": 0,
+      "deadline_stopped": 0,
+      "pending_billing": 0,
+      "pending_budget": 64,
+      "controller_stopped": 0,
+      "cost_usd": 4.241164
+    },
+    {
+      "model": "deepseek-v4.1-flash",
+      "n": 300,
+      "attempted": 300,
+      "completed": 300,
+      "incomplete": 0,
+      "responses": 300,
+      "api_failures": 0,
+      "deadline_stopped": 0,
+      "pending_billing": 0,
+      "pending_budget": 0,
+      "controller_stopped": 0,
+      "cost_usd": 0.5156636718359999
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "n": 300,
+      "attempted": 275,
+      "completed": 262,
+      "incomplete": 0,
+      "responses": 262,
+      "api_failures": 0,
+      "deadline_stopped": 38,
+      "pending_billing": 0,
+      "pending_budget": 0,
+      "controller_stopped": 0,
+      "cost_usd": 0.8264791323280001
+    },
+    {
+      "model": "glm-5.3",
+      "n": 300,
+      "attempted": 300,
+      "completed": 300,
+      "incomplete": 0,
+      "responses": 300,
+      "api_failures": 0,
+      "deadline_stopped": 0,
+      "pending_billing": 0,
+      "pending_budget": 0,
+      "controller_stopped": 0,
+      "cost_usd": 4.8761319448650005
+    },
+    {
+      "model": "qwen3.8-flash",
+      "n": 300,
+      "attempted": 300,
+      "completed": 300,
+      "incomplete": 0,
+      "responses": 300,
+      "api_failures": 0,
+      "deadline_stopped": 0,
+      "pending_billing": 0,
+      "pending_budget": 0,
+      "controller_stopped": 0,
+      "cost_usd": 0.382603405484
+    }
+  ],
+  "reference_comparison": false,
+  "output_judge": false,
+  "runtime_execution": false,
+  "privacy": "Original NL, Ansible, full message manifests and provider reasoning stay private; IDs/hashes and model outputs only.",
+  "receipt_recovery": {
+    "checked_receipts": 1773,
+    "pre_recovery_state_sha256": "e60ca35c84b7d412a458419519e92db6cc7c8b46d5555c362116585ccf1db133",
+    "reconciled_state_sha256": "b142a02746f43d7dba99a1d1c814fdde6ada0c4acf29cc00b419dbff2b10fa73",
+    "original_ledger_backup_sha256": "81dcb57919e795cc8786b815fe7aebc424ffda99b75591c507326ccb5f48f0ed",
+    "recovered_provider_receipts": 1,
+    "recovered_canonical_files": 1,
+    "events": [
+      {
+        "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d07473--r0",
+        "attempt": 2,
+        "action": "recover_durable_provider_receipt",
+        "prior_status": "interrupted_unknown_billing",
+        "recovered_status": "completed",
+        "prior_cost_usd": 0.014303010542,
+        "recovered_cost_usd": 0.0046590035640000005
+      },
+      {
+        "cell_id": "deepseek-v4-flash--handbook-v3-openkb--d07473--r0",
+        "attempt": 2,
+        "action": "recover_missing_canonical",
+        "status": "completed"
+      }
+    ]
+  },
+  "distinct_normalized_descriptions": 253,
+  "comparison_sources": {
+    "baseline_per_cell_sha256": "5736b8d1376a79ddc04691b4009e071d7feb7be460587063c731f5f4d37b323f",
+    "baseline_dual_summary_sha256": "d61f2dce6290e0024d316dedbfff6c8f34fd664fee5679f1341ec28582b960d2",
+    "analysis_driver_sha256": "a87dfa039206a6a6995b4827e3d2b2c77d66c77ca3cabf4465e912860a366bfc",
+    "current_export_driver_sha256": "fed320434fb0630a9091f849c0fbdc1996b5c18e63e1adccbe33d246544ac853",
+    "native_binary_sha256": {
+      "_build/default/evaluation/native/effects.exe": "708b33e857d746b1556155754b844c2fd61cf42aae136714d07b6a1a668f4ec3",
+      "_build/default/evaluation/native/effects_fallback.exe": "0a5b726c46b61c6676e2f83c74620ee4507f6354590f647cb35e81cc7e90d619",
+      "_build/default/bin/query_interp.exe": "01bf77a73cd5d0a370d17dab22e89c20b929627c8f45b5364da56dc5b364be16",
+      "_build/default/evaluation/native/query_interp_fallback.exe": "4a8acdad8d764f66079327d8693abb7437692a3016e259827e993e2b5d259c88"
+    }
+  }
+}

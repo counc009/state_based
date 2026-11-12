@@ -1,0 +1,3 @@
+
+
+if os is Debian based then install ntp

@@ -1,0 +1,1 @@
+I can't translate this request: the action signatures available in this version of Astrogator FQL do not include an action for adding a package repository or PPA, so adding the WebUpd8 Oracle Java PPA cannot be expressed.

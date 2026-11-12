@@ -1,0 +1,38 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p18, Response 9"
+  hosts: redhat
+  become: true
+  tasks:
+  - name: Configure RedHat services
+    when: ansible_os_family == "RedHat"
+    block:
+    - name: Install Apache
+      ansible.builtin.package:
+        name: httpd
+        state: present
+    - name: Ensure Apache is running and enabled
+      ansible.builtin.service:
+        name: httpd
+        state: started
+        enabled: true
+    - name: Ensure Apache home page exists
+      ansible.builtin.copy:
+        dest: /var/www/html/index.html
+        content: |
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Welcome</title>
+            </head>
+            <body>
+              <h1>Welcome to Apache</h1>
+            </body>
+          </html>
+        owner: root
+        group: root
+        mode: '0644'
+    - name: Create webdev user
+      ansible.builtin.user:
+        name: webdev
+        state: present
+

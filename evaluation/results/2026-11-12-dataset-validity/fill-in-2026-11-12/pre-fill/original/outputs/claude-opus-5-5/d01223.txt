@@ -1,0 +1,5 @@
+libyaml isn't in the pinned knowledge-base package catalog, which supports only bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy, and numpy in a virtual environment. So no valid Astrogator FQL query exists for this request.
+
+If the KB were extended with a `libyaml` package entry, the query would be:
+
+install libyaml with version="0.1.4"

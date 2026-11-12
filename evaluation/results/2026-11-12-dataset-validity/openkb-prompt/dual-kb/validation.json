@@ -1,0 +1,156 @@
+{
+  "paid_calls": 0,
+  "cost_usd": 0,
+  "source_run": "/home/user/workspaces/state_based/evaluation/results/2026-11-12-dataset-validity/openkb-prompt",
+  "source_cells_sha256": "6c1df1d293a3a3cd5cdc52fbab6e0f080352583cb8bd9e4100ffe913a6048883",
+  "original_example_cell_flags_reproduced": true,
+  "parse_flags_identical": true,
+  "source_hashes": {
+    "evaluation/native/fallback_kb.ml": "246d0690808226961804a466d5f6b13748b53b63cac07c9616b54dd97cd73da7",
+    "evaluation/native/effects.ml": "ded8e8ce6568a23da261e0d4566cc8afb7003f4d8726e99c39a5ffea60832a5a",
+    "evaluation/native/effects_fallback.ml": "a0cf46d89445a5cf5c089b11863f8a9d36a3083f6743f627291a0ab0c945dd22",
+    "evaluation/native/query_interp_fallback.ml": "0620de67005c04e8c3cabfecd6f65589c24c5b379e17d8d67d181206e318fab2",
+    "bin/query_interp.ml": "eae662bed3c31df9e87a3ce7a5fb74b83c1d813f8a8fbf5327f5969c1dcf062e",
+    "lib/fql/knowledge.ml": "78fb779f21ddf4e805b95bf6d7d918043923f542264dee1c74babbbff237679f",
+    "lib/fql/semant.ml": "31b3ccb8ffde6cd0e389e84c432d732fe388e44e2f0d5df07dd1decb038425b5",
+    "evaluation/code/kb_rescore.py": "5d3ed35559b4130aa491c323ee60f5f4bb223951201908e2640e0ea6e943bcdb"
+  },
+  "summary": [
+    {
+      "model": "claude-opus-5-5",
+      "kb": "example",
+      "n": 300,
+      "responses": 300,
+      "parsed": 231,
+      "semantic_accepted": 49,
+      "interpreted": 49,
+      "unavailable": 0
+    },
+    {
+      "model": "claude-opus-5-5",
+      "kb": "fallback",
+      "n": 300,
+      "responses": 300,
+      "parsed": 231,
+      "semantic_accepted": 225,
+      "interpreted": 220,
+      "unavailable": 0
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "kb": "example",
+      "n": 300,
+      "responses": 300,
+      "parsed": 287,
+      "semantic_accepted": 69,
+      "interpreted": 68,
+      "unavailable": 0
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "kb": "fallback",
+      "n": 300,
+      "responses": 300,
+      "parsed": 287,
+      "semantic_accepted": 279,
+      "interpreted": 270,
+      "unavailable": 0
+    },
+    {
+      "model": "deepseek-v4.1-flash",
+      "kb": "example",
+      "n": 300,
+      "responses": 300,
+      "parsed": 256,
+      "semantic_accepted": 54,
+      "interpreted": 54,
+      "unavailable": 0
+    },
+    {
+      "model": "deepseek-v4.1-flash",
+      "kb": "fallback",
+      "n": 300,
+      "responses": 300,
+      "parsed": 256,
+      "semantic_accepted": 237,
+      "interpreted": 230,
+      "unavailable": 0
+    },
+    {
+      "model": "glm-5.3",
+      "kb": "example",
+      "n": 300,
+      "responses": 300,
+      "parsed": 243,
+      "semantic_accepted": 43,
+      "interpreted": 42,
+      "unavailable": 0
+    },
+    {
+      "model": "glm-5.3",
+      "kb": "fallback",
+      "n": 300,
+      "responses": 300,
+      "parsed": 243,
+      "semantic_accepted": 226,
+      "interpreted": 220,
+      "unavailable": 0
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "kb": "example",
+      "n": 300,
+      "responses": 300,
+      "parsed": 255,
+      "semantic_accepted": 55,
+      "interpreted": 55,
+      "unavailable": 0
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "kb": "fallback",
+      "n": 300,
+      "responses": 300,
+      "parsed": 255,
+      "semantic_accepted": 227,
+      "interpreted": 221,
+      "unavailable": 0
+    },
+    {
+      "model": "qwen3.8-flash",
+      "kb": "example",
+      "n": 300,
+      "responses": 300,
+      "parsed": 231,
+      "semantic_accepted": 53,
+      "interpreted": 52,
+      "unavailable": 0
+    },
+    {
+      "model": "qwen3.8-flash",
+      "kb": "fallback",
+      "n": 300,
+      "responses": 300,
+      "parsed": 231,
+      "semantic_accepted": 214,
+      "interpreted": 205,
+      "unavailable": 0
+    }
+  ],
+  "cross_model": [
+    {
+      "kb": "example",
+      "descriptions": 300,
+      "at_least_one_semantically_valid": 83,
+      "all_responding_models_semantically_valid": 34,
+      "all_six_responded_and_semantically_valid": 34
+    },
+    {
+      "kb": "fallback",
+      "descriptions": 300,
+      "at_least_one_semantically_valid": 290,
+      "all_responding_models_semantically_valid": 182,
+      "all_six_responded_and_semantically_valid": 182
+    }
+  ]
+}

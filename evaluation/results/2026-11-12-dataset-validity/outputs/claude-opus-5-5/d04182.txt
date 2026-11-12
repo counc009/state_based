@@ -1,0 +1,3 @@
+install logrotate
+
+Note: logrotate isn't in the pinned KB's package catalog (only bash, zsh, postfix, apache, ssh client, ssh server, and numpy are), so this query won't resolve until a logrotate entry is added to the knowledge base.

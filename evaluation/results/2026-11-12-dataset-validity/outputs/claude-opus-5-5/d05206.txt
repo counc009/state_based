@@ -1,0 +1,3 @@
+This request can't be expressed as a valid query. `uninstall` only accepts packages from the knowledge-base catalog, which covers bash, zsh, postfix, apache server, ssh client, ssh server, and numpy. Logstash isn't one of them, so `uninstall logstash` would not resolve.
+
+It would become expressible if logstash were added to the knowledge base or if you meant one of the cataloged packages.

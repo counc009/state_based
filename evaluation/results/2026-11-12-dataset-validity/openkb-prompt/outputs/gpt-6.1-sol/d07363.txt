@@ -1,0 +1,1 @@
+write "Network security: LAN Manager authentication level=Send" to ?path with position=overwrite

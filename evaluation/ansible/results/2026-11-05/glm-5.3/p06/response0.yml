@@ -1,0 +1,32 @@
+---
+- name: "Model glm-5.3, Problem p06, Response 10"
+  hosts: all
+  become: true
+  vars:
+    venv_path: /user/home/venv
+    python_version: "3.10"
+  tasks:
+  - name: Ensure required system packages are installed
+    ansible.builtin.apt:
+      name:
+      - python{{ python_version }}
+      - python{{ python_version }}-venv
+      - python3-pip
+      state: present
+      update_cache: true
+  - name: Ensure base directory exists
+    ansible.builtin.file:
+      path: "{{ venv_path | dirname }}"
+      state: directory
+      mode: "0755"
+  - name: Create Python 3.10 virtual environment
+    ansible.builtin.command:
+      cmd: "python{{ python_version }} -m venv {{ venv_path }}"
+      creates: "{{ venv_path }}/bin/activate"
+  - name: Install numpy in the virtual environment
+    ansible.builtin.pip:
+      name: numpy
+      virtualenv: "{{ venv_path }}"
+      virtualenv_command: "python{{ python_version }} -m venv"
+      state: present
+

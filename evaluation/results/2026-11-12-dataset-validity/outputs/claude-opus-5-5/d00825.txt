@@ -1,0 +1,15 @@
+This request can't be expressed as a standalone FQL query. FQL has no "check" or "test" action. Existence tests exist only as conditions, and a condition must guard an action: `if CONDITION then STATEMENT`.
+
+It's also unclear whether `/etc/init` is a file or a directory, and FQL treats these as different conditions. Pick the one that fits and add the action that should depend on it:
+
+```
+if directory "/etc/init" exists then ACTION
+```
+
+or
+
+```
+if file "/etc/init" exists then ACTION
+```
+
+For example, `if directory "/etc/init" not exists then create directory at "/etc/init"`.

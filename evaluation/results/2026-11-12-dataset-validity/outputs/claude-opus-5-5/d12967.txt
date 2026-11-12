@@ -1,0 +1,1 @@
+Tomcat is not in the pinned knowledge-base service catalog, which supports only ssh server, postfix, and apache server, so this request cannot be expressed as a valid query. The query form would be `start tomcat service`, but it would not resolve unless a Tomcat service entry is added to the KB.

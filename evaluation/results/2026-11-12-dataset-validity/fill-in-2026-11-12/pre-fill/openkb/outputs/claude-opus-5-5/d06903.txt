@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. The language has no action for disabling a dnf module stream, such as `dnf module disable mysql`, and OS conditions can't target a specific release like version 8. `uninstall mysql` would remove a package, which is a different and destructive operation, so I haven't substituted it.

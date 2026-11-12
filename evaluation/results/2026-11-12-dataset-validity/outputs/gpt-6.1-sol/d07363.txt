@@ -1,0 +1,1 @@
+set "Network security: LAN Manager authentication level" to "Send"

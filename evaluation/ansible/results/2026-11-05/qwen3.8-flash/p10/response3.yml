@@ -1,0 +1,10 @@
+---
+- name: "Model qwen3.8-flash, Problem p10, Response 3"
+  hosts: all
+  become: true
+  tasks:
+  - name: Disable password for service
+    ansible.builtin.user:
+      name: service
+      password: "!"
+

@@ -1,0 +1,1 @@
+delete file at ?sendmail; copy file from ?msmtp to ?sendmail.

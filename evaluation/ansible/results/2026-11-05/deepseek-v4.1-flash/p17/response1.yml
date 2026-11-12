@@ -1,0 +1,26 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p17, Response 1"
+  hosts: redhat,ubuntu
+  become: true
+  tasks:
+  - name: Install latest postfix
+    ansible.builtin.package:
+      name: postfix
+      state: latest
+  - name: Download Ubuntu postfix configuration
+    ansible.builtin.get_url:
+      url: http://example.com/cfg.ubuntu
+      dest: /etc/postfix/main.cf
+      backup: yes
+      force: yes
+      mode: '0644'
+    when: ansible_distribution == 'Ubuntu'
+  - name: Download RedHat postfix configuration
+    ansible.builtin.get_url:
+      url: http://example.com/cfg.redhat
+      dest: /etc/postfix/main.cf
+      backup: yes
+      force: yes
+      mode: '0644'
+    when: ansible_os_family == 'RedHat'
+

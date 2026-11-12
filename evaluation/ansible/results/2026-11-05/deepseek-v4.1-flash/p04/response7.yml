@@ -1,0 +1,42 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p04, Response 7"
+  hosts: all
+  become: true
+  tasks:
+  - name: Set base directory permissions
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      mode: '0755'
+  - name: Find all directories under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      file_type: directory
+      recurse: true
+      hidden: true
+    register: directories
+  - name: Find all files under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      file_type: file
+      recurse: true
+      hidden: true
+    register: files
+  - name: Set directory permissions to allow everyone to list and read, but only owner
+      to write
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: directory
+      mode: '0755'
+    loop: "{{ directories.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+  - name: Set file permissions to allow everyone to read, but only owner to write
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: file
+      mode: '0644'
+    loop: "{{ files.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+

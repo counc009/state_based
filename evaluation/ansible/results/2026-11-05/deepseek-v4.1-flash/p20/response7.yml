@@ -1,0 +1,33 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p20, Response 7"
+  hosts: redhat,debian
+  become: true
+  vars:
+    ssh_packages:
+      Debian:
+      - openssh-client
+      - openssh-server
+      RedHat:
+      - openssh-clients
+      - openssh-server
+    ssh_service:
+      Debian: ssh
+      RedHat: sshd
+  tasks:
+  - name: Install SSH client and server
+    ansible.builtin.package:
+      name: "{{ ssh_packages[ansible_os_family] }}"
+      state: present
+  - name: Start and enable SSH service
+    ansible.builtin.service:
+      name: "{{ ssh_service[ansible_os_family] }}"
+      state: started
+      enabled: true
+  - name: Ensure user fizbaz exists and generate SSH key
+    ansible.builtin.user:
+      name: fizbaz
+      generate_ssh_key: yes
+      ssh_key_type: rsa
+      ssh_key_file: .ssh/fizbaz_rsa
+      state: present
+

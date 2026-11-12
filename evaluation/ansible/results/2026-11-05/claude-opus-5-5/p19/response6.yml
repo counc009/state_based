@@ -1,0 +1,29 @@
+---
+- name: "Model claude-opus-5-5, Problem p19, Response 6"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure sudo package is installed
+    ansible.builtin.package:
+      name: sudo
+      state: present
+  - name: Ensure the wheel group exists
+    ansible.builtin.group:
+      name: wheel
+      state: present
+  - name: Allow wheel group to use sudo without a password
+    ansible.builtin.lineinfile:
+      path: /etc/sudoers
+      state: present
+      regexp: '^%wheel\s'
+      line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+      validate: '/usr/sbin/visudo -cf %s'
+  - name: Create the ansible user and add it to the wheel group
+    ansible.builtin.user:
+      name: ansible
+      groups: wheel
+      append: true
+      shell: /bin/bash
+      create_home: true
+      state: present
+

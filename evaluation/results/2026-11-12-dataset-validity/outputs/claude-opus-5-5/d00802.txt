@@ -1,0 +1,1 @@
+This request can't be expressed as a valid query. The pinned knowledge base has no `memcached` service. It only supports `ssh server`, `postfix`, and `apache server`. Writing `start memcached service` would not resolve against the KB. Supporting it would require adding a memcached service entry to the knowledge base.

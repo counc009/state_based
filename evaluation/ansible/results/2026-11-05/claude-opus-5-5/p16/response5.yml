@@ -1,0 +1,63 @@
+---
+- name: "Model claude-opus-5-5, Problem p16, Response 5"
+  hosts: all
+  become: true
+  vars:
+    target_user: dev
+    zsh_candidate_paths:
+    - /bin/zsh
+    - /usr/bin/zsh
+    - /usr/local/bin/zsh
+  tasks:
+  - name: Install zsh package
+    ansible.builtin.package:
+      name: zsh
+      state: present
+  - name: Locate the zsh binary
+    ansible.builtin.stat:
+      path: "{{ item }}"
+    loop: "{{ zsh_candidate_paths }}"
+    register: zsh_stat
+  - name: Set the zsh path fact
+    ansible.builtin.set_fact:
+      zsh_path: >-
+        {{ (zsh_stat.results
+            | selectattr('stat.exists')
+            | map(attribute='item')
+            | list
+            | first) | default('/bin/zsh') }}
+  - name: Ensure zsh is listed in /etc/shells
+    ansible.builtin.lineinfile:
+      path: /etc/shells
+      line: "{{ zsh_path }}"
+      state: present
+      create: true
+      owner: root
+      group: root
+      mode: "0644"
+  - name: Ensure user dev exists and uses zsh as the default shell
+    ansible.builtin.user:
+      name: "{{ target_user }}"
+      shell: "{{ zsh_path }}"
+      state: present
+      create_home: true
+  - name: Retrieve passwd information for user dev
+    ansible.builtin.getent:
+      database: passwd
+      key: "{{ target_user }}"
+  - name: Set home directory fact for user dev
+    ansible.builtin.set_fact:
+      target_user_home: "{{ getent_passwd[target_user][4] }}"
+  - name: Get primary group of user dev
+    ansible.builtin.set_fact:
+      target_user_gid: "{{ getent_passwd[target_user][2] }}"
+  - name: Ensure the .zshrc configuration file exists
+    ansible.builtin.file:
+      path: "{{ target_user_home }}/.zshrc"
+      state: touch
+      owner: "{{ target_user }}"
+      group: "{{ target_user_gid }}"
+      mode: "0644"
+      access_time: preserve
+      modification_time: preserve
+

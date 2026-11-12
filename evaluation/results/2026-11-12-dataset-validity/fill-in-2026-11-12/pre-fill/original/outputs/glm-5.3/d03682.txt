@@ -1,0 +1,1 @@
+I can't translate this request: Astrogator FQL has no action for managing containers, and Docker is not in the knowledge-base catalog, so removing Docker containers cannot be expressed as a query.

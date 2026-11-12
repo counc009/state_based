@@ -1,0 +1,33 @@
+---
+- name: "Model deepseek-v4-flash, Problem p18, Response 7"
+  hosts: redhat
+  become: true
+  tasks:
+  - name: Install httpd
+    ansible.builtin.dnf:
+      name: httpd
+      state: present
+  - name: Ensure httpd is enabled and running
+    ansible.builtin.service:
+      name: httpd
+      state: started
+      enabled: yes
+  - name: Ensure homepage exists
+    ansible.builtin.copy:
+      dest: /var/www/html/index.html
+      content: |
+        <html>
+        <body>
+        <h1>Hello from Apache!</h1>
+        </body>
+        </html>
+      owner: root
+      group: root
+      mode: '0644'
+  - name: Create webdev user
+    ansible.builtin.user:
+      name: webdev
+      state: present
+      create_home: yes
+      shell: /bin/bash
+

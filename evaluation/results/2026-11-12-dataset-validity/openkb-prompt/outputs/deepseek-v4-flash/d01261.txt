@@ -1,0 +1,1 @@
+if "Wiki.js" installed then

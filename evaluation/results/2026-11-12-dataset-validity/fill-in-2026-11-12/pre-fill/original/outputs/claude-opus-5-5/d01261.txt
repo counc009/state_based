@@ -1,0 +1,27 @@
+**This request can't be expressed as an Astrogator FQL query**, for two reasons:
+
+1. **Wiki.js is not in the knowledge-base catalog.** `if PACKAGE installed` only accepts catalog packages (bash, zsh, postfix, apache, ssh client, ssh server, numpy).
+2. **FQL has no standalone "check" action.** Conditions only appear inside `if ... then STATEMENT`, so a query needs an action to perform based on the result.
+
+If you know where Wiki.js is installed and what should happen, you could use a path-based condition, for example:
+
+```
+if directory "/var/wiki" not exists then create directory at "/var/wiki"
+```
+
+Here `/var/wiki` and the `then` action are placeholders for your actual path and action.
+
+**Corrections to my earlier answers.** They left paths and values unquoted and used the wrong separator for permissions. The corrected queries are:
+
+```
+set file permissions in "/srv/path" with read=all, write=owner, list directory=all
+```
+```
+delete directory at "/home/mydata/web"
+```
+```
+delete files in "/home/mydata/web"
+```
+```
+if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file
+```

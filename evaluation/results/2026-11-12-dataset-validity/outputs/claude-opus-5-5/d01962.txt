@@ -1,0 +1,16 @@
+Astrogator FQL cannot express this request. It has no action for running commands or querying versions, and docker-compose is not in the knowledge-base package catalog.
+
+My earlier queries also left out the required double quotes around literals and used the wrong separator. They should be:
+
+```
+set file permissions in "/srv/path" with read=all, write=owner, list directory=all
+```
+```
+delete directory at "/home/mydata/web"
+```
+```
+delete files in "/home/mydata/web"
+```
+```
+if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file
+```

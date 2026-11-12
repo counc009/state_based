@@ -1,0 +1,1 @@
+mysql is not in the supported package catalog for this knowledge base, so no FQL query can be produced for installing it.

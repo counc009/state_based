@@ -1,0 +1,143 @@
+{
+  "references": 21,
+  "all_references_unchanged": true,
+  "all_cell_semantic_flags_unchanged": true,
+  "all_cell_effect_match_flags_unchanged": true,
+  "published_counts_reproduced": true,
+  "summary": [
+    {
+      "model": "claude-opus-5-5",
+      "variant": "compact-v1",
+      "n": 210,
+      "published_example_semantic": 107,
+      "recomputed_example_semantic": 107,
+      "fallback_semantic": 107,
+      "published_example_ref_match": 85,
+      "recomputed_example_ref_match": 85,
+      "fallback_ref_match": 85
+    },
+    {
+      "model": "claude-opus-5-5",
+      "variant": "handbook-v3",
+      "n": 210,
+      "published_example_semantic": 209,
+      "recomputed_example_semantic": 209,
+      "fallback_semantic": 209,
+      "published_example_ref_match": 181,
+      "recomputed_example_ref_match": 181,
+      "fallback_ref_match": 181
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "variant": "compact-v1",
+      "n": 210,
+      "published_example_semantic": 89,
+      "recomputed_example_semantic": 89,
+      "fallback_semantic": 89,
+      "published_example_ref_match": 71,
+      "recomputed_example_ref_match": 71,
+      "fallback_ref_match": 71
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "variant": "handbook-v3",
+      "n": 210,
+      "published_example_semantic": 199,
+      "recomputed_example_semantic": 199,
+      "fallback_semantic": 199,
+      "published_example_ref_match": 165,
+      "recomputed_example_ref_match": 165,
+      "fallback_ref_match": 165
+    },
+    {
+      "model": "deepseek-v4.1-flash",
+      "variant": "compact-v1",
+      "n": 210,
+      "published_example_semantic": 100,
+      "recomputed_example_semantic": 100,
+      "fallback_semantic": 100,
+      "published_example_ref_match": 85,
+      "recomputed_example_ref_match": 85,
+      "fallback_ref_match": 85
+    },
+    {
+      "model": "deepseek-v4.1-flash",
+      "variant": "handbook-v3",
+      "n": 210,
+      "published_example_semantic": 174,
+      "recomputed_example_semantic": 174,
+      "fallback_semantic": 174,
+      "published_example_ref_match": 165,
+      "recomputed_example_ref_match": 165,
+      "fallback_ref_match": 165
+    },
+    {
+      "model": "glm-5.3",
+      "variant": "compact-v1",
+      "n": 210,
+      "published_example_semantic": 95,
+      "recomputed_example_semantic": 95,
+      "fallback_semantic": 95,
+      "published_example_ref_match": 82,
+      "recomputed_example_ref_match": 82,
+      "fallback_ref_match": 82
+    },
+    {
+      "model": "glm-5.3",
+      "variant": "handbook-v3",
+      "n": 210,
+      "published_example_semantic": 186,
+      "recomputed_example_semantic": 186,
+      "fallback_semantic": 186,
+      "published_example_ref_match": 149,
+      "recomputed_example_ref_match": 149,
+      "fallback_ref_match": 149
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "variant": "compact-v1",
+      "n": 210,
+      "published_example_semantic": 116,
+      "recomputed_example_semantic": 116,
+      "fallback_semantic": 116,
+      "published_example_ref_match": 88,
+      "recomputed_example_ref_match": 88,
+      "fallback_ref_match": 88
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "variant": "handbook-v3",
+      "n": 210,
+      "published_example_semantic": 209,
+      "recomputed_example_semantic": 209,
+      "fallback_semantic": 209,
+      "published_example_ref_match": 180,
+      "recomputed_example_ref_match": 180,
+      "fallback_ref_match": 180
+    },
+    {
+      "model": "qwen3.8-flash",
+      "variant": "compact-v1",
+      "n": 210,
+      "published_example_semantic": 95,
+      "recomputed_example_semantic": 95,
+      "fallback_semantic": 95,
+      "published_example_ref_match": 74,
+      "recomputed_example_ref_match": 74,
+      "fallback_ref_match": 74
+    },
+    {
+      "model": "qwen3.8-flash",
+      "variant": "handbook-v3",
+      "n": 210,
+      "published_example_semantic": 178,
+      "recomputed_example_semantic": 178,
+      "fallback_semantic": 178,
+      "published_example_ref_match": 154,
+      "recomputed_example_ref_match": 154,
+      "fallback_ref_match": 154
+    }
+  ],
+  "paid_calls": 0,
+  "cost_usd": 0
+}

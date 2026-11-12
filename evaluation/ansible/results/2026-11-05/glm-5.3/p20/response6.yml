@@ -1,0 +1,69 @@
+---
+- name: "Model glm-5.3, Problem p20, Response 6"
+  hosts: redhat,debian
+  become: true
+  tasks:
+  - name: Install SSH client and server on Debian
+    ansible.builtin.apt:
+      name:
+      - openssh-client
+      - openssh-server
+      state: present
+      update_cache: true
+    when: ansible_facts['os_family'] == 'Debian'
+  - name: Install SSH client and server on RedHat
+    ansible.builtin.yum:
+      name:
+      - openssh-clients
+      - openssh-server
+      state: present
+      update_cache: true
+    when: ansible_facts['os_family'] == 'RedHat'
+  - name: Start and enable SSH service on Debian
+    ansible.builtin.service:
+      name: ssh
+      state: started
+      enabled: true
+    when: ansible_facts['os_family'] == 'Debian'
+  - name: Start and enable SSH service on RedHat
+    ansible.builtin.service:
+      name: sshd
+      state: started
+      enabled: true
+    when: ansible_facts['os_family'] == 'RedHat'
+  - name: Ensure user fizbaz exists
+    ansible.builtin.user:
+      name: fizbaz
+      state: present
+      create_home: true
+  - name: Generate SSH key for fizbaz
+    ansible.builtin.user:
+      name: fizbaz
+      generate_ssh_key: true
+      ssh_key_bits: 2048
+      ssh_key_type: rsa
+      ssh_key_file: .ssh/fizbaz_rsa
+      ssh_key_comment: fizbaz
+    register: fizbaz_key
+  - name: Set proper permissions on fizbaz .ssh directory
+    ansible.builtin.file:
+      path: /home/fizbaz/.ssh
+      state: directory
+      owner: fizbaz
+      group: fizbaz
+      mode: '0700'
+  - name: Set proper permissions on fizbaz private key
+    ansible.builtin.file:
+      path: /home/fizbaz/.ssh/fizbaz_rsa
+      state: file
+      owner: fizbaz
+      group: fizbaz
+      mode: '0600'
+  - name: Set proper permissions on fizbaz public key
+    ansible.builtin.file:
+      path: /home/fizbaz/.ssh/fizbaz_rsa.pub
+      state: file
+      owner: fizbaz
+      group: fizbaz
+      mode: '0644'
+

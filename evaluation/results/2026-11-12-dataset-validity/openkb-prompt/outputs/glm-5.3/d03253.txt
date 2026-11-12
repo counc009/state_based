@@ -1,0 +1,1 @@
+create file at "/etc/default/grub.d/cgroup-memory-swapaccount.cfg" with content="GRUB_CMDLINE_LINUX=$GRUB_CMDLINE_LINUX cgroup_enable=memory swapaccount=1"

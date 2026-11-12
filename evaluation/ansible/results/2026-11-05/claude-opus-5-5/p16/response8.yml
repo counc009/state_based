@@ -1,0 +1,32 @@
+---
+- name: "Model claude-opus-5-5, Problem p16, Response 8"
+  hosts: all
+  become: true
+  vars:
+    target_user: dev
+    zsh_path: /bin/zsh
+  tasks:
+  - name: Ensure zsh is installed
+    ansible.builtin.package:
+      name: zsh
+      state: present
+  - name: Ensure user dev exists and has zsh as the default shell
+    ansible.builtin.user:
+      name: "{{ target_user }}"
+      shell: "{{ zsh_path }}"
+      state: present
+    register: dev_user
+  - name: Ensure the .zshrc configuration file exists
+    ansible.builtin.copy:
+      dest: "{{ dev_user.home }}/.zshrc"
+      content: |
+        # ~/.zshrc - zsh configuration file for {{ target_user }}
+        export HISTFILE=~/.zsh_history
+        export HISTSIZE=10000
+        export SAVEHIST=10000
+        setopt appendhistory
+      owner: "{{ target_user }}"
+      group: "{{ dev_user.group | default(target_user) }}"
+      mode: "0644"
+      force: false
+

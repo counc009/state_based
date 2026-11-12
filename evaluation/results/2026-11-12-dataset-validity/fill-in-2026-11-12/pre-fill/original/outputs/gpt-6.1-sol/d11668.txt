@@ -1,0 +1,1 @@
+write "<plist version='1.0'><dict><key>location</key><string>~/Scratch</string></dict></plist>" to "~/Library/Preferences/com.apple.screencapture.plist" with position=overwrite

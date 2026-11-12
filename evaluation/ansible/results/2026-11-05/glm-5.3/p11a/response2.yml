@@ -1,0 +1,20 @@
+---
+- name: "Model glm-5.3, Problem p11a, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Find all .war files in /backup on the controller
+    ansible.builtin.find:
+      paths: /backup
+      patterns: "*.war"
+    delegate_to: localhost
+    register: war_files
+  - name: Copy each .war file to /tmp on the remote
+    ansible.builtin.copy:
+      src: "{{ item.path }}"
+      dest: /tmp/
+      mode: '0644'
+    loop: "{{ war_files.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+

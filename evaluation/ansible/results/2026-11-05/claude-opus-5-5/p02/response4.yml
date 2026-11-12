@@ -1,0 +1,25 @@
+---
+- name: "Model claude-opus-5-5, Problem p02, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Set LC_ALL=C in /etc/environment
+    ansible.builtin.lineinfile:
+      path: /etc/environment
+      regexp: '^\s*(export\s+)?LC_ALL='
+      line: 'LC_ALL=C'
+      state: present
+      create: true
+      owner: root
+      group: root
+      mode: '0644'
+  - name: Export LC_ALL=C for login shells via /etc/profile.d
+    ansible.builtin.copy:
+      dest: /etc/profile.d/lc_all.sh
+      content: |
+        # Managed by Ansible
+        export LC_ALL=C
+      owner: root
+      group: root
+      mode: '0644'
+

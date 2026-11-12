@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. The language has no action for refreshing or upgrading the apt package index, and apt is not in the package catalog.

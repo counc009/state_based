@@ -1,0 +1,31 @@
+---
+- name: "Model claude-opus-5-5, Problem p12, Response 4"
+  hosts: all
+  become: true
+  vars:
+    src_file: /scratch/file.txt
+    dest_file: /home/user/data.txt
+  tasks:
+  - name: Check whether the source file exists
+    ansible.builtin.stat:
+      path: "{{ src_file }}"
+    register: src_stat
+  - name: Ensure destination directory exists
+    ansible.builtin.file:
+      path: "{{ dest_file | dirname }}"
+      state: directory
+      mode: "0755"
+    when: src_stat.stat.exists
+  - name: Copy source file to destination on the remote host
+    ansible.builtin.copy:
+      src: "{{ src_file }}"
+      dest: "{{ dest_file }}"
+      remote_src: true
+      mode: preserve
+    when: src_stat.stat.exists
+  - name: Remove the original source file
+    ansible.builtin.file:
+      path: "{{ src_file }}"
+      state: absent
+    when: src_stat.stat.exists
+

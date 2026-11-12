@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. The language has no action for sending requests to a service or checking its responses, and Airbyte isn't a package or service in the knowledge-base catalog. That rules out even `if airbyte running then ...`.

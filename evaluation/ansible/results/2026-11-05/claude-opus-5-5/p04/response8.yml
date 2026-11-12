@@ -1,0 +1,17 @@
+---
+- name: "Model claude-opus-5-5, Problem p04, Response 8"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure /srv/path exists as a directory
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      mode: "0755"
+  - name: Recursively set permissions (dirs 0755, files 0644)
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      recurse: true
+      mode: "u=rwX,go=rX"
+

@@ -1,0 +1,13 @@
+---
+- name: "Model deepseek-v4-flash, Problem p02, Response 5"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure LC_ALL is set to C in /etc/environment
+    ansible.builtin.lineinfile:
+      path: /etc/environment
+      line: LC_ALL=C
+      regexp: '^LC_ALL='
+      state: present
+      create: yes
+

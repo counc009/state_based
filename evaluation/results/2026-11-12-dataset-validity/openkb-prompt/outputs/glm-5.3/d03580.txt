@@ -1,0 +1,1 @@
+This request cannot be expressed in Astrogator FQL: there is no cache-update action, and apk (Alpine) is not among the supported OS contexts or package managers in the knowledge base.

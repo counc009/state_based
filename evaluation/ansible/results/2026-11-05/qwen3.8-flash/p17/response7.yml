@@ -1,0 +1,60 @@
+---
+- name: "Model qwen3.8-flash, Problem p17, Response 7"
+  hosts: redhat,ubuntu
+  become: true
+  vars:
+    postfix_package: postfix
+    postfix_config_file: /etc/postfix/main.cf
+    postfix_backup_file: /etc/postfix/main.cf.ansible.bak
+    supported_os_families:
+    - RedHat
+    - Debian
+  tasks:
+  - name: Install latest postfix on Ubuntu/Debian
+    ansible.builtin.apt:
+      name: "{{ postfix_package }}"
+      state: latest
+      update_cache: true
+    when: ansible_facts['os_family'] == 'Debian'
+  - name: Install latest postfix on RedHat
+    ansible.builtin.package:
+      name: "{{ postfix_package }}"
+      state: latest
+    when: ansible_facts['os_family'] == 'RedHat'
+  - name: Select postfix configuration URL
+    ansible.builtin.set_fact:
+      postfix_config_url: "{{ 'http://example.com/cfg.redhat' if ansible_facts['os_family']
+        == 'RedHat' else 'http://example.com/cfg.ubuntu' if ansible_facts['os_family']
+        == 'Debian' else '' }}"
+  - name: Check default postfix configuration file
+    ansible.builtin.stat:
+      path: "{{ postfix_config_file }}"
+    register: postfix_main_stat
+  - name: Check backup postfix configuration file
+    ansible.builtin.stat:
+      path: "{{ postfix_backup_file }}"
+    register: postfix_backup_stat
+  - name: Backup default postfix configuration file
+    ansible.builtin.copy:
+      src: "{{ postfix_config_file }}"
+      dest: "{{ postfix_backup_file }}"
+      remote_src: true
+      force: true
+      owner: root
+      group: root
+      mode: preserve
+    when:
+    - ansible_facts['os_family'] in supported_os_families
+    - postfix_main_stat.stat.exists
+    - not postfix_backup_stat.stat.exists
+  - name: Download postfix configuration file
+    ansible.builtin.get_url:
+      url: "{{ postfix_config_url }}"
+      dest: "{{ postfix_config_file }}"
+      owner: root
+      group: root
+      mode: '0644'
+    when:
+    - ansible_facts['os_family'] in supported_os_families
+    - postfix_config_url | length > 0
+

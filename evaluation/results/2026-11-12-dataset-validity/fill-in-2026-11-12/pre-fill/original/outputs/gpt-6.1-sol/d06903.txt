@@ -1,0 +1,6 @@
+if os is RedHat based then write "[mysql]
+name=mysql
+stream=
+profiles=
+state=disabled
+" to "/etc/dnf/modules.d/mysql.module" with position=overwrite.

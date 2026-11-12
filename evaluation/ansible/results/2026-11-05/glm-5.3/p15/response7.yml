@@ -1,0 +1,17 @@
+---
+- name: "Model glm-5.3, Problem p15, Response 7"
+  hosts: all
+  become: true
+  tasks:
+  - name: Remove the /home/mydata/web directory and its contents
+    ansible.builtin.file:
+      path: /home/mydata/web
+      state: absent
+  - name: Recreate an empty /home/mydata/web directory
+    ansible.builtin.file:
+      path: /home/mydata/web
+      state: directory
+      owner: root
+      group: root
+      mode: '0755'
+

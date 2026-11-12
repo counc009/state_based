@@ -1,0 +1,3 @@
+
+
+if memcached service not running then start memcached service

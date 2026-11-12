@@ -1,0 +1,37 @@
+---
+- name: "Model deepseek-v4-flash, Problem p04, Response 3"
+  hosts: all
+  become: true
+  tasks:
+  - name: Set permissions on /srv/path directory
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      mode: '0755'
+  - name: Find all subdirectories under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      recurse: yes
+      file_type: directory
+      hidden: yes
+    register: dirs
+  - name: Set permissions on subdirectories
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: directory
+      mode: '0755'
+    loop: "{{ dirs.files }}"
+  - name: Find all files under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      recurse: yes
+      file_type: file
+      hidden: yes
+    register: files
+  - name: Set permissions on files
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: file
+      mode: '0644'
+    loop: "{{ files.files }}"
+

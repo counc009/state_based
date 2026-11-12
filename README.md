@@ -1,11 +1,23 @@
+# Astrogator
+
+Formal queries and symbolic verification for Ansible. For the model/prompt refresh, start with [the NL-to-FQL evaluation guide](evaluation/README.md): setup, repository map, frozen ten-repeat runs, budgets and actual smoke results. Historical playbook evaluation scripts remain in `astrogator-eval/`; compiler and module paths retain their existing layout.
+
+For the generation-only Table 2 refresh and Aaron’s executor handoff, see [the NL-to-Ansible guide](evaluation/ansible/README.md) and [the generated samples/checks](evaluation/ansible/results/2026-11-05/README.md). These offline checks report format and syntax acceptance, not task correctness.
+
 # Building and Usage Instructions
 This system is written in [OCaml](https://ocaml.org/) and should be built using the [Dune](https://dune.build) build system.
 This system can be built as follows:
 
 1. Install and initialize [Opam](https://opam.ocaml.org), the OCaml package manager as described [here](https://ocaml.org/install).
-2. Install required OCaml packages, as follows:
-   `opam install dune yaml jingoo angstrom`
-3. Build using the command `dune build`
+2. Create a local OCaml 5.5.0 switch without auto-installing the project: `opam switch create . 5.5.0 --no-install -y`.
+3. Install Dune and generate the dependency manifest: `opam install -y dune` then `opam exec -- dune build state_based.opam`.
+4. Install declared dependencies: `opam install . --deps-only --working-dir -y`.
+5. Build and check: `opam exec -- dune build @all` and `opam exec -- dune runtest`.
+
+OCaml 5.5+ is required by the existing String APIs. The checked native dependency export is
+[`evaluation/configs/native-switch.export`](evaluation/configs/native-switch.export); import it into an empty switch with
+`opam switch import evaluation/configs/native-switch.export` to reproduce the recorded package versions.
+See [native validation](evaluation/docs/native-validation.md) for the actual compiler, semantic/reference checks and limitations.
 
 The system contain 3 executables:
 

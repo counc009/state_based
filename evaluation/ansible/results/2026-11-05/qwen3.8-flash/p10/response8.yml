@@ -1,0 +1,11 @@
+---
+- name: "Model qwen3.8-flash, Problem p10, Response 8"
+  hosts: all
+  become: true
+  tasks:
+  - name: Set password field to disabled for service user
+    ansible.builtin.user:
+      name: service
+      password: "!"
+      update_password: always
+

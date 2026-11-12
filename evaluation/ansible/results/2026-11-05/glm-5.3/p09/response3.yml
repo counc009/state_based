@@ -1,0 +1,16 @@
+---
+- name: "Model glm-5.3, Problem p09, Response 3"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure the gcc module is loaded in foo's bashrc
+    ansible.builtin.lineinfile:
+      path: /home/foo/.bashrc
+      line: "module load gcc"
+      state: present
+      insertafter: EOF
+      create: true
+      owner: foo
+      group: foo
+      mode: "0644"
+

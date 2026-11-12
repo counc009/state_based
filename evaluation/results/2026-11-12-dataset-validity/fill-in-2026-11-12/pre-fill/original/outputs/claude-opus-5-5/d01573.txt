@@ -1,0 +1,9 @@
+This request can't be expressed as a valid query. `start` needs a service from the knowledge-base catalog, and MySQL server isn't in the pinned example KB. The only supported services are **ssh server**, **postfix**, and **apache server**.
+
+If the KB were extended with a MySQL service entry, the query would be:
+
+```
+start mysql server service
+```
+
+As the KB stands, that statement would fail to resolve.

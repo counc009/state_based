@@ -1,0 +1,56 @@
+---
+- name: "Model claude-opus-5-5, Problem p16, Response 7"
+  hosts: all
+  become: true
+  vars:
+    target_user: dev
+    zsh_path: /bin/zsh
+  tasks:
+  - name: Install zsh package
+    ansible.builtin.package:
+      name: zsh
+      state: present
+  - name: Check that the zsh binary exists
+    ansible.builtin.stat:
+      path: "{{ zsh_path }}"
+    register: zsh_bin
+  - name: Use /usr/bin/zsh if /bin/zsh is not present
+    ansible.builtin.set_fact:
+      zsh_path: /usr/bin/zsh
+    when: not zsh_bin.stat.exists
+  - name: Ensure zsh is listed in /etc/shells
+    ansible.builtin.lineinfile:
+      path: /etc/shells
+      line: "{{ zsh_path }}"
+      state: present
+      create: true
+      owner: root
+      group: root
+      mode: "0644"
+  - name: Set zsh as the default shell for the user
+    ansible.builtin.user:
+      name: "{{ target_user }}"
+      shell: "{{ zsh_path }}"
+    register: dev_user
+  - name: Look up the user's details
+    ansible.builtin.getent:
+      database: passwd
+      key: "{{ target_user }}"
+  - name: Set the user's home directory fact
+    ansible.builtin.set_fact:
+      dev_home: "{{ getent_passwd[target_user][4] }}"
+  - name: Ensure .zshrc exists without overwriting existing content
+    ansible.builtin.copy:
+      dest: "{{ dev_home }}/.zshrc"
+      content: |
+        # ~/.zshrc - zsh configuration file for {{ target_user }}
+        # Managed initially by Ansible; edit freely.
+        HISTFILE=~/.zsh_history
+        HISTSIZE=10000
+        SAVEHIST=10000
+        setopt appendhistory
+      owner: "{{ target_user }}"
+      group: "{{ dev_user.group | default(target_user) }}"
+      mode: "0644"
+      force: false
+

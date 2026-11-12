@@ -1,0 +1,1 @@
+The request to set an iptables/firewall OUTPUT chain policy cannot be expressed in Astrogator FQL, which has no actions for firewall or chain policy management.

@@ -1,0 +1,39 @@
+---
+- name: "Model glm-5.3, Problem p04, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Find all directories under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      file_type: directory
+      recurse: true
+    register: found_dirs
+  - name: Find all files under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      file_type: file
+      recurse: true
+    register: found_files
+  - name: Set directory permissions to 755
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: directory
+      mode: '0755'
+    loop: "{{ found_dirs.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+  - name: Set file permissions to 644
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: file
+      mode: '0644'
+    loop: "{{ found_files.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+  - name: Set permissions on /srv/path itself
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      mode: '0755'
+

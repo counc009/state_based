@@ -1,0 +1,13 @@
+---
+- name: "Model claude-opus-5-5, Problem p11a, Response 3"
+  hosts: all
+  become: true
+  tasks:
+  - name: Copy .war files to /tmp on the remote host
+    ansible.builtin.copy:
+      src: "{{ item }}"
+      dest: /tmp/
+      mode: '0644'
+    with_fileglob:
+    - /backup/*.war
+

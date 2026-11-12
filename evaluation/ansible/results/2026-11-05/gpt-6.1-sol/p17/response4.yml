@@ -1,0 +1,38 @@
+---
+- name: "Model gpt-6.1-sol, Problem p17, Response 4"
+  hosts: redhat,ubuntu
+  become: true
+  tasks:
+  - name: Manage Postfix on Ubuntu and RedHat systems
+    when: >-
+      ansible_facts['distribution'] == 'Ubuntu' or ansible_facts['os_family'] == 'RedHat'
+    block:
+    - name: Refresh the Ubuntu package cache
+      ansible.builtin.apt:
+        update_cache: true
+      when: ansible_facts['distribution'] == 'Ubuntu'
+    - name: Install the latest available Postfix version
+      ansible.builtin.package:
+        name: postfix
+        state: latest
+    - name: Preserve the original Postfix configuration
+      ansible.builtin.copy:
+        src: /etc/postfix/main.cf
+        dest: /etc/postfix/main.cf.default
+        remote_src: true
+        force: false
+        owner: root
+        group: root
+        mode: '0644'
+    - name: Download the platform-specific Postfix configuration
+      ansible.builtin.get_url:
+        url: >-
+          http://example.com/cfg.{{ 'ubuntu' if ansible_facts['distribution'] == 'Ubuntu'
+          else 'redhat' }}
+        dest: /etc/postfix/main.cf
+        owner: root
+        group: root
+        mode: '0644'
+        force: true
+        backup: true
+

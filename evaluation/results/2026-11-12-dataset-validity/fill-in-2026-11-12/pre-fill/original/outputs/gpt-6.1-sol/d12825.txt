@@ -1,0 +1,1 @@
+Checking the current Yarn version is not supported by the provided FQL.

@@ -1,0 +1,3 @@
+
+
+write "bitbucket.org" to "/etc/ssh/ssh_known_hosts" with position=end

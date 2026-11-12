@@ -1,0 +1,1 @@
+There is no FQL action for checking or reporting package versions. The supported actions (install, uninstall, start, stop, etc.) do not include a version query, so this request cannot be expressed as an Astrogator FQL query.

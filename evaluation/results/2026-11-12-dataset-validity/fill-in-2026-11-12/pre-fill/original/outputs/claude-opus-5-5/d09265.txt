@@ -1,0 +1,1 @@
+This can't be expressed in Astrogator FQL. The language has no action for enabling or disabling package repositories. Its only repository actions are `clone git repository` and `clone github repository`.

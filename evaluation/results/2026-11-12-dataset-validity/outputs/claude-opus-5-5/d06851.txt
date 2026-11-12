@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL: the language has no network actions or conditions, so "frontend network" has no supported representation.

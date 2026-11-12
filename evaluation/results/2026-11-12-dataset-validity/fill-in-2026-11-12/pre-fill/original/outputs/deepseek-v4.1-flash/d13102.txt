@@ -1,0 +1,1 @@
+if directory "/opt/zscaler" exists then create file at "/tmp/zscaler-agent-installed" otherwise create file at "/tmp/zscaler-agent-not-installed"

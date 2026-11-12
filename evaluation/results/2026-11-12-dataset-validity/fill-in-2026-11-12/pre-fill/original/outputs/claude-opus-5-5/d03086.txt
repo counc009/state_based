@@ -1,0 +1,10 @@
+Buildbot is not in the pinned KB package catalog, so this query cannot resolve to a concrete package:
+
+install buildbot
+
+My earlier answers also broke the quoting rules (and one used `to` instead of `with`). Corrected versions:
+
+- `set file permissions in "/srv/path" with read=all, write=owner, list directory=all`
+- `delete directory at "/home/mydata/web"`
+- `delete files in "/home/mydata/web"`
+- `if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file`

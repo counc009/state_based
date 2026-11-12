@@ -1,0 +1,20 @@
+---
+- name: "Model gpt-6.1-sol, Problem p15, Response 8"
+  hosts: all
+  become: true
+  tasks:
+  - name: Find all immediate entries, including hidden files
+    ansible.builtin.find:
+      paths: /home/mydata/web
+      file_type: any
+      hidden: true
+      recurse: false
+    register: web_contents
+  - name: Remove entries while preserving the web directory
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: absent
+    loop: "{{ web_contents.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+

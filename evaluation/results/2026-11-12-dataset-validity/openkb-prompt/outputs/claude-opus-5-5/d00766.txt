@@ -1,0 +1,1 @@
+write "1" to "/proc/sys/net/ipv4/ip_forward" with position=overwrite; write "net.ipv4.ip_forward=1" to "/etc/sysctl.d/99-ipv4-forwarding.conf" with position=overwrite

@@ -1,0 +1,7 @@
+Astrogator FQL cannot express this request. The pinned KB has no action for adding package repositories, and Docker CE is not in the package catalog.
+
+The closest workaround is to download the repo file directly. That only works if you specify the OS, for example RedHat based:
+
+```
+if os is RedHat based then download file from "https://download.docker.com/linux/rhel/docker-ce.repo" to "/etc/yum.repos.d/docker-ce.repo"
+```

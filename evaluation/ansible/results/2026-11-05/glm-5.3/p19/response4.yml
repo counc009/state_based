@@ -1,0 +1,26 @@
+---
+- name: "Model glm-5.3, Problem p19, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure wheel group exists
+    ansible.builtin.group:
+      name: wheel
+      state: present
+  - name: Enable passwordless sudo for wheel group
+    ansible.builtin.lineinfile:
+      path: /etc/sudoers.d/wheel-nopasswd
+      line: "%wheel ALL=(ALL) NOPASSWD: ALL"
+      state: present
+      mode: "0440"
+      create: true
+      validate: "/usr/sbin/visudo -cf %s"
+  - name: Create ansible user in wheel group
+    ansible.builtin.user:
+      name: ansible
+      state: present
+      groups: wheel
+      append: true
+      shell: /bin/bash
+      create_home: true
+

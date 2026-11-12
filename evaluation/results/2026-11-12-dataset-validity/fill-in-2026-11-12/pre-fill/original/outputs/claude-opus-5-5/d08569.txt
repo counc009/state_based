@@ -1,0 +1,1 @@
+Astrogator FQL cannot express this request: no supported action updates apt or refreshes the package index.

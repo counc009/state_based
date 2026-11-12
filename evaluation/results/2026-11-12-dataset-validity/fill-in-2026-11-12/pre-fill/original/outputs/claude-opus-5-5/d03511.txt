@@ -1,0 +1,5 @@
+No valid Astrogator FQL query exists for this request. `install` only accepts packages from the pinned knowledge-base catalog (bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy), and bridge-utils is not one of them.
+
+If bridge-utils were added to the knowledge base, the query would be:
+
+install bridge-utils

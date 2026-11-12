@@ -1,0 +1,3 @@
+
+
+query current docker-compose version

@@ -1,0 +1,44 @@
+---
+- name: "Model glm-5.3, Problem p18, Response 6"
+  hosts: redhat
+  become: true
+  vars:
+    apache_package: httpd
+    apache_service: httpd
+    document_root: /var/www/html
+    webdev_user: webdev
+  tasks:
+  - name: Install Apache server (httpd)
+    ansible.builtin.dnf:
+      name: "{{ apache_package }}"
+      state: present
+  - name: Ensure Apache service is started and enabled
+    ansible.builtin.service:
+      name: "{{ apache_service }}"
+      state: started
+      enabled: true
+  - name: Ensure document root exists
+    ansible.builtin.file:
+      path: "{{ document_root }}"
+      state: directory
+      owner: "{{ webdev_user }}"
+      group: "{{ webdev_user }}"
+      mode: '0755'
+  - name: Ensure home page exists
+    ansible.builtin.copy:
+      dest: "{{ document_root }}/index.html"
+      content: |
+        <html>
+          <head><title>Welcome</title></head>
+          <body><h1>Welcome to the web server!</h1></body>
+        </html>
+      owner: "{{ webdev_user }}"
+      group: "{{ webdev_user }}"
+      mode: '0644'
+  - name: Create webdev user
+    ansible.builtin.user:
+      name: "{{ webdev_user }}"
+      state: present
+      create_home: true
+      shell: /bin/bash
+

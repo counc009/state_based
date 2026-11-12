@@ -1,0 +1,118 @@
+{
+  "repetitions": 10,
+  "max_output_tokens": 4096,
+  "reasoning_effort": "high",
+  "models": {
+    "sol": {
+      "provider": "openai",
+      "id": "gpt-6.1-sol",
+      "stratum": "balanced",
+      "input_per_million": 2,
+      "output_per_million": 10,
+      "cache_write_per_million": 2.5,
+      "cached_input_per_million": 0.1,
+      "pricing_checked": "2026-11-04",
+      "pricing_source": "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "enabled": true
+    },
+    "opus": {
+      "provider": "anthropic",
+      "id": "claude-opus-5-5",
+      "stratum": "frontier",
+      "enabled": true,
+      "optional": true,
+      "reasoning_effort": "high",
+      "input_per_million": 4,
+      "output_per_million": 20,
+      "cache_write_per_million": 5,
+      "cached_input_per_million": 0.2,
+      "pricing_checked": "2026-11-04",
+      "pricing_source": "https://platform.claude.com/docs/en/models/opus-5-5/overview"
+    },
+    "deepseek-v4.1-flash": {
+      "provider": "agentfanclub",
+      "id": "deepseek-v4.1-flash",
+      "enabled": true,
+      "base_url": "https://api.router.agentfan.club/inference/v1",
+      "reasoning_effort": "high",
+      "catalog_reasoning": true,
+      "input_per_million": 0.256856,
+      "output_per_million": 0.930653,
+      "cache_write_per_million": 0,
+      "cached_input_per_million": 0.256856,
+      "pricing_source": "https://api.router.agentfan.club/api/models",
+      "pricing_checked": "2026-11-04",
+      "pricing_unit_assumption": "USD per million tokens; catalog itself does not label currency or denominator",
+      "catalog_limits": {
+        "context": 1048570,
+        "output": 384000
+      },
+      "reasoning_validation": "HIGH accepted in one Chat Completions connectivity call"
+    },
+    "deepseek-v4-flash": {
+      "provider": "agentfanclub",
+      "id": "deepseek-v4-flash",
+      "enabled": true,
+      "base_url": "https://api.router.agentfan.club/inference/v1",
+      "reasoning_effort": "high",
+      "catalog_reasoning": true,
+      "input_per_million": 0.161857,
+      "output_per_million": 0.37146,
+      "cache_write_per_million": 0,
+      "cached_input_per_million": 0.161857,
+      "pricing_source": "https://api.router.agentfan.club/api/models",
+      "pricing_checked": "2026-11-04",
+      "pricing_unit_assumption": "USD per million tokens; catalog itself does not label currency or denominator",
+      "catalog_limits": {
+        "context": 511994,
+        "output": 128000
+      },
+      "reasoning_validation": "HIGH accepted in one Chat Completions connectivity call"
+    },
+    "glm-5.3": {
+      "provider": "agentfanclub",
+      "id": "glm-5.3",
+      "enabled": true,
+      "base_url": "https://api.router.agentfan.club/inference/v1",
+      "reasoning_effort": "high",
+      "catalog_reasoning": true,
+      "input_per_million": 1.321413,
+      "output_per_million": 4.248318,
+      "cache_write_per_million": 0,
+      "cached_input_per_million": 1.321413,
+      "pricing_source": "https://api.router.agentfan.club/api/models",
+      "pricing_checked": "2026-11-04",
+      "pricing_unit_assumption": "USD per million tokens; catalog itself does not label currency or denominator",
+      "catalog_limits": {
+        "context": 524282,
+        "output": 131072
+      },
+      "reasoning_validation": "HIGH accepted in one Chat Completions connectivity call"
+    },
+    "qwen3.8-flash": {
+      "provider": "agentfanclub",
+      "id": "qwen3.8-flash",
+      "enabled": true,
+      "base_url": "https://api.router.agentfan.club/inference/v1",
+      "reasoning_effort": "xhigh",
+      "catalog_reasoning": false,
+      "input_per_million": 0.142798,
+      "output_per_million": 0.452902,
+      "cache_write_per_million": 0,
+      "cached_input_per_million": 0.142798,
+      "pricing_source": "https://api.router.agentfan.club/api/models",
+      "pricing_checked": "2026-11-04",
+      "pricing_unit_assumption": "USD per million tokens; catalog itself does not label currency or denominator",
+      "catalog_limits": {
+        "context": 262138,
+        "output": 131072
+      },
+      "reasoning_validation": "HIGH rejected HTTP 400; error reports xhigh (default), medium, low. Explicit XHIGH configured from that supported-values response; first effort-omitted call completed. No third call made."
+    }
+  },
+  "matrix_status": "Approved by Darsh 2026-11-04: full 2520-cell matrix, $110 total and $22 cumulative Anthropic guard; bounded transient retries recorded",
+  "provider_budgets_usd": {
+    "anthropic": 22
+  }
+}

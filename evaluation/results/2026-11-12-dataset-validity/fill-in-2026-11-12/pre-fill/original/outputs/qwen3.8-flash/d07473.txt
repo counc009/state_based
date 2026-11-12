@@ -1,0 +1,3 @@
+
+
+copy file from "tcollector" to "/etc/init.d"

@@ -1,0 +1,3 @@
+
+
+install yum-utils; install device-mapper-persistent-data; install lvm2

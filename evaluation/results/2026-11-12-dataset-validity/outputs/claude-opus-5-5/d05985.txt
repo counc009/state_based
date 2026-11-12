@@ -1,0 +1,9 @@
+This request can't be expressed as a valid query with the pinned KB. `install PACKAGE` only accepts packages from the catalog, and Mono runtime, mcs, and xsp4 aren't in it. The only packages available are bash, zsh, postfix, apache server, ssh client, ssh server, and numpy.
+
+If these packages were added to the KB, the query would be:
+
+```
+install mono runtime; install mcs; install xsp4
+```
+
+Against the current KB, this would fail to resolve.

@@ -1,0 +1,36 @@
+{
+  "review_version": "reference-review-v2",
+  "review_sha256": "45d4c16e62edd48e73586914650a545353a8ca5ad6deb7eecf0fe9b34e4fe908",
+  "script_sha256": "96bbb0094718907aad019795f7576ef45fbf62025d9771e95573c5c22cbd4b71",
+  "original_references_sha256": "fe8fb05106da4e857fe4dc458909307831f622712e3918a365a22457f7ba94eb",
+  "original_per_call_sha256": "61592717694447d736cf22af4ba9ccdcd3663fc551334518858c367e469c1ef0",
+  "native_binary_sha256": "7e8a51f90ab7389d8caf9ce853e0bc49befcb317aef54ffdef27eb4f3815bacf",
+  "new_paid_calls": 0,
+  "charts": false,
+  "conditions": {
+    "a-original": "Original references and original structural comparator, byte-identical summary",
+    "b-corrected": "Proposed v2 references plus declared scoped post-hoc matching policies on four tasks only",
+    "b-strict-reference-only": "Single proposed canonical FQL per task, original structural comparator; isolates reference change from normalization",
+    "c-exclude-four": "Original comparator, excluding a03/a18/a20/a21; 170 planned cells/group"
+  },
+  "summary_reference_flags": "discrepant_reference_cells/n_without_discrepant_references retain the original a03/a20 flags; c-exclude-four explicitly removes all four reviewed tasks",
+  "counts": {
+    "a-original": {
+      "cells": 2520,
+      "matches": 1479
+    },
+    "b-corrected": {
+      "cells": 2520,
+      "matches": 1567
+    },
+    "b-strict-reference-only": {
+      "cells": 2520,
+      "matches": 1525
+    },
+    "c-exclude-four": {
+      "cells": 2040,
+      "matches": 1385
+    }
+  },
+  "limits": "Post-hoc proposals informed by observed outputs, not independently adjudicated gold. a03 remains unresolved in full NL generality. Corrected matching is scoped, not a general equivalence or intent oracle. Costs/latencies are historical and copied, not new spending."
+}

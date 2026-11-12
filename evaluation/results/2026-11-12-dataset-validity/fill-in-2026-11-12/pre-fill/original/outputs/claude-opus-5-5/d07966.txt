@@ -1,0 +1,15 @@
+This request can't be expressed in Astrogator FQL with the pinned KB:
+
+- **nginx is not in the knowledge-base catalog.** The supported services are ssh server, postfix, and apache server, and nginx is not a supported package either.
+- **FQL has no "enable on boot" action.** Only `start SERVICE service` and `stop SERVICE service` exist.
+
+If Apache would work instead, the closest valid query is:
+
+`if os is Debian based then install apache server; start apache server service otherwise install apache server; start apache server service`
+
+Also, my earlier answers left literals unquoted, which the lexical rules require. The corrected versions are:
+
+- `set file permissions in "/srv/path" with read=all, write=owner, list directory=all`
+- `delete directory at "/home/mydata/web"`
+- `delete files in "/home/mydata/web"`
+- `if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file`

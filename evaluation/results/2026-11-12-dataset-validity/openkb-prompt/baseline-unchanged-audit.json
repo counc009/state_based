@@ -1,0 +1,10 @@
+{
+  "baseline_commit": "b9e9a06a1b23800fc00ae3c582fdaf579ac36185",
+  "files": 1791,
+  "all_original_exports_unchanged": false,
+  "pre_fill_original_exports_preserved": true,
+  "original_exports_intentionally_refreshed": true,
+  "pre_fill_snapshot_index_sha256": "569f1276dbc4a00b15ec58576418ab1f36c55571aebbc10369bea79db59804bb",
+  "protected_completed_outputs": 3459,
+  "note": "Historical unchanged audit is frozen under pre-fill/openkb; refreshed exports now include authorized fill responses."
+}

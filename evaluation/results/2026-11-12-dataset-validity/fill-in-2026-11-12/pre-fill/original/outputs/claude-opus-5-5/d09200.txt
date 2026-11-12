@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL with the pinned knowledge base. The catalog has no package entry for OpenJDK or the Zulu build, so there is no valid PACKAGE description for `install`.

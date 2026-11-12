@@ -1,0 +1,29 @@
+---
+- name: "Model deepseek-v4-flash, Problem p18, Response 6"
+  hosts: redhat
+  become: true
+  tasks:
+  - name: Install Apache
+    package:
+      name: httpd
+      state: present
+  - name: Ensure web root directory exists
+    file:
+      path: /var/www/html
+      state: directory
+      mode: '0755'
+  - name: Ensure home page exists
+    copy:
+      dest: /var/www/html/index.html
+      content: "Welcome to Apache!\n"
+      mode: '0644'
+  - name: Start and enable Apache
+    service:
+      name: httpd
+      state: started
+      enabled: yes
+  - name: Create webdev user
+    user:
+      name: webdev
+      state: present
+

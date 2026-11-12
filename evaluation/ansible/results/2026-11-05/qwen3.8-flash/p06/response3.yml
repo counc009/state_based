@@ -1,0 +1,16 @@
+---
+- name: "Model qwen3.8-flash, Problem p06, Response 3"
+  hosts: all
+  become: true
+  tasks:
+  - name: Create Python 3.10 virtual environment at /user/home/venv
+    ansible.builtin.virtualenv:
+      path: /user/home/venv
+      state: present
+      virtualenv_command: /usr/bin/python3.10 -m venv
+  - name: Install numpy into the virtual environment
+    ansible.builtin.pip:
+      name: numpy
+      virtualenv: /user/home/venv
+      state: present
+

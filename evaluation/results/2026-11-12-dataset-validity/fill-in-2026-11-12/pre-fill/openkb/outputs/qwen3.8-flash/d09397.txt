@@ -1,0 +1,3 @@
+
+
+check if cpu supports amd virtualization

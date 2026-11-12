@@ -1,0 +1,10 @@
+---
+- name: "Model qwen3.8-flash, Problem p05, Response 8"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure /home/mydata/web does not exist
+    ansible.builtin.file:
+      path: /home/mydata/web
+      state: absent
+

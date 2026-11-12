@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL with the pinned KB. Neither the package catalog nor any action signature covers Vagrant or Vagrant plugins.

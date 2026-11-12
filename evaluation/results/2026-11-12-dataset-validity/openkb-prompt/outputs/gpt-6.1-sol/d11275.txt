@@ -1,0 +1,3 @@
+write "
+LS_USER=root
+" to "/etc/default/logstash" with position=end.

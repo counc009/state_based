@@ -1,0 +1,1 @@
+if os is Archlinux then if ufw installed then set environment variable UFW_INSTALLED to "true" otherwise set environment variable UFW_INSTALLED to "false"

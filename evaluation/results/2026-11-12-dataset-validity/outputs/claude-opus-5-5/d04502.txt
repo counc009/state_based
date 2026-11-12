@@ -1,0 +1,5 @@
+pip3 isn't in the pinned knowledge-base package catalog, so it can't be expressed as a valid Astrogator FQL query. `install PACKAGE` only accepts these packages: bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy, or numpy in virtual environment at "PATH".
+
+If you just need pip available for a Python environment, this query creates a virtual environment, which normally includes pip:
+
+create virtual environment in "/path/to/venv"

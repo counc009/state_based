@@ -1,0 +1,1 @@
+set environment variable NSAutomaticDashSubstitutionEnabled to "false"

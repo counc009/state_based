@@ -1,0 +1,15 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p12, Response 8"
+  hosts: all
+  become: true
+  tasks:
+  - name: Copy file to new location
+    ansible.builtin.copy:
+      src: /scratch/file.txt
+      dest: /home/user/data.txt
+      remote_src: true
+  - name: Remove original file
+    ansible.builtin.file:
+      path: /scratch/file.txt
+      state: absent
+

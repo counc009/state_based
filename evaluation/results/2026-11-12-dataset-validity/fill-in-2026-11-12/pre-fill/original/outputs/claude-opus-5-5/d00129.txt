@@ -1,0 +1,1 @@
+Astrogator FQL can't express this request. `install` only accepts packages from the pinned knowledge-base catalog (bash, zsh, postfix, apache, ssh client, ssh server, numpy), and fluentd isn't one of them. To install it, the package would first have to be added to the knowledge base.

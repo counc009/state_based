@@ -1,0 +1,3 @@
+This request can't be expressed in Astrogator FQL. The language has no action for adding package repositories or PPAs, and the knowledge-base catalog has no OpenJDK package.
+
+The only workaround would be writing an APT sources entry with `write` or `create file`. That would require the PPA's exact repository URL, distribution codename, and signing key, which the request doesn't give. Guessing them would produce an unreliable query.

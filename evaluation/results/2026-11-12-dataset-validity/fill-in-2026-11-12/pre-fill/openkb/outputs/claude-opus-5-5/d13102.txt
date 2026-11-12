@@ -1,0 +1,5 @@
+FQL has no standalone check or report action, and every condition requires a `then` statement, so this request can't be expressed as a valid query. If you say what should happen when Zscaler Agent is or isn't installed, it fits this form:
+
+if zscaler agent installed then STATEMENT otherwise STATEMENT
+
+For example: `if zscaler agent not installed then install zscaler agent`

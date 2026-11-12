@@ -1,0 +1,11 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p13, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Create file only when absent
+    ansible.builtin.copy:
+      dest: /etc/file.txt
+      content: "beginning"
+      force: no
+

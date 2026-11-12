@@ -1,0 +1,14 @@
+---
+- name: "Model gpt-6.1-sol, Problem p09, Response 7"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure foo's bashrc loads GCC
+    ansible.builtin.lineinfile:
+      path: /home/foo/.bashrc
+      line: "module load gcc"
+      insertafter: EOF
+      create: true
+      owner: foo
+      mode: "0644"
+

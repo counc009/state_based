@@ -1,0 +1,1 @@
+I can't translate this request: Starbound is not a service in the knowledge-base catalog, which only supports ssh server, postfix, and apache server.

@@ -1,0 +1,1 @@
+Not expressible in Astrogator FQL: the supported actions do not include updating the apt package cache. The Debian-family guard would be `if os is Debian based then ...`, but no valid action can follow it.

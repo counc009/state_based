@@ -1,0 +1,20 @@
+---
+- name: "Model qwen3.8-flash, Problem p12, Response 9"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure destination directory exists
+    ansible.builtin.file:
+      path: /home/user
+      state: directory
+      mode: "0755"
+  - name: Copy file to destination
+    ansible.builtin.copy:
+      src: /scratch/file.txt
+      dest: /home/user/data.txt
+      remote_src: true
+  - name: Remove original file
+    ansible.builtin.file:
+      path: /scratch/file.txt
+      state: absent
+

@@ -1,0 +1,1 @@
+This request cannot be expressed in Astrogator FQL with the pinned KB. There is no `restart` action, and FirewallD is not in the service catalog, which covers only ssh server, postfix, and apache server.

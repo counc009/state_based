@@ -1,0 +1,27 @@
+This request can't be expressed in Astrogator FQL with the pinned knowledge base:
+
+- **k9s isn't in the package catalog.** `installed` / `not installed` conditions only accept catalog packages (bash, zsh, postfix, apache server, ssh client, ssh server, numpy).
+- **FQL has no standalone "check" or report action.** A condition must guard an action, as in `if PACKAGE installed then STATEMENT`.
+
+If you know where the k9s binary lives, you can check for the file and attach an action. For example, this installs zsh when the binary is missing:
+
+```
+if file "/usr/local/bin/k9s" not exists then install zsh
+```
+
+Tell me the binary path and the action you want, and I'll write the query.
+
+Also, my earlier answers left paths and names unquoted, which the syntax requires. The corrected versions are:
+
+```
+set file permissions in "/srv/path" with read=all, write=owner, list directory=all
+```
+```
+delete directory at "/home/mydata/web"
+```
+```
+delete files in "/home/mydata/web"
+```
+```
+if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file
+```

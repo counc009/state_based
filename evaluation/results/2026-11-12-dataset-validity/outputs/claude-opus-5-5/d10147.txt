@@ -1,0 +1,1 @@
+Astrogator FQL cannot express this request. It has no action for updating package repositories or the package index, such as `apt update`. The closest valid form would be an OS guard like `if os is Debian then ...`, but no supported statement exists to put inside it.

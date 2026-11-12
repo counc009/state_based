@@ -1,0 +1,38 @@
+---
+- name: "Model gpt-6.1-sol, Problem p19, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure sudo is installed
+    ansible.builtin.package:
+      name: sudo
+      state: present
+  - name: Ensure wheel group exists
+    ansible.builtin.group:
+      name: wheel
+      state: present
+  - name: Create ansible user and add it to wheel
+    ansible.builtin.user:
+      name: ansible
+      groups:
+      - wheel
+      append: true
+      create_home: true
+      state: present
+  - name: Ensure sudoers include directory exists
+    ansible.builtin.file:
+      path: /etc/sudoers.d
+      state: directory
+      owner: root
+      group: root
+      mode: "0750"
+  - name: Allow wheel members to use sudo without a password
+    ansible.builtin.copy:
+      dest: /etc/sudoers.d/99-wheel-passwordless
+      content: |
+        %wheel ALL=(ALL:ALL) NOPASSWD: ALL
+      owner: root
+      group: root
+      mode: "0440"
+      validate: /usr/sbin/visudo -cf %s
+

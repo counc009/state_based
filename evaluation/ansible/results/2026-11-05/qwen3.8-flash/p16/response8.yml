@@ -1,0 +1,40 @@
+---
+- name: "Model qwen3.8-flash, Problem p16, Response 8"
+  hosts: all
+  become: true
+  vars:
+    dev_username: dev
+    dev_home: /home/dev
+    zsh_bin: /usr/bin/zsh
+    zsh_config_file: "{{ dev_home }}/.zshrc"
+  tasks:
+  - name: Install zsh
+    ansible.builtin.package:
+      name: zsh
+      state: present
+  - name: Ensure zsh is listed as a valid shell
+    ansible.builtin.lineinfile:
+      path: /etc/shells
+      line: "{{ zsh_bin }}"
+      state: present
+      create: true
+  - name: Ensure dev group exists
+    ansible.builtin.group:
+      name: "{{ dev_username }}"
+      state: present
+  - name: Ensure dev user exists and uses zsh as the default shell
+    ansible.builtin.user:
+      name: "{{ dev_username }}"
+      shell: "{{ zsh_bin }}"
+      home: "{{ dev_home }}"
+      create_home: true
+  - name: Ensure dev's zsh configuration file exists
+    ansible.builtin.copy:
+      dest: "{{ zsh_config_file }}"
+      content: |
+        # ~/.zshrc
+      owner: "{{ dev_username }}"
+      group: "{{ dev_username }}"
+      mode: "0644"
+      force: false
+

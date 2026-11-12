@@ -1,0 +1,13 @@
+---
+- name: "Model qwen3.8-flash, Problem p07, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Clone repository to /ansible
+    ansible.builtin.git:
+      repo: "https://github.com/ansible/ansible.git"
+      dest: "/ansible"
+      version: "release1.8.4"
+      force: true
+      accept_hostkey: true
+

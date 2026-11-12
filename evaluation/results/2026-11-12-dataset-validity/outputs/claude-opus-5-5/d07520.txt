@@ -1,0 +1,5 @@
+This request can't be expressed in Astrogator FQL. The language has no action for creating or retargeting symbolic links, and the request doesn't give the paths of the busybox `sendmail` link or the `msmtp` binary.
+
+The nearest supported query copies the `msmtp` binary over `sendmail`. This makes a real file copy, not a link, so it does not do what you asked:
+
+copy file from ?msmtp_path to ?sendmail_path

@@ -1,0 +1,27 @@
+---
+- name: "Model claude-opus-5-5, Problem p16, Response 6"
+  hosts: all
+  become: true
+  vars:
+    target_user: dev
+    zsh_path: /bin/zsh
+  tasks:
+  - name: Ensure zsh is installed
+    ansible.builtin.package:
+      name: zsh
+      state: present
+  - name: Set zsh as the default shell for the user
+    ansible.builtin.user:
+      name: "{{ target_user }}"
+      shell: "{{ zsh_path }}"
+    register: dev_user
+  - name: Ensure the .zshrc configuration file exists
+    ansible.builtin.file:
+      path: "{{ dev_user.home }}/.zshrc"
+      state: touch
+      owner: "{{ target_user }}"
+      group: "{{ dev_user.group | default(target_user) }}"
+      mode: "0644"
+      modification_time: preserve
+      access_time: preserve
+

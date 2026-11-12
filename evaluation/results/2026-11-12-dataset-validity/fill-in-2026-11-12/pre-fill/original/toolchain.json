@@ -1,0 +1,12 @@
+{
+  "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "ocaml": "5.5.0",
+  "dune": "3.24.2",
+  "native_source_sha256": {
+    "evaluation/native/effects.ml": "ded8e8ce6568a23da261e0d4566cc8afb7003f4d8726e99c39a5ffea60832a5a",
+    "bin/query_interp.ml": "eae662bed3c31df9e87a3ce7a5fb74b83c1d813f8a8fbf5327f5969c1dcf062e",
+    "lib/fql/semant.ml": "31b3ccb8ffde6cd0e389e84c432d732fe388e44e2f0d5df07dd1decb038425b5",
+    "lib/fql/parser.mly": "01f7f13df5101623018033ddb9a69f94e6c4078c3712e25ce2855a9c5c69e0cc",
+    "lib/fql/lexer.mll": "b80c6e3e3f3ca742d7454bdbdeff11f95d199fdbdb23229a12b089070c0c4112"
+  }
+}

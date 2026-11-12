@@ -1,0 +1,3 @@
+create user with name="munin-async"
+
+Note: FQL has no OpenBSD condition, so this query is not restricted to OpenBSD. It only supports Debian, Ubuntu, RedHat, Debian based, and RedHat based.

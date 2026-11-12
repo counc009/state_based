@@ -1,0 +1,12 @@
+This request can't be expressed in Astrogator FQL with the pinned knowledge base:
+
+- **Updating the package cache:** No action for this exists.
+- **lxc-docker:** This package isn't in the catalog. `uninstall` only accepts catalog descriptions (bash, zsh, postfix, apache server, ssh client, ssh server, numpy).
+
+If lxc-docker were added to the knowledge base, the query would be:
+
+```
+uninstall lxc-docker
+```
+
+The cache-update step would still need an action that the language doesn't currently have.

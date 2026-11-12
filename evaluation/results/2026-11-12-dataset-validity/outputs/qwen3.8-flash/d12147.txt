@@ -1,0 +1,3 @@
+
+
+No FQL action exists for executing arbitrary commands or checking a package version.

@@ -1,0 +1,34 @@
+---
+- name: "Model glm-5.3, Problem p04, Response 6"
+  hosts: all
+  become: true
+  tasks:
+  - name: Recursively find all files under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      file_type: file
+      hidden: true
+      recurse: true
+    register: srv_files
+  - name: Recursively find all directories under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      file_type: directory
+      hidden: true
+      recurse: true
+    register: srv_dirs
+  - name: Set read permission for all on files, write only for owner
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      mode: '0644'
+    loop: "{{ srv_files.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+  - name: Set list/read permissions for all on directories, write only for owner
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      mode: '0755'
+    loop: "{{ srv_dirs.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+

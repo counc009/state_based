@@ -1,0 +1,1 @@
+install ?package with version="latest stable"

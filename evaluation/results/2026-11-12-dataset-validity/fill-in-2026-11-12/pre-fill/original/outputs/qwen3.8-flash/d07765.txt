@@ -1,0 +1,3 @@
+
+
+write "Europe/London" to "/etc/timezone" with position=overwrite

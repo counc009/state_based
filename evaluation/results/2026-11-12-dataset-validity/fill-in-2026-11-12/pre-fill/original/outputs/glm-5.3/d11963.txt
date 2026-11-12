@@ -1,0 +1,1 @@
+mysql-server is not a supported service in this knowledge base, so it cannot be expressed as a valid FQL query. The supported services are ssh server, postfix, and apache server.

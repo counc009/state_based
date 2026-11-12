@@ -1,0 +1,1 @@
+if file "banco.php" exists then set environment variable FILE_EXISTS to "true" otherwise set environment variable FILE_EXISTS to "false".

@@ -1,0 +1,1 @@
+if os is Debian then create file at "/etc/apt/sources.list.d/fish.list" with content=?fish_debian_9_repository.

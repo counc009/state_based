@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL with the pinned knowledge base. `install` only accepts packages from the catalog, and Xcode Command Line Tools isn't one of them. The supported OS conditions also don't include macOS, where Xcode runs.

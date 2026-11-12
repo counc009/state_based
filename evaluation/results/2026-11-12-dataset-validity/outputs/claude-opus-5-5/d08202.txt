@@ -1,0 +1,1 @@
+Astrogator FQL has no action for extracting archives, so this request can't be expressed. Supported file actions are create, delete, copy, move, download, write, and set permissions.

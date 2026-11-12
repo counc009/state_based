@@ -1,0 +1,57 @@
+---
+- name: "Model glm-5.3, Problem p20, Response 3"
+  hosts: redhat,debian
+  become: true
+  vars:
+    ssh_packages_debian:
+    - openssh-client
+    - openssh-server
+    ssh_packages_redhat:
+    - openssh-clients
+    - openssh-server
+  tasks:
+  - name: Install SSH client and server on Debian-based systems
+    ansible.builtin.apt:
+      name: "{{ ssh_packages_debian }}"
+      state: present
+      update_cache: true
+    when: ansible_facts['os_family'] == "Debian"
+  - name: Install SSH client and server on RedHat-based systems
+    ansible.builtin.dnf:
+      name: "{{ ssh_packages_redhat }}"
+      state: present
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Ensure ssh service is started and enabled on Debian
+    ansible.builtin.service:
+      name: ssh
+      state: started
+      enabled: true
+    when: ansible_facts['os_family'] == "Debian"
+  - name: Ensure sshd service is started and enabled on RedHat
+    ansible.builtin.service:
+      name: sshd
+      state: started
+      enabled: true
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Ensure user fizbaz exists
+    ansible.builtin.user:
+      name: fizbaz
+      state: present
+      create_home: true
+  - name: Ensure .ssh directory exists for fizbaz
+    ansible.builtin.file:
+      path: "/home/fizbaz/.ssh"
+      state: directory
+      owner: fizbaz
+      group: fizbaz
+      mode: "0700"
+  - name: Generate RSA SSH key for fizbaz
+    community.crypto.openssh_keypair:
+      path: "/home/fizbaz/.ssh/fizbaz_rsa"
+      type: rsa
+      size: 4096
+      owner: fizbaz
+      group: fizbaz
+      mode: "0600"
+    become_user: fizbaz
+

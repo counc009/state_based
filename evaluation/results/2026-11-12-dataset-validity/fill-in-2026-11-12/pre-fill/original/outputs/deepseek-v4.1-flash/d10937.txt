@@ -1,0 +1,1 @@
+stop memcached service. start memcached service.

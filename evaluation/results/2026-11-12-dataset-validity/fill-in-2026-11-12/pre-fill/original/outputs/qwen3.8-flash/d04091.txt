@@ -1,0 +1,3 @@
+
+
+if os is RedHat then install apache server; if os is RedHat then create user with name="webdev"; if os is RedHat and apache server html home page file not exists then create apache server html home page file

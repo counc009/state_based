@@ -1,0 +1,6 @@
+This request can't be expressed in Astrogator FQL with the pinned knowledge base:
+
+- **Updating the repositories cache:** No action for this is defined.
+- **Installing "curl":** `install` takes a package from the catalog, and the catalog has no entry for curl (only bash, zsh, postfix, apache, ssh client, ssh server, and numpy).
+
+Supporting this would require adding a repository-cache update action and a curl package entry to the knowledge base.

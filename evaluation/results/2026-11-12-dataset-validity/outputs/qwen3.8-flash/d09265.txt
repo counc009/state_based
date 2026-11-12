@@ -1,0 +1,3 @@
+
+
+Cannot translate: Astrogator FQL has no repository-management action, and `postinstallerf` is not in the package catalog.

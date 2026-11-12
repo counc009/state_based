@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. The language has no action for extracting archives such as .tgz files. The closest supported action is `copy file from "wordpress.tgz" to "/tmp/wordpress.tgz"`, but that only copies the archive and doesn't extract it.

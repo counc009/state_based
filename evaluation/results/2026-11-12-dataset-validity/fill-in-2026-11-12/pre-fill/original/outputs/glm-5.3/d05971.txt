@@ -1,0 +1,1 @@
+FQL has no action for cleaning the package manager cache, so `yum clean all` cannot be expressed as a query.

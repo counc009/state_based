@@ -1,0 +1,1 @@
+There is no action in this FQL grammar for creating databases, so this request cannot be expressed as a query.

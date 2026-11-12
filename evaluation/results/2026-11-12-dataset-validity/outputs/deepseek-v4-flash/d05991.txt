@@ -1,0 +1,1 @@
+start ecs-agent service

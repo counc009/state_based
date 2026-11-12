@@ -1,0 +1,11 @@
+This can't be expressed as a valid query because the pinned knowledge base has no Vagrant package. Its catalog only covers bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy, and numpy in a virtual environment.
+
+The request is also contradictory: "latest" conflicts with the fixed version "2.2.4".
+
+If Vagrant were added to the knowledge base, the pinned-version query would be:
+
+```
+install vagrant with version="2.2.4"
+```
+
+For the latest version, you would leave out the version argument.

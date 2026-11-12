@@ -1,0 +1,3 @@
+
+
+disable "Allow for Unencypted WinRM traffic"

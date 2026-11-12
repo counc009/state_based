@@ -1,0 +1,1 @@
+I can't translate this request: GPG is not a package in the pinned knowledge-base catalog (bash, zsh, postfix, apache server, ssh client, ssh server, numpy), so no valid Astrogator FQL query can install it.

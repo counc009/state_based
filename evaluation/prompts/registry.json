@@ -1,0 +1,33 @@
+{
+  "compact-v1": {
+    "file": "compact-v1.txt",
+    "role": "recovered NL-to-FQL baseline",
+    "source": "VPS bash-spec-pilot/research/astrogator/phase2/integration/frontier/frozen-inputs.json",
+    "source_sha256": "dd2f1202b67ffa12aac959e9b0c5db306f46fb584923481793c57c8030ed4995"
+  },
+  "handbook-v1": {
+    "file": "handbook-v1.txt",
+    "role": "preserved existing intervention",
+    "source": "VPS bash-spec-pilot/research/astrogator/phase2/translation_method/handbook.md",
+    "source_sha256": "cc179648ab9af2e187ea40639eec3e48b646c7978f0161245001b9cfe1468f41"
+  },
+  "handbook-v2": {
+    "file": "handbook-v2.txt",
+    "role": "preserved prior improved variant",
+    "source": "handbook-v1 plus generic requirement/condition/identifier self-check; no target outcomes used"
+  },
+  "handbook-v3": {
+    "file": "handbook-v3.txt",
+    "role": "current improved matrix variant",
+    "source": "Darsh-directed positive-reference trim of handbook-v2; syntax, paths, metadata, actions, conditions and KB retained; defensive instructions and self-checks removed",
+    "parent_sha256": "a1cd6016e4db26f121a42e34d03c997c18c9046ef4b752701fcfc52a35eb38c9",
+    "design_status": "Style revision after v2 smoke and diagnostics; no new model calls or target-specific tuning"
+  },
+  "handbook-v3-openkb": {
+    "file": "handbook-v3-openkb.txt",
+    "role": "open package/service catalog experiment",
+    "source": "handbook-v3 verbatim plus positive extension: package/service catalog entries are examples, unlisted names may be used directly, deployments may add KB entries; formal query only",
+    "parent_sha256": "fa729aeaf773aab55c88d9457ae0e742094e97bd72517ac62f32bfaf81ad6a3b",
+    "design_status": "Separate variant requested by Darsh; same frozen 300 cases and four demonstrations"
+  }
+}

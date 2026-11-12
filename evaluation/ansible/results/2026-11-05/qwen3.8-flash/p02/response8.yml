@@ -1,0 +1,13 @@
+---
+- name: "Model qwen3.8-flash, Problem p02, Response 8"
+  hosts: all
+  become: true
+  tasks:
+  - name: Set LC_ALL in /etc/environment
+    ansible.builtin.lineinfile:
+      path: /etc/environment
+      line: 'LC_ALL="C"'
+      regexp: '^LC_ALL='
+      create: true
+      mode: '0644'
+

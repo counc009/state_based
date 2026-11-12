@@ -1,0 +1,14 @@
+{
+  "conditions": 4,
+  "summary_groups_per_condition": 12,
+  "reviewed_cells": 480,
+  "task_diff_groups": 48,
+  "exact_effect_diff_reconstructions": 24,
+  "reference_effect_diff_reconstructions": 4,
+  "original_summary_byte_identical": true,
+  "original_references_unchanged": true,
+  "summary_schemas_identical": true,
+  "costs_and_native_diagnostics_unchanged": true,
+  "new_paid_calls": 0,
+  "tests": 27
+}

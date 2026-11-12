@@ -1,0 +1,11 @@
+---
+- name: "Model qwen3.8-flash, Problem p03, Response 1"
+  hosts: all
+  become: true
+  tasks:
+  - name: Copy file
+    ansible.builtin.copy:
+      src: /scratch/file.txt
+      dest: /home/user/data.txt
+      remote_src: true
+

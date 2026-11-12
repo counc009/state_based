@@ -1,0 +1,1 @@
+write "?text" to "/etc/network/interfaces" with position=overwrite

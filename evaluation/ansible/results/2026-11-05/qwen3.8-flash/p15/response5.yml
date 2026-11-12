@@ -1,0 +1,26 @@
+---
+- name: "Model qwen3.8-flash, Problem p15, Response 5"
+  hosts: all
+  become: true
+  vars:
+    target_directory: /home/mydata/web
+  tasks:
+  - name: Ensure the target directory exists
+    ansible.builtin.file:
+      path: "{{ target_directory }}"
+      state: directory
+      mode: "0755"
+  - name: Find contents of the target directory
+    ansible.builtin.find:
+      paths: "{{ target_directory }}"
+      hidden: true
+      recurse: false
+    register: directory_contents
+  - name: Delete each item in the target directory
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: absent
+    loop: "{{ directory_contents.files | default([]) }}"
+    loop_control:
+      label: "{{ item.path }}"
+

@@ -1,0 +1,34 @@
+---
+- name: "Model claude-opus-5-5, Problem p06, Response 4"
+  hosts: all
+  become: true
+  vars:
+    venv_path: /user/home/venv
+    python_executable: python3.10
+  tasks:
+  - name: Ensure Python 3.10 and venv module are installed (Debian/Ubuntu)
+    ansible.builtin.apt:
+      name:
+      - python3.10
+      - python3.10-venv
+      state: present
+      update_cache: true
+    when: ansible_facts['os_family'] == "Debian"
+  - name: Ensure Python 3.10 is installed (RedHat family)
+    ansible.builtin.dnf:
+      name:
+      - python3.10
+      state: present
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Ensure parent directory for the virtual environment exists
+    ansible.builtin.file:
+      path: /user/home
+      state: directory
+      mode: "0755"
+  - name: Create Python 3.10 virtual environment and install numpy
+    ansible.builtin.pip:
+      name: numpy
+      state: present
+      virtualenv: "{{ venv_path }}"
+      virtualenv_command: "{{ python_executable }} -m venv"
+

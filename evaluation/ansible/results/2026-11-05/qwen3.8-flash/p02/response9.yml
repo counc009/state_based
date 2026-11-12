@@ -1,0 +1,23 @@
+---
+- name: "Model qwen3.8-flash, Problem p02, Response 9"
+  hosts: all
+  become: true
+  tasks:
+  - name: Set LC_ALL in /etc/environment
+    ansible.builtin.lineinfile:
+      path: /etc/environment
+      regexp: '^\s*(export\s+)?LC_ALL='
+      line: 'LC_ALL=C'
+      state: present
+      create: true
+      owner: root
+      mode: '0644'
+  - name: Set LC_ALL for login shells via profile.d
+    ansible.builtin.copy:
+      dest: /etc/profile.d/00-lc_all.sh
+      content: |
+        # Managed by Ansible
+        export LC_ALL=C
+      owner: root
+      mode: '0644'
+

@@ -1,0 +1,13 @@
+---
+- name: "Model deepseek-v4-flash, Problem p14, Response 7"
+  hosts: debian
+  become: true
+  tasks:
+  - name: Check if a system reboot is required
+    ansible.builtin.stat:
+      path: /var/run/reboot-required
+    register: reboot_required_file
+  - name: Reboot the system if required
+    ansible.builtin.reboot:
+    when: reboot_required_file.stat.exists
+

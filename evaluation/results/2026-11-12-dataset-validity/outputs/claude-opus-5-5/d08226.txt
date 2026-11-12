@@ -1,0 +1,10 @@
+This request can't be expressed in Astrogator FQL. No action lists repositories or other existing state. FQL only supports the actions in the signature list, such as cloning repositories, installing packages, and managing files, users and services.
+
+Separately, my earlier queries had errors. Corrected versions:
+
+```
+set file permissions in "/srv/path" with read=all, write=owner, list directory=all.
+delete directory at "/home/mydata/web".
+delete files in "/home/mydata/web".
+if os is RedHat then install apache server; if apache server html home page file not exists then create apache server html home page file; create user with name="webdev".
+```

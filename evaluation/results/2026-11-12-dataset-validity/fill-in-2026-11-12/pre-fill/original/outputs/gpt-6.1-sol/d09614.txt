@@ -1,0 +1,1 @@
+Checking whether a directory is empty is not supported by this FQL.

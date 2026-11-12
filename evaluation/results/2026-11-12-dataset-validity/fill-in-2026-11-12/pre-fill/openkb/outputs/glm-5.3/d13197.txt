@@ -1,0 +1,1 @@
+I can't translate this request: FQL has no loop construct, and "jenkins-git packages loop" doesn't identify a concrete installable package or set of packages. If you clarify which packages to install (e.g., `install jenkins` and `install git` as separate statements), I can produce the query.

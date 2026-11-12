@@ -1,0 +1,25 @@
+---
+- name: "Model glm-5.3, Problem p15, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Verify the /home/mydata/web directory exists
+    ansible.builtin.stat:
+      path: /home/mydata/web
+    register: web_dir
+  - name: List all contents of /home/mydata/web (including hidden files)
+    ansible.builtin.find:
+      paths: /home/mydata/web
+      hidden: true
+      recurse: false
+    register: web_contents
+    when: web_dir.stat.exists and web_dir.stat.isdir
+  - name: Delete each item inside /home/mydata/web
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: absent
+    loop: "{{ web_contents.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+    when: web_contents.files is defined and web_contents.files | length > 0
+

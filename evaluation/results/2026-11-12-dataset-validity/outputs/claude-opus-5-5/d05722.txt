@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. The language has no action for querying or reporting a version, and docker-compose is not in the pinned knowledge-base package catalog. `install` with `version="..."` sets a version but does not check one, and `if PACKAGE installed` works only for catalog packages.

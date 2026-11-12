@@ -1,0 +1,3 @@
+FQL has no action for checking or reporting a package's version, so this request cannot be expressed as an Astrogator query. FQL can only check whether a package is installed or install a specific version, for example:
+
+install docker-compose with version="VERSION"

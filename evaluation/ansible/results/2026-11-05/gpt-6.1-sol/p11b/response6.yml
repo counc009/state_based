@@ -1,0 +1,22 @@
+---
+- name: "Model gpt-6.1-sol, Problem p11b, Response 6"
+  hosts: debian
+  become: true
+  tasks:
+  - name: Find WAR files in /tmp
+    ansible.builtin.find:
+      paths: /tmp
+      patterns: "*.war"
+      file_type: file
+      recurse: false
+      hidden: true
+    register: war_files
+  - name: Fetch WAR files into /backup on the controller
+    ansible.builtin.fetch:
+      src: "{{ item.path }}"
+      dest: /backup/
+      flat: true
+    loop: "{{ war_files.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+

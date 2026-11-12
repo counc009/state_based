@@ -1,0 +1,13 @@
+model,variant,n,published_example_semantic,recomputed_example_semantic,fallback_semantic,published_example_ref_match,recomputed_example_ref_match,fallback_ref_match
+claude-opus-5-5,compact-v1,210,107,107,107,85,85,85
+claude-opus-5-5,handbook-v3,210,209,209,209,181,181,181
+deepseek-v4-flash,compact-v1,210,89,89,89,71,71,71
+deepseek-v4-flash,handbook-v3,210,199,199,199,165,165,165
+deepseek-v4.1-flash,compact-v1,210,100,100,100,85,85,85
+deepseek-v4.1-flash,handbook-v3,210,174,174,174,165,165,165
+glm-5.3,compact-v1,210,95,95,95,82,82,82
+glm-5.3,handbook-v3,210,186,186,186,149,149,149
+gpt-6.1-sol,compact-v1,210,116,116,116,88,88,88
+gpt-6.1-sol,handbook-v3,210,209,209,209,180,180,180
+qwen3.8-flash,compact-v1,210,95,95,95,74,74,74
+qwen3.8-flash,handbook-v3,210,178,178,178,154,154,154

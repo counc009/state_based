@@ -1,0 +1,13 @@
+This request can't be expressed in Astrogator FQL. The language has no action that reads or reports a package version. `version="VERSION"` only pins a version during `install`, and conditions can only test `installed` or `not installed`.
+
+The closest supported queries are:
+
+- Check presence: `if docker-compose installed then ...`
+- Ensure a specific version: `install docker-compose with version="X.Y.Z"`
+
+Also, my earlier answers left paths unquoted, but the rules require quoted literal paths:
+
+- `set file permissions in "/srv/path" with read=all, write=owner, list directory=all`
+- `delete directory at "/home/mydata/web"`
+- `delete files in "/home/mydata/web"`
+- `if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file`

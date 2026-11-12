@@ -1,0 +1,3 @@
+kb,descriptions,at_least_one_semantically_valid,all_responding_models_semantically_valid,all_six_responded_and_semantically_valid
+example,300,83,34,34
+fallback,300,290,182,182

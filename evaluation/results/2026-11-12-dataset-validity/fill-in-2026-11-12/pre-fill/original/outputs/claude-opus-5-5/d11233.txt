@@ -1,0 +1,14 @@
+No valid FQL query exists for this request:
+- **salt server** is not a service or package in the pinned KB catalog. The supported services are ssh server, postfix, and apache server.
+- FQL has no **enable** action for services. Only `start SERVICE service` and `stop SERVICE service` exist.
+
+`start salt server service` would not resolve against this KB.
+
+The earlier answers in this conversation left paths unquoted, which the rules forbid. They should have been:
+
+```
+set file permissions in "/srv/path" with read=all, write=owner, list directory=all
+delete directory at "/home/mydata/web"
+delete files in "/home/mydata/web"
+if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file
+```

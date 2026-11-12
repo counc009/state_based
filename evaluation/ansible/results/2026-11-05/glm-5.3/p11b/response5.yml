@@ -1,0 +1,21 @@
+---
+- name: "Model glm-5.3, Problem p11b, Response 5"
+  hosts: debian
+  become: true
+  tasks:
+  - name: Find all .war files in /tmp on the remote machine
+    ansible.builtin.find:
+      paths: /tmp
+      patterns: "*.war"
+      recurse: false
+      file_type: file
+    register: war_files
+  - name: Fetch each .war file to /backup on the controller
+    ansible.builtin.fetch:
+      src: "{{ item.path }}"
+      dest: /backup/
+      flat: true
+    loop: "{{ war_files.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+

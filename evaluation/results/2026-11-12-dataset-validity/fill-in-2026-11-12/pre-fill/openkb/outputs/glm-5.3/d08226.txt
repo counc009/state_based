@@ -1,0 +1,1 @@
+There is no FQL action for listing repositories or other read-only queries; the language only supports the configuration actions shown in the catalog, so this request cannot be expressed as a query.

@@ -1,0 +1,1 @@
+Astrogator FQL cannot express this request. None of its actions refreshes or updates package repositories: the package actions are only `install` and `uninstall`. Any query here would use an unsupported action.

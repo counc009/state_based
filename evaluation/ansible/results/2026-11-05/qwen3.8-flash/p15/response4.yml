@@ -1,0 +1,33 @@
+---
+- name: "Model qwen3.8-flash, Problem p15, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure target directory exists
+    ansible.builtin.file:
+      path: /home/mydata/web
+      state: directory
+  - name: Find top-level contents of target directory
+    ansible.builtin.find:
+      paths: /home/mydata/web
+      patterns:
+      - "*"
+      - ".*"
+      file_type: any
+      hidden: true
+      recurse: false
+      follow: false
+    register: web_contents
+  - name: Delete top-level contents recursively
+    ansible.builtin.file:
+      path: "{{ item }}"
+      state: absent
+      follow: false
+    loop: "{{ web_contents.files | default([]) | map(attribute='path') | list }}"
+    loop_control:
+      label: "{{ item }}"
+    when:
+    - item not in ['/home/mydata/web', '/home/mydata/web/']
+    - not item.endswith('/.')
+    - not item.endswith('/..')
+

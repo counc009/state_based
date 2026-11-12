@@ -1,0 +1,24 @@
+---
+- name: "Model deepseek-v4-flash, Problem p11b, Response 9"
+  hosts: debian
+  become: true
+  tasks:
+  - name: Ensure /backup directory exists on controller
+    ansible.builtin.file:
+      path: /backup
+      state: directory
+    delegate_to: localhost
+    run_once: true
+  - name: Find all .war files in /tmp
+    ansible.builtin.find:
+      paths: /tmp
+      patterns: "*.war"
+      recurse: true
+    register: war_files
+  - name: Fetch each .war file to /backup on controller
+    ansible.builtin.fetch:
+      src: "{{ item.path }}"
+      dest: /backup/
+      flat: true
+    loop: "{{ war_files.files }}"
+

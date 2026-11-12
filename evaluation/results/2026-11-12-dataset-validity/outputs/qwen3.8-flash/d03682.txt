@@ -1,0 +1,3 @@
+
+
+The requested operation "remove all docker containers" cannot be expressed in Astrogator FQL, as no Docker container management action exists in the available action signatures.

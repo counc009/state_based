@@ -1,0 +1,18 @@
+---
+- name: "Model gpt-6.1-sol, Problem p14, Response 2"
+  hosts: debian
+  become: true
+  tasks:
+  - name: Check and handle required reboots on Debian systems
+    when: ansible_facts['os_family'] == 'Debian'
+    block:
+    - name: Check whether a reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+    - name: Restart the system if required
+      ansible.builtin.reboot:
+        msg: "Reboot initiated by Ansible because a restart is required"
+        reboot_timeout: 600
+      when: reboot_required.stat.exists
+

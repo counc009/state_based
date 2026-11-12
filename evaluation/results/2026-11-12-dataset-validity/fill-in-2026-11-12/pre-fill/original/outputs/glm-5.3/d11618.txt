@@ -1,0 +1,1 @@
+I can't translate this request: GateOne is not in the supported package catalog for this knowledge base, so there is no valid FQL action for installing it.

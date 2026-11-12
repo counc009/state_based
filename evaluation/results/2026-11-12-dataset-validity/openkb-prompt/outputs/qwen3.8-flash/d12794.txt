@@ -1,0 +1,3 @@
+
+
+if os is Debian then install Python Setuptools

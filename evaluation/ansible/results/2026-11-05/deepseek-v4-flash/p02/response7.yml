@@ -1,0 +1,12 @@
+---
+- name: "Model deepseek-v4-flash, Problem p02, Response 7"
+  hosts: all
+  become: true
+  tasks:
+  - name: Set LC_ALL environment variable system-wide
+    ansible.builtin.lineinfile:
+      path: /etc/environment
+      regexp: '^LC_ALL='
+      line: 'LC_ALL=C'
+      state: present
+

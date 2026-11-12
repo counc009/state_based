@@ -1,0 +1,1 @@
+Bower is not in the pinned knowledge-base package catalog, so no valid query can express this request. The catalog supports only bash, zsh, postfix, apache, ssh client, ssh server, and numpy. A query such as `install bower` would fail to resolve. Bower would need to be added to the knowledge base first.

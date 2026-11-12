@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL against the pinned KB: `software-properties-common` isn't in the package catalog, and `install` only accepts catalog descriptions (bash, zsh, postfix, apache server, ssh client, ssh server, numpy). The package would need to be added to the knowledge base first.

@@ -1,0 +1,1 @@
+No FQL query can express this request: the Astrogator action set does not include any action for checking or reporting installed software versions.

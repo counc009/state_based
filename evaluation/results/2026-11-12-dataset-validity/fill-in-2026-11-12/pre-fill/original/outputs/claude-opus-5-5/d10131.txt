@@ -1,0 +1,9 @@
+This request can't be expressed in Astrogator FQL with the pinned example knowledge base. `install` accepts only packages in the catalog (bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy), and software-properties-common is not one of them.
+
+If the knowledge base is extended with a `software-properties-common` entry, the query would be:
+
+```
+install software-properties-common
+```
+
+Because the package is Debian/Ubuntu-specific, the entry would probably need an OS context, for example `if os is Debian based then install software-properties-common`.

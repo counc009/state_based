@@ -1,0 +1,45 @@
+---
+- name: "Model claude-opus-5-5, Problem p18, Response 8"
+  hosts: redhat
+  become: true
+  tasks:
+  - name: Install Apache (httpd)
+    ansible.builtin.dnf:
+      name: httpd
+      state: present
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Ensure the web root directory exists
+    ansible.builtin.file:
+      path: /var/www/html
+      state: directory
+      owner: root
+      group: root
+      mode: "0755"
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Ensure the home page exists
+    ansible.builtin.copy:
+      dest: /var/www/html/index.html
+      content: |
+        <html>
+          <head><title>Welcome</title></head>
+          <body><h1>Welcome to {{ ansible_facts['hostname'] }}</h1></body>
+        </html>
+      owner: root
+      group: root
+      mode: "0644"
+      force: false
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Ensure Apache is started and enabled
+    ansible.builtin.service:
+      name: httpd
+      state: started
+      enabled: true
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Create the webdev user
+    ansible.builtin.user:
+      name: webdev
+      state: present
+      create_home: true
+      shell: /bin/bash
+    when: ansible_facts['os_family'] == "RedHat"
+

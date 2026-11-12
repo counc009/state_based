@@ -1,0 +1,30 @@
+---
+- name: "Model glm-5.3, Problem p17, Response 9"
+  hosts: redhat,ubuntu
+  become: true
+  vars:
+    postfix_config_path: /etc/postfix/main.cf
+    postfix_download_url: "{{ 'http://example.com/cfg.ubuntu' if ansible_facts['distribution']
+      == 'Ubuntu' else 'http://example.com/cfg.redhat' }}"
+  tasks:
+  - name: Install the latest version of postfix
+    ansible.builtin.package:
+      name: postfix
+      state: latest
+  - name: Backup the default postfix configuration file
+    ansible.builtin.copy:
+      remote_src: true
+      src: "{{ postfix_config_path }}"
+      dest: "{{ postfix_config_path }}.bak"
+      mode: preserve
+  - name: Download postfix configuration file for Ubuntu
+    ansible.builtin.get_url:
+      url: http://example.com/cfg.ubuntu
+      dest: "{{ postfix_config_path }}"
+    when: ansible_facts['distribution'] == "Ubuntu"
+  - name: Download postfix configuration file for RedHat
+    ansible.builtin.get_url:
+      url: http://example.com/cfg.redhat
+      dest: "{{ postfix_config_path }}"
+    when: ansible_facts['distribution'] == "RedHat"
+

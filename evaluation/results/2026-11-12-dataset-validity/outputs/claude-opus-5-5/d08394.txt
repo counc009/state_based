@@ -1,0 +1,21 @@
+This request can't be expressed in Astrogator FQL with the pinned example KB:
+
+- **monit is not in the catalog.** The only services are ssh server, postfix, and apache server, so `start monit service` would not resolve.
+- **There is no enable-at-boot action.** FQL can start and stop services but cannot mark them to start on reboot.
+
+To support this, the KB would need a monit service and package entry, and the language would need an action such as `enable SERVICE service`.
+
+Also, the queries I gave in earlier turns left literal values unquoted. They should have been:
+
+```
+set file permissions in "/srv/path" with read=all, write=owner, list directory=all
+```
+```
+delete directory at "/home/mydata/web"
+```
+```
+delete files in "/home/mydata/web"
+```
+```
+if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file
+```

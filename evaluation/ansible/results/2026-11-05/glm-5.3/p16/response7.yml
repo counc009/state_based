@@ -1,0 +1,27 @@
+---
+- name: "Model glm-5.3, Problem p16, Response 7"
+  hosts: all
+  become: true
+  tasks:
+  - name: Install zsh
+    ansible.builtin.package:
+      name: zsh
+      state: present
+  - name: Ensure the dev user exists
+    ansible.builtin.user:
+      name: dev
+      state: present
+  - name: Set zsh as the default shell for the dev user
+    ansible.builtin.user:
+      name: dev
+      shell: /bin/zsh
+  - name: Ensure the zsh configuration file exists for the dev user
+    ansible.builtin.file:
+      path: /home/dev/.zshrc
+      state: touch
+      owner: dev
+      group: dev
+      mode: '0644'
+      modification_time: preserve
+      access_time: preserve
+

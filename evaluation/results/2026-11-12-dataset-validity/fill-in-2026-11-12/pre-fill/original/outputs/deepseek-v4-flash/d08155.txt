@@ -1,0 +1,1 @@
+No valid FQL query exists: the catalog has no action for updating an apt package cache.

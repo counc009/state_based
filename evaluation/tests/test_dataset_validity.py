@@ -1,0 +1,85 @@
+import copy
+import io
+import json
+from pathlib import Path
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+CODE=Path(__file__).resolve().parents[1]/'code';sys.path.insert(0,str(CODE))
+from dataset_filter import candidate,normalize,support_hint,module_style
+import dataset_validity as d
+import dataset_transport as transport
+
+class DatasetValidityTests(unittest.TestCase):
+    def test_free_screen_filters_named_styles_jinja_and_generic_objects(self):
+        self.assertEqual(normalize('name: Ensure unzip is installed.'),'Ensure unzip is installed.')
+        self.assertEqual(candidate({'input':'name: Install {{ package }}'})[1],'unresolved_jinja')
+        self.assertEqual(candidate({'input':'name: Install packages'})[1],'no_concrete_object')
+        self.assertEqual(candidate({'input':'name: Check nginx','output':'ansible.builtin.assert:\n  that: true\n'})[1],'excluded_task_style')
+        self.assertTrue(candidate({'input':'name: Ensure unzip is installed.'})[0])
+    def test_unsupported_fql_objects_are_not_filtered(self):
+        row={'input':'name: Install quantumwidget'}
+        self.assertTrue(candidate(row)[0]);self.assertEqual(support_hint(normalize(row['input'])),'may_require_package_kb_entry')
+        self.assertFalse(module_style('block:\n  - debug:\n      msg: hi\n'))
+    def test_classifier_contract_and_no_implementation_context(self):
+        cell={'label_ids':['n1']}
+        valid={'status':'completed','text':'[{"id":"n1","keep":true,"reason":"concrete_self_contained"}]'}
+        with patch.object(transport,'request',return_value=valid):self.assertTrue(d.classify_request(cell,{})['labels'][0]['keep'])
+        bad={'status':'completed','text':'[{"id":"n1","keep":true,"reason":"missing_path"}]'}
+        with patch.object(transport,'request',return_value=bad):self.assertEqual(d.classify_request(cell,{})['error'],'classifier_format_error')
+    def test_frozen_generation_has_one_call_per_model_and_exact_demos(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run=Path(tmp);p=run/'private';(p/'filter').mkdir(parents=True)
+            catalog={m['id']:{'limit':{'output':32768},'cost':{'input':0.1,'output':0.2,'cache_read':0.01,'cache_write':0.1}} for m in d.ev.load(d.ROOT/'configs/models.json')['models'].values() if m['provider']=='agentfanclub'}
+            d.save(p/'router-catalog.json',catalog);d.save(p/'sample.json',[{'task_id':'d00001','nl':'Install quantumwidget'}]);d.save(p/'filter/state.json',{'attempts':[]});d.save(p/'filter/manifest.json',{'source':{'file_sha256':'fixture'}})
+            with patch('sys.stdout',new=io.StringIO()):m=d.freeze_generation(run)
+            self.assertEqual(len(m['cells']),6)
+            for c in m['cells']:
+                self.assertEqual(c['repeat'],0);self.assertEqual(c['demonstration_ids'],['a13','a02','a03','a19'])
+                self.assertEqual(c['messages'][-1],{'role':'user','content':'Install quantumwidget'})
+                self.assertEqual(len(c['messages']),10)
+            self.assertEqual(m['config']['max_output_tokens'],32768)
+            self.assertEqual(m['config']['provider_budgets_usd']['anthropic'],8)
+
+    def test_native_stage_flags_distinguish_grammar_semantics_and_empty_query(self):
+        binary=d.REPO/'_build/default/evaluation/native/effects.exe'
+        if not binary.exists():self.skipTest('Build native diagnostics first')
+        cases=[('create directory at /srv/www','ok',True,True),('install package with name=imaginary_unknown_package','semantic_error',True,False),('invalid query','diagnostic_error',False,False),('','empty_query',True,False)]
+        for text,status,parsed,semantic in cases:
+            result=d.probe(text,binary)
+            self.assertEqual((result['status'],result['parsed'],result['semantic_accepted']),(status,parsed,semantic))
+
+    def test_hash_prefix_population_ignores_completion_order_and_keeps_row_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run=Path(tmp)/'run';source=Path(tmp)/'source.json'
+            source.write_text(json.dumps([{'input':f'Install package pkg{i:03}'} for i in range(45)]))
+            catalog={m['id']:{'limit':{'output':32768},'cost':{'input':0.1,'output':0.2,'cache_read':0.01,'cache_write':0.1}} for m in d.ev.load(d.ROOT/'configs/models.json')['models'].values() if m['provider']=='agentfanclub'}
+            d.save(run/'private/router-catalog.json',catalog)
+            with patch('sys.stdout',new=io.StringIO()):m=d.prepare(run,source,1)
+            self.assertEqual(len(m['cells']),1)
+            c=m['cells'][0];d.save(run/'private/filter/responses'/(c['id']+'.json'),{'status':'completed','labels':[{'id':i,'keep':True,'reason':'concrete_self_contained'} for i in c['label_ids']]})
+            with patch('sys.stdout',new=io.StringIO()):sample=d.select(run,1)
+            self.assertEqual(len(sample),20)
+            self.assertTrue(all(int(r['classifier_id'][1:])<20 for r in sample))
+            self.assertEqual(d.ev.load(run/'private/funnel.json')['detail_unresolved_rows'],0)
+
+    def test_model_local_readmission_does_not_wait_for_another_model(self):
+        import time
+        with tempfile.TemporaryDirectory() as tmp:
+            out=Path(tmp);config=d.ev.load(d.ROOT/'configs/models.json')
+            config.update(max_output_tokens=32768,prior_cost_usd=0,prior_anthropic_cost_usd=0,generation_model_workers={'opus':8,'sol':1})
+            config['models']={k:config['models'][k] for k in ['opus','sol']}
+            messages=[{'role':'system','content':'test'},{'role':'user','content':'test'}]
+            cells=[{'id':f'opus-{i}','model':'opus','messages':messages} for i in range(20)]+[{'id':'sol-slow','model':'sol','messages':messages}]
+            m={'config':config,'cells':cells};observed=[]
+            def request(cell,config):
+                if cell['model']=='sol':
+                    time.sleep(1)
+                    observed.append(len(list((out/'responses').glob('opus*.json'))))
+                else:time.sleep(.005)
+                return {'status':'completed','text':'create directory at /srv/www','usage':{'input_tokens':100,'output_tokens':10}}
+            r=d.Matrix(m,out,total=10,anthropic=1,max_attempts=2,request_fn=request,build_fn=lambda c,k:('https://fixture.invalid',{},{}))
+            with patch('sys.stdout',new=io.StringIO()):d.parallel_generate(r)
+            self.assertEqual(observed,[20])
+            self.assertLessEqual(r.spend('anthropic'),1)

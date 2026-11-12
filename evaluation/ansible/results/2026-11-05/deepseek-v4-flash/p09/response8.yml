@@ -1,0 +1,12 @@
+---
+- name: "Model deepseek-v4-flash, Problem p09, Response 8"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure line is present at the end of .bashrc
+    ansible.builtin.lineinfile:
+      path: /home/foo/.bashrc
+      line: "module load gcc"
+      state: present
+      create: true
+

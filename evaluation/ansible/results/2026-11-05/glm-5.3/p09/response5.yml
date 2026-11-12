@@ -1,0 +1,11 @@
+---
+- name: "Model glm-5.3, Problem p09, Response 5"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure module load gcc line is at the end of foo's bashrc
+    ansible.builtin.lineinfile:
+      path: /home/foo/.bashrc
+      line: module load gcc
+      state: present
+

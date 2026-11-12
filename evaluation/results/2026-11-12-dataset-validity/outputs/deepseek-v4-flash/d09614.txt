@@ -1,0 +1,1 @@
+if file "/nighhawk/*" exists then delete files in "/nighhawk"

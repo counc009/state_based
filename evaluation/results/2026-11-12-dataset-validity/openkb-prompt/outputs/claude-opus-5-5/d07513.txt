@@ -1,0 +1,8 @@
+This request can't be expressed as a valid Astrogator FQL query:
+
+- **No standalone check:** FQL has no action that only tests or reports a condition. `if ufw installed then ...` must be followed by an action to perform.
+- **Arch Linux isn't supported:** OS conditions only accept Debian, Ubuntu, RedHat, `Debian based`, and `RedHat based`.
+
+If you say what should happen when ufw is installed, and drop the Arch Linux requirement, I can write the query. For example:
+
+`if ufw installed then uninstall ufw`

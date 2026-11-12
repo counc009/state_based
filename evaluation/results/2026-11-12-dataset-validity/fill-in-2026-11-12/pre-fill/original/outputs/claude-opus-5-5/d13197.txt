@@ -1,0 +1,6 @@
+This request can't be expressed in Astrogator FQL with the pinned knowledge base:
+
+- **No such packages:** neither `jenkins` nor `git` (nor `jenkins-git`) is in the package catalog. `install` only accepts bash, zsh, postfix, apache server, ssh client, ssh server, and numpy.
+- **No loops:** FQL has no loop construct. To install several catalog packages, sequence them with semicolons, e.g. `install bash; install zsh`.
+
+If you meant to fetch a Jenkins Git repository, give its URL or `ORG/REPO` and a target path. That can be written with `clone git repository` or `clone github repository`.

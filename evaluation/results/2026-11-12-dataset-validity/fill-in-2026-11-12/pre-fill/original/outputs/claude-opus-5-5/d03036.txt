@@ -1,0 +1,7 @@
+This request can't be expressed with the pinned knowledge base. Its service catalog only includes **ssh server**, **postfix**, and **apache server**. There are no **docker** or **kubelet** service entries, so `start docker service` and `start kubelet service` would not resolve.
+
+To support this, add Docker and Kubelet service descriptions to the knowledge base. Then the query would be:
+
+```
+start docker service; start kubelet service
+```

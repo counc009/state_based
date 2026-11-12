@@ -1,0 +1,56 @@
+---
+- name: "Model qwen3.8-flash, Problem p16, Response 2"
+  hosts: all
+  become: true
+  vars:
+    dev_user: dev
+    dev_home: /home/dev
+    zsh_search_paths:
+    - /usr/bin/zsh
+    - /bin/zsh
+    - /usr/local/bin/zsh
+  tasks:
+  - name: Ensure the dev group exists
+    ansible.builtin.group:
+      name: "{{ dev_user }}"
+      state: present
+  - name: Install zsh
+    ansible.builtin.package:
+      name: zsh
+      state: present
+  - name: Locate the zsh executable
+    ansible.builtin.stat:
+      path: "{{ item }}"
+    loop: "{{ zsh_search_paths }}"
+    loop_control:
+      label: "{{ item }}"
+    register: zsh_stat
+    changed_when: false
+  - name: Set zsh binary path fact
+    ansible.builtin.set_fact:
+      zsh_path: "{{ item.item }}"
+    loop: "{{ zsh_stat.results }}"
+    loop_control:
+      label: "{{ item.item }}"
+    when:
+    - item.stat.exists | bool
+    - zsh_path is not defined
+  - name: Set default zsh binary path
+    ansible.builtin.set_fact:
+      zsh_path: /usr/bin/zsh
+    when: zsh_path is not defined
+  - name: Set zsh as the default shell for the dev user
+    ansible.builtin.user:
+      name: "{{ dev_user }}"
+      group: "{{ dev_user }}"
+      shell: "{{ zsh_path }}"
+      home: "{{ dev_home }}"
+      create_home: true
+  - name: Ensure the zsh configuration file exists for the dev user
+    ansible.builtin.file:
+      path: "{{ dev_home }}/.zshrc"
+      state: touch
+      owner: "{{ dev_user }}"
+      group: "{{ dev_user }}"
+      mode: "0644"
+

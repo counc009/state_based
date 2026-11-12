@@ -1,0 +1,11 @@
+---
+- name: "Model deepseek-v4-flash, Problem p11b, Response 8"
+  hosts: debian
+  become: true
+  tasks:
+  - name: Fetch all .war files from /tmp to /backup on the controller
+    ansible.builtin.fetch:
+      src: /tmp/*.war
+      dest: /backup/
+      flat: true
+

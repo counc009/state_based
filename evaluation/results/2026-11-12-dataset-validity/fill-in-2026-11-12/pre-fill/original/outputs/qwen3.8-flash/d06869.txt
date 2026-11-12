@@ -1,0 +1,3 @@
+
+
+The package `fail2ban` is not in the knowledge-base catalog. Supported packages are: bash, zsh, postfix, apache server, ssh client, ssh server, numpy, and numpy in virtual environment.

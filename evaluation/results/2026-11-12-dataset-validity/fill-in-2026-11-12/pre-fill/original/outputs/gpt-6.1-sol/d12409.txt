@@ -1,0 +1,1 @@
+install zsh; clone github repository with name="ohmyzsh/ohmyzsh" into "~/.oh-my-zsh"; if file "~/.zshrc" not exists then copy file from "~/.oh-my-zsh/templates/zshrc.zsh-template" to "~/.zshrc".

@@ -1,0 +1,26 @@
+---
+- name: "Model gpt-6.1-sol, Problem p16, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Install zsh
+    ansible.builtin.package:
+      name: zsh
+      state: present
+  - name: Set zsh as dev's default shell
+    ansible.builtin.user:
+      name: dev
+      shell: /bin/zsh
+      state: present
+      create_home: true
+    register: dev_account
+  - name: Ensure dev's zsh configuration file exists
+    ansible.builtin.file:
+      path: "{{ dev_account.home }}/.zshrc"
+      state: touch
+      owner: dev
+      group: "{{ dev_account.group }}"
+      mode: "0644"
+      access_time: preserve
+      modification_time: preserve
+

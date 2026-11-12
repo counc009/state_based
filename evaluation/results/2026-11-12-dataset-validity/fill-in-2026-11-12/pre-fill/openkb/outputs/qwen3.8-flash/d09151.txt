@@ -1,0 +1,3 @@
+
+
+write "UTC" to "/etc/timezone" with position=overwrite

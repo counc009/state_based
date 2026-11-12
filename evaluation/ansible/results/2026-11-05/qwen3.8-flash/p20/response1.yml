@@ -1,0 +1,49 @@
+---
+- name: "Model qwen3.8-flash, Problem p20, Response 1"
+  hosts: redhat,debian
+  become: true
+  tasks:
+  - name: Set SSH package and service facts
+    ansible.builtin.set_fact:
+      ssh_client_package: "{{ 'openssh-client' if ansible_os_family == 'Debian' else
+        'openssh-clients' }}"
+      ssh_service_name: "{{ 'ssh' if ansible_os_family == 'Debian' else 'sshd' }}"
+  - name: Install SSH client and server
+    ansible.builtin.package:
+      name:
+      - "{{ ssh_client_package }}"
+      - "openssh-server"
+      state: present
+    when: ansible_os_family in ['Debian', 'RedHat']
+  - name: Start and enable SSH service
+    ansible.builtin.service:
+      name: "{{ ssh_service_name }}"
+      state: started
+      enabled: true
+    when: ansible_os_family in ['Debian', 'RedHat']
+  - name: Ensure /.ssh directory exists
+    ansible.builtin.file:
+      path: /.ssh
+      state: directory
+      mode: '0700'
+    when: ansible_os_family in ['Debian', 'RedHat']
+  - name: Generate SSH key for fizbaz
+    community.crypto.openssh_keypair:
+      path: /.ssh/fizbaz_rsa
+      comment: fizbaz
+      type: rsa
+      size: 4096
+      regenerate: never
+    when: ansible_os_family in ['Debian', 'RedHat']
+  - name: Ensure SSH key permissions
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      mode: "{{ item.mode }}"
+      state: file
+    loop:
+    - path: /.ssh/fizbaz_rsa
+      mode: '0600'
+    - path: /.ssh/fizbaz_rsa.pub
+      mode: '0644'
+    when: ansible_os_family in ['Debian', 'RedHat']
+

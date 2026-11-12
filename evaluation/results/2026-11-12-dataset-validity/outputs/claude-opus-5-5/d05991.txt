@@ -1,0 +1,6 @@
+This request cannot be expressed in Astrogator FQL with the pinned KB:
+
+- FQL has no `enable` action for services. Only `start SERVICE service` and `stop SERVICE service` exist.
+- `ecs-agent` is not in the service catalog. Only ssh server, postfix, and apache server are defined.
+
+Supporting this would require adding an ecs-agent service to the KB and a service-enable action to the language.

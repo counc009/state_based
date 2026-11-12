@@ -1,0 +1,35 @@
+---
+- name: "Model claude-opus-5-5, Problem p16, Response 2"
+  hosts: all
+  become: true
+  vars:
+    target_user: dev
+    zsh_path: /bin/zsh
+  tasks:
+  - name: Install zsh package
+    ansible.builtin.package:
+      name: zsh
+      state: present
+  - name: Verify zsh binary exists
+    ansible.builtin.stat:
+      path: "{{ zsh_path }}"
+    register: zsh_binary
+  - name: Fall back to /usr/bin/zsh if /bin/zsh is missing
+    ansible.builtin.set_fact:
+      zsh_path: /usr/bin/zsh
+    when: not zsh_binary.stat.exists
+  - name: Set zsh as default shell for user {{ target_user }}
+    ansible.builtin.user:
+      name: "{{ target_user }}"
+      shell: "{{ zsh_path }}"
+    register: dev_user
+  - name: Ensure .zshrc exists for user {{ target_user }}
+    ansible.builtin.file:
+      path: "{{ dev_user.home }}/.zshrc"
+      state: touch
+      owner: "{{ target_user }}"
+      group: "{{ dev_user.group | default(target_user) }}"
+      mode: "0644"
+      modification_time: preserve
+      access_time: preserve
+

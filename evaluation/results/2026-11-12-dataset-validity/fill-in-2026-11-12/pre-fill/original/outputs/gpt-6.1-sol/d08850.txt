@@ -1,0 +1,3 @@
+create directory at "/etc/systemd/system/multi-user.target.d"; write "[Unit]
+Wants=apt-cacher-ng.service
+" to "/etc/systemd/system/multi-user.target.d/apt-cacher-ng.conf" with position=overwrite

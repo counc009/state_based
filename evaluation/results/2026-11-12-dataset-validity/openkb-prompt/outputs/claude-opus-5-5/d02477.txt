@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. The language has no action for refreshing or upgrading apt (such as `apt update` or `apt upgrade`). Its package actions are limited to `install PACKAGE` (with an optional version) and `uninstall PACKAGE`.

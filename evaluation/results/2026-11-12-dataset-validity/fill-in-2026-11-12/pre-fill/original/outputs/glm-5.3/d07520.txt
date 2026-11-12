@@ -1,0 +1,1 @@
+This request cannot be expressed in Astrogator FQL. The language provides no action for creating, deleting, or retargeting symbolic links (symlinks); available file actions are limited to create, delete, copy, move, download, write, and setting permissions.

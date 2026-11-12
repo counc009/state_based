@@ -1,0 +1,66 @@
+---
+- name: "Model claude-opus-5-5, Problem p17, Response 5"
+  hosts: redhat,ubuntu
+  become: true
+  vars:
+    postfix_config_file: /etc/postfix/main.cf
+    postfix_config_backup: /etc/postfix/main.cf.bak
+    postfix_config_urls:
+      RedHat: http://example.com/cfg.redhat
+      Ubuntu: http://example.com/cfg.ubuntu
+  tasks:
+  - name: Install the latest version of postfix on RedHat
+    ansible.builtin.yum:
+      name: postfix
+      state: latest
+    when: ansible_facts['os_family'] == 'RedHat'
+  - name: Install the latest version of postfix on Ubuntu
+    ansible.builtin.apt:
+      name: postfix
+      state: latest
+      update_cache: true
+    when: ansible_facts['distribution'] == 'Ubuntu'
+  - name: Check if the default postfix configuration file exists
+    ansible.builtin.stat:
+      path: "{{ postfix_config_file }}"
+    register: postfix_cfg_stat
+    when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['distribution']
+      == 'Ubuntu'
+  - name: Backup the default postfix configuration file
+    ansible.builtin.copy:
+      src: "{{ postfix_config_file }}"
+      dest: "{{ postfix_config_backup }}"
+      remote_src: true
+      force: false
+      owner: root
+      group: root
+      mode: '0644'
+    when:
+    - ansible_facts['os_family'] == 'RedHat' or ansible_facts['distribution'] == 'Ubuntu'
+    - postfix_cfg_stat.stat.exists
+  - name: Download postfix configuration file for RedHat
+    ansible.builtin.get_url:
+      url: "{{ postfix_config_urls['RedHat'] }}"
+      dest: "{{ postfix_config_file }}"
+      owner: root
+      group: root
+      mode: '0644'
+      force: true
+    when: ansible_facts['os_family'] == 'RedHat'
+    notify: Restart postfix
+  - name: Download postfix configuration file for Ubuntu
+    ansible.builtin.get_url:
+      url: "{{ postfix_config_urls['Ubuntu'] }}"
+      dest: "{{ postfix_config_file }}"
+      owner: root
+      group: root
+      mode: '0644'
+      force: true
+    when: ansible_facts['distribution'] == 'Ubuntu'
+    notify: Restart postfix
+  handlers:
+  - name: Restart postfix
+    ansible.builtin.service:
+      name: postfix
+      state: restarted
+

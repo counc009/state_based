@@ -1,0 +1,36 @@
+---
+- name: "Model qwen3.8-flash, Problem p15, Response 1"
+  hosts: all
+  become: true
+  vars:
+    web_dir: /home/mydata/web
+  tasks:
+  - name: Check whether web directory exists
+    ansible.builtin.stat:
+      path: "{{ web_dir }}"
+    register: web_dir_stat
+  - name: Ensure target path is a directory
+    ansible.builtin.fail:
+      msg: "{{ web_dir }} exists but is not a directory"
+    when: web_dir_stat.stat.exists and not web_dir_stat.stat.isdir
+  - name: Find contents of the web directory
+    ansible.builtin.find:
+      paths: "{{ web_dir }}"
+      patterns:
+      - "*"
+      hidden: true
+      recurse: false
+      depth: 1
+      file_type: any
+    register: web_contents
+    when: web_dir_stat.stat.exists and web_dir_stat.stat.isdir
+  - name: Delete contents of the web directory
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: absent
+      force: true
+      follow: false
+    loop: "{{ (web_contents | default({})).files | default([]) }}"
+    loop_control:
+      label: "{{ item.path }}"
+

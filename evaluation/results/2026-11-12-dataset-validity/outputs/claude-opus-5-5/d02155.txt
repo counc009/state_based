@@ -1,0 +1,1 @@
+No Astrogator FQL query can express this. The language has no action or condition for loading or checking modules, and "zeroconf" is not in the knowledge-base catalog.

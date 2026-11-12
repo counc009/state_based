@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. The language has no action to search a file or edit individual lines. `write` can only overwrite the whole file or add text at the top or bottom. Commenting out the wlan0-related settings in /etc/network/interfaces would need a find-and-edit action, or the complete new file content to write with `position=overwrite`.

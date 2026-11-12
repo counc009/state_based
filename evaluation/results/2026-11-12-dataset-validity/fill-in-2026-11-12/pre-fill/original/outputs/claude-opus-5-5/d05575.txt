@@ -1,0 +1,1 @@
+No Astrogator FQL query can do this. The pinned knowledge base has no Elasticsearch service; it only defines the ssh server, postfix, and apache server services. Elasticsearch would need to be added to the knowledge base before `start ... service` could refer to it.

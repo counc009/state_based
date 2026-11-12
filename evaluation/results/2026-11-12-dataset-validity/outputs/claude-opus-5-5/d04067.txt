@@ -1,0 +1,10 @@
+This request can't be expressed as a valid Astrogator FQL query against the pinned knowledge base:
+
+- **borg backup** is not in the package catalog. Only bash, zsh, postfix, apache/apache server, ssh client, ssh server, and numpy are supported.
+- **via pkg** is not a supported argument for `install`. `via` is only defined for `clone github repository`, as `via ssh` or `via https`. Package managers are resolved through the knowledge base, not chosen in the query.
+
+If borg backup were added to the knowledge base, the query would be:
+
+```
+install borg backup.
+```

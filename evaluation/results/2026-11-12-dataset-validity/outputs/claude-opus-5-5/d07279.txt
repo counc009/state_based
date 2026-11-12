@@ -1,0 +1,1 @@
+mysql-connector-java isn't in the pinned knowledge-base catalog, so this request can't be written as a valid FQL query. `install` only accepts catalog package descriptions, which are bash, zsh, postfix, apache / apache server, ssh client, ssh server, numpy, and numpy in a virtual environment.

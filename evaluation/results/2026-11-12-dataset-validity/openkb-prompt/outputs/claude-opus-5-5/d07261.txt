@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. The language has no action or condition for networks, such as Docker or other container networks. It only supports files, directories, users, groups, packages, services, repositories, virtual environments, environment variables, and reboot.

@@ -1,0 +1,1 @@
+write "Audit Credential Validation = Success" to ?path with position=overwrite.

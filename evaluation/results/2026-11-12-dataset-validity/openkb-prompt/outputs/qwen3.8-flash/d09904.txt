@@ -1,0 +1,3 @@
+
+
+set environment variable SMART_DASHES to "false"

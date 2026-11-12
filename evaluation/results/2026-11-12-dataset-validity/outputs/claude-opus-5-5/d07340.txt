@@ -1,0 +1,5 @@
+This request can't be expressed as a valid query. `install`, `uninstall`, and the `installed` condition only accept package descriptions from the knowledge-base catalog, and open-vm-tools is not in it. The catalog lists only bash, zsh, postfix, apache server, ssh client, ssh server, and numpy.
+
+If open-vm-tools were added to the knowledge base, the query would be:
+
+if open-vm-tools installed then uninstall open-vm-tools

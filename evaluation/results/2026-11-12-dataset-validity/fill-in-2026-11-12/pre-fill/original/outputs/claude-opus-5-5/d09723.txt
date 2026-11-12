@@ -1,0 +1,1 @@
+No valid query: `mongodb-org` is not in the pinned knowledge-base package catalog. The only installable packages are bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy, and numpy in virtual environment.

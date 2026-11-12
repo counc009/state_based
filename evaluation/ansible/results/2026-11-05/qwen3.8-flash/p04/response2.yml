@@ -1,0 +1,42 @@
+---
+- name: "Model qwen3.8-flash, Problem p04, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure /srv/path has directory permissions
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      mode: "u=rwx,g=rx,o=rx"
+  - name: Find directories under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      file_type: directory
+      recurse: true
+      hidden: true
+    register: directories_to_fix
+  - name: Set permissions for directories so everyone can list/read/execute but only
+      owner can write
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: directory
+      mode: "u=rwx,g=rx,o=rx"
+    loop: "{{ directories_to_fix.files | default([]) | sort(attribute='path') }}"
+    loop_control:
+      label: "{{ item.path }}"
+  - name: Find regular files under /srv/path
+    ansible.builtin.find:
+      paths: /srv/path
+      file_type: file
+      recurse: true
+      hidden: true
+    register: files_to_fix
+  - name: Set permissions for files so everyone can read but only owner can write
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: file
+      mode: "u=rw,g=r,o=r"
+    loop: "{{ files_to_fix.files | default([]) | sort(attribute='path') }}"
+    loop_control:
+      label: "{{ item.path }}"
+

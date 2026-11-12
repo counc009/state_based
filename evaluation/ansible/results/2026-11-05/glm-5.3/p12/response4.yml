@@ -1,0 +1,16 @@
+---
+- name: "Model glm-5.3, Problem p12, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Copy the file to the new location
+    ansible.builtin.copy:
+      src: /scratch/file.txt
+      dest: /home/user/data.txt
+      remote_src: true
+      mode: preserve
+  - name: Remove the original file
+    ansible.builtin.file:
+      path: /scratch/file.txt
+      state: absent
+

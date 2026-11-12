@@ -1,0 +1,6 @@
+This request can't be expressed in Astrogator FQL with the pinned knowledge base:
+
+- **No update action:** The only package actions are `install` (with an optional `version="VERSION"`) and `uninstall`.
+- **Packages not in the catalog:** Neither "pip9" nor "setuptools" appears. The catalog covers only bash, zsh, postfix, apache/apache server, ssh client, ssh server, numpy, and numpy in a virtual environment.
+
+To express this, the knowledge base would need entries for pip and setuptools. You would then use `install` with an explicit `version="..."` for each.

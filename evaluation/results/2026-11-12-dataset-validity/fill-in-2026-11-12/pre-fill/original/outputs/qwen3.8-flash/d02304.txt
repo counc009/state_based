@@ -1,0 +1,3 @@
+
+
+write ?repo to "/etc/apt/sources.list.d/kubernetes.list" with position=overwrite

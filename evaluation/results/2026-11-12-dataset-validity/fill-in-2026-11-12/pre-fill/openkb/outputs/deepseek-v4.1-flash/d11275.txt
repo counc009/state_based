@@ -1,0 +1,5 @@
+if directory "/etc/systemd/system/logstash.service.d" not exists then create directory at "/etc/systemd/system/logstash.service.d".
+write "[Service]
+User=root" to "/etc/systemd/system/logstash.service.d/override.conf" with position=overwrite.
+stop logstash service.
+start logstash service

@@ -1,0 +1,32 @@
+---
+- name: "Model qwen3.8-flash, Problem p17, Response 9"
+  hosts: redhat,ubuntu
+  become: true
+  vars:
+    postfix_main_config: /etc/postfix/main.cf
+    postfix_supported_os_families:
+    - Debian
+    - RedHat
+  tasks:
+  - name: Set postfix configuration URL
+    when: ansible_facts.os_family in postfix_supported_os_families
+    ansible.builtin.set_fact:
+      postfix_config_url: "{{ 'http://example.com/cfg.ubuntu' if ansible_facts.os_family
+        == 'Debian' else 'http://example.com/cfg.redhat' }}"
+  - name: Install latest postfix
+    when: ansible_facts.os_family in postfix_supported_os_families
+    ansible.builtin.package:
+      name: postfix
+      state: latest
+      update_cache: true
+  - name: Backup default configuration and download postfix configuration
+    when: ansible_facts.os_family in postfix_supported_os_families
+    ansible.builtin.get_url:
+      url: "{{ postfix_config_url }}"
+      dest: "{{ postfix_main_config }}"
+      owner: root
+      group: root
+      mode: '0644'
+      backup: true
+      force: true
+

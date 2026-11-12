@@ -1,0 +1,3 @@
+
+
+start kubelet service; enable kubelet service

@@ -1,0 +1,1 @@
+The request cannot be translated: Astrogator FQL has no actions for managing networks (only files and directories, users and groups, privileges, packages, services, repositories, environments, and reboots).

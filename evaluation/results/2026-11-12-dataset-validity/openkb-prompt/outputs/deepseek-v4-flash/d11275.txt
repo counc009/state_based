@@ -1,0 +1,1 @@
+enable sudo for user="logstash"

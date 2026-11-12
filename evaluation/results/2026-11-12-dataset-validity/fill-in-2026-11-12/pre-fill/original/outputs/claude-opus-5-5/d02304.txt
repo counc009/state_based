@@ -1,0 +1,1 @@
+if os is Debian based then create directory at "/etc/apt/keyrings"; download file from ?kubernetes_key_url to "/etc/apt/keyrings/kubernetes-apt-keyring.asc" with read=all, write=owner; write ?kubernetes_repository_line to "/etc/apt/sources.list.d/kubernetes.list" with position=overwrite, read=all, write=owner

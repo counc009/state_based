@@ -1,0 +1,17 @@
+---
+- name: "Model claude-opus-5-5, Problem p07, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure git is installed
+    ansible.builtin.package:
+      name: git
+      state: present
+  - name: Clone the release1.8.4 branch of ansible/ansible to /ansible over https
+    ansible.builtin.git:
+      repo: https://github.com/ansible/ansible.git
+      dest: /ansible
+      version: release1.8.4
+      clone: true
+      update: true
+

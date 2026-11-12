@@ -1,0 +1,5 @@
+No valid query is possible: the pinned KB catalog has no MySQL service. It only includes ssh server, postfix, and apache server. The literal form would be:
+
+start mysql service
+
+It will not resolve unless a MySQL service entry is added to the knowledge base.

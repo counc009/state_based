@@ -1,0 +1,3 @@
+Ferm is not in the pinned knowledge-base package catalog, so no valid Astrogator FQL query can express this request. If ferm were added to the catalog, the query would be:
+
+if os is RedHat then install ferm

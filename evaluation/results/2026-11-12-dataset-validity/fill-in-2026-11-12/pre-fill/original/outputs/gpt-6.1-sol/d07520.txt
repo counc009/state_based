@@ -1,0 +1,1 @@
+This request cannot be expressed in the supported FQL: symbolic-link creation and replacement are not available actions.

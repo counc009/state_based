@@ -1,0 +1,27 @@
+---
+- name: "Model gpt-6.1-sol, Problem p11b, Response 9"
+  hosts: debian
+  become: true
+  tasks:
+  - name: Ensure the backup directory exists on the controller
+    ansible.builtin.file:
+      path: /backup
+      state: directory
+      mode: "0755"
+    delegate_to: localhost
+    run_once: true
+  - name: Find WAR files in remote /tmp
+    ansible.builtin.find:
+      paths: /tmp
+      patterns: "*.war"
+      file_type: file
+    register: war_files
+  - name: Fetch WAR files to the controller
+    ansible.builtin.fetch:
+      src: "{{ item.path }}"
+      dest: /backup/
+      flat: true
+    loop: "{{ war_files.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+

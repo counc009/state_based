@@ -1,0 +1,1 @@
+install mono runtime; install mcs; install xsp4

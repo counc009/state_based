@@ -1,0 +1,3 @@
+
+
+if nfs running then stop nfs service

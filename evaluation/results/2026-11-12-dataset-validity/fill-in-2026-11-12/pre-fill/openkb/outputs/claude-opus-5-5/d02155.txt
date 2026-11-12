@@ -1,0 +1,20 @@
+This request can't be expressed in Astrogator FQL. The language has no action or condition for loading or checking modules, whether kernel modules or Apache modules.
+
+The closest supported forms do something different:
+- `install zeroconf` installs a package. It does not load a module.
+- `if zeroconf running then ...` or `start zeroconf service` manages a service. It does not load a module.
+
+Also, my earlier queries left literal paths unquoted, which breaks the quoting rule. Corrected versions:
+
+```
+set file permissions in "/srv/path" with read=all, write=owner, list directory=all
+```
+```
+delete directory at "/home/mydata/web"
+```
+```
+delete files in "/home/mydata/web"
+```
+```
+if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file
+```

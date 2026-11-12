@@ -1,0 +1,11 @@
+---
+- name: "Model glm-5.3, Problem p01, Response 2"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure /srv/www exists
+    ansible.builtin.file:
+      path: /srv/www
+      state: directory
+      mode: "0755"
+

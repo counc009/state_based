@@ -1,0 +1,24 @@
+---
+- name: "Model qwen3.8-flash, Problem p15, Response 3"
+  hosts: all
+  become: true
+  tasks:
+  - name: Ensure target directory exists
+    ansible.builtin.file:
+      path: /home/mydata/web
+      state: directory
+  - name: Find immediate contents of target directory
+    ansible.builtin.find:
+      paths: /home/mydata/web
+      recurse: false
+      hidden: true
+      file_type: any
+    register: web_contents
+  - name: Remove found contents
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: absent
+    loop: "{{ web_contents.files | default([]) }}"
+    loop_control:
+      label: "{{ item.path }}"
+

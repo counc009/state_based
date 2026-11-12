@@ -1,0 +1,18 @@
+---
+- name: "Model claude-opus-5-5, Problem p09, Response 10"
+  hosts: all
+  become: true
+  tasks:
+  - name: Get information about user foo
+    ansible.builtin.getent:
+      database: passwd
+      key: foo
+  - name: Add the line 'module load gcc' to the end of foo's .bashrc
+    ansible.builtin.lineinfile:
+      path: "{{ getent_passwd['foo'][4] }}/.bashrc"
+      line: "module load gcc"
+      insertafter: EOF
+      create: true
+      owner: foo
+      mode: "0644"
+

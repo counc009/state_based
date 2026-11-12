@@ -1,0 +1,28 @@
+---
+- name: "Model claude-opus-5-5, Problem p11b, Response 9"
+  hosts: debian
+  become: true
+  tasks:
+  - name: Ensure /backup directory exists on the controller
+    ansible.builtin.file:
+      path: /backup
+      state: directory
+      mode: "0755"
+    delegate_to: localhost
+    run_once: true
+  - name: Find all .war files in /tmp on the remote machine
+    ansible.builtin.find:
+      paths: /tmp
+      patterns: "*.war"
+      file_type: file
+      recurse: false
+    register: war_files
+  - name: Fetch .war files to /backup on the controller
+    ansible.builtin.fetch:
+      src: "{{ item.path }}"
+      dest: "/backup/"
+      flat: true
+    loop: "{{ war_files.files }}"
+    loop_control:
+      label: "{{ item.path }}"
+

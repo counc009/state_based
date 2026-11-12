@@ -1,0 +1,3 @@
+
+
+write "deb https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /" to "/etc/apt/sources.list.d/kubernetes.list" with position=overwrite

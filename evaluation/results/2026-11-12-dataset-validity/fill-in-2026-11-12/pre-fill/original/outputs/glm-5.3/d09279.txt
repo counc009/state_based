@@ -1,0 +1,1 @@
+I can't translate this request: ReadyAPI is not a package in the supported knowledge-base catalog, so no valid uninstall action exists for it in Astrogator FQL.

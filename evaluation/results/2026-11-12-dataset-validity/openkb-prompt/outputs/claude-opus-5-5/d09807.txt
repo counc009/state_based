@@ -1,0 +1,1 @@
+This request cannot be expressed in Astrogator FQL. The language has no action for querying or reporting a package's version. It can only check whether a package is installed (`if docker-compose installed then ...`) or install a specific version (`install docker-compose with version="..."`).

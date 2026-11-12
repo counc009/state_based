@@ -1,0 +1,7 @@
+model,n,original_responses,openkb_responses,openkb_api_failures,openkb_budget_pending,openkb_deadline_stopped,openkb_billing_pending,original_generation_cost_usd,openkb_generation_cost_usd
+gpt-6.1-sol,300,300,300,0,0,0,0,1.0016185,0.6580965
+claude-opus-5-5,300,300,300,0,0,0,0,6.290804,5.382204
+glm-5.3,300,300,300,0,0,0,0,1.187695621677,4.8761319448650005
+deepseek-v4.1-flash,300,300,300,0,0,0,0,1.7538230462589999,0.5156636718359999
+qwen3.8-flash,300,300,300,0,0,0,0,1.510038516894,0.382603405484
+deepseek-v4-flash,300,300,300,0,0,0,0,7.577109983031001,1.1077671990890001

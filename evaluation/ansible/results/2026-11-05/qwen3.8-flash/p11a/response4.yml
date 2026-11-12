@@ -1,0 +1,25 @@
+---
+- name: "Model qwen3.8-flash, Problem p11a, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Find .war files on the Ansible controller
+    ansible.builtin.find:
+      paths: /backup
+      patterns:
+      - "*.war"
+      file_type: file
+      recurse: false
+    delegate_to: localhost
+    run_once: true
+    changed_when: false
+    register: war_files
+  - name: Copy .war files from controller to /tmp on remote hosts
+    ansible.builtin.copy:
+      src: "{{ item.path }}"
+      dest: "/tmp/"
+      mode: preserve
+      remote_src: false
+    loop: "{{ war_files.files | default([]) }}"
+    when: war_files.matched | default(0) > 0
+

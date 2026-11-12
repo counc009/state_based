@@ -1,0 +1,19 @@
+---
+- name: "Model glm-5.3, Problem p04, Response 10"
+  hosts: all
+  become: true
+  tasks:
+  - name: Recursively set permissions on directories (owner rwx, others r-x)
+    ansible.builtin.file:
+      path: /srv/path
+      state: directory
+      owner: root
+      group: root
+      mode: "0755"
+      recurse: true
+  - name: Set read-only permissions for all files (owner rw, others r)
+    ansible.builtin.file:
+      path: "{{ item }}"
+      mode: "0644"
+    loop: "{{ lookup('ansible.builtin.fileglob', '/srv/path/*', wantlist=true) }}"
+

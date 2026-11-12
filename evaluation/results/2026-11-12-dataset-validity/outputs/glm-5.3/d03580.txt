@@ -1,0 +1,1 @@
+This operation cannot be expressed in Astrogator FQL — the language has no action for updating a package manager cache, and the pinned knowledge base covers only Debian/Ubuntu (apt) and RedHat (dnf) contexts, not Alpine (apk).

@@ -1,0 +1,1 @@
+I can't translate this request. "left4dead2" is not a service in the supported catalog (which only includes ssh server, postfix, and apache server), so there is no valid Astrogator FQL query for starting it.

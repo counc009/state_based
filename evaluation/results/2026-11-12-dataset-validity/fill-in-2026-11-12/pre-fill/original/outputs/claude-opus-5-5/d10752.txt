@@ -1,0 +1,11 @@
+This request can't be expressed in Astrogator FQL with the pinned KB. `install PACKAGE` only accepts packages in the catalog, and CFN Bootstrap (aws-cfn-bootstrap / cfn-init) isn't one of them. FQL also has no action for a pip install from a URL or for running arbitrary commands.
+
+The closest the language allows is fetching the installer archive. This does not install it:
+
+```
+if os is Ubuntu then download file from "https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz" to "/tmp/aws-cfn-bootstrap-py3-latest.tar.gz"
+```
+
+To support the full request, the KB needs a "cfn bootstrap" package entry, such as pip `aws-cfn-bootstrap` from that URL for the Ubuntu context.
+
+Also, my earlier answers left paths unquoted. Per the lexical rules they should be quoted, for example `delete directory at "/home/mydata/web"`.

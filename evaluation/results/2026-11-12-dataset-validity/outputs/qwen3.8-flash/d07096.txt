@@ -1,0 +1,3 @@
+
+
+if directory "/usr/local/ophidia/share" not exists then create directory at "/usr/local/ophidia/share"

@@ -1,0 +1,1 @@
+read file at "/proc/cpuinfo"

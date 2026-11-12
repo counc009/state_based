@@ -1,0 +1,11 @@
+---
+- name: "Model deepseek-v4-flash, Problem p10, Response 4"
+  hosts: all
+  become: true
+  tasks:
+  - name: Lock the service user's password
+    ansible.builtin.user:
+      name: service
+      password: '!'
+      update_password: always
+

@@ -1,0 +1,3 @@
+
+
+if Wiki.js installed then ?action

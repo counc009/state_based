@@ -1,0 +1,3 @@
+
+
+write "SELINUX=disabled" to "/etc/selinux/config" with position=overwrite

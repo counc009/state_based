@@ -1,0 +1,1 @@
+This request can't be expressed as a valid query. "aiwacs agent" is not in the knowledge-base catalog as a package or a service. Only bash, zsh, postfix, apache server, ssh client, ssh server, and numpy can be installed. Only ssh server, postfix, and apache server can be started.

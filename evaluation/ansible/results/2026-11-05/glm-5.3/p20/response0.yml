@@ -1,0 +1,47 @@
+---
+- name: "Model glm-5.3, Problem p20, Response 10"
+  hosts: redhat,debian
+  become: true
+  vars:
+    ssh_user: fizbaz
+    ssh_key_path: "/home/{{ ssh_user }}/.ssh/fizbaz_rsa"
+  tasks:
+  - name: Install SSH client and server (Debian family)
+    ansible.builtin.package:
+      name:
+      - openssh-client
+      - openssh-server
+      state: present
+    when: ansible_facts['os_family'] == "Debian"
+  - name: Install SSH client and server (RedHat family)
+    ansible.builtin.package:
+      name:
+      - openssh-clients
+      - openssh-server
+      state: present
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Ensure sshd is running and enabled (Debian family)
+    ansible.builtin.service:
+      name: ssh
+      state: started
+      enabled: true
+    when: ansible_facts['os_family'] == "Debian"
+  - name: Ensure sshd is running and enabled (RedHat family)
+    ansible.builtin.service:
+      name: sshd
+      state: started
+      enabled: true
+    when: ansible_facts['os_family'] == "RedHat"
+  - name: Ensure user fizbaz exists
+    ansible.builtin.user:
+      name: "{{ ssh_user }}"
+      state: present
+  - name: Generate SSH key for fizbaz
+    community.crypto.openssh_keypair:
+      path: "{{ ssh_key_path }}"
+      type: rsa
+      owner: "{{ ssh_user }}"
+      mode: "0600"
+    become: true
+    become_user: "{{ ssh_user }}"
+

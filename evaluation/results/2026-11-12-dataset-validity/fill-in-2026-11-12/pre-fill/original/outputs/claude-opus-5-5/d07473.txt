@@ -1,0 +1,16 @@
+This request can't be expressed exactly. Astrogator FQL has no link or symlink action, and the source path of the tcollector start/stop script isn't known.
+
+The closest supported approximation **copies** the script instead of linking it, with the unknown source left as an unspecified value:
+
+```
+copy file from ?path to "/etc/init.d"
+```
+
+A copy won't pick up later changes to the original script, so this is a substitute, not a true link.
+
+Several of my earlier answers were also malformed: they left literals unquoted, and FQL requires double quotes. The corrected versions are:
+
+- `set file permissions in "/srv/path" with read=all, write=owner, list directory=all`
+- `delete directory at "/home/mydata/web"`
+- `delete files in "/home/mydata/web"`
+- `if os is RedHat then install apache server; create user with name="webdev"; if apache server html home page file not exists then create apache server html home page file`

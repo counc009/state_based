@@ -1,0 +1,3 @@
+FQL has no way to express "on OpenBSD." OS conditions only support Debian, Ubuntu, RedHat, `Debian based`, and `RedHat based`, so I can't limit this to OpenBSD hosts. The closest query creates the user on every managed host:
+
+create user with name="munin-async"

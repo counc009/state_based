@@ -1,0 +1,11 @@
+---
+- name: "Model qwen3.8-flash, Problem p12, Response 7"
+  hosts: all
+  become: true
+  tasks:
+  - name: Move file.txt to data.txt
+    ansible.builtin.file:
+      src: /scratch/file.txt
+      dest: /home/user/data.txt
+      state: move
+

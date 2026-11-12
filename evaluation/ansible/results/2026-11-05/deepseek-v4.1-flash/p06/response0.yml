@@ -1,0 +1,12 @@
+---
+- name: "Model deepseek-v4.1-flash, Problem p06, Response 10"
+  hosts: all
+  become: true
+  tasks:
+  - name: Create virtual environment and install numpy
+    ansible.builtin.pip:
+      name: numpy
+      virtualenv: /user/home/venv
+      virtualenv_command: python3.10 -m venv
+      state: present
+

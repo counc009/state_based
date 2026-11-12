@@ -1,0 +1,1 @@
+create file at "/etc/apt/sources.list.d/kubernetes.list" with content="deb https://apt.kubernetes.io/ kubernetes-xenial main"

@@ -1,0 +1,8 @@
+This request can't be expressed as a valid query against the pinned example KB:
+
+- **rsync is not in the package catalog.** `install PACKAGE` only resolves bash, zsh, postfix, apache/apache server, ssh client, ssh server, and numpy.
+- **FQL has no way to select a package manager such as yum.** The KB picks the manager itself; RedHat-side packages resolve to dnf.
+
+The closest form would be the following, but `rsync` will fail to resolve until it is added to the KB:
+
+if os is RedHat based then install rsync

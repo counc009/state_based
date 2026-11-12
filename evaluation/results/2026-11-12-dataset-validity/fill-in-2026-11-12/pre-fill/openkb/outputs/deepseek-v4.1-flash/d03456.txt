@@ -1,0 +1,1 @@
+if k9s installed then set environment variable K9S_INSTALLED to "true" otherwise set environment variable K9S_INSTALLED to "false"

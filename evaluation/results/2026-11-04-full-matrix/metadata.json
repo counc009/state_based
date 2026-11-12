@@ -1,0 +1,186 @@
+{
+  "execution_started_at": "2026-11-04T21:58:57.322614+00:00",
+  "execution_finished_at": "2026-11-04T22:55:23.131491+00:00",
+  "by_model": {
+    "claude-opus-5-5": 5.006835,
+    "deepseek-v4-flash": 0.233607442153,
+    "deepseek-v4.1-flash": 2.0854872283269996,
+    "glm-5.3": 0.777731340798,
+    "gpt-6.1-sol": 0.9007938,
+    "qwen3.8-flash": 0.21819524080000002
+  },
+  "matrix_cost_usd": 9.222650052078,
+  "prior_cost_reserve_usd": 0.02,
+  "budget_accounted_usd": 9.242650052078,
+  "cache_detail_reconciliation_usd": 0.0018890000000002516,
+  "rates": {
+    "sol": {
+      "provider": "openai",
+      "id": "gpt-6.1-sol",
+      "stratum": "balanced",
+      "input_per_million": 2,
+      "output_per_million": 10,
+      "cache_write_per_million": 2.5,
+      "cached_input_per_million": 0.1,
+      "pricing_checked": "2026-11-04",
+      "pricing_source": "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "enabled": true
+    },
+    "opus": {
+      "provider": "anthropic",
+      "id": "claude-opus-5-5",
+      "stratum": "frontier",
+      "enabled": true,
+      "optional": true,
+      "reasoning_effort": "high",
+      "input_per_million": 4,
+      "output_per_million": 20,
+      "cache_write_per_million": 5,
+      "cached_input_per_million": 0.2,
+      "pricing_checked": "2026-11-04",
+      "pricing_source": "https://platform.claude.com/docs/en/models/opus-5-5/overview"
+    },
+    "deepseek-v4.1-flash": {
+      "provider": "agentfanclub",
+      "id": "deepseek-v4.1-flash",
+      "enabled": true,
+      "base_url": "https://api.router.agentfan.club/inference/v1",
+      "reasoning_effort": "high",
+      "catalog_reasoning": true,
+      "input_per_million": 0.256856,
+      "output_per_million": 0.930653,
+      "cache_write_per_million": 0,
+      "cached_input_per_million": 0.256856,
+      "pricing_source": "https://api.router.agentfan.club/api/models",
+      "pricing_checked": "2026-11-04",
+      "pricing_unit_assumption": "USD per million tokens; catalog itself does not label currency or denominator",
+      "catalog_limits": {
+        "context": 1048570,
+        "output": 384000
+      },
+      "reasoning_validation": "HIGH accepted in one Chat Completions connectivity call"
+    },
+    "deepseek-v4-flash": {
+      "provider": "agentfanclub",
+      "id": "deepseek-v4-flash",
+      "enabled": true,
+      "base_url": "https://api.router.agentfan.club/inference/v1",
+      "reasoning_effort": "high",
+      "catalog_reasoning": true,
+      "input_per_million": 0.161857,
+      "output_per_million": 0.37146,
+      "cache_write_per_million": 0,
+      "cached_input_per_million": 0.161857,
+      "pricing_source": "https://api.router.agentfan.club/api/models",
+      "pricing_checked": "2026-11-04",
+      "pricing_unit_assumption": "USD per million tokens; catalog itself does not label currency or denominator",
+      "catalog_limits": {
+        "context": 511994,
+        "output": 128000
+      },
+      "reasoning_validation": "HIGH accepted in one Chat Completions connectivity call"
+    },
+    "glm-5.3": {
+      "provider": "agentfanclub",
+      "id": "glm-5.3",
+      "enabled": true,
+      "base_url": "https://api.router.agentfan.club/inference/v1",
+      "reasoning_effort": "high",
+      "catalog_reasoning": true,
+      "input_per_million": 1.321413,
+      "output_per_million": 4.248318,
+      "cache_write_per_million": 0,
+      "cached_input_per_million": 1.321413,
+      "pricing_source": "https://api.router.agentfan.club/api/models",
+      "pricing_checked": "2026-11-04",
+      "pricing_unit_assumption": "USD per million tokens; catalog itself does not label currency or denominator",
+      "catalog_limits": {
+        "context": 524282,
+        "output": 131072
+      },
+      "reasoning_validation": "HIGH accepted in one Chat Completions connectivity call"
+    },
+    "qwen3.8-flash": {
+      "provider": "agentfanclub",
+      "id": "qwen3.8-flash",
+      "enabled": true,
+      "base_url": "https://api.router.agentfan.club/inference/v1",
+      "reasoning_effort": "xhigh",
+      "catalog_reasoning": false,
+      "input_per_million": 0.142798,
+      "output_per_million": 0.452902,
+      "cache_write_per_million": 0,
+      "cached_input_per_million": 0.142798,
+      "pricing_source": "https://api.router.agentfan.club/api/models",
+      "pricing_checked": "2026-11-04",
+      "pricing_unit_assumption": "USD per million tokens; catalog itself does not label currency or denominator",
+      "catalog_limits": {
+        "context": 262138,
+        "output": 131072
+      },
+      "reasoning_validation": "HIGH rejected HTTP 400; error reports xhigh (default), medium, low. Explicit XHIGH configured from that supported-values response; first effort-omitted call completed. No third call made."
+    }
+  },
+  "manifest_sha256": "74a7bbe58746010365de796780c6effd269de3c7a643d9b899153579a749d44e",
+  "runner_sha256": "577a2936c9fd988708d47d365629cd07f84bf6a97249ebbe6f5b2f0195e14a74",
+  "exporter_sha256": "a1c8b4e4fc938c4d2645e65a5c330ca6cedb8aed821bbfb05518bad7dcdd98e1",
+  "initial_runner_sha256": "ebea16372e77b9dfe2164c6b70733c89f21c65755bbb555a2aa6ed6ede6a2d7b",
+  "references_sha256": "fe8fb05106da4e857fe4dc458909307831f622712e3918a365a22457f7ba94eb",
+  "paper_sha256": "02e020763955e0a79712423bda93b7d02fd5fa763135988ccc7127097b067bb3",
+  "binary_sha256": {
+    "_build/default/evaluation/native/effects.exe": "7e8a51f90ab7389d8caf9ce853e0bc49befcb317aef54ffdef27eb4f3815bacf",
+    "_build/default/bin/query_interp.exe": "01bf77a73cd5d0a370d17dab22e89c20b929627c8f45b5364da56dc5b364be16",
+    "_build/default/bin/verify.exe": "9ec6d86677f2299dd2de514e87479818f8d96ecc66d2474aa2614b7c444e264e"
+  },
+  "module_sha256": {
+    "modules/ansible_utils.type": "63a9310cf45d57ef9371a0d834395108ed111fffe37670846e6e787c1f89879c",
+    "modules/apt.type": "07fa5a284194af18e5fae7595a5ec1a0c327ba0a1c1905e638d760366067634a",
+    "modules/blockinfile.type": "befbd720321fae4464ec82b659296c5214d49eafe36ffe65b12bc61459998543",
+    "modules/copy.type": "aa231e532fbc53f93203187e813aa2ad14097f17f46def24f60ab77030a3104e",
+    "modules/debug.type": "b8c087101634d7a004d1af376dec6d771498de9d3229ed65e3a5bd4f27e26aab",
+    "modules/dnf.type": "9dd135410e8a620b219af5994f192405de4b5684614c6650d0d2886d296323db",
+    "modules/env.type": "b8c216542896ef402feafd8a5838959f2ec13794476e0e5b8b656f9619b3c2f0",
+    "modules/fetch.type": "5e0d9486c8b8195b5a5287db85999603bedf503137d5910311a861a8fdd9d784",
+    "modules/file.type": "1d68154723251ce3afad0ed574919da21dc09310706e40b2be035c9400eacd3d",
+    "modules/find.type": "0f02a348889bac506c297a2247ef8891ff6dc854b1863c5ad221c13d91156394",
+    "modules/fs.type": "65c03c5c0db08a5cb7346ac394063a0b5772dd6c657ee99f052a772f2dcd3172",
+    "modules/get_url.type": "0ab7cd5424df7b2d88052d2c34f7d1aa20a36bb11e413f29a4975f22710dcf3a",
+    "modules/git.type": "6653b71e38f3314557b0212d16166af41d4030e87b978e8ec1735f96bf59b441",
+    "modules/group.type": "a49b1a7a8e405d7eb2f9d75e10c188d67344992bc72971f55c77f4267399dad2",
+    "modules/lineinfile.type": "fb1d25e8ade79af2139249891bd0d80c474564dd5fc79f26efe98da59ead62af",
+    "modules/package.type": "5dea475a998209c71719f9066bf4f9e9d0b9e3a0aeb03de1f70c50cff45aa591",
+    "modules/pip.type": "960e7f323c979cd36728cb9a51773538d5d754849c1b66dd6fefa87814a5213f",
+    "modules/pkgs.type": "206250838b48624afcfc556c7556645630be5b06b5b9d3e198a158be9a5fa8fd",
+    "modules/reboot.type": "c97de2de6e2af3e351396577497024963e81dc0e442104efdbaad5b8a21cca13",
+    "modules/service.type": "ff125e1cbd4ac3ffd39834f5521c8b89ca4050e4bc9b8ffda418debd2ce859f6",
+    "modules/stat.type": "c415d5ba3bf7b09d60262d0c810a891159fdf9195dabbc435bc370718a126db1",
+    "modules/test_delete.type": "ab47fa65bbc6afa8de21939d31fc25f34d6d3892caa4fdcd37b922551b22fbe4",
+    "modules/uri.type": "bcd9b64cd924fb7fd0a9f2c4700640b5f18e75e246ffe36281aa5bec01b966e2",
+    "modules/user.type": "a24e5addc5d8b83f5e2e867b4b0a698b01ad4d37a99fc23d2240ab4d26c40de1",
+    "modules/users.type": "2f533331404c44920e241d0f610d6da2d4e983c4653d3d66a22e0c56af19074f"
+  },
+  "sources": {
+    "dataset": "49c4ed9f5766505aa09fa47704cebd6ecd89d716fe6574abc78f16632b8801c8",
+    "runner": "529e20ac02a63aabbd398a868bf63c4b1dfc3bb3debd92bb830a7ae56a2bcbec",
+    "models": "71eb70e172905fdde52b293c1f450646488533133f4bb5f06cde890942769274",
+    "registry": "13ed689602bae1479942d22f510ff7408040586937ee5b46b4032b9aca5a871d",
+    "compact-v1": "0652b99c0314b1ef1153a05e3f87a9ccb2d2d3f84c284c1bcfb42bbe34e52efc",
+    "handbook-v3": "fa729aeaf773aab55c88d9457ae0e742094e97bd72517ac62f32bfaf81ad6a3b"
+  },
+  "repetitions": 10,
+  "pricing_notes": "Token-based estimates at frozen rates, not invoices; missing usage charged full reservation. Router rates assume USD/MTok. Cost includes retries.",
+  "correctness": "Primary correct = structural normalized reference-effect match, not program-execution correctness or general user-intent adequacy.",
+  "reference_discrepancies": {
+    "a03": "Supplied reference playbook fails native lowering (templated state string/file_state).",
+    "a20": "Supplied reference playbook rejects; eight-space sudoers separator vs tab diagnostic. Original references unchanged."
+  },
+  "anthropic_remaining": {
+    "cells": 0,
+    "conservative_additional_cost_usd": 0,
+    "already_accounted_usd": 5.006983,
+    "guard_headroom_usd": 16.993017000000002,
+    "topup_to_resume_with_2_usd_reserve_assuming_initial_24_usd": 0.0,
+    "note": "Exact invoice/balance unknown. Top-up is conservative reservation arithmetic, including unknown-billing attempts."
+  }
+}

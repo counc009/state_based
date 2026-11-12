@@ -1,0 +1,61 @@
+---
+- name: "Model qwen3.8-flash, Problem p17, Response 5"
+  hosts: redhat,ubuntu
+  become: true
+  vars:
+    postfix_conf_file: /etc/postfix/main.cf
+    postfix_backup_conf_file: /etc/postfix/main.cf.bak
+    postfix_config_urls:
+      ubuntu: http://example.com/cfg.ubuntu
+      redhat: http://example.com/cfg.redhat
+  tasks:
+  - name: Identify Ubuntu target
+    ansible.builtin.set_fact:
+      postfix_target: ubuntu
+    when:
+    - ansible_facts['distribution'] == 'Ubuntu'
+  - name: Identify RedHat target
+    ansible.builtin.set_fact:
+      postfix_target: redhat
+    when:
+    - postfix_target is not defined
+    - ansible_facts['os_family'] == 'RedHat'
+  - name: Install latest postfix package on Ubuntu
+    ansible.builtin.apt:
+      name: postfix
+      state: latest
+      update_cache: true
+    when:
+    - postfix_target is defined
+    - postfix_target == 'ubuntu'
+    environment:
+      DEBIAN_FRONTEND: noninteractive
+  - name: Install latest postfix package on RedHat
+    ansible.builtin.package:
+      name: postfix
+      state: latest
+    when:
+    - postfix_target is defined
+    - postfix_target == 'redhat'
+  - name: Backup default postfix configuration file
+    ansible.builtin.copy:
+      src: "{{ postfix_conf_file }}"
+      dest: "{{ postfix_backup_conf_file }}"
+      remote_src: true
+      force: false
+      owner: root
+      group: root
+      mode: '0644'
+    when:
+    - postfix_target is defined
+  - name: Download replacement postfix configuration file
+    ansible.builtin.get_url:
+      url: "{{ postfix_config_urls[postfix_target] }}"
+      dest: "{{ postfix_conf_file }}"
+      owner: root
+      group: root
+      mode: '0644'
+      backup: true
+    when:
+    - postfix_target is defined
+

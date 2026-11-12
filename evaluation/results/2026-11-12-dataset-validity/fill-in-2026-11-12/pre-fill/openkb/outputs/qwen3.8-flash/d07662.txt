@@ -1,0 +1,3 @@
+
+
+set environment variable SELINUX to "disabled"

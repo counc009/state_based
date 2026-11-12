@@ -1,0 +1,1 @@
+This request can't be expressed in Astrogator FQL. The language has no action for running commands or checking versions, and docker-compose is not in the knowledge-base package catalog.

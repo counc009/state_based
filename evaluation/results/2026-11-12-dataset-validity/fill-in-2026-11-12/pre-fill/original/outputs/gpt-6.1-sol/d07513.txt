@@ -1,0 +1,1 @@
+No supported query: Archlinux and ufw are outside the catalog, and standalone package checks are not defined.
